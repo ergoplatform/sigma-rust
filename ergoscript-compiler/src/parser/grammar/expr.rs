@@ -27,7 +27,7 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
             let m = lhs.precede(p);
             p.bump(); // eat '.'
             p.expect(TokenKind::Ident); // field name
-            // Optional type args: [Type] or [(Type, Type)] or [Coll[Byte]]
+                                        // Optional type args: [Type] or [(Type, Type)] or [Coll[Byte]]
             if p.at(TokenKind::LBracket) {
                 p.bump(); // eat '['
                 parse_type(p);
@@ -75,7 +75,7 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
             }
             let m = lhs.precede(p);
             // Parse the block/lambda as the single argument
-            let arg = block_expr(p);
+            let _arg = block_expr(p);
             lhs = m.complete(p, SyntaxKind::FuncCall);
             continue;
         }
@@ -136,9 +136,7 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
         int_number(p)
     } else if p.at(TokenKind::LongNumber) {
         long_number(p)
-    } else if p.at(TokenKind::TrueKw) {
-        bool_literal(p)
-    } else if p.at(TokenKind::FalseKw) {
+    } else if p.at(TokenKind::TrueKw) || p.at(TokenKind::FalseKw) {
         bool_literal(p)
     } else if p.at(TokenKind::StringLiteral) {
         string_literal(p)
@@ -307,7 +305,7 @@ fn block_expr(p: &mut Parser) -> CompletedMarker {
     // or by ) then => (empty param list)
     if p.at(TokenKind::LParen) && is_lambda_start(p) {
         p.bump(); // eat '('
-        // Parse comma-separated params: ident : Type
+                  // Parse comma-separated params: ident : Type
         if !p.at(TokenKind::RParen) {
             p.expect(TokenKind::Ident); // param name
             if p.at(TokenKind::Colon) {
@@ -353,24 +351,40 @@ fn is_lambda_start(p: &Parser) -> bool {
     let tokens = &p.source.tokens;
     let mut i = p.source.cursor;
     // Skip trivia to find (
-    while i < tokens.len() && tokens[i].kind.is_trivia() { i += 1; }
-    if i >= tokens.len() || tokens[i].kind != TokenKind::LParen { return false; }
+    while i < tokens.len() && tokens[i].kind.is_trivia() {
+        i += 1;
+    }
+    if i >= tokens.len() || tokens[i].kind != TokenKind::LParen {
+        return false;
+    }
     i += 1;
     // Skip trivia after (
-    while i < tokens.len() && tokens[i].kind.is_trivia() { i += 1; }
-    if i >= tokens.len() { return false; }
+    while i < tokens.len() && tokens[i].kind.is_trivia() {
+        i += 1;
+    }
+    if i >= tokens.len() {
+        return false;
+    }
     // If ) follows immediately → could be empty lambda () =>
     if tokens[i].kind == TokenKind::RParen {
         i += 1;
-        while i < tokens.len() && tokens[i].kind.is_trivia() { i += 1; }
+        while i < tokens.len() && tokens[i].kind.is_trivia() {
+            i += 1;
+        }
         return i < tokens.len() && tokens[i].kind == TokenKind::Arrow;
     }
     // Expect Ident (param name)
-    if tokens[i].kind != TokenKind::Ident { return false; }
+    if tokens[i].kind != TokenKind::Ident {
+        return false;
+    }
     i += 1;
     // Skip trivia after Ident
-    while i < tokens.len() && tokens[i].kind.is_trivia() { i += 1; }
-    if i >= tokens.len() { return false; }
+    while i < tokens.len() && tokens[i].kind.is_trivia() {
+        i += 1;
+    }
+    if i >= tokens.len() {
+        return false;
+    }
     // Must be : for this to be a lambda param
     tokens[i].kind == TokenKind::Colon
 }

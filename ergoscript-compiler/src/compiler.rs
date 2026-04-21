@@ -142,10 +142,9 @@ pub fn compile_canonical(
                 })
             } else {
                 // Node bytes differ — use them (canonical reference)
-                let canonical_tree =
-                    ErgoTree::sigma_parse_bytes(&node_bytes).map_err(|e| {
-                        CompileError::ErgoTreeError(ErgoTreeError::SigmaParsingError(e))
-                    })?;
+                let canonical_tree = ErgoTree::sigma_parse_bytes(&node_bytes).map_err(|e| {
+                    CompileError::ErgoTreeError(ErgoTreeError::SigmaParsingError(e))
+                })?;
                 Ok(CanonicalCompileResult {
                     tree: canonical_tree,
                     matched: Some(false),
@@ -184,19 +183,28 @@ fn compile_via_node(source: &str, node_url: &str, api_key: &str) -> Result<Vec<u
     let output = Command::new("curl")
         .args([
             "-s",
-            "-X", "POST",
+            "-X",
+            "POST",
             &p2s_url,
-            "-H", "Content-Type: application/json",
-            "-H", &format!("api_key: {}", api_key),
-            "-d", &body,
-            "--connect-timeout", "5",
-            "--max-time", "10",
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            &format!("api_key: {}", api_key),
+            "-d",
+            &body,
+            "--connect-timeout",
+            "5",
+            "--max-time",
+            "10",
         ])
         .output()
         .map_err(|e| format!("curl not found or failed to execute: {}", e))?;
 
     if !output.status.success() {
-        return Err(format!("p2sAddress curl failed: {}", String::from_utf8_lossy(&output.stderr)));
+        return Err(format!(
+            "p2sAddress curl failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
 
     let resp_text = String::from_utf8_lossy(&output.stdout).to_string();
@@ -209,15 +217,21 @@ fn compile_via_node(source: &str, node_url: &str, api_key: &str) -> Result<Vec<u
         .args([
             "-s",
             &tree_url,
-            "-H", &format!("api_key: {}", api_key),
-            "--connect-timeout", "5",
-            "--max-time", "10",
+            "-H",
+            &format!("api_key: {}", api_key),
+            "--connect-timeout",
+            "5",
+            "--max-time",
+            "10",
         ])
         .output()
         .map_err(|e| format!("curl failed: {}", e))?;
 
     if !output.status.success() {
-        return Err(format!("addressToTree curl failed: {}", String::from_utf8_lossy(&output.stderr)));
+        return Err(format!(
+            "addressToTree curl failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
     }
 
     let resp_text = String::from_utf8_lossy(&output.stdout).to_string();
@@ -254,8 +268,7 @@ fn extract_json_string(json: &str, key: &str) -> Option<String> {
     // Skip `: ` or `:`
     let after_colon = after_key.trim_start().strip_prefix(':')?;
     let after_ws = after_colon.trim_start();
-    if after_ws.starts_with('"') {
-        let content = &after_ws[1..];
+    if let Some(content) = after_ws.strip_prefix('"') {
         let end = content.find('"')?;
         Some(content[..end].to_string())
     } else {
@@ -265,7 +278,7 @@ fn extract_json_string(json: &str, key: &str) -> Option<String> {
 
 /// Decode hex string to bytes
 fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("odd-length hex string".to_string());
     }
     (0..hex.len())
@@ -318,8 +331,7 @@ mod tests {
     fn test_field_access_unresolved() {
         // HSB.HEIGHT now parses as a valid field access
         // but HSB is unresolved, so MIR lowering fails
-        let result = compile_expr("HSB.HEIGHT", ScriptEnv::new());
-        assert!(result.is_err());
+        assert!(compile_expr("HSB.HEIGHT", ScriptEnv::new()).is_err());
     }
 
     #[test]
@@ -382,30 +394,20 @@ mod tests {
 
     #[test]
     fn test_session2_val_binding() {
-        let result = compile_expr(
-            "{ val x: Long = 5L; sigmaProp(x > 0L) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ val x: Long = 5L; sigmaProp(x > 0L) }", ScriptEnv::new());
         assert!(result.is_ok(), "Failed: {:?}", result.err());
     }
 
     #[test]
     fn test_session3_self_value() {
-        let result = compile_expr(
-            "{ sigmaProp(SELF.value > 0L) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ sigmaProp(SELF.value > 0L) }", ScriptEnv::new());
         assert!(result.is_ok(), "Failed: {:?}", result.err());
     }
 
     #[test]
     fn test_session3_ergotree_hex() {
         use ergotree_ir::serialization::SigmaSerializable;
-        let tree = compile(
-            "{ sigmaProp(SELF.value > 0L) }",
-            ScriptEnv::new(),
-        )
-        .unwrap();
+        let tree = compile("{ sigmaProp(SELF.value > 0L) }", ScriptEnv::new()).unwrap();
         let bytes = tree.sigma_serialize_bytes().unwrap();
         let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
         // Expected from Ergo node
@@ -414,10 +416,7 @@ mod tests {
 
     #[test]
     fn test_session2_val_binding_no_annotation() {
-        let result = compile_expr(
-            "{ val x = 42; sigmaProp(x > 0) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ val x = 42; sigmaProp(x > 0) }", ScriptEnv::new());
         assert!(result.is_ok(), "Failed: {:?}", result.err());
     }
 
@@ -427,11 +426,7 @@ mod tests {
         // Verify our output serializes and deserializes correctly.
         // Note: Scala compiler constant-folds this to sigmaProp(true),
         // so byte-for-byte match is not expected (no optimization passes yet).
-        let tree = compile(
-            "{ val x: Long = 5L; sigmaProp(x > 0L) }",
-            ScriptEnv::new(),
-        )
-        .unwrap();
+        let tree = compile("{ val x: Long = 5L; sigmaProp(x > 0L) }", ScriptEnv::new()).unwrap();
         let bytes = tree.sigma_serialize_bytes().unwrap();
         assert!(!bytes.is_empty());
         // Verify it round-trips through serialization
@@ -601,7 +596,11 @@ mod tests {
   sigmaProp(selfValid && outValid && pairingValid && conservation && nonTrivial && singleReserveInput)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "Reserve contract failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Reserve contract failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -643,7 +642,11 @@ mod tests {
             "{ val x = SELF.R5[Coll[Byte]].get; sigmaProp(x.size > 0) }",
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "Coll[Byte] register failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Coll[Byte] register failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -657,25 +660,16 @@ mod tests {
 
     #[test]
     fn test_session9_sigma_and_or() {
-        let result = compile_expr(
-            "{ sigmaProp(true) && sigmaProp(false) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ sigmaProp(true) && sigmaProp(false) }", ScriptEnv::new());
         assert!(result.is_ok(), "SigmaAnd failed: {:?}", result.err());
 
-        let result = compile_expr(
-            "{ sigmaProp(true) || sigmaProp(false) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ sigmaProp(true) || sigmaProp(false) }", ScriptEnv::new());
         assert!(result.is_ok(), "SigmaOr failed: {:?}", result.err());
     }
 
     #[test]
     fn test_session9_modulo() {
-        let result = compile_expr(
-            "{ val x = 42L % 10L; sigmaProp(x > 0L) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ val x = 42L % 10L; sigmaProp(x > 0L) }", ScriptEnv::new());
         assert!(result.is_ok(), "Modulo failed: {:?}", result.err());
     }
 
@@ -685,7 +679,11 @@ mod tests {
             "{ sigmaProp(SELF.tokens.forall { (t: (Coll[Byte], Long)) => t._2 > 0L }) }",
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "Tuple lambda param failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Tuple lambda param failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -704,7 +702,11 @@ mod tests {
             r#"{ val boxes = INPUTS.slice(1, INPUTS.size); val result = boxes.fold((0L, 0L), { (acc: (Long, Long), b: Box) => if (b.value > 0L) { val x = b.value; (acc._1 + x, acc._2 + 1L) } else { acc } }); sigmaProp(result._1 > 0L) }"#,
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "Fold with inner vals failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Fold with inner vals failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -858,7 +860,11 @@ mod tests {
   sigmaProp(phase1 || phase2 || phase3 || phase4)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "Counting contract failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Counting contract failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -904,7 +910,11 @@ mod tests {
   sigmaProp(isAdvancement || isExecution)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "Proposal contract failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Proposal contract failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -959,7 +969,11 @@ mod tests {
   )
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "UserVote contract failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "UserVote contract failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1031,7 +1045,11 @@ mod tests {
   sigmaProp(selfValid && (isDeposit || isWithdrawal || isNewTreasury))
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "Treasury contract failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Treasury contract failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1128,7 +1146,11 @@ mod tests {
 }"#;
         // Simplified version without Coll[Coll[Byte]] size checks and .isDefined
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "TokenRegistry (simplified) failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "TokenRegistry (simplified) failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1151,7 +1173,11 @@ mod tests {
   userPKIn || sigmaProp(validBuyToken)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "BuyTokenRequest (simplified) failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "BuyTokenRequest (simplified) failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1343,7 +1369,11 @@ mod tests {
   )
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "OptionReserveV2 core logic failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "OptionReserveV2 core logic failed: {:?}",
+            result.err()
+        );
     }
 
     fn compile_to_hex(source: &str) -> String {
@@ -1362,56 +1392,76 @@ mod tests {
 
     #[test]
     fn test_node_match_sigma_and() {
-        assert_eq!(compile_to_hex("{ sigmaProp(true) && sigmaProp(false) }"),
-            "100201010100ea02d17300d17301");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(true) && sigmaProp(false) }"),
+            "100201010100ea02d17300d17301"
+        );
     }
 
     #[test]
     fn test_node_match_sigma_or() {
-        assert_eq!(compile_to_hex("{ sigmaProp(true) || sigmaProp(false) }"),
-            "100201010100eb02d17300d17301");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(true) || sigmaProp(false) }"),
+            "100201010100eb02d17300d17301"
+        );
     }
 
     #[test]
     fn test_node_match_tuple_register_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.R4[(Long, Long)].get._1 > 0L) }"),
-            "10010500d1918ce4c6a70459017300");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(SELF.R4[(Long, Long)].get._1 > 0L) }"),
+            "10010500d1918ce4c6a70459017300"
+        );
     }
 
     #[test]
     fn test_node_match_coll_byte_register_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.R5[Coll[Byte]].get.size > 0) }"),
-            "10010400d191b1e4c6a7050e7300");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(SELF.R5[Coll[Byte]].get.size > 0) }"),
+            "10010400d191b1e4c6a7050e7300"
+        );
     }
 
     #[test]
     fn test_node_match_is_defined_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.R4[Long].isDefined) }"),
-            "1000d1e6c6a70405");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(SELF.R4[Long].isDefined) }"),
+            "1000d1e6c6a70405"
+        );
     }
 
     #[test]
     fn test_node_match_prop_bytes_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.R4[SigmaProp].get.propBytes == SELF.propositionBytes) }"),
-            "1000d193d0e4c6a70408c2a7");
+        assert_eq!(
+            compile_to_hex(
+                "{ sigmaProp(SELF.R4[SigmaProp].get.propBytes == SELF.propositionBytes) }"
+            ),
+            "1000d193d0e4c6a70408c2a7"
+        );
     }
 
     #[test]
     fn test_node_match_preheader_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(CONTEXT.preHeader.timestamp > 0L) }"),
-            "10010500d191db6903db6503fe7300");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(CONTEXT.preHeader.timestamp > 0L) }"),
+            "10010500d191db6903db6503fe7300"
+        );
     }
 
     #[test]
     fn test_node_match_modulo_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.value % 10L > 0L) }"),
-            "100205140500d1919ec1a773007301");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(SELF.value % 10L > 0L) }"),
+            "100205140500d1919ec1a773007301"
+        );
     }
 
     #[test]
     fn test_node_match_to_long_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(SELF.tokens.size.toLong > 0L) }"),
-            "10010500d1917eb1db6308a7057300");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(SELF.tokens.size.toLong > 0L) }"),
+            "10010500d1917eb1db6308a7057300"
+        );
     }
 
     /// Compare our compiler output size vs node output for contracts.
@@ -1423,19 +1473,52 @@ mod tests {
         use ergotree_ir::serialization::SigmaSerializable;
 
         let contracts: Vec<(&str, &str)> = vec![
-            ("sigmaProp(HEIGHT > 0 && HEIGHT < 100)", "1002040004c801d1ed91a373008fa37301"),
+            (
+                "sigmaProp(HEIGHT > 0 && HEIGHT < 100)",
+                "1002040004c801d1ed91a373008fa37301",
+            ),
             ("sigmaProp(SELF.value > 0L)", "10010500d191c1a77300"),
-            ("sigmaProp(INPUTS.exists { (b: Box) => b.value > 0L })", "10010500d1aea4d901016391c172017300"),
-            ("if (HEIGHT > 100) sigmaProp(true) else sigmaProp(false)", "100304c801010101009591a37300d17301d17302"),
-            ("sigmaProp(true) && sigmaProp(false)", "100201010100ea02d17300d17301"),
-            ("sigmaProp(true) || sigmaProp(false)", "100201010100eb02d17300d17301"),
-            ("sigmaProp(SELF.R4[(Long, Long)].get._1 > 0L)", "10010500d1918ce4c6a70459017300"),
-            ("sigmaProp(SELF.R5[Coll[Byte]].get.size > 0)", "10010400d191b1e4c6a7050e7300"),
+            (
+                "sigmaProp(INPUTS.exists { (b: Box) => b.value > 0L })",
+                "10010500d1aea4d901016391c172017300",
+            ),
+            (
+                "if (HEIGHT > 100) sigmaProp(true) else sigmaProp(false)",
+                "100304c801010101009591a37300d17301d17302",
+            ),
+            (
+                "sigmaProp(true) && sigmaProp(false)",
+                "100201010100ea02d17300d17301",
+            ),
+            (
+                "sigmaProp(true) || sigmaProp(false)",
+                "100201010100eb02d17300d17301",
+            ),
+            (
+                "sigmaProp(SELF.R4[(Long, Long)].get._1 > 0L)",
+                "10010500d1918ce4c6a70459017300",
+            ),
+            (
+                "sigmaProp(SELF.R5[Coll[Byte]].get.size > 0)",
+                "10010400d191b1e4c6a7050e7300",
+            ),
             ("sigmaProp(SELF.R4[Long].isDefined)", "1000d1e6c6a70405"),
-            ("sigmaProp(SELF.R4[SigmaProp].get.propBytes == SELF.propositionBytes)", "1000d193d0e4c6a70408c2a7"),
-            ("sigmaProp(CONTEXT.preHeader.timestamp > 0L)", "10010500d191db6903db6503fe7300"),
-            ("sigmaProp(SELF.value % 10L > 0L)", "100205140500d1919ec1a773007301"),
-            ("sigmaProp(SELF.tokens.size.toLong > 0L)", "10010500d1917eb1db6308a7057300"),
+            (
+                "sigmaProp(SELF.R4[SigmaProp].get.propBytes == SELF.propositionBytes)",
+                "1000d193d0e4c6a70408c2a7",
+            ),
+            (
+                "sigmaProp(CONTEXT.preHeader.timestamp > 0L)",
+                "10010500d191db6903db6503fe7300",
+            ),
+            (
+                "sigmaProp(SELF.value % 10L > 0L)",
+                "100205140500d1919ec1a773007301",
+            ),
+            (
+                "sigmaProp(SELF.tokens.size.toLong > 0L)",
+                "10010500d1917eb1db6308a7057300",
+            ),
         ];
 
         let mut matches = 0;
@@ -1449,34 +1532,52 @@ mod tests {
 
             // Verify round-trip
             let tree2 = ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-            assert_eq!(bytes, tree2.sigma_serialize_bytes().unwrap(), "Round-trip failed for: {}", source);
+            assert_eq!(
+                bytes,
+                tree2.sigma_serialize_bytes().unwrap(),
+                "Round-trip failed for: {}",
+                source
+            );
 
             if our_hex == *node_hex {
                 matches += 1;
             }
         }
         // At least the simple expressions should match
-        assert!(matches >= 13, "Only {}/{} byte-matched the node (expected >= 13)", matches, total);
+        assert!(
+            matches >= 13,
+            "Only {}/{} byte-matched the node (expected >= 13)",
+            matches,
+            total
+        );
     }
 
     #[test]
     fn test_node_match_not_direct() {
         // Node optimizes !(HEIGHT > 100) → HEIGHT <= 100 (negation elimination).
         // With optimization passes, our compiler now matches the node byte-for-byte.
-        assert_eq!(compile_to_hex("{ sigmaProp(!(HEIGHT > 100)) }"),
-            "100104c801d190a37300");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(!(HEIGHT > 100)) }"),
+            "100104c801d190a37300"
+        );
     }
 
     #[test]
     fn test_node_match_get_or_else_direct() {
-        assert_eq!(compile_to_hex(r#"{ sigmaProp(SELF.tokens.getOrElse(0, (fromBase16("00"), 0L))._2 > 0L) }"#),
-            "100404000e010005000500d1918cb2db6308a7730001860273017302027303");
+        assert_eq!(
+            compile_to_hex(
+                r#"{ sigmaProp(SELF.tokens.getOrElse(0, (fromBase16("00"), 0L))._2 > 0L) }"#
+            ),
+            "100404000e010005000500d1918cb2db6308a7730001860273017302027303"
+        );
     }
 
     #[test]
     fn test_node_match_slice_direct() {
-        assert_eq!(compile_to_hex("{ sigmaProp(INPUTS.slice(0, 1).size > 0) }"),
-            "1003040004020400d191b1b4a4730073017302");
+        assert_eq!(
+            compile_to_hex("{ sigmaProp(INPUTS.slice(0, 1).size > 0) }"),
+            "1003040004020400d191b1b4a4730073017302"
+        );
     }
 
     #[test]
@@ -1530,15 +1631,16 @@ mod tests {
             "{ val ts = CONTEXT.preHeader.timestamp; sigmaProp(ts > 0L) }",
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "preHeader.timestamp failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "preHeader.timestamp failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn test_feature_logical_not() {
-        let result = compile_expr(
-            "{ val x = true; sigmaProp(!x) }",
-            ScriptEnv::new(),
-        );
+        let result = compile_expr("{ val x = true; sigmaProp(!x) }", ScriptEnv::new());
         assert!(result.is_ok(), "LogicalNot failed: {:?}", result.err());
     }
 
@@ -1568,7 +1670,11 @@ mod tests {
             "{ val proof = getVar[Coll[Byte]](0); sigmaProp(proof.isDefined) }",
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "getVar isDefined failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "getVar isDefined failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1598,7 +1704,11 @@ mod tests {
 }"#,
             ScriptEnv::new(),
         );
-        assert!(result.is_ok(), "AvlTree insert/update failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "AvlTree insert/update failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1645,7 +1755,11 @@ mod tests {
   sigmaProp(validFulfillment) || (sigmaProp(validRefund) && depositorPK)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "ProxyDeposit full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "ProxyDeposit full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1663,7 +1777,11 @@ mod tests {
   sigmaProp(validExercise) || validCancel
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "OptionEscrow full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "OptionEscrow full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1688,7 +1806,11 @@ mod tests {
   ) && governancePK
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "TokenRegistry full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "TokenRegistry full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1712,7 +1834,11 @@ mod tests {
   userPKIn || sigmaProp(validBuyToken)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "BuyTokenRequest full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "BuyTokenRequest full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1761,7 +1887,11 @@ mod tests {
   sigmaProp(validSale) || sellerPK
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "FixedPriceSell full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "FixedPriceSell full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -2017,7 +2147,11 @@ mod tests {
     )
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "OptionReserveV2 FULL failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "OptionReserveV2 FULL failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -2203,37 +2337,77 @@ mod tests {
     )
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "SigmaO Option full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "SigmaO Option full failed: {:?}",
+            result.err()
+        );
     }
 
     fn replace_compile_constants(source: &str) -> String {
         source
-            .replace("ORACLE_POOL_NFT", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000010\")")
-            .replace("COMPANION_NFT_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000011\")")
-            .replace("REGISTRY_NFT_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000012\")")
-            .replace("USE_TOKEN_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000013\")")
-            .replace("SIGUSD_TOKEN_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000014\")")
-            .replace("SELL_CONTRACT_USE_BYTES", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000015\")")
-            .replace("SELL_CONTRACT_SIGUSD_BYTES", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000016\")")
-            .replace("PAYMENT_TOKEN_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000017\")")
-            .replace("POOL_NFT_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000018\")")
+            .replace(
+                "ORACLE_POOL_NFT",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000010\")",
+            )
+            .replace(
+                "COMPANION_NFT_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000011\")",
+            )
+            .replace(
+                "REGISTRY_NFT_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000012\")",
+            )
+            .replace(
+                "USE_TOKEN_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000013\")",
+            )
+            .replace(
+                "SIGUSD_TOKEN_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000014\")",
+            )
+            .replace(
+                "SELL_CONTRACT_USE_BYTES",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000015\")",
+            )
+            .replace(
+                "SELL_CONTRACT_SIGUSD_BYTES",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000016\")",
+            )
+            .replace(
+                "PAYMENT_TOKEN_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000017\")",
+            )
+            .replace(
+                "POOL_NFT_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000018\")",
+            )
             .replace("ORACLE_DECIMAL", "1000000L")
             .replace("MIN_BOX_VALUE", "1000000L")
             .replace("EXERCISE_WINDOW", "720L")
             .replace("ERG_ORACLE_INDEX", "17")
-            .replace("POOL_OPTION_RESERVE_HASH", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000019\")")
-            .replace("LP_TOKEN_ID", "fromBase16(\"000000000000000000000000000000000000000000000000000000000000001a\")")
+            .replace(
+                "POOL_OPTION_RESERVE_HASH",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000019\")",
+            )
+            .replace(
+                "LP_TOKEN_ID",
+                "fromBase16(\"000000000000000000000000000000000000000000000000000000000000001a\")",
+            )
             .replace("TWAP_BLEND_SPOT", "70L")
             .replace("TWAP_BLEND_TWAP", "30L")
             .replace("BLOCKS_PER_YEAR", "262800L")
             .replace("PROTOCOL_FEE_BPS", "200L")
             .replace("TOTAL_LP_MINTED", "1000000000L")
-            .replace("POOL_STATE_CONTRACT", "fromBase16(\"000000000000000000000000000000000000000000000000000000000000001b\")")
+            .replace(
+                "POOL_STATE_CONTRACT",
+                "fromBase16(\"000000000000000000000000000000000000000000000000000000000000001b\")",
+            )
     }
 
     fn test_contract_file(path: &str, name: &str) {
-        let source = std::fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("Cannot read {}: {}", path, e));
+        let source =
+            std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Cannot read {}: {}", path, e));
         let source = replace_compile_constants(&source);
         let result = compile_expr(&source, ScriptEnv::new());
         assert!(result.is_ok(), "{} FAILED: {:?}", name, result.err());
@@ -2243,7 +2417,7 @@ mod tests {
     fn test_p2p_option_reserve_v1() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserve.es",
-            "OptionReserve V1 (478 lines)"
+            "OptionReserve V1 (478 lines)",
         );
     }
 
@@ -2251,7 +2425,7 @@ mod tests {
     fn test_p2p_pool_option_reserve() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/PoolOptionReserve.es",
-            "PoolOptionReserve (490 lines)"
+            "PoolOptionReserve (490 lines)",
         );
     }
 
@@ -2259,7 +2433,7 @@ mod tests {
     fn test_p2p_option_reserve_v3() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV3.es",
-            "OptionReserveV3 (502 lines)"
+            "OptionReserveV3 (502 lines)",
         );
     }
 
@@ -2267,7 +2441,7 @@ mod tests {
     fn test_p2p_option_reserve_v4() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV4.es",
-            "OptionReserveV4 (515 lines)"
+            "OptionReserveV4 (515 lines)",
         );
     }
 
@@ -2275,7 +2449,7 @@ mod tests {
     fn test_p2p_option_reserve_v5() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV5.es",
-            "OptionReserveV5 (570 lines)"
+            "OptionReserveV5 (570 lines)",
         );
     }
 
@@ -2283,7 +2457,7 @@ mod tests {
     fn test_p2p_option_reserve_v6() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV6.es",
-            "OptionReserveV6 (575 lines)"
+            "OptionReserveV6 (575 lines)",
         );
     }
 
@@ -2291,7 +2465,7 @@ mod tests {
     fn test_p2p_option_reserve_v7() {
         test_contract_file(
             "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV7.es",
-            "OptionReserveV7 (582 lines)"
+            "OptionReserveV7 (582 lines)",
         );
     }
 
@@ -2300,23 +2474,49 @@ mod tests {
         // Full OptionReserveV8.es — 682 lines, 6 execution paths
         // The most complex production contract. V8 adds pre-expiry reclaim.
         let source = std::fs::read_to_string(
-            "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV8.es"
-        ).unwrap();
+            "/home/cq/working-files/p2p-options-contracts/contracts/OptionReserveV8.es",
+        )
+        .unwrap();
         // Replace compile-time constants
         let source = source
-            .replace("ORACLE_POOL_NFT", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000010\")")
-            .replace("COMPANION_NFT_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000011\")")
-            .replace("REGISTRY_NFT_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000012\")")
-            .replace("USE_TOKEN_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000013\")")
-            .replace("SIGUSD_TOKEN_ID", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000014\")")
-            .replace("SELL_CONTRACT_USE_BYTES", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000015\")")
-            .replace("SELL_CONTRACT_SIGUSD_BYTES", "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000016\")")
+            .replace(
+                "ORACLE_POOL_NFT",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000010\")",
+            )
+            .replace(
+                "COMPANION_NFT_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000011\")",
+            )
+            .replace(
+                "REGISTRY_NFT_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000012\")",
+            )
+            .replace(
+                "USE_TOKEN_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000013\")",
+            )
+            .replace(
+                "SIGUSD_TOKEN_ID",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000014\")",
+            )
+            .replace(
+                "SELL_CONTRACT_USE_BYTES",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000015\")",
+            )
+            .replace(
+                "SELL_CONTRACT_SIGUSD_BYTES",
+                "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000016\")",
+            )
             .replace("ORACLE_DECIMAL", "1000000L")
             .replace("MIN_BOX_VALUE", "1000000L")
             .replace("EXERCISE_WINDOW", "720L")
             .replace("ERG_ORACLE_INDEX", "17");
         let result = compile_expr(&source, ScriptEnv::new());
-        assert!(result.is_ok(), "OptionReserveV8 FULL failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "OptionReserveV8 FULL failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -2386,7 +2586,11 @@ mod tests {
     sigmaProp(validSellToken || validCloseEmpty)
 }"#;
         let result = compile_expr(source, ScriptEnv::new());
-        assert!(result.is_ok(), "SellTokenRequest full failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "SellTokenRequest full failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -2680,18 +2884,29 @@ mod tests {
 
             // Verify round-trip
             let tree2 = ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-            assert_eq!(bytes, tree2.sigma_serialize_bytes().unwrap(),
-                "Round-trip failed for: {}", name);
+            assert_eq!(
+                bytes,
+                tree2.sigma_serialize_bytes().unwrap(),
+                "Round-trip failed for: {}",
+                name
+            );
 
             if our_hex == *node_hex {
                 matched += 1;
             } else {
-                let diff_count = our_hex.as_bytes().chunks(2)
+                let diff_count = our_hex
+                    .as_bytes()
+                    .chunks(2)
                     .zip(node_hex.as_bytes().chunks(2))
                     .filter(|(a, b)| a != b)
                     .count();
-                failed.push(format!("{}: {} differing bytes (ours {} vs node {} bytes)",
-                    name, diff_count, our_hex.len() / 2, node_hex.len() / 2));
+                failed.push(format!(
+                    "{}: {} differing bytes (ours {} vs node {} bytes)",
+                    name,
+                    diff_count,
+                    our_hex.len() / 2,
+                    node_hex.len() / 2
+                ));
             }
         }
 
@@ -2711,16 +2926,21 @@ mod tests {
         // compete for ValDef slots:
         //   dexy LP (+1B), DuckPools (-2B), oracle v2 oracle (-4B).
         // 12/15 byte-match. Graph IR CSE with selective hash-consing.
-        assert!(matched >= 12, "Batch byte-match: {}/{} matched (expected >= 12).\nFailures:\n  {}",
-            matched, matched + failed.len(), failed.join("\n  "));
+        assert!(
+            matched >= 12,
+            "Batch byte-match: {}/{} matched (expected >= 12).\nFailures:\n  {}",
+            matched,
+            matched + failed.len(),
+            failed.join("\n  ")
+        );
     }
-
 
     #[test]
     fn test_oracle_contract_compiles() {
         // Oracle Pool v2 - Oracle contract (EIP-0023)
         // Tests: getVar, proveDlog, R5[Any], variable OUTPUTS index, tuple equality, SigmaProp mixing
-        let _tree = compile(r#"{
+        let _tree = compile(
+            r#"{
   val poolNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val otherTokenId = INPUTS(0).tokens(0)._1
   val minStorageRent = 10000000L
@@ -2739,7 +2959,10 @@ mod tests {
                    ! (output.R5[Any].isDefined)
   val owner = proveDlog(selfPubKey)
   isSimpleCopy && (owner || collection)
-}"#, ScriptEnv::new()).expect("Oracle Pool v2 Oracle contract should compile");
+}"#,
+            ScriptEnv::new(),
+        )
+        .expect("Oracle Pool v2 Oracle contract should compile");
     }
 
     /// Test compile_canonical against the Ergo node.
@@ -2756,7 +2979,9 @@ mod tests {
 
         let contracts: Vec<(&str, &str)> = vec![
             ("simple", "{ sigmaProp(SELF.value > 0L) }"),
-            ("vault (with lambdas)", r#"{
+            (
+                "vault (with lambdas)",
+                r#"{
   val StateNftId = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val ReserveNftId = fromBase16("0000000000000000000000000000000000000000000000000000000000000002")
   val selfValid = SELF.tokens.size == 1 && SELF.tokens(0)._1 == StateNftId && SELF.tokens(0)._2 == 1L
@@ -2771,8 +2996,11 @@ mod tests {
   val nonTrivial = deltaVaultYolo != 0L
   val singleVaultInput = INPUTS.filter { (b: Box) => b.tokens.size > 0 && b.tokens(0)._1 == StateNftId }.size == 1
   sigmaProp(selfValid && outValid && pairingValid && conservation && nonTrivial && singleVaultInput)
-}"#),
-            ("dexy LP (canonical needed)", r#"{
+}"#,
+            ),
+            (
+                "dexy LP (canonical needed)",
+                r#"{
   val lpNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val validLP = SELF.tokens(0)._1 == lpNFT && SELF.tokens(0)._2 == 1L
   val out = OUTPUTS(0)
@@ -2781,7 +3009,8 @@ mod tests {
   val deltaY = out.tokens(1)._2 - SELF.tokens(1)._2
   val validSwap = deltaX * deltaY < 0L
   sigmaProp(validLP && outValid && validSwap)
-}"#),
+}"#,
+            ),
         ];
 
         for (name, source) in &contracts {
@@ -2793,8 +3022,16 @@ mod tests {
 
             match result.matched {
                 Some(true) => eprintln!("  {} ({} bytes): LOCAL MATCH", name, bytes.len()),
-                Some(false) => eprintln!("  {} ({} bytes): USED NODE (local differed)", name, bytes.len()),
-                None => eprintln!("  {} ({} bytes): NODE UNAVAILABLE (local only)", name, bytes.len()),
+                Some(false) => eprintln!(
+                    "  {} ({} bytes): USED NODE (local differed)",
+                    name,
+                    bytes.len()
+                ),
+                None => eprintln!(
+                    "  {} ({} bytes): NODE UNAVAILABLE (local only)",
+                    name,
+                    bytes.len()
+                ),
             }
         }
     }
@@ -2811,7 +3048,9 @@ mod tests {
         let node_url = "http://localhost:9053";
 
         let contracts: Vec<(&str, &str)> = vec![
-            ("SigmaUSD bank (reserve ratio)", r#"{
+            (
+                "SigmaUSD bank (reserve ratio)",
+                r#"{
   val bankNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val oracleNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000002")
   val selfValid = SELF.tokens(0)._1 == bankNFT
@@ -2828,8 +3067,11 @@ mod tests {
   val deltaSc = scOut - scIn
   val reserveRatio = reserveOut * 100L / (scOut * rate / 1000000L)
   sigmaProp(selfValid && successorValid && oracleValid && reserveRatio >= 400L)
-}"#),
-            ("Rosen GuardSign (atLeast+proveDlog)", r#"{
+}"#,
+            ),
+            (
+                "Rosen GuardSign (atLeast+proveDlog)",
+                r#"{
   val guardNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val guardBoxes = INPUTS.filter { (b: Box) => b.tokens.size > 0 && b.tokens(0)._1 == guardNFT }
   val singleGuard = guardBoxes.size == 1
@@ -2839,8 +3081,11 @@ mod tests {
   val threshold = SELF.R5[Coll[Int]].get(1)
   val sigmas = pks.map { (pk: GroupElement) => proveDlog(pk) }
   sigmaProp(singleGuard && tokenPreserved && qtyPreserved) && atLeast(threshold, sigmas)
-}"#),
-            ("DEX swap order", r#"{
+}"#,
+            ),
+            (
+                "DEX swap order",
+                r#"{
   val quoteId = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val minOutput = SELF.R4[Long].get
   val rewardPk = SELF.R5[GroupElement].get
@@ -2848,15 +3093,21 @@ mod tests {
   val validSwap = OUTPUTS(0).tokens.size > 0 && OUTPUTS(0).tokens(0)._1 == quoteId && OUTPUTS(0).tokens(0)._2 >= minOutput && OUTPUTS(0).propositionBytes == proveDlog(rewardPk).propBytes
   val cancel = HEIGHT > deadline && proveDlog(rewardPk)
   sigmaProp(validSwap) || cancel
-}"#),
-            ("multi-sig treasury", r#"{
+}"#,
+            ),
+            (
+                "multi-sig treasury",
+                r#"{
   val pks = SELF.R4[Coll[GroupElement]].get
   val threshold = SELF.R5[Int].get
   val sigmas = pks.map { (pk: GroupElement) => proveDlog(pk) }
   val preserved = OUTPUTS(0).propositionBytes == SELF.propositionBytes && OUTPUTS(0).value >= SELF.value - 1000000L
   sigmaProp(preserved) && atLeast(threshold, sigmas)
-}"#),
-            ("token emission", r#"{
+}"#,
+            ),
+            (
+                "token emission",
+                r#"{
   val emissionNFT = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
   val selfValid = SELF.tokens(0)._1 == emissionNFT && SELF.tokens(0)._2 == 1L
   val successor = OUTPUTS(0)
@@ -2864,14 +3115,18 @@ mod tests {
   val tokensEmitted = SELF.tokens(1)._2 - successor.tokens(1)._2
   val validEmission = tokensEmitted > 0L && tokensEmitted <= 1000L
   sigmaProp(selfValid && successorValid && validEmission)
-}"#),
-            ("time-locked vesting", r#"{
+}"#,
+            ),
+            (
+                "time-locked vesting",
+                r#"{
   val beneficiary = SELF.R4[GroupElement].get
   val unlockHeight = SELF.R5[Int].get
   val vestingComplete = HEIGHT >= unlockHeight
   val beneficiarySpend = proveDlog(beneficiary)
   sigmaProp(vestingComplete) && beneficiarySpend
-}"#),
+}"#,
+            ),
         ];
 
         let mut matched = 0;
@@ -2901,8 +3156,13 @@ mod tests {
                 }
             }
         }
-        eprintln!("\nResults: {} local match, {} node fallback, {} errors out of {}",
-            matched, node_fallback, errors, contracts.len());
+        eprintln!(
+            "\nResults: {} local match, {} node fallback, {} errors out of {}",
+            matched,
+            node_fallback,
+            errors,
+            contracts.len()
+        );
         assert_eq!(errors, 0, "Some contracts failed to compile");
     }
 }

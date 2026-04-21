@@ -204,10 +204,7 @@ pub struct BoolLiteral(SyntaxNode);
 impl BoolLiteral {
     pub fn value(&self) -> Result<bool, AstError> {
         let token = self.0.first_token().ok_or_else(|| {
-            AstError::new(
-                format!("Empty BoolLiteral: {:?}", self.0),
-                self.span(),
-            )
+            AstError::new(format!("Empty BoolLiteral: {:?}", self.0), self.span())
         })?;
         match token.kind() {
             SyntaxKind::TrueKw => Ok(true),
@@ -229,9 +226,14 @@ pub struct StringLiteral(SyntaxNode);
 
 impl StringLiteral {
     pub fn value(&self) -> Result<String, AstError> {
-        let text = self.0.first_token().ok_or_else(|| {
-            AstError::new(format!("Empty StringLiteral: {:?}", self.0), self.span())
-        })?.text().to_string();
+        let text = self
+            .0
+            .first_token()
+            .ok_or_else(|| {
+                AstError::new(format!("Empty StringLiteral: {:?}", self.0), self.span())
+            })?
+            .text()
+            .to_string();
         // Strip surrounding quotes
         Ok(text.trim_matches('"').to_string())
     }
@@ -257,11 +259,7 @@ impl FuncCall {
 
     pub fn args(&self) -> Vec<Expr> {
         // Args are all Expr children after the first one (the callee)
-        self.0
-            .children()
-            .filter_map(Expr::cast)
-            .skip(1)
-            .collect()
+        self.0.children().filter_map(Expr::cast).skip(1).collect()
     }
 
     /// Returns type arg string from [Type] brackets, e.g. "Byte" from Coll[Byte](...)
@@ -272,10 +270,15 @@ impl FuncCall {
             if let Some(token) = element.into_token() {
                 match token.kind() {
                     SyntaxKind::LBracket if depth == 0 => depth = 1,
-                    SyntaxKind::LBracket => { depth += 1; result.push_str(token.text()); }
+                    SyntaxKind::LBracket => {
+                        depth += 1;
+                        result.push_str(token.text());
+                    }
                     SyntaxKind::RBracket => {
                         depth -= 1;
-                        if depth == 0 { break; }
+                        if depth == 0 {
+                            break;
+                        }
                         result.push_str(token.text());
                     }
                     _ if depth > 0 => {
@@ -287,7 +290,11 @@ impl FuncCall {
                 }
             }
         }
-        if result.is_empty() { None } else { Some(result) }
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     pub fn span(&self) -> TextRange {
@@ -464,6 +471,7 @@ impl Lambda {
         // Find tokens between outer ( and ) tracking nesting depth
         let mut in_params = false;
         let mut current_name: Option<String> = None;
+        #[allow(unused_assignments)]
         let mut collecting_type = false;
         let mut type_str = String::new();
         let mut depth = 0; // nesting depth for ( ) and [ ]
@@ -477,7 +485,6 @@ impl Lambda {
                     if collecting_type && current_name.is_some() {
                         params.push((current_name.take().unwrap(), type_str.clone()));
                         type_str.clear();
-                        collecting_type = false;
                     }
                     break;
                 }
@@ -538,12 +545,20 @@ impl PrefixExpr {
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
             .find(|token| matches!(token.kind(), SyntaxKind::Minus | SyntaxKind::Bang))
-            .ok_or_else(|| AstError::new(format!("Cannot find op in PrefixExpr: {:?}", self.0), self.span()))
+            .ok_or_else(|| {
+                AstError::new(
+                    format!("Cannot find op in PrefixExpr: {:?}", self.0),
+                    self.span(),
+                )
+            })
     }
 
     pub fn operand(&self) -> Result<Expr, AstError> {
         self.0.children().find_map(Expr::cast).ok_or_else(|| {
-            AstError::new(format!("Cannot find operand in PrefixExpr: {:?}", self.0), self.span())
+            AstError::new(
+                format!("Cannot find operand in PrefixExpr: {:?}", self.0),
+                self.span(),
+            )
         })
     }
 

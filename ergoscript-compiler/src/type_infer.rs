@@ -58,7 +58,9 @@ fn assign_type_with_scope(
                 | hir::BinaryOp::Le => Some(SType::SBoolean),
                 hir::BinaryOp::And | hir::BinaryOp::Or => {
                     // SigmaProp-level: if both operands are SSigmaProp, result is SSigmaProp
-                    if l.tpe.as_ref() == Some(&SType::SSigmaProp) && r.tpe.as_ref() == Some(&SType::SSigmaProp) {
+                    if l.tpe.as_ref() == Some(&SType::SSigmaProp)
+                        && r.tpe.as_ref() == Some(&SType::SSigmaProp)
+                    {
                         Some(SType::SSigmaProp)
                     } else {
                         Some(SType::SBoolean)
@@ -96,14 +98,23 @@ fn assign_type_with_scope(
                     "decodePoint" => Some(SType::SGroupElement),
                     "getVar" => {
                         // getVar[T](n) → SOption(T)
-                        apply.type_arg.as_ref().map(|t| SType::SOption(t.clone().into()))
+                        apply
+                            .type_arg
+                            .as_ref()
+                            .map(|t| SType::SOption(t.clone().into()))
                     }
                     "Coll" => {
                         // Coll[Type](items) or Coll(items)
-                        apply.type_arg.as_ref()
+                        apply
+                            .type_arg
+                            .as_ref()
                             .map(|t| SType::SColl(t.clone().into()))
-                            .or_else(|| typed_args.first().and_then(|a| a.tpe.clone())
-                                .map(|t| SType::SColl(t.into())))
+                            .or_else(|| {
+                                typed_args
+                                    .first()
+                                    .and_then(|a| a.tpe.clone())
+                                    .map(|t| SType::SColl(t.into()))
+                            })
                             .or(Some(SType::SColl(SType::SByte.into())))
                     }
                     _ => None,
@@ -116,9 +127,15 @@ fn assign_type_with_scope(
                         // Method call on collection object
                         match fa.object.tpe.as_ref() {
                             Some(SType::SAvlTree) => match fa.field.as_str() {
-                                "insert" | "update" | "remove" => Some(SType::SOption(SType::SAvlTree.into())),
-                                "get" => Some(SType::SOption(SType::SColl(SType::SByte.into()).into())),
-                                "getMany" => Some(SType::SColl(SType::SOption(SType::SColl(SType::SByte.into()).into()).into())),
+                                "insert" | "update" | "remove" => {
+                                    Some(SType::SOption(SType::SAvlTree.into()))
+                                }
+                                "get" => {
+                                    Some(SType::SOption(SType::SColl(SType::SByte.into()).into()))
+                                }
+                                "getMany" => Some(SType::SColl(
+                                    SType::SOption(SType::SColl(SType::SByte.into()).into()).into(),
+                                )),
                                 "contains" => Some(SType::SBoolean),
                                 "updateDigest" | "updateOperations" => Some(SType::SAvlTree),
                                 _ => None,
@@ -209,22 +226,22 @@ fn assign_type_with_scope(
                         Some(SType::SColl(SType::SByte.into()))
                     }
                     "creationInfo" => {
-                        let tuple = STuple::try_from(vec![
-                            SType::SInt,
-                            SType::SColl(SType::SByte.into()),
-                        ])
-                        .unwrap();
+                        let tuple =
+                            STuple::try_from(vec![SType::SInt, SType::SColl(SType::SByte.into())])
+                                .unwrap();
                         Some(SType::STuple(tuple))
                     }
                     "tokens" => {
-                        let inner_tuple = STuple::try_from(vec![
-                            SType::SColl(SType::SByte.into()),
-                            SType::SLong,
-                        ])
-                        .unwrap();
+                        let inner_tuple =
+                            STuple::try_from(vec![SType::SColl(SType::SByte.into()), SType::SLong])
+                                .unwrap();
                         Some(SType::SColl(SType::STuple(inner_tuple).into()))
                     }
-                    field if field.len() >= 2 && field.starts_with('R') && field[1..].parse::<u8>().is_ok() => {
+                    field
+                        if field.len() >= 2
+                            && field.starts_with('R')
+                            && field[1..].parse::<u8>().is_ok() =>
+                    {
                         let elem_tpe = fa.type_args.first().cloned().unwrap_or(SType::SAny);
                         Some(SType::SOption(elem_tpe.into()))
                     }
@@ -267,7 +284,9 @@ fn assign_type_with_scope(
                     "digest" => Some(SType::SColl(SType::SByte.into())),
                     "enabledOperations" => Some(SType::SByte),
                     "keyLength" => Some(SType::SInt),
-                    "isInsertAllowed" | "isUpdateAllowed" | "isRemoveAllowed" => Some(SType::SBoolean),
+                    "isInsertAllowed" | "isUpdateAllowed" | "isRemoveAllowed" => {
+                        Some(SType::SBoolean)
+                    }
                     _ => None,
                 },
                 Some(SType::SPreHeader) => match fa.field.as_str() {
@@ -339,7 +358,7 @@ fn assign_type_with_scope(
             let t_dom: Vec<SType> = lambda.params.iter().map(|(_, t)| t.clone()).collect();
             let t_range = typed_body.tpe.clone().unwrap_or(SType::SAny);
             let sfunc = ergotree_ir::types::sfunc::SFunc {
-                t_dom: t_dom.into(),
+                t_dom,
                 t_range: t_range.into(),
                 tpe_params: vec![],
             };
@@ -378,10 +397,7 @@ fn assign_type_with_scope(
                 .map(|item| assign_type_with_scope(item.clone(), val_types))
                 .collect();
             let typed_items = typed_items?;
-            let item_types: Vec<SType> = typed_items
-                .iter()
-                .filter_map(|e| e.tpe.clone())
-                .collect();
+            let item_types: Vec<SType> = typed_items.iter().filter_map(|e| e.tpe.clone()).collect();
             let tpe = if item_types.len() == typed_items.len() {
                 STuple::try_from(item_types).ok().map(SType::STuple)
             } else {
@@ -396,11 +412,19 @@ fn assign_type_with_scope(
         ExprKind::Negation(inner) => {
             let typed = assign_type_with_scope(*inner.clone(), val_types)?;
             let tpe = typed.tpe.clone();
-            Ok(Expr { kind: ExprKind::Negation(Box::new(typed)), span: expr.span, tpe })
+            Ok(Expr {
+                kind: ExprKind::Negation(Box::new(typed)),
+                span: expr.span,
+                tpe,
+            })
         }
         ExprKind::LogicalNot(inner) => {
             let typed = assign_type_with_scope(*inner.clone(), val_types)?;
-            Ok(Expr { kind: ExprKind::LogicalNot(Box::new(typed)), span: expr.span, tpe: Some(SType::SBoolean) })
+            Ok(Expr {
+                kind: ExprKind::LogicalNot(Box::new(typed)),
+                span: expr.span,
+                tpe: Some(SType::SBoolean),
+            })
         }
         // Leaf nodes — pass through
         ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Literal(_) => Ok(expr),

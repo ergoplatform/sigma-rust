@@ -6,47 +6,47 @@ use ergotree_ir::mir::bin_op::RelationOp;
 use ergotree_ir::mir::block::BlockValue;
 use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
 use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
-use ergotree_ir::mir::create_provedlog::CreateProveDlog;
-use ergotree_ir::mir::long_to_byte_array::LongToByteArray;
 use ergotree_ir::mir::coll_by_index::ByIndex;
 use ergotree_ir::mir::coll_exists::Exists;
 use ergotree_ir::mir::coll_filter::Filter;
-use ergotree_ir::mir::collection::Collection;
-use ergotree_ir::mir::get_var::GetVar;
-use ergotree_ir::mir::method_call::MethodCall;
-use ergotree_ir::mir::tree_lookup::TreeLookup;
 use ergotree_ir::mir::coll_fold::Fold;
-use ergotree_ir::mir::coll_slice::Slice;
-use ergotree_ir::mir::decode_point::DecodePoint;
-use ergotree_ir::mir::option_is_defined::OptionIsDefined;
-use ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes;
-use ergotree_ir::mir::downcast::Downcast;
-use ergotree_ir::mir::upcast::Upcast;
 use ergotree_ir::mir::coll_forall::ForAll;
 use ergotree_ir::mir::coll_map::Map;
 use ergotree_ir::mir::coll_size::SizeOf;
-use ergotree_ir::mir::func_value::FuncArg;
-use ergotree_ir::mir::func_value::FuncValue;
+use ergotree_ir::mir::coll_slice::Slice;
+use ergotree_ir::mir::collection::Collection;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::mir::create_provedlog::CreateProveDlog;
+use ergotree_ir::mir::decode_point::DecodePoint;
+use ergotree_ir::mir::downcast::Downcast;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::extract_amount::ExtractAmount;
 use ergotree_ir::mir::extract_bytes::ExtractBytes;
 use ergotree_ir::mir::extract_creation_info::ExtractCreationInfo;
 use ergotree_ir::mir::extract_id::ExtractId;
-use ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes;
 use ergotree_ir::mir::extract_reg_as::ExtractRegisterAs;
+use ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes;
+use ergotree_ir::mir::func_value::FuncArg;
+use ergotree_ir::mir::func_value::FuncValue;
+use ergotree_ir::mir::get_var::GetVar;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use ergotree_ir::mir::if_op::If;
 use ergotree_ir::mir::logical_not::LogicalNot;
+use ergotree_ir::mir::long_to_byte_array::LongToByteArray;
+use ergotree_ir::mir::method_call::MethodCall;
 use ergotree_ir::mir::negation::Negation;
-use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
 use ergotree_ir::mir::option_get::OptionGet;
-use ergotree_ir::mir::sigma_and::SigmaAnd;
-use ergotree_ir::mir::sigma_or::SigmaOr;
-use ergotree_ir::mir::tuple::Tuple;
+use ergotree_ir::mir::option_is_defined::OptionIsDefined;
 use ergotree_ir::mir::property_call::PropertyCall;
 use ergotree_ir::mir::select_field::SelectField;
 use ergotree_ir::mir::select_field::TupleFieldIndex;
+use ergotree_ir::mir::sigma_and::SigmaAnd;
+use ergotree_ir::mir::sigma_or::SigmaOr;
+use ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes;
+use ergotree_ir::mir::tree_lookup::TreeLookup;
+use ergotree_ir::mir::tuple::Tuple;
+use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
+use ergotree_ir::mir::upcast::Upcast;
 use ergotree_ir::mir::val_def::ValDef;
 use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::val_use::ValUse;
@@ -135,26 +135,31 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 // Special handling for fromBase16 — extract string at compile time
                 if name == "fromBase16" {
                     let str_arg = apply.args.first().ok_or_else(|| {
-                        MirLoweringError::new("fromBase16 requires a string argument".to_string(), hir_expr.span)
+                        MirLoweringError::new(
+                            "fromBase16 requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
                     })?;
                     let hex_str = match &str_arg.kind {
                         hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
-                        _ => return Err(MirLoweringError::new(
-                            "fromBase16 argument must be a string literal".to_string(),
-                            hir_expr.span,
-                        )),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "fromBase16 argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
                     };
                     let bytes = base16::decode(hex_str.as_bytes()).map_err(|e| {
-                        MirLoweringError::new(format!("Invalid hex in fromBase16: {:?}", e), hir_expr.span)
+                        MirLoweringError::new(
+                            format!("Invalid hex in fromBase16: {:?}", e),
+                            hir_expr.span,
+                        )
                     })?;
                     return Ok(Constant::from(bytes).into());
                 }
                 // Lower all args for other builtins
-                let args: Result<Vec<Expr>, MirLoweringError> = apply
-                    .args
-                    .iter()
-                    .map(|a| lower(a.clone()))
-                    .collect();
+                let args: Result<Vec<Expr>, MirLoweringError> =
+                    apply.args.iter().map(|a| lower(a.clone())).collect();
                 let args = args?;
                 match name.as_str() {
                     "sigmaProp" => {
@@ -171,23 +176,41 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                     "blake2b256" => {
                         let input = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("blake2b256 requires one argument".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "blake2b256 requires one argument".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
-                        CalcBlake2b256 { input: input.into() }.into()
+                        CalcBlake2b256 {
+                            input: input.into(),
+                        }
+                        .into()
                     }
                     "proveDlog" => {
                         let input = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("proveDlog requires one argument".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "proveDlog requires one argument".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
-                        CreateProveDlog { input: input.into() }.into()
+                        CreateProveDlog {
+                            input: input.into(),
+                        }
+                        .into()
                     }
                     "atLeast" => {
                         let mut it = args.into_iter();
                         let bound = it.next().ok_or_else(|| {
-                            MirLoweringError::new("atLeast requires two arguments".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "atLeast requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
                         let input = it.next().ok_or_else(|| {
-                            MirLoweringError::new("atLeast requires two arguments".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "atLeast requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
                         ergotree_ir::mir::atleast::Atleast::new(bound, input)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
@@ -195,22 +218,42 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                     "longToByteArray" => {
                         let input = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("longToByteArray requires one argument".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "longToByteArray requires one argument".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
-                        LongToByteArray { input: input.into() }.into()
+                        LongToByteArray {
+                            input: input.into(),
+                        }
+                        .into()
                     }
                     "min" => {
                         let mut it = args.into_iter();
-                        let left = it.next().ok_or_else(|| MirLoweringError::new("min requires two arguments".to_string(), hir_expr.span))?;
-                        let right = it.next().ok_or_else(|| MirLoweringError::new("min requires two arguments".to_string(), hir_expr.span))?;
-                        BinOp { kind: ArithOp::Min.into(), left: left.into(), right: right.into() }.into()
+                        let left = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "min requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let right = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "min requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        BinOp {
+                            kind: ArithOp::Min.into(),
+                            left: left.into(),
+                            right: right.into(),
+                        }
+                        .into()
                     }
                     "Coll" => {
                         // Coll[Type]() or Coll(items...) — collection constructor
-                        let elem_tpe = apply.type_arg.clone()
-                            .unwrap_or_else(|| {
-                                args.first().map(|a| a.tpe()).unwrap_or(SType::SByte)
-                            });
+                        let elem_tpe = apply.type_arg.clone().unwrap_or_else(|| {
+                            args.first().map(|a| a.tpe()).unwrap_or(SType::SByte)
+                        });
                         return Ok(Collection::new(elem_tpe, args)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into());
@@ -218,7 +261,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     "getVar" => {
                         // getVar[Type](varId) — context variable access
                         let var_id_expr = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("getVar requires a variable ID argument".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "getVar requires a variable ID argument".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
                         let var_id = match &var_id_expr {
                             Expr::Const(c) => {
@@ -226,16 +272,21 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 match &c.v {
                                     Literal::Int(id) => *id as u8,
                                     Literal::Byte(id) => *id as u8,
-                                    _ => return Err(MirLoweringError::new(
-                                        "getVar variable ID must be an integer constant".to_string(),
-                                        hir_expr.span,
-                                    )),
+                                    _ => {
+                                        return Err(MirLoweringError::new(
+                                            "getVar variable ID must be an integer constant"
+                                                .to_string(),
+                                            hir_expr.span,
+                                        ))
+                                    }
                                 }
                             }
-                            _ => return Err(MirLoweringError::new(
-                                "getVar variable ID must be a constant".to_string(),
-                                hir_expr.span,
-                            )),
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "getVar variable ID must be a constant".to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
                         };
                         // Type from [Type] annotation
                         let var_tpe = apply.type_arg.clone().unwrap_or(SType::SAny);
@@ -243,7 +294,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                     "decodePoint" => {
                         let input = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("decodePoint requires one argument".to_string(), hir_expr.span)
+                            MirLoweringError::new(
+                                "decodePoint requires one argument".to_string(),
+                                hir_expr.span,
+                            )
                         })?;
                         DecodePoint::try_build(input)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
@@ -251,9 +305,24 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                     "max" => {
                         let mut it = args.into_iter();
-                        let left = it.next().ok_or_else(|| MirLoweringError::new("max requires two arguments".to_string(), hir_expr.span))?;
-                        let right = it.next().ok_or_else(|| MirLoweringError::new("max requires two arguments".to_string(), hir_expr.span))?;
-                        BinOp { kind: ArithOp::Max.into(), left: left.into(), right: right.into() }.into()
+                        let left = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "max requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let right = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "max requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        BinOp {
+                            kind: ArithOp::Max.into(),
+                            left: left.into(),
+                            right: right.into(),
+                        }
+                        .into()
                     }
                     other => {
                         return Err(MirLoweringError::new(
@@ -265,25 +334,35 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             } else if let hir::ExprKind::FieldAccess(fa) = &apply.func.kind {
                 // Method call: coll.method(lambda)
                 let obj = lower(*fa.object.clone())?;
-                let args: Result<Vec<Expr>, MirLoweringError> = apply
-                    .args
-                    .iter()
-                    .map(|a| lower(a.clone()))
-                    .collect();
+                let args: Result<Vec<Expr>, MirLoweringError> =
+                    apply.args.iter().map(|a| lower(a.clone())).collect();
                 let args = args?;
                 let method = fa.field.as_str();
                 // Check if this is property access + indexing (not a collection method call)
                 // e.g., SELF.tokens(0), CONTEXT.dataInputs(0)
-                if !matches!(method, "filter" | "exists" | "forall" | "map" | "fold" | "slice" | "getOrElse"
-                    | "insert" | "update" | "remove" | "getMany" | "contains" | "updateDigest" | "updateOperations")
-                    && !(method == "get" && matches!(fa.object.tpe, Some(SType::SAvlTree))) {
+                #[allow(clippy::nonminimal_bool)]
+                if !matches!(
+                    method,
+                    "filter"
+                        | "exists"
+                        | "forall"
+                        | "map"
+                        | "fold"
+                        | "slice"
+                        | "getOrElse"
+                        | "insert"
+                        | "update"
+                        | "remove"
+                        | "getMany"
+                        | "contains"
+                        | "updateDigest"
+                        | "updateOperations"
+                ) && !(method == "get" && matches!(fa.object.tpe, Some(SType::SAvlTree)))
+                {
                     // Lower the FieldAccess as a property first, then apply indexing
                     let prop = lower(*apply.func.clone())?;
-                    let args: Result<Vec<Expr>, MirLoweringError> = apply
-                        .args
-                        .iter()
-                        .map(|a| lower(a.clone()))
-                        .collect();
+                    let args: Result<Vec<Expr>, MirLoweringError> =
+                        apply.args.iter().map(|a| lower(a.clone())).collect();
                     let args = args?;
                     match prop.tpe() {
                         SType::SColl(_) => {
@@ -294,128 +373,186 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 )
                             })?;
                             ByIndex::new(prop, index, None)
-                                .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
                                 .into()
                         }
                         _ => {
                             return Err(MirLoweringError::new(
-                                format!("MIR error: Cannot index non-collection"),
+                                "MIR error: Cannot index non-collection".to_string(),
                                 hir_expr.span,
                             ))
                         }
                     }
                 } else {
-                match method {
-                    "filter" => {
-                        let cond = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("filter requires a lambda".to_string(), hir_expr.span)
-                        })?;
-                        Filter::new(obj, cond)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
+                    match method {
+                        "filter" => {
+                            let cond = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "filter requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Filter::new(obj, cond)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "exists" => {
+                            let cond = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "exists requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Exists::new(obj, cond)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "forall" => {
+                            let cond = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "forall requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            ForAll::new(obj, cond)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "fold" => {
+                            let mut it = args.into_iter();
+                            let zero = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "fold requires zero value".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let fold_op = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "fold requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let fold_op = transform_fold_lambda(fold_op, hir_expr.span)?;
+                            Fold::new(obj, zero, fold_op)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "map" => {
+                            let mapper = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "map requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Map::new(obj, mapper)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        // AvlTree methods
+                        "get" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                            let mut it = args.into_iter();
+                            let key = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "AvlTree.get requires key".into(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let proof = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "AvlTree.get requires proof".into(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            TreeLookup::new(obj, key, proof)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "insert" | "update" | "remove" | "getMany" | "contains"
+                        | "updateDigest" | "updateOperations" => {
+                            use ergotree_ir::types::savltree;
+                            let method = match method {
+                                "insert" => savltree::INSERT_METHOD.clone(),
+                                "update" => savltree::UPDATE_METHOD.clone(),
+                                "remove" => savltree::REMOVE_METHOD.clone(),
+                                "getMany" => savltree::GET_MANY_METHOD.clone(),
+                                "contains" => savltree::CONTAINS_METHOD.clone(),
+                                "updateDigest" => savltree::UPDATE_DIGEST_METHOD.clone(),
+                                "updateOperations" => savltree::UPDATE_OPERATIONS_METHOD.clone(),
+                                _ => unreachable!(),
+                            };
+                            MethodCall::new(obj, method, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "getOrElse" => {
+                            let mut it = args.into_iter();
+                            let index = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "getOrElse requires index argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let default = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "getOrElse requires default argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            ByIndex::new(obj, index, Some(default.into()))
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "slice" => {
+                            let mut it = args.into_iter();
+                            let from = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "slice requires from argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let until = it.next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "slice requires until argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Slice::new(obj, from, until)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                format!("MIR error: Unknown method: {}", method),
+                                hir_expr.span,
+                            ))
+                        }
                     }
-                    "exists" => {
-                        let cond = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("exists requires a lambda".to_string(), hir_expr.span)
-                        })?;
-                        Exists::new(obj, cond)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "forall" => {
-                        let cond = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("forall requires a lambda".to_string(), hir_expr.span)
-                        })?;
-                        ForAll::new(obj, cond)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "fold" => {
-                        let mut it = args.into_iter();
-                        let zero = it.next().ok_or_else(|| {
-                            MirLoweringError::new("fold requires zero value".to_string(), hir_expr.span)
-                        })?;
-                        let fold_op = it.next().ok_or_else(|| {
-                            MirLoweringError::new("fold requires a lambda".to_string(), hir_expr.span)
-                        })?;
-                        let fold_op = transform_fold_lambda(fold_op, hir_expr.span)?;
-                        Fold::new(obj, zero, fold_op)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "map" => {
-                        let mapper = args.into_iter().next().ok_or_else(|| {
-                            MirLoweringError::new("map requires a lambda".to_string(), hir_expr.span)
-                        })?;
-                        Map::new(obj, mapper)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    // AvlTree methods
-                    "get" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
-                        let mut it = args.into_iter();
-                        let key = it.next().ok_or_else(|| MirLoweringError::new("AvlTree.get requires key".into(), hir_expr.span))?;
-                        let proof = it.next().ok_or_else(|| MirLoweringError::new("AvlTree.get requires proof".into(), hir_expr.span))?;
-                        TreeLookup::new(obj, key, proof)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "insert" | "update" | "remove" | "getMany" | "contains" | "updateDigest" | "updateOperations" => {
-                        use ergotree_ir::types::savltree;
-                        let method = match method {
-                            "insert" => savltree::INSERT_METHOD.clone(),
-                            "update" => savltree::UPDATE_METHOD.clone(),
-                            "remove" => savltree::REMOVE_METHOD.clone(),
-                            "getMany" => savltree::GET_MANY_METHOD.clone(),
-                            "contains" => savltree::CONTAINS_METHOD.clone(),
-                            "updateDigest" => savltree::UPDATE_DIGEST_METHOD.clone(),
-                            "updateOperations" => savltree::UPDATE_OPERATIONS_METHOD.clone(),
-                            _ => unreachable!(),
-                        };
-                        MethodCall::new(obj, method, args)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "getOrElse" => {
-                        let mut it = args.into_iter();
-                        let index = it.next().ok_or_else(|| {
-                            MirLoweringError::new("getOrElse requires index argument".to_string(), hir_expr.span)
-                        })?;
-                        let default = it.next().ok_or_else(|| {
-                            MirLoweringError::new("getOrElse requires default argument".to_string(), hir_expr.span)
-                        })?;
-                        ByIndex::new(obj, index, Some(default.into()))
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    "slice" => {
-                        let mut it = args.into_iter();
-                        let from = it.next().ok_or_else(|| {
-                            MirLoweringError::new("slice requires from argument".to_string(), hir_expr.span)
-                        })?;
-                        let until = it.next().ok_or_else(|| {
-                            MirLoweringError::new("slice requires until argument".to_string(), hir_expr.span)
-                        })?;
-                        Slice::new(obj, from, until)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
-                    }
-                    _ => {
-                        return Err(MirLoweringError::new(
-                            format!("MIR error: Unknown method: {}", method),
-                            hir_expr.span,
-                        ))
-                    }
-                }
                 } // close the else for property-vs-method
             } else {
                 // Collection indexing: coll(index)
                 let func = lower(*apply.func.clone())?;
-                let args: Result<Vec<Expr>, MirLoweringError> = apply
-                    .args
-                    .iter()
-                    .map(|a| lower(a.clone()))
-                    .collect();
+                let args: Result<Vec<Expr>, MirLoweringError> =
+                    apply.args.iter().map(|a| lower(a.clone())).collect();
                 let args = args?;
                 match func.tpe() {
                     SType::SColl(_) => {
@@ -426,14 +563,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             )
                         })?;
                         ByIndex::new(func, index, None)
-                            .map_err(|e| {
-                                MirLoweringError::new(format!("{:?}", e), hir_expr.span)
-                            })?
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
                     _ => {
                         return Err(MirLoweringError::new(
-                            format!("MIR error: Cannot apply non-function/non-collection"),
+                            "MIR error: Cannot apply non-function/non-collection".to_string(),
                             hir_expr.span,
                         ))
                     }
@@ -486,10 +621,8 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             return Ok(Expr::Context);
         }
         hir::ExprKind::Tuple(items) => {
-            let mir_items: Result<Vec<Expr>, MirLoweringError> = items
-                .iter()
-                .map(|item| lower(item.clone()))
-                .collect();
+            let mir_items: Result<Vec<Expr>, MirLoweringError> =
+                items.iter().map(|item| lower(item.clone())).collect();
             return Ok(Tuple::new(mir_items?)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                 .into());
@@ -570,26 +703,18 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "get" => {
-                    OptionGet::try_build(obj)
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into()
-                }
-                "isDefined" => {
-                    OptionIsDefined::try_build(obj)
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into()
-                }
-                "propBytes" => {
-                    SigmaPropBytes::try_build(obj)
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into()
-                }
-                "toLong" => {
-                    Upcast::new(obj, SType::SLong)
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into()
-                }
+                "get" => OptionGet::try_build(obj)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
+                "isDefined" => OptionIsDefined::try_build(obj)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
+                "propBytes" => SigmaPropBytes::try_build(obj)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
+                "toLong" => Upcast::new(obj, SType::SLong)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
                 "toInt" => {
                     // Upcast for smaller→Int, Downcast for larger→Int
                     if matches!(obj.tpe(), SType::SLong | SType::SBigInt) {
@@ -602,11 +727,9 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .into()
                     }
                 }
-                "toByte" => {
-                    Downcast::new(obj, SType::SByte)
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into()
-                }
+                "toByte" => Downcast::new(obj, SType::SByte)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
                 "toShort" => {
                     if matches!(obj.tpe(), SType::SInt | SType::SLong | SType::SBigInt) {
                         Downcast::new(obj, SType::SShort)
@@ -660,7 +783,11 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                field if field.len() >= 2 && field.starts_with('R') && field[1..].parse::<i8>().is_ok() => {
+                field
+                    if field.len() >= 2
+                        && field.starts_with('R')
+                        && field[1..].parse::<i8>().is_ok() =>
+                {
                     // Register access: .R4, .R5, etc.
                     let reg_id: i8 = field[1..].parse().unwrap();
                     let elem_tpe = fa.type_args.first().cloned().unwrap_or(SType::SAny);
@@ -717,7 +844,14 @@ fn transform_fold_lambda(fold_op: Expr, span: TextRange) -> Result<Expr, MirLowe
 
             // Replace ValUse(acc_id) with SelectField(ValUse(tuple_id), _1)
             // Replace ValUse(elem_id) with SelectField(ValUse(tuple_id), _2)
-            let new_body = replace_val_uses(fv.body().clone(), acc_id, elem_id, tuple_id, &tuple_tpe, span)?;
+            let new_body = replace_val_uses(
+                fv.body().clone(),
+                acc_id,
+                elem_id,
+                tuple_id,
+                &tuple_tpe,
+                span,
+            )?;
 
             let new_func = FuncValue::new(
                 vec![FuncArg {
@@ -743,14 +877,20 @@ fn replace_val_uses(
 ) -> Result<Expr, MirLoweringError> {
     match expr {
         Expr::ValUse(vu) if vu.val_id == acc_id => {
-            let tuple_use = Expr::ValUse(ValUse { val_id: tuple_id, tpe: tuple_tpe.clone() });
+            let tuple_use = Expr::ValUse(ValUse {
+                val_id: tuple_id,
+                tpe: tuple_tpe.clone(),
+            });
             let fi = TupleFieldIndex::try_from(1u8).unwrap();
             Ok(SelectField::new(tuple_use, fi)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::ValUse(vu) if vu.val_id == elem_id => {
-            let tuple_use = Expr::ValUse(ValUse { val_id: tuple_id, tpe: tuple_tpe.clone() });
+            let tuple_use = Expr::ValUse(ValUse {
+                val_id: tuple_id,
+                tpe: tuple_tpe.clone(),
+            });
             let fi = TupleFieldIndex::try_from(2u8).unwrap();
             Ok(SelectField::new(tuple_use, fi)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
@@ -758,34 +898,57 @@ fn replace_val_uses(
         }
         Expr::BinOp(spanned) => {
             let inner = spanned.expr().clone();
-            let new_left = replace_val_uses(*inner.left, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_right = replace_val_uses(*inner.right, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_left =
+                replace_val_uses(*inner.left, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_right =
+                replace_val_uses(*inner.right, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(BinOp {
                 kind: inner.kind,
                 left: new_left.into(),
                 right: new_right.into(),
-            }.into())
+            }
+            .into())
         }
         Expr::If(if_op) => {
-            let new_cond = replace_val_uses(*if_op.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_true = replace_val_uses(*if_op.true_branch, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_false = replace_val_uses(*if_op.false_branch, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_cond =
+                replace_val_uses(*if_op.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_true = replace_val_uses(
+                *if_op.true_branch,
+                acc_id,
+                elem_id,
+                tuple_id,
+                tuple_tpe,
+                span,
+            )?;
+            let new_false = replace_val_uses(
+                *if_op.false_branch,
+                acc_id,
+                elem_id,
+                tuple_id,
+                tuple_tpe,
+                span,
+            )?;
             Ok(If {
                 condition: new_cond.into(),
                 true_branch: new_true.into(),
                 false_branch: new_false.into(),
-            }.into())
+            }
+            .into())
         }
         Expr::BlockValue(spanned) => {
             let inner = spanned.expr().clone();
-            let new_items: Result<Vec<Expr>, _> = inner.items.into_iter()
+            let new_items: Result<Vec<Expr>, _> = inner
+                .items
+                .into_iter()
                 .map(|item| replace_val_uses(item, acc_id, elem_id, tuple_id, tuple_tpe, span))
                 .collect();
-            let new_result = replace_val_uses(*inner.result, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_result =
+                replace_val_uses(*inner.result, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(BlockValue {
                 items: new_items?,
                 result: new_result.into(),
-            }.into())
+            }
+            .into())
         }
         Expr::ValDef(spanned) => {
             let inner = spanned.expr().clone();
@@ -794,12 +957,18 @@ fn replace_val_uses(
                 ValDef {
                     id: inner.id,
                     rhs: new_rhs.into(),
-                }.into(),
+                }
+                .into(),
             ))
         }
         Expr::Tuple(tuple) => {
-            let new_items: Result<Vec<Expr>, _> = tuple.items.as_vec().iter()
-                .map(|item| replace_val_uses(item.clone(), acc_id, elem_id, tuple_id, tuple_tpe, span))
+            let new_items: Result<Vec<Expr>, _> = tuple
+                .items
+                .as_vec()
+                .iter()
+                .map(|item| {
+                    replace_val_uses(item.clone(), acc_id, elem_id, tuple_id, tuple_tpe, span)
+                })
                 .collect();
             Ok(Tuple::new(new_items?)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
@@ -807,38 +976,55 @@ fn replace_val_uses(
         }
         Expr::SelectField(sf) => {
             let inner = sf.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(SelectField::new(new_input, inner.field_index)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::BoolToSigmaProp(bts) => {
-            let new_input = replace_val_uses(*bts.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            Ok(BoolToSigmaProp { input: new_input.into() }.into())
+            let new_input =
+                replace_val_uses(*bts.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            Ok(BoolToSigmaProp {
+                input: new_input.into(),
+            }
+            .into())
         }
         Expr::ExtractAmount(ea) => {
-            let new_input = replace_val_uses(*ea.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            Ok(ExtractAmount { input: new_input.into() }.into())
+            let new_input =
+                replace_val_uses(*ea.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            Ok(ExtractAmount {
+                input: new_input.into(),
+            }
+            .into())
         }
         Expr::ExtractRegisterAs(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             // elem_tpe is the inner type; ExtractRegisterAs::new expects SOption(elem_tpe)
             let opt_tpe = SType::SOption(inner.elem_tpe.clone());
-            Ok(ExtractRegisterAs::new(new_input, inner.register_id, opt_tpe)
-                .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
-                .into())
+            Ok(
+                ExtractRegisterAs::new(new_input, inner.register_id, opt_tpe)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
+                    .into(),
+            )
         }
         Expr::OptionGet(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(OptionGet::try_build(new_input)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::SizeOf(so) => {
-            let new_input = replace_val_uses(*so.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            Ok(SizeOf { input: new_input.into() }.into())
+            let new_input =
+                replace_val_uses(*so.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            Ok(SizeOf {
+                input: new_input.into(),
+            }
+            .into())
         }
         Expr::PropertyCall(spanned) => {
             let inner = spanned.expr().clone();
@@ -849,50 +1035,70 @@ fn replace_val_uses(
         }
         Expr::ByIndex(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_index = replace_val_uses(*inner.index, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_index =
+                replace_val_uses(*inner.index, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(ByIndex::new(new_input, new_index, None)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::Filter(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_cond = replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_cond =
+                replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(Filter::new(new_input, new_cond)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::Exists(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_cond = replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_cond =
+                replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(Exists::new(new_input, new_cond)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::ForAll(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            let new_cond = replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_cond =
+                replace_val_uses(*inner.condition, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(ForAll::new(new_input, new_cond)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::FuncValue(fv) => {
-            let new_body = replace_val_uses(fv.body().clone(), acc_id, elem_id, tuple_id, tuple_tpe, span)?;
-            Ok(Expr::FuncValue(FuncValue::new(fv.args().to_vec(), new_body)))
+            let new_body = replace_val_uses(
+                fv.body().clone(),
+                acc_id,
+                elem_id,
+                tuple_id,
+                tuple_tpe,
+                span,
+            )?;
+            Ok(Expr::FuncValue(FuncValue::new(
+                fv.args().to_vec(),
+                new_body,
+            )))
         }
         Expr::LogicalNot(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(LogicalNot::try_build(new_input)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())
         }
         Expr::Negation(spanned) => {
             let inner = spanned.expr().clone();
-            let new_input = replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
             Ok(Negation::try_build(new_input)
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
                 .into())

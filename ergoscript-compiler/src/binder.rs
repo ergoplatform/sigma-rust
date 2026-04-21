@@ -5,9 +5,9 @@ use rowan::TextRange;
 
 use crate::error::pretty_error_desc;
 use crate::hir;
+use crate::hir::Apply;
 use crate::hir::Expr;
 use crate::hir::ExprKind;
-use crate::hir::Apply;
 use crate::hir::GlobalVars;
 use crate::hir::ValDef;
 use crate::hir::ValUse;
@@ -177,7 +177,7 @@ fn bind_expr(expr: Expr, env: &ScriptEnv, scope: &mut Scope) -> Result<Expr, Bin
         ExprKind::Lambda(lambda) => {
             // Create a new scope for lambda params
             // Note: we need to preserve the outer scope's next_id
-            let saved_next_id = scope.next_id;
+            let _saved_next_id = scope.next_id;
             let saved_vars = scope.vars.clone();
             // Add lambda params to scope
             let mut param_ids = Vec::new();
@@ -240,13 +240,23 @@ fn bind_expr(expr: Expr, env: &ScriptEnv, scope: &mut Scope) -> Result<Expr, Bin
         }
         ExprKind::Negation(inner) => {
             let bound = bind_expr(*inner.clone(), env, scope)?;
-            Ok(Expr { kind: ExprKind::Negation(Box::new(bound)), span: expr.span, tpe: expr.tpe.clone() })
+            Ok(Expr {
+                kind: ExprKind::Negation(Box::new(bound)),
+                span: expr.span,
+                tpe: expr.tpe.clone(),
+            })
         }
         ExprKind::LogicalNot(inner) => {
             let bound = bind_expr(*inner.clone(), env, scope)?;
-            Ok(Expr { kind: ExprKind::LogicalNot(Box::new(bound)), span: expr.span, tpe: expr.tpe.clone() })
+            Ok(Expr {
+                kind: ExprKind::LogicalNot(Box::new(bound)),
+                span: expr.span,
+                tpe: expr.tpe.clone(),
+            })
         }
-        ExprKind::GlobalVars(_) | ExprKind::Literal(_) | ExprKind::ValUse(_)
+        ExprKind::GlobalVars(_)
+        | ExprKind::Literal(_)
+        | ExprKind::ValUse(_)
         | ExprKind::Context => Ok(expr),
     }
 }

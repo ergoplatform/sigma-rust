@@ -1,9 +1,9 @@
 //! High-level Intermediate Representation
 //! Refered as frontend representation in sigmastate
 
+pub mod optimize;
 #[allow(dead_code)]
 mod rewrite;
-pub mod optimize;
 
 use ergotree_ir::types::stuple::STuple;
 use ergotree_ir::types::stype::SType;
@@ -316,13 +316,19 @@ pub enum ExprKind {
 }
 
 impl From<Binary> for ExprKind {
-    fn from(v: Binary) -> Self { ExprKind::Binary(v) }
+    fn from(v: Binary) -> Self {
+        ExprKind::Binary(v)
+    }
 }
 impl From<GlobalVars> for ExprKind {
-    fn from(v: GlobalVars) -> Self { ExprKind::GlobalVars(v) }
+    fn from(v: GlobalVars) -> Self {
+        ExprKind::GlobalVars(v)
+    }
 }
 impl From<Literal> for ExprKind {
-    fn from(v: Literal) -> Self { ExprKind::Literal(v) }
+    fn from(v: Literal) -> Self {
+        ExprKind::Literal(v)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -439,7 +445,10 @@ pub fn parse_type_str(s: &str) -> Option<SType> {
         // Tuple type: (T1, T2, ...)
         let inner = &s[1..s.len() - 1];
         let parts = split_type_args(inner);
-        let types: Vec<SType> = parts.into_iter().filter_map(|p| parse_type_str(p.trim())).collect();
+        let types: Vec<SType> = parts
+            .into_iter()
+            .filter_map(|p| parse_type_str(p.trim()))
+            .collect();
         if types.len() >= 2 {
             STuple::try_from(types).ok().map(SType::STuple)
         } else {

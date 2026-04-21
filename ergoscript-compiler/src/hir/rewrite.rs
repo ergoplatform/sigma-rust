@@ -91,7 +91,7 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                     kind: ExprKind::FieldAccess(FieldAccessExpr {
                         object: Box::new(new_obj),
                         field: fa.field.clone(),
-                    type_args: fa.type_args.clone(),
+                        type_args: fa.type_args.clone(),
                     }),
                     ..e
                 },
@@ -158,7 +158,11 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 })
                 .collect();
             let new_items = new_items?;
-            if new_items.iter().zip(items.iter()).all(|(new, old)| new == old) {
+            if new_items
+                .iter()
+                .zip(items.iter())
+                .all(|(new, old)| new == old)
+            {
                 e
             } else {
                 Expr {

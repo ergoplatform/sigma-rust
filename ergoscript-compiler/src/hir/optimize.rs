@@ -172,20 +172,16 @@ fn constant_fold(expr: Expr, scope: &mut HashMap<u32, Literal>) -> Expr {
             }
         }
         ExprKind::Tuple(items) => {
-            let new_items: Vec<Expr> = items
-                .into_iter()
-                .map(|i| constant_fold(i, scope))
-                .collect();
+            let new_items: Vec<Expr> = items.into_iter().map(|i| constant_fold(i, scope)).collect();
             Expr {
                 kind: ExprKind::Tuple(new_items),
                 ..expr
             }
         }
         // Leaves: no children to fold
-        ExprKind::Literal(_)
-        | ExprKind::Ident(_)
-        | ExprKind::GlobalVars(_)
-        | ExprKind::Context => expr,
+        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => {
+            expr
+        }
     }
 }
 
@@ -194,24 +190,48 @@ fn constant_fold(expr: Expr, scope: &mut HashMap<u32, Literal>) -> Expr {
 fn eval_binary(op: &BinaryOp, lhs: &Literal, rhs: &Literal) -> Option<Literal> {
     match (op, lhs, rhs) {
         // Long arithmetic
-        (BinaryOp::Plus, Literal::Long(a), Literal::Long(b)) => a.checked_add(*b).map(Literal::Long),
-        (BinaryOp::Minus, Literal::Long(a), Literal::Long(b)) => a.checked_sub(*b).map(Literal::Long),
-        (BinaryOp::Multiply, Literal::Long(a), Literal::Long(b)) => a.checked_mul(*b).map(Literal::Long),
+        (BinaryOp::Plus, Literal::Long(a), Literal::Long(b)) => {
+            a.checked_add(*b).map(Literal::Long)
+        }
+        (BinaryOp::Minus, Literal::Long(a), Literal::Long(b)) => {
+            a.checked_sub(*b).map(Literal::Long)
+        }
+        (BinaryOp::Multiply, Literal::Long(a), Literal::Long(b)) => {
+            a.checked_mul(*b).map(Literal::Long)
+        }
         (BinaryOp::Divide, Literal::Long(a), Literal::Long(b)) => {
-            if *b != 0 { a.checked_div(*b).map(Literal::Long) } else { None }
+            if *b != 0 {
+                a.checked_div(*b).map(Literal::Long)
+            } else {
+                None
+            }
         }
         (BinaryOp::Modulo, Literal::Long(a), Literal::Long(b)) => {
-            if *b != 0 { a.checked_rem(*b).map(Literal::Long) } else { None }
+            if *b != 0 {
+                a.checked_rem(*b).map(Literal::Long)
+            } else {
+                None
+            }
         }
         // Int arithmetic
         (BinaryOp::Plus, Literal::Int(a), Literal::Int(b)) => a.checked_add(*b).map(Literal::Int),
         (BinaryOp::Minus, Literal::Int(a), Literal::Int(b)) => a.checked_sub(*b).map(Literal::Int),
-        (BinaryOp::Multiply, Literal::Int(a), Literal::Int(b)) => a.checked_mul(*b).map(Literal::Int),
+        (BinaryOp::Multiply, Literal::Int(a), Literal::Int(b)) => {
+            a.checked_mul(*b).map(Literal::Int)
+        }
         (BinaryOp::Divide, Literal::Int(a), Literal::Int(b)) => {
-            if *b != 0 { a.checked_div(*b).map(Literal::Int) } else { None }
+            if *b != 0 {
+                a.checked_div(*b).map(Literal::Int)
+            } else {
+                None
+            }
         }
         (BinaryOp::Modulo, Literal::Int(a), Literal::Int(b)) => {
-            if *b != 0 { a.checked_rem(*b).map(Literal::Int) } else { None }
+            if *b != 0 {
+                a.checked_rem(*b).map(Literal::Int)
+            } else {
+                None
+            }
         }
         // Long comparisons
         (BinaryOp::Gt, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a > b)),
@@ -294,7 +314,8 @@ fn count_val_uses(expr: &Expr, counts: &mut HashMap<u32, usize>) {
                 count_val_uses(item, counts);
             }
         }
-        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => {}
+        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => {
+        }
     }
 }
 
@@ -428,8 +449,11 @@ fn rewrite_map_size(expr: Expr, map_colls: &HashMap<u32, Expr>) -> Expr {
                 ..expr
             }
         }
-        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_)
-        | ExprKind::ValUse(_) | ExprKind::Context => expr,
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => expr,
     }
 }
 
@@ -551,7 +575,9 @@ fn substitute_val_uses(expr: Expr, subs: &HashMap<u32, Expr>) -> Expr {
                 ..expr
             }
         }
-        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => expr,
+        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => {
+            expr
+        }
     }
 }
 
@@ -560,10 +586,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
     match expr.kind {
         ExprKind::Block(items) => {
             // First, recursively optimize all items
-            let items: Vec<Expr> = items
-                .into_iter()
-                .map(inline_single_use_vals)
-                .collect();
+            let items: Vec<Expr> = items.into_iter().map(inline_single_use_vals).collect();
 
             if items.len() <= 1 {
                 // Single-item block or empty — nothing to inline
@@ -595,7 +618,8 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 if map_colls.is_empty() {
                     items
                 } else {
-                    items.into_iter()
+                    items
+                        .into_iter()
                         .map(|item| rewrite_map_size(item, &map_colls))
                         .collect()
                 }
@@ -657,11 +681,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
         }
         ExprKind::Apply(app) => {
             let new_func = inline_single_use_vals(*app.func);
-            let new_args: Vec<Expr> = app
-                .args
-                .into_iter()
-                .map(inline_single_use_vals)
-                .collect();
+            let new_args: Vec<Expr> = app.args.into_iter().map(inline_single_use_vals).collect();
             Expr {
                 kind: ExprKind::Apply(Apply {
                     func: Box::new(new_func),
@@ -745,10 +765,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             }
         }
         ExprKind::Tuple(items) => {
-            let new_items: Vec<Expr> = items
-                .into_iter()
-                .map(inline_single_use_vals)
-                .collect();
+            let new_items: Vec<Expr> = items.into_iter().map(inline_single_use_vals).collect();
             Expr {
                 kind: ExprKind::Tuple(new_items),
                 ..expr
@@ -784,7 +801,10 @@ fn eliminate_negation(expr: Expr) -> Expr {
                 if let Some(new_op) = flipped {
                     return Expr {
                         kind: ExprKind::Binary(Binary {
-                            op: Spanned { node: new_op, span: bin.op.span },
+                            op: Spanned {
+                                node: new_op,
+                                span: bin.op.span,
+                            },
                             lhs: bin.lhs.clone(),
                             rhs: bin.rhs.clone(),
                         }),
@@ -811,10 +831,7 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Block(items) => {
-            let new_items: Vec<Expr> = items
-                .into_iter()
-                .map(eliminate_negation)
-                .collect();
+            let new_items: Vec<Expr> = items.into_iter().map(eliminate_negation).collect();
             Expr {
                 kind: ExprKind::Block(new_items),
                 ..expr
@@ -834,11 +851,7 @@ fn eliminate_negation(expr: Expr) -> Expr {
         }
         ExprKind::Apply(app) => {
             let new_func = eliminate_negation(*app.func);
-            let new_args: Vec<Expr> = app
-                .args
-                .into_iter()
-                .map(eliminate_negation)
-                .collect();
+            let new_args: Vec<Expr> = app.args.into_iter().map(eliminate_negation).collect();
             Expr {
                 kind: ExprKind::Apply(Apply {
                     func: Box::new(new_func),
@@ -891,10 +904,7 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Tuple(items) => {
-            let new_items: Vec<Expr> = items
-                .into_iter()
-                .map(eliminate_negation)
-                .collect();
+            let new_items: Vec<Expr> = items.into_iter().map(eliminate_negation).collect();
             Expr {
                 kind: ExprKind::Tuple(new_items),
                 ..expr
@@ -974,7 +984,9 @@ mod tests {
     #[test]
     fn test_nested_single_use_chain() {
         // All single-use vals inlined, arithmetic folded where possible
-        let hex = compile_hex("{ val a = SELF.R4[Long].get; val b = a + 1L; val c = b * 2L; sigmaProp(c > 0L) }");
+        let hex = compile_hex(
+            "{ val a = SELF.R4[Long].get; val b = a + 1L; val c = b * 2L; sigmaProp(c > 0L) }",
+        );
         assert_eq!(hex, "1003050205040500d1919c9ae4c6a70405730073017302");
     }
 
@@ -998,14 +1010,20 @@ mod tests {
     fn test_cse_self_tokens_twice() {
         // SELF.tokens appears 2x → CSE lifts to ValDef
         let hex = compile_hex("{ sigmaProp(SELF.tokens.size > 0 && SELF.tokens(0)._2 == 1L) }");
-        assert_eq!(hex, "1003040004000502d801d601db6308a7d1ed91b172017300938cb27201730100027302");
+        assert_eq!(
+            hex,
+            "1003040004000502d801d601db6308a7d1ed91b172017300938cb27201730100027302"
+        );
     }
 
     #[test]
     fn test_cse_outputs0_twice() {
         // OUTPUTS(0) appears 2x → CSE lifts to ValDef
         let hex = compile_hex("{ sigmaProp(OUTPUTS(0).value > SELF.value && OUTPUTS(0).propositionBytes == SELF.propositionBytes) }");
-        assert_eq!(hex, "10010400d801d601b2a5730000d1ed91c17201c1a793c27201c2a7");
+        assert_eq!(
+            hex,
+            "10010400d801d601b2a5730000d1ed91c17201c1a793c27201c2a7"
+        );
     }
 
     #[test]
@@ -1018,7 +1036,12 @@ mod tests {
     #[test]
     fn test_cse_lambda_b_tokens() {
         // b.tokens appears 2x inside exists lambda → CSE lifts inside lambda
-        let hex = compile_hex("{ sigmaProp(INPUTS.exists { (b: Box) => b.tokens.size > 0 && b.tokens(0)._2 > 0L }) }");
-        assert_eq!(hex, "1003040004000500d1aea4d9010163d801d603db63087201ed91b172037300918cb27203730100027302");
+        let hex = compile_hex(
+            "{ sigmaProp(INPUTS.exists { (b: Box) => b.tokens.size > 0 && b.tokens(0)._2 > 0L }) }",
+        );
+        assert_eq!(
+            hex,
+            "1003040004000500d1aea4d9010163d801d603db63087201ed91b172037300918cb27203730100027302"
+        );
     }
 }

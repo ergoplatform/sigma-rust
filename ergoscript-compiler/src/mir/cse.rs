@@ -68,7 +68,10 @@ fn reorder_valdefs(expr: Expr) -> Expr {
 
             Expr::BlockValue(Spanned {
                 source_span: s.source_span,
-                expr: BlockValue { items: emitted, result: s.expr.result },
+                expr: BlockValue {
+                    items: emitted,
+                    result: s.expr.result,
+                },
             })
         }
         other => other,
@@ -99,7 +102,9 @@ fn emit_deps(
             }
         }
         Expr::BlockValue(s) => {
-            for item in &s.expr.items { emit_deps(item, val_map, emitted, emitted_ids); }
+            for item in &s.expr.items {
+                emit_deps(item, val_map, emitted, emitted_ids);
+            }
             emit_deps(&s.expr.result, val_map, emitted, emitted_ids);
         }
         Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids),
@@ -138,7 +143,9 @@ fn emit_deps(
         Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids),
         Expr::MethodCall(s) => {
             emit_deps(&s.expr.obj, val_map, emitted, emitted_ids);
-            for a in &s.expr.args { emit_deps(a, val_map, emitted, emitted_ids); }
+            for a in &s.expr.args {
+                emit_deps(a, val_map, emitted, emitted_ids);
+            }
         }
         Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids),
         Expr::ExtractRegisterAs(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
@@ -150,7 +157,9 @@ fn emit_deps(
         Expr::ByIndex(s) => {
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
             emit_deps(&s.expr.index, val_map, emitted, emitted_ids);
-            if let Some(ref d) = s.expr.default { emit_deps(d, val_map, emitted, emitted_ids); }
+            if let Some(ref d) = s.expr.default {
+                emit_deps(d, val_map, emitted, emitted_ids);
+            }
         }
         Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
         Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
@@ -171,9 +180,21 @@ fn emit_deps(
         Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids),
         Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids),
         Expr::CreateProveDlog(cpd) => emit_deps(&cpd.input, val_map, emitted, emitted_ids),
-        Expr::SigmaAnd(sa) => { for i in sa.items.iter() { emit_deps(i, val_map, emitted, emitted_ids); } }
-        Expr::SigmaOr(so) => { for i in so.items.iter() { emit_deps(i, val_map, emitted, emitted_ids); } }
-        Expr::Tuple(t) => { for i in t.items.iter() { emit_deps(i, val_map, emitted, emitted_ids); } }
+        Expr::SigmaAnd(sa) => {
+            for i in sa.items.iter() {
+                emit_deps(i, val_map, emitted, emitted_ids);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for i in so.items.iter() {
+                emit_deps(i, val_map, emitted, emitted_ids);
+            }
+        }
+        Expr::Tuple(t) => {
+            for i in t.items.iter() {
+                emit_deps(i, val_map, emitted, emitted_ids);
+            }
+        }
         Expr::TreeLookup(s) => {
             emit_deps(&s.expr.tree, val_map, emitted, emitted_ids);
             emit_deps(&s.expr.key, val_map, emitted, emitted_ids);
@@ -181,7 +202,9 @@ fn emit_deps(
         }
         Expr::Apply(app) => {
             emit_deps(&app.func, val_map, emitted, emitted_ids);
-            for a in &app.args { emit_deps(a, val_map, emitted, emitted_ids); }
+            for a in &app.args {
+                emit_deps(a, val_map, emitted, emitted_ids);
+            }
         }
         _ => {}
     }
@@ -220,6 +243,7 @@ fn collect_and_assign_ids(
         }
         Expr::ValDef(s) => {
             let old_id = s.expr.id.0;
+            #[allow(clippy::map_entry)]
             if !id_map.contains_key(&old_id) {
                 // Scala: defId = curId (before increment)
                 let my_def_id = *next_id;
@@ -238,13 +262,14 @@ fn collect_and_assign_ids(
             // For standalone lambdas, defId = current curId (= *next_id).
             let func_arg_start = match def_id {
                 Some(did) => did + 1,
-                None => *next_id + 1,  // defId = curId = *next_id; varId = defId + 1
+                None => *next_id + 1, // defId = curId = *next_id; varId = defId + 1
             };
 
             // Assign FuncArg IDs starting at func_arg_start
             let mut body_id = func_arg_start;
             for arg in fv.args() {
                 let old_id = arg.idx.0;
+                #[allow(clippy::map_entry)]
                 if !id_map.contains_key(&old_id) {
                     id_map.insert(old_id, body_id);
                     body_id += 1;
@@ -295,19 +320,29 @@ fn collect_and_assign_ids(
         Expr::PropertyCall(s) => collect_and_assign_ids(&s.expr.obj, id_map, next_id, def_id),
         Expr::MethodCall(s) => {
             collect_and_assign_ids(&s.expr.obj, id_map, next_id, def_id);
-            for a in &s.expr.args { collect_and_assign_ids(a, id_map, next_id, def_id); }
+            for a in &s.expr.args {
+                collect_and_assign_ids(a, id_map, next_id, def_id);
+            }
         }
         Expr::ExtractAmount(ea) => collect_and_assign_ids(&ea.input, id_map, next_id, def_id),
-        Expr::ExtractRegisterAs(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
-        Expr::ExtractScriptBytes(esb) => collect_and_assign_ids(&esb.input, id_map, next_id, def_id),
+        Expr::ExtractRegisterAs(s) => {
+            collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id)
+        }
+        Expr::ExtractScriptBytes(esb) => {
+            collect_and_assign_ids(&esb.input, id_map, next_id, def_id)
+        }
         Expr::ExtractBytes(eb) => collect_and_assign_ids(&eb.input, id_map, next_id, def_id),
         Expr::ExtractId(ei) => collect_and_assign_ids(&ei.input, id_map, next_id, def_id),
-        Expr::ExtractCreationInfo(eci) => collect_and_assign_ids(&eci.input, id_map, next_id, def_id),
+        Expr::ExtractCreationInfo(eci) => {
+            collect_and_assign_ids(&eci.input, id_map, next_id, def_id)
+        }
         Expr::SizeOf(so) => collect_and_assign_ids(&so.input, id_map, next_id, def_id),
         Expr::ByIndex(s) => {
             collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id);
             collect_and_assign_ids(&s.expr.index, id_map, next_id, def_id);
-            if let Some(ref d) = s.expr.default { collect_and_assign_ids(d, id_map, next_id, def_id); }
+            if let Some(ref d) = s.expr.default {
+                collect_and_assign_ids(d, id_map, next_id, def_id);
+            }
         }
         Expr::SelectField(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
         Expr::OptionGet(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
@@ -328,9 +363,21 @@ fn collect_and_assign_ids(
         Expr::Downcast(dc) => collect_and_assign_ids(&dc.input, id_map, next_id, def_id),
         Expr::CalcBlake2b256(cb) => collect_and_assign_ids(&cb.input, id_map, next_id, def_id),
         Expr::CreateProveDlog(cpd) => collect_and_assign_ids(&cpd.input, id_map, next_id, def_id),
-        Expr::SigmaAnd(sa) => { for i in sa.items.iter() { collect_and_assign_ids(i, id_map, next_id, def_id); } }
-        Expr::SigmaOr(so) => { for i in so.items.iter() { collect_and_assign_ids(i, id_map, next_id, def_id); } }
-        Expr::Tuple(t) => { for i in t.items.iter() { collect_and_assign_ids(i, id_map, next_id, def_id); } }
+        Expr::SigmaAnd(sa) => {
+            for i in sa.items.iter() {
+                collect_and_assign_ids(i, id_map, next_id, def_id);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for i in so.items.iter() {
+                collect_and_assign_ids(i, id_map, next_id, def_id);
+            }
+        }
+        Expr::Tuple(t) => {
+            for i in t.items.iter() {
+                collect_and_assign_ids(i, id_map, next_id, def_id);
+            }
+        }
         Expr::TreeLookup(s) => {
             collect_and_assign_ids(&s.expr.tree, id_map, next_id, def_id);
             collect_and_assign_ids(&s.expr.key, id_map, next_id, def_id);
@@ -338,7 +385,9 @@ fn collect_and_assign_ids(
         }
         Expr::Apply(app) => {
             collect_and_assign_ids(&app.func, id_map, next_id, def_id);
-            for a in &app.args { collect_and_assign_ids(a, id_map, next_id, def_id); }
+            for a in &app.args {
+                collect_and_assign_ids(a, id_map, next_id, def_id);
+            }
         }
         _ => {}
     }
@@ -367,7 +416,10 @@ fn inline_const_vals(expr: Expr) -> Expr {
             if const_map.is_empty() {
                 return Expr::BlockValue(Spanned {
                     source_span: s.source_span,
-                    expr: BlockValue { items: new_items, result: s.expr.result },
+                    expr: BlockValue {
+                        items: new_items,
+                        result: s.expr.result,
+                    },
                 });
             }
 
@@ -392,10 +444,7 @@ fn inline_const_vals(expr: Expr) -> Expr {
             }
 
             // Recurse into remaining items (they may contain nested blocks)
-            let result_items: Vec<Expr> = result_items
-                .into_iter()
-                .map(inline_const_vals)
-                .collect();
+            let result_items: Vec<Expr> = result_items.into_iter().map(inline_const_vals).collect();
             let result_expr = inline_const_vals(result_expr);
 
             if result_items.is_empty() {
@@ -439,14 +488,20 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         let dag_usages = count_dag_usages(&expr);
         let mut candidates: Vec<(Expr, usize)> = Vec::new();
         for (sub, dag_count) in &dag_usages {
-            if *dag_count < 2 { continue; }
-            if !is_collectible(sub) { continue; }
+            if *dag_count < 2 {
+                continue;
+            }
+            if !is_collectible(sub) {
+                continue;
+            }
             let tree_count = all_subexprs.iter().filter(|s| *s == sub).count();
             if tree_count >= 2 {
                 candidates.push((sub.clone(), tree_count));
             }
         }
-        if candidates.is_empty() { return expr; }
+        if candidates.is_empty() {
+            return expr;
+        }
         candidates.sort_by_key(|(c, count)| {
             let depth = expr_depth(c);
             let savings = (*count as i32 - 1) * depth as i32;
@@ -459,32 +514,50 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
 
         for (candidate, _count) in &candidates {
             let current_count = count_occurrences(&result, candidate);
-            if current_count < 2 { continue; }
+            if current_count < 2 {
+                continue;
+            }
             let val_id = next_id;
             next_id += 1;
             let tpe = expr_type(candidate);
-            result = replace_all(&result, candidate, &Expr::ValUse(ValUse {
-                val_id: ValId(val_id), tpe,
-            }));
+            result = replace_all(
+                &result,
+                candidate,
+                &Expr::ValUse(ValUse {
+                    val_id: ValId(val_id),
+                    tpe,
+                }),
+            );
             new_val_defs.push(Expr::ValDef(Spanned {
                 source_span: SourceSpan::empty(),
-                expr: ValDef { id: ValId(val_id), rhs: candidate.clone().into() },
+                expr: ValDef {
+                    id: ValId(val_id),
+                    rhs: candidate.clone().into(),
+                },
             }));
         }
 
-        if new_val_defs.is_empty() { return result; }
+        if new_val_defs.is_empty() {
+            return result;
+        }
         match result {
             Expr::BlockValue(spanned) => {
                 let mut items = new_val_defs;
                 items.extend(spanned.expr.items);
                 Expr::BlockValue(Spanned {
                     source_span: SourceSpan::empty(),
-                    expr: BlockValue { items, result: spanned.expr.result },
+                    expr: BlockValue {
+                        items,
+                        result: spanned.expr.result,
+                    },
                 })
             }
             other => Expr::BlockValue(Spanned {
                 source_span: SourceSpan::empty(),
-                expr: BlockValue { items: new_val_defs, result: other.into() },
+                expr: BlockValue {
+                    items: new_val_defs,
+                    result: other.into(),
+                },
             }),
         }
     } else if has_lambdas {
@@ -498,14 +571,20 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         let dag_usages = count_dag_usages(&expr);
         let mut candidates: Vec<(Expr, usize)> = Vec::new();
         for (sub, dag_count) in &dag_usages {
-            if *dag_count < 2 { continue; }
-            if !is_collectible(sub) || contains_val_use(sub) { continue; }
+            if *dag_count < 2 {
+                continue;
+            }
+            if !is_collectible(sub) || contains_val_use(sub) {
+                continue;
+            }
             let tree_count = all_subexprs.iter().filter(|s| *s == sub).count();
             if tree_count >= 2 {
                 candidates.push((sub.clone(), tree_count));
             }
         }
-        if candidates.is_empty() { return expr; }
+        if candidates.is_empty() {
+            return expr;
+        }
         candidates.sort_by_key(|(c, count)| {
             let depth = expr_depth(c);
             let savings = (*count as i32 - 1) * depth as i32;
@@ -516,31 +595,49 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         let mut new_val_defs: Vec<Expr> = Vec::new();
         for (candidate, _count) in &candidates {
             let current_count = count_occurrences(&result, candidate);
-            if current_count < 2 { continue; }
+            if current_count < 2 {
+                continue;
+            }
             let val_id = next_id;
             next_id += 1;
             let tpe = expr_type(candidate);
-            result = replace_all(&result, candidate, &Expr::ValUse(ValUse {
-                val_id: ValId(val_id), tpe,
-            }));
+            result = replace_all(
+                &result,
+                candidate,
+                &Expr::ValUse(ValUse {
+                    val_id: ValId(val_id),
+                    tpe,
+                }),
+            );
             new_val_defs.push(Expr::ValDef(Spanned {
                 source_span: SourceSpan::empty(),
-                expr: ValDef { id: ValId(val_id), rhs: candidate.clone().into() },
+                expr: ValDef {
+                    id: ValId(val_id),
+                    rhs: candidate.clone().into(),
+                },
             }));
         }
-        if new_val_defs.is_empty() { return result; }
+        if new_val_defs.is_empty() {
+            return result;
+        }
         match result {
             Expr::BlockValue(spanned) => {
                 let mut items = new_val_defs;
                 items.extend(spanned.expr.items);
                 Expr::BlockValue(Spanned {
                     source_span: SourceSpan::empty(),
-                    expr: BlockValue { items, result: spanned.expr.result },
+                    expr: BlockValue {
+                        items,
+                        result: spanned.expr.result,
+                    },
                 })
             }
             other => Expr::BlockValue(Spanned {
                 source_span: SourceSpan::empty(),
-                expr: BlockValue { items: new_val_defs, result: other.into() },
+                expr: BlockValue {
+                    items: new_val_defs,
+                    result: other.into(),
+                },
             }),
         }
     } else {
@@ -586,16 +683,24 @@ fn map_children_with_id_mut(expr: Expr, gid: &mut u32, f: fn(Expr, &mut u32) -> 
             let result = f(*s.expr.result, gid);
             Expr::BlockValue(Spanned {
                 source_span: s.source_span,
-                expr: BlockValue { items, result: result.into() },
+                expr: BlockValue {
+                    items,
+                    result: result.into(),
+                },
             })
         }
         Expr::ValDef(s) => Expr::ValDef(Spanned {
             source_span: s.source_span,
-            expr: ValDef { id: s.expr.id, rhs: f(*s.expr.rhs, gid).into() },
+            expr: ValDef {
+                id: s.expr.id,
+                rhs: f(*s.expr.rhs, gid).into(),
+            },
         }),
-        Expr::BoolToSigmaProp(bts) => Expr::BoolToSigmaProp(
-            ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp { input: f(*bts.input, gid).into() },
-        ),
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: f(*bts.input, gid).into(),
+            })
+        }
         Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
             condition: f(*if_op.condition, gid).into(),
             true_branch: f(*if_op.true_branch, gid).into(),
@@ -625,12 +730,14 @@ fn map_children_with_id_mut(expr: Expr, gid: &mut u32, f: fn(Expr, &mut u32) -> 
                 elem_tpe: s.expr.elem_tpe,
             },
         }),
-        Expr::SizeOf(so) => Expr::SizeOf(
-            ergotree_ir::mir::coll_size::SizeOf { input: f(*so.input, gid).into() },
-        ),
-        Expr::ExtractAmount(ea) => Expr::ExtractAmount(
-            ergotree_ir::mir::extract_amount::ExtractAmount { input: f(*ea.input, gid).into() },
-        ),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: f(*so.input, gid).into(),
+        }),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: f(*ea.input, gid).into(),
+            })
+        }
         Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
             source_span: s.source_span,
             expr: ergotree_ir::mir::property_call::PropertyCall {
@@ -680,11 +787,16 @@ fn map_children_with_id(expr: Expr, gid: u32, f: fn(Expr, u32) -> Expr) -> Expr 
         }),
         Expr::ValDef(s) => Expr::ValDef(Spanned {
             source_span: s.source_span,
-            expr: ValDef { id: s.expr.id, rhs: f(*s.expr.rhs, gid).into() },
+            expr: ValDef {
+                id: s.expr.id,
+                rhs: f(*s.expr.rhs, gid).into(),
+            },
         }),
-        Expr::BoolToSigmaProp(bts) => Expr::BoolToSigmaProp(
-            ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp { input: f(*bts.input, gid).into() },
-        ),
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: f(*bts.input, gid).into(),
+            })
+        }
         Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
             condition: f(*if_op.condition, gid).into(),
             true_branch: f(*if_op.true_branch, gid).into(),
@@ -714,12 +826,14 @@ fn map_children_with_id(expr: Expr, gid: u32, f: fn(Expr, u32) -> Expr) -> Expr 
                 elem_tpe: s.expr.elem_tpe,
             },
         }),
-        Expr::SizeOf(so) => Expr::SizeOf(
-            ergotree_ir::mir::coll_size::SizeOf { input: f(*so.input, gid).into() },
-        ),
-        Expr::ExtractAmount(ea) => Expr::ExtractAmount(
-            ergotree_ir::mir::extract_amount::ExtractAmount { input: f(*ea.input, gid).into() },
-        ),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: f(*so.input, gid).into(),
+        }),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: f(*ea.input, gid).into(),
+            })
+        }
         Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
             source_span: s.source_span,
             expr: ergotree_ir::mir::property_call::PropertyCall {
@@ -765,11 +879,16 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
         }),
         Expr::ValDef(s) => Expr::ValDef(Spanned {
             source_span: s.source_span,
-            expr: ValDef { id: s.expr.id, rhs: f(*s.expr.rhs).into() },
+            expr: ValDef {
+                id: s.expr.id,
+                rhs: f(*s.expr.rhs).into(),
+            },
         }),
-        Expr::BoolToSigmaProp(bts) => Expr::BoolToSigmaProp(
-            ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp { input: f(*bts.input).into() },
-        ),
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: f(*bts.input).into(),
+            })
+        }
         Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
             condition: f(*if_op.condition).into(),
             true_branch: f(*if_op.true_branch).into(),
@@ -782,9 +901,11 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
                 method: s.expr.method,
             },
         }),
-        Expr::ExtractAmount(ea) => Expr::ExtractAmount(
-            ergotree_ir::mir::extract_amount::ExtractAmount { input: f(*ea.input).into() },
-        ),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: f(*ea.input).into(),
+            })
+        }
         Expr::ExtractRegisterAs(s) => Expr::ExtractRegisterAs(Spanned {
             source_span: s.source_span,
             expr: ergotree_ir::mir::extract_reg_as::ExtractRegisterAs {
@@ -793,38 +914,53 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
                 elem_tpe: s.expr.elem_tpe,
             },
         }),
-        Expr::ExtractScriptBytes(esb) => Expr::ExtractScriptBytes(
-            ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes { input: f(*esb.input).into() },
-        ),
-        Expr::ExtractBytes(eb) => Expr::ExtractBytes(
-            ergotree_ir::mir::extract_bytes::ExtractBytes { input: f(*eb.input).into() },
-        ),
-        Expr::ExtractId(ei) => Expr::ExtractId(
-            ergotree_ir::mir::extract_id::ExtractId { input: f(*ei.input).into() },
-        ),
+        Expr::ExtractScriptBytes(esb) => {
+            Expr::ExtractScriptBytes(ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes {
+                input: f(*esb.input).into(),
+            })
+        }
+        Expr::ExtractBytes(eb) => {
+            Expr::ExtractBytes(ergotree_ir::mir::extract_bytes::ExtractBytes {
+                input: f(*eb.input).into(),
+            })
+        }
+        Expr::ExtractId(ei) => Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+            input: f(*ei.input).into(),
+        }),
         Expr::ExtractCreationInfo(eci) => Expr::ExtractCreationInfo(
-            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo { input: f(*eci.input).into() },
+            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
+                input: f(*eci.input).into(),
+            },
         ),
-        Expr::SizeOf(so) => Expr::SizeOf(
-            ergotree_ir::mir::coll_size::SizeOf { input: f(*so.input).into() },
-        ),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: f(*so.input).into(),
+        }),
         Expr::LogicalNot(s) => Expr::LogicalNot(Spanned {
             source_span: s.source_span,
-            expr: ergotree_ir::mir::logical_not::LogicalNot { input: f(*s.expr.input).into() },
+            expr: ergotree_ir::mir::logical_not::LogicalNot {
+                input: f(*s.expr.input).into(),
+            },
         }),
         Expr::Negation(s) => Expr::Negation(Spanned {
             source_span: s.source_span,
-            expr: ergotree_ir::mir::negation::Negation { input: f(*s.expr.input).into() },
+            expr: ergotree_ir::mir::negation::Negation {
+                input: f(*s.expr.input).into(),
+            },
         }),
-        Expr::SigmaPropBytes(spb) => Expr::SigmaPropBytes(
-            ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes { input: f(*spb.input).into() },
-        ),
-        Expr::Upcast(uc) => Expr::Upcast(
-            ergotree_ir::mir::upcast::Upcast { input: f(*uc.input).into(), tpe: uc.tpe },
-        ),
-        Expr::CalcBlake2b256(cb) => Expr::CalcBlake2b256(
-            ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 { input: f(*cb.input).into() },
-        ),
+        Expr::SigmaPropBytes(spb) => {
+            Expr::SigmaPropBytes(ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes {
+                input: f(*spb.input).into(),
+            })
+        }
+        Expr::Upcast(uc) => Expr::Upcast(ergotree_ir::mir::upcast::Upcast {
+            input: f(*uc.input).into(),
+            tpe: uc.tpe,
+        }),
+        Expr::CalcBlake2b256(cb) => {
+            Expr::CalcBlake2b256(ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 {
+                input: f(*cb.input).into(),
+            })
+        }
         Expr::Filter(s) => Expr::Filter(Spanned {
             source_span: s.source_span,
             expr: ergotree_ir::mir::coll_filter::Filter {
@@ -853,7 +989,12 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
             let input = f(*s.expr.input);
             let mapper = f(*s.expr.mapper);
             ergotree_ir::mir::coll_map::Map::new(input, mapper)
-                .map(|m| Expr::Map(Spanned { source_span: SourceSpan::empty(), expr: m }))
+                .map(|m| {
+                    Expr::Map(Spanned {
+                        source_span: SourceSpan::empty(),
+                        expr: m,
+                    })
+                })
                 .expect("Map::new in map_children")
         }
         Expr::Fold(s) => {
@@ -861,7 +1002,12 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
             let zero = f(*s.expr.zero);
             let fold_op = f(*s.expr.fold_op);
             ergotree_ir::mir::coll_fold::Fold::new(input, zero, fold_op)
-                .map(|fl| Expr::Fold(Spanned { source_span: SourceSpan::empty(), expr: fl }))
+                .map(|fl| {
+                    Expr::Fold(Spanned {
+                        source_span: SourceSpan::empty(),
+                        expr: fl,
+                    })
+                })
                 .expect("Fold::new in map_children")
         }
         Expr::Slice(s) => Expr::Slice(Spanned {
@@ -877,39 +1023,69 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
             let index = f(*s.expr.index);
             let default = s.expr.default.map(|d| Box::new(f(*d)));
             ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
-                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span, expr: bi }))
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
                 .expect("ByIndex::new in map_children")
         }
         Expr::SelectField(s) => {
             let input = f(*s.expr.input);
             ergotree_ir::mir::select_field::SelectField::new(input, s.expr.field_index)
-                .map(|sf| Expr::SelectField(Spanned { source_span: s.source_span, expr: sf }))
+                .map(|sf| {
+                    Expr::SelectField(Spanned {
+                        source_span: s.source_span,
+                        expr: sf,
+                    })
+                })
                 .expect("SelectField::new in map_children")
         }
         Expr::OptionGet(s) => {
             let input = f(*s.expr.input);
             ergotree_ir::mir::option_get::OptionGet::try_build(input)
-                .map(|og| Expr::OptionGet(Spanned { source_span: s.source_span, expr: og }))
+                .map(|og| {
+                    Expr::OptionGet(Spanned {
+                        source_span: s.source_span,
+                        expr: og,
+                    })
+                })
                 .expect("OptionGet::try_build in map_children")
         }
         Expr::OptionIsDefined(s) => {
             let input = f(*s.expr.input);
             ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(input)
-                .map(|oid| Expr::OptionIsDefined(Spanned { source_span: s.source_span, expr: oid }))
+                .map(|oid| {
+                    Expr::OptionIsDefined(Spanned {
+                        source_span: s.source_span,
+                        expr: oid,
+                    })
+                })
                 .expect("OptionIsDefined in map_children")
         }
         Expr::OptionGetOrElse(s) => {
             let input = f(*s.expr.input);
             let default = f(*s.expr.default);
             ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
-                .map(|oge| Expr::OptionGetOrElse(Spanned { source_span: s.source_span, expr: oge }))
+                .map(|oge| {
+                    Expr::OptionGetOrElse(Spanned {
+                        source_span: s.source_span,
+                        expr: oge,
+                    })
+                })
                 .expect("OptionGetOrElse in map_children")
         }
         Expr::MethodCall(s) => {
             let obj = f(*s.expr.obj);
             let args: Vec<Expr> = s.expr.args.into_iter().map(f).collect();
             ergotree_ir::mir::method_call::MethodCall::new(obj, s.expr.method, args)
-                .map(|mc| Expr::MethodCall(Spanned { source_span: s.source_span, expr: mc }))
+                .map(|mc| {
+                    Expr::MethodCall(Spanned {
+                        source_span: s.source_span,
+                        expr: mc,
+                    })
+                })
                 .expect("MethodCall::new in map_children")
         }
         Expr::SigmaAnd(sa) => {
@@ -1190,6 +1366,7 @@ fn is_collectible(expr: &Expr) -> bool {
 /// - `PropertyCall` (box.tokens): stable rewrite in Scala IR
 /// - `SizeOf`, `ByIndex`, `SelectField`: pure structural operations
 /// - Constants, GlobalVars
+#[allow(clippy::doc_lazy_continuation)]
 fn is_graph_shared(expr: &Expr) -> bool {
     match expr {
         // Eq/NEq: non-singleton Equals[A: Elem]
@@ -1197,7 +1374,7 @@ fn is_graph_shared(expr: &Expr) -> bool {
             s.expr.kind,
             ergotree_ir::mir::bin_op::BinOpKind::Relation(
                 ergotree_ir::mir::bin_op::RelationOp::Eq
-                | ergotree_ir::mir::bin_op::RelationOp::NEq
+                    | ergotree_ir::mir::bin_op::RelationOp::NEq
             )
         ),
         // Box accessor methods: shared only when the input is a global
@@ -1250,7 +1427,7 @@ fn contains_val_use(expr: &Expr) -> bool {
         Expr::ByIndex(s) => {
             contains_val_use(&s.expr.input)
                 || contains_val_use(&s.expr.index)
-                || s.expr.default.as_ref().map_or(false, |d| contains_val_use(d))
+                || s.expr.default.as_ref().is_some_and(|d| contains_val_use(d))
         }
         Expr::SelectField(s) => contains_val_use(&s.expr.input),
         Expr::OptionGet(s) => contains_val_use(&s.expr.input),
@@ -1275,9 +1452,7 @@ fn contains_func_value(expr: &Expr) -> bool {
             bv.expr.items.iter().any(contains_func_value) || contains_func_value(&bv.expr.result)
         }
         Expr::ValDef(vd) => contains_func_value(&vd.expr.rhs),
-        Expr::BinOp(s) => {
-            contains_func_value(&s.expr.left) || contains_func_value(&s.expr.right)
-        }
+        Expr::BinOp(s) => contains_func_value(&s.expr.left) || contains_func_value(&s.expr.right),
         Expr::PropertyCall(s) => contains_func_value(&s.expr.obj),
         Expr::MethodCall(s) => {
             contains_func_value(&s.expr.obj) || s.expr.args.iter().any(contains_func_value)
@@ -1294,7 +1469,10 @@ fn contains_func_value(expr: &Expr) -> bool {
         Expr::ByIndex(s) => {
             contains_func_value(&s.expr.input)
                 || contains_func_value(&s.expr.index)
-                || s.expr.default.as_ref().map_or(false, |d| contains_func_value(d))
+                || s.expr
+                    .default
+                    .as_ref()
+                    .is_some_and(|d| contains_func_value(d))
         }
         Expr::SelectField(s) => contains_func_value(&s.expr.input),
         Expr::ExtractAmount(ea) => contains_func_value(&ea.input),
@@ -1307,9 +1485,7 @@ fn contains_func_value(expr: &Expr) -> bool {
         Expr::OptionIsDefined(s) => contains_func_value(&s.expr.input),
         Expr::LogicalNot(s) => contains_func_value(&s.expr.input),
         Expr::Negation(s) => contains_func_value(&s.expr.input),
-        Expr::Map(s) => {
-            contains_func_value(&s.expr.input) || contains_func_value(&s.expr.mapper)
-        }
+        Expr::Map(s) => contains_func_value(&s.expr.input) || contains_func_value(&s.expr.mapper),
         Expr::Filter(s) => {
             contains_func_value(&s.expr.input) || contains_func_value(&s.expr.condition)
         }
@@ -1398,8 +1574,12 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Slice(s) => vec![&s.expr.input, &s.expr.from, &s.expr.until],
         Expr::Append(s) => vec![&s.expr.input, &s.expr.col_2],
         // Leaf nodes — no children
-        Expr::Const(_) | Expr::ConstPlaceholder(_) | Expr::GlobalVars(_)
-        | Expr::ValUse(_) | Expr::Context | Expr::Global => vec![],
+        Expr::Const(_)
+        | Expr::ConstPlaceholder(_)
+        | Expr::GlobalVars(_)
+        | Expr::ValUse(_)
+        | Expr::Context
+        | Expr::Global => vec![],
         // Catch-all for less common nodes
         _ => vec![],
     }
@@ -1454,8 +1634,9 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     }
 
     // Step 3: Return (expr, usage_count) pairs
-    unique.into_iter()
-        .zip(parent_sets.into_iter())
+    unique
+        .into_iter()
+        .zip(parent_sets)
         .map(|(expr, parents)| (expr, parents.len()))
         .collect()
 }
@@ -1527,7 +1708,7 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::PropertyCall(s) => {
             let new_obj = resolve(&s.expr.obj);
             Expr::PropertyCall(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::property_call::PropertyCall {
                     obj: new_obj.into(),
                     method: s.expr.method.clone(),
@@ -1536,9 +1717,9 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         }
         Expr::MethodCall(s) => {
             let new_obj = resolve(&s.expr.obj);
-            let new_args: Vec<Expr> = s.expr.args.iter().map(|a| resolve(a)).collect();
+            let new_args: Vec<Expr> = s.expr.args.iter().map(&resolve).collect();
             Expr::MethodCall(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::method_call::MethodCall {
                     obj: new_obj.into(),
                     method: s.expr.method.clone(),
@@ -1551,7 +1732,7 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
             let new_left = resolve(&s.expr.left);
             let new_right = resolve(&s.expr.right);
             Expr::BinOp(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::bin_op::BinOp {
                     kind: s.expr.kind,
                     left: new_left.into(),
@@ -1568,7 +1749,7 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::ExtractRegisterAs(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::ExtractRegisterAs(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::extract_reg_as::ExtractRegisterAs {
                     input: new_input.into(),
                     register_id: s.expr.register_id,
@@ -1613,25 +1794,40 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
             let new_index = resolve(&s.expr.index);
             let new_default = s.expr.default.as_ref().map(|d| resolve(d).into());
             ergotree_ir::mir::coll_by_index::ByIndex::new(new_input, new_index, new_default)
-                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span.clone(), expr: bi }))
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
                 .unwrap_or_else(|_| expr.clone())
         }
         Expr::SelectField(s) => {
             let new_input = resolve(&s.expr.input);
             ergotree_ir::mir::select_field::SelectField::new(new_input, s.expr.field_index)
-                .map(|sf| Expr::SelectField(Spanned { source_span: s.source_span.clone(), expr: sf }))
+                .map(|sf| {
+                    Expr::SelectField(Spanned {
+                        source_span: s.source_span,
+                        expr: sf,
+                    })
+                })
                 .unwrap_or_else(|_| expr.clone())
         }
         Expr::OptionGet(s) => {
             let new_input = resolve(&s.expr.input);
             <ergotree_ir::mir::option_get::OptionGet as OneArgOpTryBuild>::try_build(new_input)
-                .map(|og| Expr::OptionGet(Spanned { source_span: s.source_span.clone(), expr: og }))
+                .map(|og| {
+                    Expr::OptionGet(Spanned {
+                        source_span: s.source_span,
+                        expr: og,
+                    })
+                })
                 .unwrap_or_else(|_| expr.clone())
         }
         Expr::OptionIsDefined(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::OptionIsDefined(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::option_is_defined::OptionIsDefined {
                     input: new_input.into(),
                 },
@@ -1640,7 +1836,7 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::LogicalNot(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::LogicalNot(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::logical_not::LogicalNot {
                     input: new_input.into(),
                 },
@@ -1649,7 +1845,7 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::Negation(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::Negation(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::negation::Negation {
                     input: new_input.into(),
                 },
@@ -1697,13 +1893,13 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
             })
         }
         Expr::SigmaAnd(sa) => {
-            let new_items: Vec<Expr> = sa.items.iter().map(|i| resolve(i)).collect();
+            let new_items: Vec<Expr> = sa.items.iter().map(&resolve).collect();
             Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
                 items: new_items.try_into().expect("SigmaAnd items"),
             })
         }
         Expr::SigmaOr(so) => {
-            let new_items: Vec<Expr> = so.items.iter().map(|i| resolve(i)).collect();
+            let new_items: Vec<Expr> = so.items.iter().map(&resolve).collect();
             Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr {
                 items: new_items.try_into().expect("SigmaOr items"),
             })
@@ -1712,10 +1908,10 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
             let new_input = resolve(&s.expr.input);
             // Don't resolve inside mapper (it's a FuncValue / lambda)
             Expr::Map(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_map::Map {
                     input: new_input.into(),
-                    mapper: s.expr.mapper.clone().into(),
+                    mapper: s.expr.mapper.clone(),
                     mapper_sfunc: s.expr.mapper_sfunc.clone(),
                 },
             })
@@ -1723,10 +1919,10 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::Filter(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::Filter(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_filter::Filter {
                     input: new_input.into(),
-                    condition: s.expr.condition.clone().into(),
+                    condition: s.expr.condition.clone(),
                     elem_tpe: s.expr.elem_tpe.clone(),
                 },
             })
@@ -1735,21 +1931,21 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
             let new_input = resolve(&s.expr.input);
             let new_zero = resolve(&s.expr.zero);
             Expr::Fold(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_fold::Fold {
                     input: new_input.into(),
                     zero: new_zero.into(),
-                    fold_op: s.expr.fold_op.clone().into(),
+                    fold_op: s.expr.fold_op.clone(),
                 },
             })
         }
         Expr::Exists(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::Exists(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_exists::Exists {
                     input: new_input.into(),
-                    condition: s.expr.condition.clone().into(),
+                    condition: s.expr.condition.clone(),
                     elem_tpe: s.expr.elem_tpe.clone(),
                 },
             })
@@ -1757,10 +1953,10 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
         Expr::ForAll(s) => {
             let new_input = resolve(&s.expr.input);
             Expr::ForAll(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_forall::ForAll {
                     input: new_input.into(),
-                    condition: s.expr.condition.clone().into(),
+                    condition: s.expr.condition.clone(),
                     elem_tpe: s.expr.elem_tpe.clone(),
                 },
             })
@@ -1798,7 +1994,8 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
             continue;
         }
         // Check DAG usage count (computed from original graph)
-        let dag_count = dag_usages.iter()
+        let dag_count = dag_usages
+            .iter()
             .find(|(e, _)| e == node)
             .map(|(_, c)| *c)
             .unwrap_or(0);
@@ -1835,8 +2032,8 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
         });
         result = replace_all(&result, &node, &val_use);
         // Update remaining env entries to reflect this extraction
-        for j in (i + 1)..env.len() {
-            let (ref mut env_expr, _) = env[j];
+        for entry in env.iter_mut().skip(i + 1) {
+            let (ref mut env_expr, _) = entry;
             *env_expr = replace_all(env_expr, &node, &val_use);
         }
         final_env.push((node, val_id));
@@ -1849,16 +2046,19 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
     }
 
     // Step 5: Build ValDef RHS expressions by resolving children through env
-    let val_defs: Vec<Expr> = env.iter().map(|(node, val_id)| {
-        let rhs = build_value_recurse(node, &env);
-        Expr::ValDef(Spanned {
-            source_span: SourceSpan::empty(),
-            expr: ValDef {
-                id: ValId(*val_id),
-                rhs: rhs.into(),
-            },
+    let val_defs: Vec<Expr> = env
+        .iter()
+        .map(|(node, val_id)| {
+            let rhs = build_value_recurse(node, &env);
+            Expr::ValDef(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: ValDef {
+                    id: ValId(*val_id),
+                    rhs: rhs.into(),
+                },
+            })
         })
-    }).collect();
+        .collect();
 
     // Wrap in BlockValue
     match result {
@@ -1867,12 +2067,18 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
             items.extend(spanned.expr.items);
             Expr::BlockValue(Spanned {
                 source_span: SourceSpan::empty(),
-                expr: BlockValue { items, result: spanned.expr.result },
+                expr: BlockValue {
+                    items,
+                    result: spanned.expr.result,
+                },
             })
         }
         other => Expr::BlockValue(Spanned {
             source_span: SourceSpan::empty(),
-            expr: BlockValue { items: val_defs, result: other.into() },
+            expr: BlockValue {
+                items: val_defs,
+                result: other.into(),
+            },
         }),
     }
 }
@@ -1924,36 +2130,22 @@ fn find_max_val_id(expr: &Expr) -> u32 {
             let result_max = find_max_val_id(&s.expr.result);
             items_max.max(result_max)
         }
-        Expr::BinOp(s) => {
-            find_max_val_id(&s.expr.left).max(find_max_val_id(&s.expr.right))
-        }
+        Expr::BinOp(s) => find_max_val_id(&s.expr.left).max(find_max_val_id(&s.expr.right)),
         Expr::BoolToSigmaProp(bts) => find_max_val_id(&bts.input),
-        Expr::If(if_op) => {
-            find_max_val_id(&if_op.condition)
-                .max(find_max_val_id(&if_op.true_branch))
-                .max(find_max_val_id(&if_op.false_branch))
-        }
+        Expr::If(if_op) => find_max_val_id(&if_op.condition)
+            .max(find_max_val_id(&if_op.true_branch))
+            .max(find_max_val_id(&if_op.false_branch)),
         Expr::FuncValue(fv) => {
             let args_max = fv.args().iter().map(|a| a.idx.0).max().unwrap_or(0);
             args_max.max(find_max_val_id(fv.body()))
         }
-        Expr::Filter(s) => {
-            find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition))
-        }
-        Expr::Exists(s) => {
-            find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition))
-        }
-        Expr::ForAll(s) => {
-            find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition))
-        }
-        Expr::Map(s) => {
-            find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.mapper))
-        }
-        Expr::Fold(s) => {
-            find_max_val_id(&s.expr.input)
-                .max(find_max_val_id(&s.expr.zero))
-                .max(find_max_val_id(&s.expr.fold_op))
-        }
+        Expr::Filter(s) => find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition)),
+        Expr::Exists(s) => find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition)),
+        Expr::ForAll(s) => find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.condition)),
+        Expr::Map(s) => find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.mapper)),
+        Expr::Fold(s) => find_max_val_id(&s.expr.input)
+            .max(find_max_val_id(&s.expr.zero))
+            .max(find_max_val_id(&s.expr.fold_op)),
         Expr::PropertyCall(s) => find_max_val_id(&s.expr.obj),
         Expr::MethodCall(s) => {
             let args_max = s.expr.args.iter().map(find_max_val_id).max().unwrap_or(0);
@@ -1965,7 +2157,12 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         Expr::SizeOf(so) => find_max_val_id(&so.input),
         Expr::ByIndex(s) => {
             let idx_max = find_max_val_id(&s.expr.index);
-            let def_max = s.expr.default.as_ref().map(|d| find_max_val_id(d)).unwrap_or(0);
+            let def_max = s
+                .expr
+                .default
+                .as_ref()
+                .map(|d| find_max_val_id(d))
+                .unwrap_or(0);
             find_max_val_id(&s.expr.input).max(idx_max).max(def_max)
         }
         Expr::SelectField(s) => find_max_val_id(&s.expr.input),
@@ -1974,11 +2171,9 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         Expr::OptionGetOrElse(s) => {
             find_max_val_id(&s.expr.input).max(find_max_val_id(&s.expr.default))
         }
-        Expr::Slice(s) => {
-            find_max_val_id(&s.expr.input)
-                .max(find_max_val_id(&s.expr.from))
-                .max(find_max_val_id(&s.expr.until))
-        }
+        Expr::Slice(s) => find_max_val_id(&s.expr.input)
+            .max(find_max_val_id(&s.expr.from))
+            .max(find_max_val_id(&s.expr.until)),
         Expr::LogicalNot(s) => find_max_val_id(&s.expr.input),
         Expr::Negation(s) => find_max_val_id(&s.expr.input),
         Expr::SigmaPropBytes(spb) => find_max_val_id(&spb.input),
@@ -1988,11 +2183,9 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         Expr::SigmaAnd(sa) => sa.items.iter().map(find_max_val_id).max().unwrap_or(0),
         Expr::SigmaOr(so) => so.items.iter().map(find_max_val_id).max().unwrap_or(0),
         Expr::Tuple(t) => t.items.iter().map(find_max_val_id).max().unwrap_or(0),
-        Expr::TreeLookup(s) => {
-            find_max_val_id(&s.expr.tree)
-                .max(find_max_val_id(&s.expr.key))
-                .max(find_max_val_id(&s.expr.proof))
-        }
+        Expr::TreeLookup(s) => find_max_val_id(&s.expr.tree)
+            .max(find_max_val_id(&s.expr.key))
+            .max(find_max_val_id(&s.expr.proof)),
         Expr::Apply(app) => {
             let args_max = app.args.iter().map(find_max_val_id).max().unwrap_or(0);
             find_max_val_id(&app.func).max(args_max)
@@ -2133,9 +2326,9 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_left = replace_all(&s.expr.left, target, replacement);
             let new_right = replace_all(&s.expr.right, target, replacement);
             Expr::BinOp(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::bin_op::BinOp {
-                    kind: s.expr.kind.clone(),
+                    kind: s.expr.kind,
                     left: new_left.into(),
                     right: new_right.into(),
                 },
@@ -2150,7 +2343,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .collect();
             let new_result = replace_all(&s.expr.result, target, replacement);
             Expr::BlockValue(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: BlockValue {
                     items: new_items,
                     result: new_result.into(),
@@ -2160,7 +2353,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::ValDef(s) => {
             let new_rhs = replace_all(&s.expr.rhs, target, replacement);
             Expr::ValDef(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ValDef {
                     id: s.expr.id,
                     rhs: new_rhs.into(),
@@ -2186,7 +2379,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::PropertyCall(s) => {
             let new_obj = replace_all(&s.expr.obj, target, replacement);
             Expr::PropertyCall(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::property_call::PropertyCall {
                     obj: new_obj.into(),
                     method: s.expr.method.clone(),
@@ -2202,7 +2395,12 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .map(|a| replace_all(a, target, replacement))
                 .collect();
             ergotree_ir::mir::method_call::MethodCall::new(new_obj, s.expr.method.clone(), new_args)
-                .map(|mc| Expr::MethodCall(Spanned { source_span: s.source_span.clone(), expr: mc }))
+                .map(|mc| {
+                    Expr::MethodCall(Spanned {
+                        source_span: s.source_span,
+                        expr: mc,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::MethodCall(s.clone()))
         }
         Expr::ExtractAmount(ea) => {
@@ -2214,7 +2412,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::ExtractRegisterAs(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::ExtractRegisterAs(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::extract_reg_as::ExtractRegisterAs {
                     input: new_input.into(),
                     register_id: s.expr.register_id,
@@ -2263,39 +2461,64 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .as_ref()
                 .map(|d| Box::new(replace_all(d, target, replacement)));
             ergotree_ir::mir::coll_by_index::ByIndex::new(new_input, new_index, new_default)
-                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span.clone(), expr: bi }))
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::ByIndex(s.clone()))
         }
         Expr::SelectField(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             ergotree_ir::mir::select_field::SelectField::new(new_input, s.expr.field_index)
-                .map(|sf| Expr::SelectField(Spanned { source_span: s.source_span.clone(), expr: sf }))
+                .map(|sf| {
+                    Expr::SelectField(Spanned {
+                        source_span: s.source_span,
+                        expr: sf,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::SelectField(s.clone()))
         }
         Expr::OptionGet(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             ergotree_ir::mir::option_get::OptionGet::try_build(new_input)
-                .map(|og| Expr::OptionGet(Spanned { source_span: s.source_span.clone(), expr: og }))
+                .map(|og| {
+                    Expr::OptionGet(Spanned {
+                        source_span: s.source_span,
+                        expr: og,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::OptionGet(s.clone()))
         }
         Expr::OptionIsDefined(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(new_input)
-                .map(|oid| Expr::OptionIsDefined(Spanned { source_span: s.source_span.clone(), expr: oid }))
+                .map(|oid| {
+                    Expr::OptionIsDefined(Spanned {
+                        source_span: s.source_span,
+                        expr: oid,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::OptionIsDefined(s.clone()))
         }
         Expr::OptionGetOrElse(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             let new_default = replace_all(&s.expr.default, target, replacement);
             ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(new_input, new_default)
-                .map(|oge| Expr::OptionGetOrElse(Spanned { source_span: s.source_span.clone(), expr: oge }))
+                .map(|oge| {
+                    Expr::OptionGetOrElse(Spanned {
+                        source_span: s.source_span,
+                        expr: oge,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::OptionGetOrElse(s.clone()))
         }
         Expr::Filter(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             let new_cond = replace_all(&s.expr.condition, target, replacement);
             Expr::Filter(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_filter::Filter {
                     input: new_input.into(),
                     condition: new_cond.into(),
@@ -2307,7 +2530,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_input = replace_all(&s.expr.input, target, replacement);
             let new_cond = replace_all(&s.expr.condition, target, replacement);
             Expr::Exists(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_exists::Exists {
                     input: new_input.into(),
                     condition: new_cond.into(),
@@ -2319,7 +2542,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_input = replace_all(&s.expr.input, target, replacement);
             let new_cond = replace_all(&s.expr.condition, target, replacement);
             Expr::ForAll(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_forall::ForAll {
                     input: new_input.into(),
                     condition: new_cond.into(),
@@ -2331,7 +2554,12 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_input = replace_all(&s.expr.input, target, replacement);
             let new_mapper = replace_all(&s.expr.mapper, target, replacement);
             ergotree_ir::mir::coll_map::Map::new(new_input, new_mapper)
-                .map(|m| Expr::Map(Spanned { source_span: s.source_span.clone(), expr: m }))
+                .map(|m| {
+                    Expr::Map(Spanned {
+                        source_span: s.source_span,
+                        expr: m,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::Map(s.clone()))
         }
         Expr::Fold(s) => {
@@ -2339,7 +2567,12 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_zero = replace_all(&s.expr.zero, target, replacement);
             let new_fold_op = replace_all(&s.expr.fold_op, target, replacement);
             ergotree_ir::mir::coll_fold::Fold::new(new_input, new_zero, new_fold_op)
-                .map(|f| Expr::Fold(Spanned { source_span: s.source_span.clone(), expr: f }))
+                .map(|f| {
+                    Expr::Fold(Spanned {
+                        source_span: s.source_span,
+                        expr: f,
+                    })
+                })
                 .unwrap_or_else(|_| Expr::Fold(s.clone()))
         }
         Expr::Slice(s) => {
@@ -2347,7 +2580,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_from = replace_all(&s.expr.from, target, replacement);
             let new_until = replace_all(&s.expr.until, target, replacement);
             Expr::Slice(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::coll_slice::Slice {
                     input: new_input.into(),
                     from: new_from.into(),
@@ -2358,7 +2591,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::LogicalNot(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::LogicalNot(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::logical_not::LogicalNot {
                     input: new_input.into(),
                 },
@@ -2367,7 +2600,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::Negation(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::Negation(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::negation::Negation {
                     input: new_input.into(),
                 },
@@ -2439,7 +2672,7 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             let new_key = replace_all(&s.expr.key, target, replacement);
             let new_proof = replace_all(&s.expr.proof, target, replacement);
             Expr::TreeLookup(Spanned {
-                source_span: s.source_span.clone(),
+                source_span: s.source_span,
                 expr: ergotree_ir::mir::tree_lookup::TreeLookup {
                     tree: new_tree.into(),
                     key: new_key.into(),
@@ -2477,11 +2710,15 @@ fn collect_all_outer_def_ids(expr: &Expr, ids: &mut Vec<u32>) {
             collect_all_outer_def_ids(&s.expr.rhs, ids);
         }
         Expr::BlockValue(s) => {
-            for item in &s.expr.items { collect_all_outer_def_ids(item, ids); }
+            for item in &s.expr.items {
+                collect_all_outer_def_ids(item, ids);
+            }
             collect_all_outer_def_ids(&s.expr.result, ids);
         }
         Expr::FuncValue(fv) => {
-            for arg in fv.args() { ids.push(arg.idx.0); }
+            for arg in fv.args() {
+                ids.push(arg.idx.0);
+            }
             // Recurse into body to find nested FuncArgs (but NOT to shift lambda-internal CSE vals)
             collect_all_outer_def_ids(fv.body(), ids);
         }
@@ -2495,21 +2732,53 @@ fn collect_all_outer_def_ids(expr: &Expr, ids: &mut Vec<u32>) {
             collect_all_outer_def_ids(&if_op.true_branch, ids);
             collect_all_outer_def_ids(&if_op.false_branch, ids);
         }
-        Expr::Filter(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.condition, ids); }
-        Expr::Exists(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.condition, ids); }
-        Expr::ForAll(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.condition, ids); }
-        Expr::Map(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.mapper, ids); }
-        Expr::Fold(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.zero, ids); collect_all_outer_def_ids(&s.expr.fold_op, ids); }
+        Expr::Filter(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.condition, ids);
+        }
+        Expr::Exists(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.condition, ids);
+        }
+        Expr::ForAll(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.condition, ids);
+        }
+        Expr::Map(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.mapper, ids);
+        }
+        Expr::Fold(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.zero, ids);
+            collect_all_outer_def_ids(&s.expr.fold_op, ids);
+        }
         Expr::SizeOf(so) => collect_all_outer_def_ids(&so.input, ids),
         Expr::PropertyCall(s) => collect_all_outer_def_ids(&s.expr.obj, ids),
-        Expr::MethodCall(s) => { collect_all_outer_def_ids(&s.expr.obj, ids); for a in &s.expr.args { collect_all_outer_def_ids(a, ids); } }
+        Expr::MethodCall(s) => {
+            collect_all_outer_def_ids(&s.expr.obj, ids);
+            for a in &s.expr.args {
+                collect_all_outer_def_ids(a, ids);
+            }
+        }
         Expr::ExtractAmount(ea) => collect_all_outer_def_ids(&ea.input, ids),
         Expr::ExtractRegisterAs(s) => collect_all_outer_def_ids(&s.expr.input, ids),
         Expr::ExtractScriptBytes(esb) => collect_all_outer_def_ids(&esb.input, ids),
-        Expr::SigmaAnd(sa) => { for i in sa.items.iter() { collect_all_outer_def_ids(i, ids); } }
-        Expr::SigmaOr(so) => { for i in so.items.iter() { collect_all_outer_def_ids(i, ids); } }
+        Expr::SigmaAnd(sa) => {
+            for i in sa.items.iter() {
+                collect_all_outer_def_ids(i, ids);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for i in so.items.iter() {
+                collect_all_outer_def_ids(i, ids);
+            }
+        }
         Expr::SelectField(s) => collect_all_outer_def_ids(&s.expr.input, ids),
-        Expr::ByIndex(s) => { collect_all_outer_def_ids(&s.expr.input, ids); collect_all_outer_def_ids(&s.expr.index, ids); }
+        Expr::ByIndex(s) => {
+            collect_all_outer_def_ids(&s.expr.input, ids);
+            collect_all_outer_def_ids(&s.expr.index, ids);
+        }
         Expr::OptionGet(s) => collect_all_outer_def_ids(&s.expr.input, ids),
         Expr::OptionIsDefined(s) => collect_all_outer_def_ids(&s.expr.input, ids),
         Expr::LogicalNot(s) => collect_all_outer_def_ids(&s.expr.input, ids),
@@ -2547,17 +2816,41 @@ fn collect_existing_val_ids(expr: &Expr, ids: &mut Vec<u32>) {
             collect_existing_val_ids(&if_op.true_branch, ids);
             collect_existing_val_ids(&if_op.false_branch, ids);
         }
-        Expr::Filter(s) => { collect_existing_val_ids(&s.expr.input, ids); }
-        Expr::Exists(s) => { collect_existing_val_ids(&s.expr.input, ids); }
-        Expr::ForAll(s) => { collect_existing_val_ids(&s.expr.input, ids); }
-        Expr::Map(s) => { collect_existing_val_ids(&s.expr.input, ids); }
-        Expr::Fold(s) => { collect_existing_val_ids(&s.expr.input, ids); collect_existing_val_ids(&s.expr.zero, ids); }
+        Expr::Filter(s) => {
+            collect_existing_val_ids(&s.expr.input, ids);
+        }
+        Expr::Exists(s) => {
+            collect_existing_val_ids(&s.expr.input, ids);
+        }
+        Expr::ForAll(s) => {
+            collect_existing_val_ids(&s.expr.input, ids);
+        }
+        Expr::Map(s) => {
+            collect_existing_val_ids(&s.expr.input, ids);
+        }
+        Expr::Fold(s) => {
+            collect_existing_val_ids(&s.expr.input, ids);
+            collect_existing_val_ids(&s.expr.zero, ids);
+        }
         Expr::SizeOf(so) => collect_existing_val_ids(&so.input, ids),
         Expr::PropertyCall(s) => collect_existing_val_ids(&s.expr.obj, ids),
-        Expr::MethodCall(s) => { collect_existing_val_ids(&s.expr.obj, ids); for a in &s.expr.args { collect_existing_val_ids(a, ids); } }
+        Expr::MethodCall(s) => {
+            collect_existing_val_ids(&s.expr.obj, ids);
+            for a in &s.expr.args {
+                collect_existing_val_ids(a, ids);
+            }
+        }
         Expr::ExtractAmount(ea) => collect_existing_val_ids(&ea.input, ids),
-        Expr::SigmaAnd(sa) => { for i in sa.items.iter() { collect_existing_val_ids(i, ids); } }
-        Expr::SigmaOr(so) => { for i in so.items.iter() { collect_existing_val_ids(i, ids); } }
+        Expr::SigmaAnd(sa) => {
+            for i in sa.items.iter() {
+                collect_existing_val_ids(i, ids);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for i in so.items.iter() {
+                collect_existing_val_ids(i, ids);
+            }
+        }
         // Don't recurse into FuncValue bodies — lambda IDs are independent
         _ => {}
     }
@@ -2589,6 +2882,7 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         }
         Expr::ValDef(s) => {
             let old_id = s.expr.id.0;
+            #[allow(clippy::map_entry)]
             if !id_map.contains_key(&old_id) {
                 id_map.insert(old_id, *next_id);
                 *next_id += 1;
@@ -2598,6 +2892,7 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         Expr::FuncValue(fv) => {
             for arg in fv.args() {
                 let old_id = arg.idx.0;
+                #[allow(clippy::map_entry)]
                 if !id_map.contains_key(&old_id) {
                     id_map.insert(old_id, *next_id);
                     *next_id += 1;
@@ -2639,7 +2934,9 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         Expr::PropertyCall(s) => collect_def_ids(&s.expr.obj, id_map, next_id),
         Expr::MethodCall(s) => {
             collect_def_ids(&s.expr.obj, id_map, next_id);
-            for arg in &s.expr.args { collect_def_ids(arg, id_map, next_id); }
+            for arg in &s.expr.args {
+                collect_def_ids(arg, id_map, next_id);
+            }
         }
         Expr::ExtractAmount(ea) => collect_def_ids(&ea.input, id_map, next_id),
         Expr::ExtractRegisterAs(s) => collect_def_ids(&s.expr.input, id_map, next_id),
@@ -2651,7 +2948,9 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         Expr::ByIndex(s) => {
             collect_def_ids(&s.expr.input, id_map, next_id);
             collect_def_ids(&s.expr.index, id_map, next_id);
-            if let Some(ref d) = s.expr.default { collect_def_ids(d, id_map, next_id); }
+            if let Some(ref d) = s.expr.default {
+                collect_def_ids(d, id_map, next_id);
+            }
         }
         Expr::SelectField(s) => collect_def_ids(&s.expr.input, id_map, next_id),
         Expr::OptionGet(s) => collect_def_ids(&s.expr.input, id_map, next_id),
@@ -2671,9 +2970,21 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         Expr::Upcast(uc) => collect_def_ids(&uc.input, id_map, next_id),
         Expr::Downcast(dc) => collect_def_ids(&dc.input, id_map, next_id),
         Expr::CalcBlake2b256(cb) => collect_def_ids(&cb.input, id_map, next_id),
-        Expr::SigmaAnd(sa) => { for item in sa.items.iter() { collect_def_ids(item, id_map, next_id); } }
-        Expr::SigmaOr(so) => { for item in so.items.iter() { collect_def_ids(item, id_map, next_id); } }
-        Expr::Tuple(t) => { for item in t.items.iter() { collect_def_ids(item, id_map, next_id); } }
+        Expr::SigmaAnd(sa) => {
+            for item in sa.items.iter() {
+                collect_def_ids(item, id_map, next_id);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for item in so.items.iter() {
+                collect_def_ids(item, id_map, next_id);
+            }
+        }
+        Expr::Tuple(t) => {
+            for item in t.items.iter() {
+                collect_def_ids(item, id_map, next_id);
+            }
+        }
         Expr::TreeLookup(s) => {
             collect_def_ids(&s.expr.tree, id_map, next_id);
             collect_def_ids(&s.expr.key, id_map, next_id);
@@ -2681,7 +2992,9 @@ fn collect_def_ids(expr: &Expr, id_map: &mut HashMap<u32, u32>, next_id: &mut u3
         }
         Expr::Apply(app) => {
             collect_def_ids(&app.func, id_map, next_id);
-            for arg in &app.args { collect_def_ids(arg, id_map, next_id); }
+            for arg in &app.args {
+                collect_def_ids(arg, id_map, next_id);
+            }
         }
         _ => {}
     }
@@ -2696,25 +3009,43 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
             let new_rhs = rewrite_ids(*s.expr.rhs, id_map);
             Expr::ValDef(Spanned {
                 source_span: s.source_span,
-                expr: ValDef { id: ValId(new_id), rhs: new_rhs.into() },
+                expr: ValDef {
+                    id: ValId(new_id),
+                    rhs: new_rhs.into(),
+                },
             })
         }
         Expr::ValUse(vu) => {
             let new_id = id_map.get(&vu.val_id.0).copied().unwrap_or(vu.val_id.0);
-            Expr::ValUse(ValUse { val_id: ValId(new_id), tpe: vu.tpe })
+            Expr::ValUse(ValUse {
+                val_id: ValId(new_id),
+                tpe: vu.tpe,
+            })
         }
         Expr::FuncValue(fv) => {
-            let new_args: Vec<ergotree_ir::mir::func_value::FuncArg> = fv.args().iter().map(|a| {
-                let new_id = id_map.get(&a.idx.0).copied().unwrap_or(a.idx.0);
-                ergotree_ir::mir::func_value::FuncArg { idx: ValId(new_id), tpe: a.tpe.clone() }
-            }).collect();
+            let new_args: Vec<ergotree_ir::mir::func_value::FuncArg> = fv
+                .args()
+                .iter()
+                .map(|a| {
+                    let new_id = id_map.get(&a.idx.0).copied().unwrap_or(a.idx.0);
+                    ergotree_ir::mir::func_value::FuncArg {
+                        idx: ValId(new_id),
+                        tpe: a.tpe.clone(),
+                    }
+                })
+                .collect();
             let new_body = rewrite_ids(fv.body().clone(), id_map);
             Expr::FuncValue(FuncValue::new(new_args, new_body))
         }
         Expr::BlockValue(s) => Expr::BlockValue(Spanned {
             source_span: s.source_span,
             expr: BlockValue {
-                items: s.expr.items.into_iter().map(|i| rewrite_ids(i, id_map)).collect(),
+                items: s
+                    .expr
+                    .items
+                    .into_iter()
+                    .map(|i| rewrite_ids(i, id_map))
+                    .collect(),
                 result: rewrite_ids(*s.expr.result, id_map).into(),
             },
         }),
@@ -2726,11 +3057,11 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 right: rewrite_ids(*s.expr.right, id_map).into(),
             },
         }),
-        Expr::BoolToSigmaProp(bts) => Expr::BoolToSigmaProp(
-            ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
                 input: rewrite_ids(*bts.input, id_map).into(),
-            },
-        ),
+            })
+        }
         Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
             condition: rewrite_ids(*if_op.condition, id_map).into(),
             true_branch: rewrite_ids(*if_op.true_branch, id_map).into(),
@@ -2764,7 +3095,12 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
             let input = rewrite_ids(*s.expr.input, id_map);
             let mapper = rewrite_ids(*s.expr.mapper, id_map);
             ergotree_ir::mir::coll_map::Map::new(input, mapper)
-                .map(|m| Expr::Map(Spanned { source_span: SourceSpan::empty(), expr: m }))
+                .map(|m| {
+                    Expr::Map(Spanned {
+                        source_span: SourceSpan::empty(),
+                        expr: m,
+                    })
+                })
                 .expect("Map::new in rewrite_ids")
         }
         Expr::Fold(s) => {
@@ -2772,7 +3108,12 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
             let zero = rewrite_ids(*s.expr.zero, id_map);
             let fold_op = rewrite_ids(*s.expr.fold_op, id_map);
             ergotree_ir::mir::coll_fold::Fold::new(input, zero, fold_op)
-                .map(|f| Expr::Fold(Spanned { source_span: SourceSpan::empty(), expr: f }))
+                .map(|f| {
+                    Expr::Fold(Spanned {
+                        source_span: SourceSpan::empty(),
+                        expr: f,
+                    })
+                })
                 .expect("Fold::new in rewrite_ids")
         }
         Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
@@ -2784,14 +3125,26 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
         }),
         Expr::MethodCall(s) => {
             let obj = rewrite_ids(*s.expr.obj, id_map);
-            let args: Vec<Expr> = s.expr.args.into_iter().map(|a| rewrite_ids(a, id_map)).collect();
+            let args: Vec<Expr> = s
+                .expr
+                .args
+                .into_iter()
+                .map(|a| rewrite_ids(a, id_map))
+                .collect();
             ergotree_ir::mir::method_call::MethodCall::new(obj, s.expr.method, args)
-                .map(|mc| Expr::MethodCall(Spanned { source_span: s.source_span, expr: mc }))
+                .map(|mc| {
+                    Expr::MethodCall(Spanned {
+                        source_span: s.source_span,
+                        expr: mc,
+                    })
+                })
                 .expect("MethodCall::new in rewrite_ids")
         }
-        Expr::ExtractAmount(ea) => Expr::ExtractAmount(
-            ergotree_ir::mir::extract_amount::ExtractAmount { input: rewrite_ids(*ea.input, id_map).into() },
-        ),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: rewrite_ids(*ea.input, id_map).into(),
+            })
+        }
         Expr::ExtractRegisterAs(s) => Expr::ExtractRegisterAs(Spanned {
             source_span: s.source_span,
             expr: ergotree_ir::mir::extract_reg_as::ExtractRegisterAs {
@@ -2800,52 +3153,83 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 elem_tpe: s.expr.elem_tpe,
             },
         }),
-        Expr::ExtractScriptBytes(esb) => Expr::ExtractScriptBytes(
-            ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes { input: rewrite_ids(*esb.input, id_map).into() },
-        ),
-        Expr::ExtractBytes(eb) => Expr::ExtractBytes(
-            ergotree_ir::mir::extract_bytes::ExtractBytes { input: rewrite_ids(*eb.input, id_map).into() },
-        ),
-        Expr::ExtractId(ei) => Expr::ExtractId(
-            ergotree_ir::mir::extract_id::ExtractId { input: rewrite_ids(*ei.input, id_map).into() },
-        ),
+        Expr::ExtractScriptBytes(esb) => {
+            Expr::ExtractScriptBytes(ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes {
+                input: rewrite_ids(*esb.input, id_map).into(),
+            })
+        }
+        Expr::ExtractBytes(eb) => {
+            Expr::ExtractBytes(ergotree_ir::mir::extract_bytes::ExtractBytes {
+                input: rewrite_ids(*eb.input, id_map).into(),
+            })
+        }
+        Expr::ExtractId(ei) => Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+            input: rewrite_ids(*ei.input, id_map).into(),
+        }),
         Expr::ExtractCreationInfo(eci) => Expr::ExtractCreationInfo(
-            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo { input: rewrite_ids(*eci.input, id_map).into() },
+            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
+                input: rewrite_ids(*eci.input, id_map).into(),
+            },
         ),
-        Expr::SizeOf(so) => Expr::SizeOf(
-            ergotree_ir::mir::coll_size::SizeOf { input: rewrite_ids(*so.input, id_map).into() },
-        ),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: rewrite_ids(*so.input, id_map).into(),
+        }),
         Expr::ByIndex(s) => {
             let input = rewrite_ids(*s.expr.input, id_map);
             let index = rewrite_ids(*s.expr.index, id_map);
             let default = s.expr.default.map(|d| Box::new(rewrite_ids(*d, id_map)));
             ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
-                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span, expr: bi }))
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
                 .expect("ByIndex::new in rewrite_ids")
         }
         Expr::SelectField(s) => {
             let input = rewrite_ids(*s.expr.input, id_map);
             ergotree_ir::mir::select_field::SelectField::new(input, s.expr.field_index)
-                .map(|sf| Expr::SelectField(Spanned { source_span: s.source_span, expr: sf }))
+                .map(|sf| {
+                    Expr::SelectField(Spanned {
+                        source_span: s.source_span,
+                        expr: sf,
+                    })
+                })
                 .expect("SelectField::new in rewrite_ids")
         }
         Expr::OptionGet(s) => {
             let input = rewrite_ids(*s.expr.input, id_map);
             ergotree_ir::mir::option_get::OptionGet::try_build(input)
-                .map(|og| Expr::OptionGet(Spanned { source_span: s.source_span, expr: og }))
+                .map(|og| {
+                    Expr::OptionGet(Spanned {
+                        source_span: s.source_span,
+                        expr: og,
+                    })
+                })
                 .expect("OptionGet in rewrite_ids")
         }
         Expr::OptionIsDefined(s) => {
             let input = rewrite_ids(*s.expr.input, id_map);
             ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(input)
-                .map(|oid| Expr::OptionIsDefined(Spanned { source_span: s.source_span, expr: oid }))
+                .map(|oid| {
+                    Expr::OptionIsDefined(Spanned {
+                        source_span: s.source_span,
+                        expr: oid,
+                    })
+                })
                 .expect("OptionIsDefined in rewrite_ids")
         }
         Expr::OptionGetOrElse(s) => {
             let input = rewrite_ids(*s.expr.input, id_map);
             let default = rewrite_ids(*s.expr.default, id_map);
             ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
-                .map(|oge| Expr::OptionGetOrElse(Spanned { source_span: s.source_span, expr: oge }))
+                .map(|oge| {
+                    Expr::OptionGetOrElse(Spanned {
+                        source_span: s.source_span,
+                        expr: oge,
+                    })
+                })
                 .expect("OptionGetOrElse in rewrite_ids")
         }
         Expr::Slice(s) => Expr::Slice(Spanned {
@@ -2858,21 +3242,30 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
         }),
         Expr::LogicalNot(s) => Expr::LogicalNot(Spanned {
             source_span: s.source_span,
-            expr: ergotree_ir::mir::logical_not::LogicalNot { input: rewrite_ids(*s.expr.input, id_map).into() },
+            expr: ergotree_ir::mir::logical_not::LogicalNot {
+                input: rewrite_ids(*s.expr.input, id_map).into(),
+            },
         }),
         Expr::Negation(s) => Expr::Negation(Spanned {
             source_span: s.source_span,
-            expr: ergotree_ir::mir::negation::Negation { input: rewrite_ids(*s.expr.input, id_map).into() },
+            expr: ergotree_ir::mir::negation::Negation {
+                input: rewrite_ids(*s.expr.input, id_map).into(),
+            },
         }),
-        Expr::SigmaPropBytes(spb) => Expr::SigmaPropBytes(
-            ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes { input: rewrite_ids(*spb.input, id_map).into() },
-        ),
-        Expr::Upcast(uc) => Expr::Upcast(
-            ergotree_ir::mir::upcast::Upcast { input: rewrite_ids(*uc.input, id_map).into(), tpe: uc.tpe },
-        ),
-        Expr::CalcBlake2b256(cb) => Expr::CalcBlake2b256(
-            ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 { input: rewrite_ids(*cb.input, id_map).into() },
-        ),
+        Expr::SigmaPropBytes(spb) => {
+            Expr::SigmaPropBytes(ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes {
+                input: rewrite_ids(*spb.input, id_map).into(),
+            })
+        }
+        Expr::Upcast(uc) => Expr::Upcast(ergotree_ir::mir::upcast::Upcast {
+            input: rewrite_ids(*uc.input, id_map).into(),
+            tpe: uc.tpe,
+        }),
+        Expr::CalcBlake2b256(cb) => {
+            Expr::CalcBlake2b256(ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 {
+                input: rewrite_ids(*cb.input, id_map).into(),
+            })
+        }
         Expr::CreateProveDlog(cpd) => {
             let input = rewrite_ids(*cpd.input, id_map);
             ergotree_ir::mir::create_provedlog::CreateProveDlog::try_build(input)
@@ -2880,15 +3273,31 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 .expect("CreateProveDlog::try_build in rewrite_ids")
         }
         Expr::SigmaAnd(sa) => {
-            let items: Vec<Expr> = sa.items.into_iter().map(|i| rewrite_ids(i, id_map)).collect();
-            Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd { items: items.try_into().expect("SigmaAnd >= 2") })
+            let items: Vec<Expr> = sa
+                .items
+                .into_iter()
+                .map(|i| rewrite_ids(i, id_map))
+                .collect();
+            Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
+                items: items.try_into().expect("SigmaAnd >= 2"),
+            })
         }
         Expr::SigmaOr(so) => {
-            let items: Vec<Expr> = so.items.into_iter().map(|i| rewrite_ids(i, id_map)).collect();
-            Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr { items: items.try_into().expect("SigmaOr >= 2") })
+            let items: Vec<Expr> = so
+                .items
+                .into_iter()
+                .map(|i| rewrite_ids(i, id_map))
+                .collect();
+            Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr {
+                items: items.try_into().expect("SigmaOr >= 2"),
+            })
         }
         Expr::Tuple(t) => {
-            let items: Vec<Expr> = t.items.into_iter().map(|i| rewrite_ids(i, id_map)).collect();
+            let items: Vec<Expr> = t
+                .items
+                .into_iter()
+                .map(|i| rewrite_ids(i, id_map))
+                .collect();
             Expr::Tuple(ergotree_ir::mir::tuple::Tuple::new(items).expect("valid tuple"))
         }
         Expr::TreeLookup(s) => Expr::TreeLookup(Spanned {
@@ -2901,7 +3310,11 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
         }),
         Expr::Apply(app) => {
             let func = rewrite_ids(*app.func, id_map);
-            let args: Vec<Expr> = app.args.into_iter().map(|a| rewrite_ids(a, id_map)).collect();
+            let args: Vec<Expr> = app
+                .args
+                .into_iter()
+                .map(|a| rewrite_ids(a, id_map))
+                .collect();
             ergotree_ir::mir::apply::Apply::new(func, args)
                 .map(Expr::Apply)
                 .expect("Apply::new in rewrite_ids")
