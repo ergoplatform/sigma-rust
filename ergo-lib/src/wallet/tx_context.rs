@@ -25,6 +25,10 @@ use thiserror::Error;
 
 use super::signing::make_context;
 
+/// Cost (in block-cost scale) charged per successful storage-rent spend, matching
+/// Scala's `Constants.StorageContractCost = 50` (ErgoInterpreter.scala:81).
+const STORAGE_CONTRACT_COST_BLOCK: u64 = 50;
+
 /// Transaction and an additional info required for signing or verification
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct TransactionContext<T: ErgoTransaction> {
@@ -210,8 +214,11 @@ impl TransactionContext<Transaction> {
                 .get_input_box(&input.box_id)
                 .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
 
-            // Storage rent bypass (cost = 0)
+            // Storage rent bypass: Scala charges Constants.StorageContractCost = 50
+            // (block-cost scale) per expired-box spend instead of script verification.
+            // Scala ref: ErgoInterpreter.scala:81, Constants.scala:35.
             if try_spend_storage_rent(input, input_box, state_context, &ctx).is_some() {
+                running_jit += STORAGE_CONTRACT_COST_BLOCK * 10;
                 continue;
             }
 
