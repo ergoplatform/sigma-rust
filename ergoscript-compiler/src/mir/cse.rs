@@ -271,6 +271,16 @@ fn emit_deps(
                 emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
             }
         }
+        Expr::And(a) => emit_deps(&a.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::Or(o) => emit_deps(&o.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                for item in items {
+                    emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
+                }
+            }
+            _ => {}
+        },
         _ => {}
     }
 }
@@ -454,6 +464,16 @@ fn collect_and_assign_ids(
                 collect_and_assign_ids(a, id_map, next_id, def_id);
             }
         }
+        Expr::And(a) => collect_and_assign_ids(&a.expr.input, id_map, next_id, def_id),
+        Expr::Or(o) => collect_and_assign_ids(&o.expr.input, id_map, next_id, def_id),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                for item in items {
+                    collect_and_assign_ids(item, id_map, next_id, def_id);
+                }
+            }
+            _ => {}
+        },
         _ => {}
     }
 }
@@ -1184,6 +1204,28 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
                 .map(Expr::Apply)
                 .expect("Apply::new in map_children")
         }
+        Expr::And(a) => Expr::And(ergotree_ir::source_span::Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: f(*a.expr.input).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(ergotree_ir::source_span::Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: f(*o.expr.input).into(),
+            },
+        }),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items.into_iter().map(|i| f(i)).collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
         // FuncValue handled above in process_lambdas; leaves pass through
         other => other,
     }
@@ -1339,6 +1381,16 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
                 collect_subexprs(arg, out);
             }
         }
+        Expr::And(a) => collect_subexprs(&a.expr.input, out),
+        Expr::Or(o) => collect_subexprs(&o.expr.input, out),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                for item in items {
+                    collect_subexprs(item, out);
+                }
+            }
+            _ => {}
+        },
         Expr::FuncValue(_) => {
             // Don't recurse into lambda bodies — handled separately
         }
@@ -1652,6 +1704,12 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::OptionGetOrElse(s) => vec![&s.expr.input, &s.expr.default],
         Expr::Slice(s) => vec![&s.expr.input, &s.expr.from, &s.expr.until],
         Expr::Append(s) => vec![&s.expr.input, &s.expr.col_2],
+        Expr::And(a) => vec![&a.expr.input],
+        Expr::Or(o) => vec![&o.expr.input],
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => items.iter().collect(),
+            _ => vec![],
+        },
         // Leaf nodes — no children
         Expr::Const(_)
         | Expr::ConstPlaceholder(_)
@@ -2312,6 +2370,14 @@ fn find_max_val_id(expr: &Expr) -> u32 {
             let args_max = app.args.iter().map(find_max_val_id).max().unwrap_or(0);
             find_max_val_id(&app.func).max(args_max)
         }
+        Expr::And(a) => find_max_val_id(&a.expr.input),
+        Expr::Or(o) => find_max_val_id(&o.expr.input),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                items.iter().map(find_max_val_id).max().unwrap_or(0)
+            }
+            _ => 0,
+        },
         _ => 0,
     }
 }
@@ -2430,6 +2496,16 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
                 count += count_occurrences(arg, target);
             }
         }
+        Expr::And(a) => count += count_occurrences(&a.expr.input, target),
+        Expr::Or(o) => count += count_occurrences(&o.expr.input, target),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                for item in items {
+                    count += count_occurrences(item, target);
+                }
+            }
+            _ => {}
+        },
         Expr::FuncValue(_) => {
             // Don't count inside lambda bodies — they're handled separately
         }
@@ -2813,6 +2889,37 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .map(Expr::Apply)
                 .unwrap_or_else(|_| Expr::Apply(app.clone()))
         }
+        Expr::And(a) => {
+            let new_input = replace_all(&a.expr.input, target, replacement);
+            Expr::And(ergotree_ir::source_span::Spanned {
+                source_span: a.source_span,
+                expr: ergotree_ir::mir::and::And {
+                    input: new_input.into(),
+                },
+            })
+        }
+        Expr::Or(o) => {
+            let new_input = replace_all(&o.expr.input, target, replacement);
+            Expr::Or(ergotree_ir::source_span::Spanned {
+                source_span: o.source_span,
+                expr: ergotree_ir::mir::or::Or {
+                    input: new_input.into(),
+                },
+            })
+        }
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items
+                    .iter()
+                    .map(|i| replace_all(i, target, replacement))
+                    .collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe: elem_tpe.clone(),
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other.clone()),
+        },
         // Leaves and lambda bodies (not traversed for replacement at this level)
         other => other.clone(),
     }
@@ -3441,6 +3548,29 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 .map(Expr::Apply)
                 .expect("Apply::new in rewrite_ids")
         }
+        Expr::And(a) => Expr::And(ergotree_ir::source_span::Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: rewrite_ids(*a.expr.input, id_map).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(ergotree_ir::source_span::Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: rewrite_ids(*o.expr.input, id_map).into(),
+            },
+        }),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> =
+                    items.into_iter().map(|i| rewrite_ids(i, id_map)).collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
         // Leaves pass through unchanged
         other => other,
     }

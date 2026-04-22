@@ -3192,6 +3192,53 @@ mod tests {
   }
 }"#,
             ),
+            (
+                "Phoenix HodlERG Bank (simplified)",
+                r#"{
+  val phoenixFeeContractBytesHash = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
+  val totalTokenSupply: Long = SELF.R4[Long].get
+  val precisionFactor: Long = SELF.R5[Long].get
+  val minBankValue: Long = SELF.R6[Long].get
+  val devFeeNum: Long = SELF.R7[Long].get
+  val bankFeeNum: Long = SELF.R8[Long].get
+  val feeDenom: Long = 1000L
+  val reserveIn: Long = SELF.value
+  val hodlERGIn: Long = SELF.tokens(1)._2
+  val hodlERGCircIn: Long = totalTokenSupply - hodlERGIn
+  val bankBoxOUT: Box = OUTPUTS(0)
+  val reserveOut: Long = bankBoxOUT.value
+  val hodlERGOut: Long = bankBoxOUT.tokens(1)._2
+  val hodlERGCircDelta: Long = hodlERGIn - hodlERGOut
+  val price: BigInt = (reserveIn.toBigInt * precisionFactor) / hodlERGCircIn
+  val isMintTx: Boolean = (hodlERGCircDelta > 0L)
+  val validBankRecreation: Boolean = {
+    val validValue: Boolean = (bankBoxOUT.value >= minBankValue)
+    val validContract: Boolean = (bankBoxOUT.propositionBytes == SELF.propositionBytes)
+    val validBankSingleton: Boolean = (bankBoxOUT.tokens(0) == SELF.tokens(0))
+    val validHodlERGTokenId: Boolean = (bankBoxOUT.tokens(1)._1 == SELF.tokens(1)._1)
+    allOf(Coll[Boolean](validValue, validContract, validBankSingleton, validHodlERGTokenId))
+  }
+  if (isMintTx) {
+    val expectedAmountDeposited: Long = (hodlERGCircDelta * price) / precisionFactor
+    val validBankDeposit: Boolean = (reserveOut >= reserveIn + expectedAmountDeposited)
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankDeposit)))
+  } else {
+    val phoenixFeeBoxOUT: Box = OUTPUTS(2)
+    val hodlCoinsBurned: Long = hodlERGOut - hodlERGIn
+    val expectedAmountBeforeFees: Long = (hodlCoinsBurned * price) / precisionFactor
+    val bankFeeAmount: Long = (expectedAmountBeforeFees * bankFeeNum) / feeDenom
+    val devFeeAmount: Long = (expectedAmountBeforeFees * devFeeNum) / feeDenom
+    val validBankWithdraw: Boolean = (reserveOut == reserveIn - expectedAmountBeforeFees + bankFeeAmount)
+    val validPhoenixFee: Boolean = {
+      allOf(Coll[Boolean](
+        (phoenixFeeBoxOUT.value == devFeeAmount),
+        (blake2b256(phoenixFeeBoxOUT.propositionBytes) == phoenixFeeContractBytesHash)
+      ))
+    }
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankWithdraw, validPhoenixFee)))
+  }
+}"#,
+            ),
         ];
 
         for (name, source) in &contracts {
@@ -3349,7 +3396,34 @@ mod tests {
 }
 
 #[test]
-#[ignore] // CSE ValDef renumbering issue with BigInt expressions in if/else branches
+fn test_debug_bigint_if_else() {
+    // Minimal repro: shared val used in both if/else branches with BigInt
+    let result = compile(
+        r#"{
+  val reserveIn: Long = SELF.value
+  val hodlERGIn: Long = SELF.tokens(1)._2
+  val bankBoxOUT: Box = OUTPUTS(0)
+  val reserveOut: Long = bankBoxOUT.value
+  val hodlERGOut: Long = bankBoxOUT.tokens(1)._2
+  val price: BigInt = (reserveIn.toBigInt * 1000L) / (1000L - hodlERGIn)
+  val isMintTx: Boolean = (hodlERGIn > hodlERGOut)
+  val validRecreation: Boolean = (bankBoxOUT.propositionBytes == SELF.propositionBytes)
+  if (isMintTx) {
+    val amt: Long = ((hodlERGIn - hodlERGOut) * price) / 1000L
+    val validDeposit: Boolean = (reserveOut >= reserveIn + amt)
+    sigmaProp(allOf(Coll[Boolean](validRecreation, validDeposit)))
+  } else {
+    val amt: Long = ((hodlERGOut - hodlERGIn) * price) / 1000L
+    val validWithdraw: Boolean = (reserveOut == reserveIn - amt)
+    sigmaProp(allOf(Coll[Boolean](validRecreation, validWithdraw)))
+  }
+}"#,
+        ScriptEnv::new(),
+    );
+    assert!(result.is_ok(), "BigInt if/else failed: {:?}", result.err());
+}
+
+#[test]
 fn test_ecosystem_phoenix_hodlerg_bank() {
     // Phoenix HodlERG Bank — simplified but with all key patterns
     let result = compile(
