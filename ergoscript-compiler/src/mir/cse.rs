@@ -54,7 +54,7 @@ fn reorder_valdefs(expr: Expr) -> Expr {
 
             // Walk the result expression DFS; when a ValUse is encountered,
             // recursively emit its ValDef (and that ValDef's deps) first.
-            emit_deps(&s.expr.result, &val_map, &mut emitted, &mut emitted_ids);
+            emit_deps(&s.expr.result, &val_map, &mut emitted, &mut emitted_ids, false);
 
             // Any ValDefs not referenced transitively from result go at the end
             for item in &s.expr.items {
@@ -81,11 +81,18 @@ fn reorder_valdefs(expr: Expr) -> Expr {
 /// DFS walk an expression; when a ValUse is found whose ValDef is in val_map
 /// and hasn't been emitted yet, recursively emit its RHS dependencies first,
 /// then emit the ValDef.
+///
+/// `in_thunk`: true when we're inside the right arm of a logical &&/|| chain.
+/// In Scala's graph, this corresponds to being inside a ThunkDef body. The
+/// ThunkDef's flatSchedule lists inner ThunkDefs before their parent expressions,
+/// which causes the innermost || in a left-associative chain to effectively
+/// process its right arm before the left arm.
 fn emit_deps(
     expr: &Expr,
     val_map: &HashMap<u32, Expr>,
     emitted: &mut Vec<Expr>,
     emitted_ids: &mut HashSet<u32>,
+    in_thunk: bool,
 ) {
     match expr {
         Expr::ValUse(vu) => {
@@ -94,7 +101,7 @@ fn emit_deps(
                 if let Some(vd_expr) = val_map.get(&id) {
                     if let Expr::ValDef(vd) = vd_expr {
                         // Emit dependencies of this ValDef's RHS first
-                        emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids);
+                        emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk);
                     }
                     emitted_ids.insert(id);
                     emitted.push(vd_expr.clone());
@@ -103,107 +110,147 @@ fn emit_deps(
         }
         Expr::BlockValue(s) => {
             for item in &s.expr.items {
-                emit_deps(item, val_map, emitted, emitted_ids);
+                emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
             }
-            emit_deps(&s.expr.result, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.result, val_map, emitted, emitted_ids, in_thunk);
         }
-        Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids),
+        Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids, in_thunk),
         Expr::BinOp(s) => {
-            emit_deps(&s.expr.left, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.right, val_map, emitted, emitted_ids);
+            let is_logical = matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::And
+                        | ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            );
+            let is_or = matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            );
+            if is_logical {
+                // In Scala's graph, logical &&/|| wraps the right arm in a ThunkDef.
+                // Inside a ThunkDef body's flatSchedule, inner ThunkDefs are listed
+                // before their parent expressions. For a left-associative || chain
+                // ((a || b) || c) || d, this means the innermost ||'s right arm (b)
+                // is processed before its left arm (a). The innermost || is identified
+                // by its left operand NOT being another BinOp(Or).
+                let left_is_or = matches!(&*s.expr.left, Expr::BinOp(lb) if matches!(
+                    lb.expr.kind,
+                    ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                        ergotree_ir::mir::bin_op::LogicalOp::Or
+                    )
+                ));
+                let reverse_inner = in_thunk && is_or && !left_is_or;
+                if reverse_inner {
+                    // Innermost || in thunk context: right arm first (matches Scala's
+                    // ThunkDef body flatSchedule where ThunkDef children come before parents)
+                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true);
+                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, true);
+                } else {
+                    // Left arm is in main scope (not thunk)
+                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk);
+                    // Right arm enters thunk context
+                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true);
+                }
+            } else {
+                emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(&s.expr.right, val_map, emitted, emitted_ids, in_thunk);
+            }
         }
-        Expr::BoolToSigmaProp(bts) => emit_deps(&bts.input, val_map, emitted, emitted_ids),
+        Expr::BoolToSigmaProp(bts) => emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::If(if_op) => {
-            emit_deps(&if_op.condition, val_map, emitted, emitted_ids);
-            emit_deps(&if_op.true_branch, val_map, emitted, emitted_ids);
-            emit_deps(&if_op.false_branch, val_map, emitted, emitted_ids);
+            emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&if_op.true_branch, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&if_op.false_branch, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Filter(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Exists(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::ForAll(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Map(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.mapper, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.mapper, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Fold(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.zero, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.fold_op, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.zero, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.fold_op, val_map, emitted, emitted_ids, in_thunk);
         }
-        Expr::FuncValue(fv) => emit_deps(fv.body(), val_map, emitted, emitted_ids),
-        Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids),
+        Expr::FuncValue(fv) => emit_deps(fv.body(), val_map, emitted, emitted_ids, in_thunk),
+        Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk),
         Expr::MethodCall(s) => {
-            emit_deps(&s.expr.obj, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk);
             for a in &s.expr.args {
-                emit_deps(a, val_map, emitted, emitted_ids);
+                emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
             }
         }
-        Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids),
-        Expr::ExtractRegisterAs(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
-        Expr::ExtractScriptBytes(esb) => emit_deps(&esb.input, val_map, emitted, emitted_ids),
-        Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids),
-        Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids),
-        Expr::ExtractCreationInfo(eci) => emit_deps(&eci.input, val_map, emitted, emitted_ids),
-        Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids),
+        Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractRegisterAs(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractScriptBytes(esb) => emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractCreationInfo(eci) => emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::ByIndex(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.index, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.index, val_map, emitted, emitted_ids, in_thunk);
             if let Some(ref d) = s.expr.default {
-                emit_deps(d, val_map, emitted, emitted_ids);
+                emit_deps(d, val_map, emitted, emitted_ids, in_thunk);
             }
         }
-        Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
-        Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
-        Expr::OptionIsDefined(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
+        Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::OptionIsDefined(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::OptionGetOrElse(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.default, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.default, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Slice(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.from, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.until, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.from, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.until, val_map, emitted, emitted_ids, in_thunk);
         }
-        Expr::LogicalNot(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
-        Expr::Negation(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids),
-        Expr::SigmaPropBytes(spb) => emit_deps(&spb.input, val_map, emitted, emitted_ids),
-        Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids),
-        Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids),
-        Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids),
-        Expr::CreateProveDlog(cpd) => emit_deps(&cpd.input, val_map, emitted, emitted_ids),
+        Expr::LogicalNot(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::Negation(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::SigmaPropBytes(spb) => emit_deps(&spb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::CreateProveDlog(cpd) => emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::SigmaAnd(sa) => {
             for i in sa.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
             }
         }
         Expr::SigmaOr(so) => {
             for i in so.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
             }
         }
         Expr::Tuple(t) => {
             for i in t.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
             }
         }
         Expr::TreeLookup(s) => {
-            emit_deps(&s.expr.tree, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.key, val_map, emitted, emitted_ids);
-            emit_deps(&s.expr.proof, val_map, emitted, emitted_ids);
+            emit_deps(&s.expr.tree, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.key, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.proof, val_map, emitted, emitted_ids, in_thunk);
         }
         Expr::Apply(app) => {
-            emit_deps(&app.func, val_map, emitted, emitted_ids);
+            emit_deps(&app.func, val_map, emitted, emitted_ids, in_thunk);
             for a in &app.args {
-                emit_deps(a, val_map, emitted, emitted_ids);
+                emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
             }
         }
         _ => {}
@@ -1385,8 +1432,10 @@ fn is_graph_shared(expr: &Expr) -> bool {
         Expr::ExtractBytes(eb) => is_input_global(&eb.input),
         Expr::ExtractId(ei) => is_input_global(&ei.input),
         Expr::ExtractCreationInfo(eci) => is_input_global(&eci.input),
-        // ByIndex (Coll.apply in Scala): MethodCall in Scala graph, not shared
-        Expr::ByIndex(s) => is_input_global(&s.expr.input),
+        // ByIndex (Coll.apply in Scala): shared when input is stable
+        // (global, PropertyCall chain on global, or referencing a val-bound collection).
+        // In Scala's graph, MethodCall(coll, apply, [idx]) is extractable when usages >= 2.
+        Expr::ByIndex(s) => is_input_stable(&s.expr.input),
         // OptionGet/IsDefined: separate per call site in Scala graph
         Expr::OptionGet(_) | Expr::OptionIsDefined(_) => false,
         // MethodCall: not shared (rewriteDef produces different results per call)
@@ -1405,6 +1454,18 @@ fn is_input_global(expr: &Expr) -> bool {
     match expr {
         Expr::GlobalVars(_) | Expr::Context => true,
         Expr::PropertyCall(s) => is_input_global(&s.expr.obj),
+        _ => false,
+    }
+}
+
+/// Like is_input_global but also accepts PropertyCall on a ValUse.
+/// In Scala's graph, MethodCall(coll, apply, [idx]) on a val-bound or
+/// CSE-extracted collection is shared. ValUse indicates a stable binding.
+fn is_input_stable(expr: &Expr) -> bool {
+    match expr {
+        Expr::GlobalVars(_) | Expr::Context => true,
+        Expr::PropertyCall(s) => is_input_stable(&s.expr.obj),
+        Expr::ValUse(_) => true,
         _ => false,
     }
 }
@@ -1987,19 +2048,26 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
         if !is_extractable(node) {
             continue;
         }
-        // Non-shared types (PropertyCall, MethodCall, BinOp(Eq/NEq)) are never
-        // deduplicated in the Scala graph — each source occurrence creates a
-        // separate graph symbol with usages=1. Skip them.
         if !is_graph_shared(node) {
             continue;
         }
-        // Check DAG usage count (computed from original graph)
         let dag_count = dag_usages
             .iter()
             .find(|(e, _)| e == node)
             .map(|(_, c)| *c)
             .unwrap_or(0);
         if dag_count >= 2 {
+            // In Scala, && and || wrap the right operand in a ThunkDef,
+            // creating a separate hash-consing scope. Expressions on a
+            // local val (ValUse) — PropertyCall or ByIndex — may create
+            // separate graph symbols per ThunkDef if they only appear
+            // inside right arms. Only extract if it also appears in a
+            // left-arm (scope-main) position.
+            let is_valuse_dependent = matches!(node, Expr::PropertyCall(s) if matches!(&*s.expr.obj, Expr::ValUse(_)))
+                || matches!(node, Expr::ByIndex(s) if matches!(&*s.expr.input, Expr::ValUse(_) | Expr::PropertyCall(_)));
+            if is_valuse_dependent && !appears_in_main_scope(&expr, node) {
+                continue;
+            }
             env.push((node.clone(), next_id));
             next_id += 1;
         }
@@ -2086,6 +2154,44 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
 // -----------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------
+
+
+/// Check if `target` appears anywhere in `tree` that is NOT exclusively
+/// inside the right arm of a logical &&/|| chain. In Scala, the right arm
+/// of &&/|| is wrapped in a ThunkDef — expressions first created there
+/// are scope-local and not shared with the parent scope.
+fn appears_in_main_scope(tree: &Expr, target: &Expr) -> bool {
+    appears_in_main_scope_inner(tree, target, false)
+}
+
+fn appears_in_main_scope_inner(expr: &Expr, target: &Expr, directly_in_thunk: bool) -> bool {
+    if expr == target {
+        // Found the target. It's in a "left arm position" if we're NOT
+        // directly inside a right arm that hasn't been "reset" by a left arm.
+        return !directly_in_thunk;
+    }
+    match expr {
+        Expr::BinOp(s)
+            if matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::And
+                        | ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            ) =>
+        {
+            // Left arm: entering a scope's "main" position — reset the thunk flag.
+            // In Scala, the left operand is eagerly evaluated in the enclosing scope.
+            // Even if we're inside a ThunkDef, the ThunkDef has its own main scope.
+            appears_in_main_scope_inner(&s.expr.left, target, false)
+                || appears_in_main_scope_inner(&s.expr.right, target, true)
+        }
+        _ => direct_children(expr)
+            .into_iter()
+            .any(|child| appears_in_main_scope_inner(child, target, directly_in_thunk)),
+    }
+}
+
 
 /// Get the type of an expression.
 fn expr_type(expr: &Expr) -> SType {

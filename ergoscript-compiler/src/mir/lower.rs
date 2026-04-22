@@ -32,7 +32,12 @@ use ergotree_ir::mir::get_var::GetVar;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use ergotree_ir::mir::if_op::If;
 use ergotree_ir::mir::logical_not::LogicalNot;
+use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
+use ergotree_ir::mir::byte_array_to_long::ByteArrayToLong;
 use ergotree_ir::mir::long_to_byte_array::LongToByteArray;
+use ergotree_ir::mir::subst_const::SubstConstants;
+use ergotree_ir::mir::xor::Xor;
+use ergotree_ir::mir::xor_of::XorOf;
 use ergotree_ir::mir::method_call::MethodCall;
 use ergotree_ir::mir::negation::Negation;
 use ergotree_ir::mir::option_get::OptionGet;
@@ -92,20 +97,25 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             let l = lower(*hir.lhs.clone())?;
             let r = lower(*hir.rhs.clone())?;
             // SigmaProp-level && / || → SigmaAnd / SigmaOr
-            if matches!(hir.op.node, BinaryOp::And | BinaryOp::Or)
-                && l.tpe() == SType::SSigmaProp
-                && r.tpe() == SType::SSigmaProp
-            {
-                match hir.op.node {
-                    BinaryOp::And => SigmaAnd::new(vec![l, r])
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into(),
-                    BinaryOp::Or => SigmaOr::new(vec![l, r])
-                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                        .into(),
-                    _ => unreachable!(),
+            // If either side is SigmaProp, auto-promote the Bool side via BoolToSigmaProp
+            if matches!(hir.op.node, BinaryOp::And | BinaryOp::Or) {
+                let l_sigma = l.tpe() == SType::SSigmaProp;
+                let r_sigma = r.tpe() == SType::SSigmaProp;
+                if l_sigma || r_sigma {
+                    let l = if !l_sigma { Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(l).map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?) } else { l };
+                    let r = if !r_sigma { Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(r).map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?) } else { r };
+                    return Ok(match hir.op.node {
+                        BinaryOp::And => SigmaAnd::new(vec![l, r])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into(),
+                        BinaryOp::Or => SigmaOr::new(vec![l, r])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into(),
+                        _ => unreachable!(),
+                    });
                 }
-            } else {
+            }
+            {
                 BinOp {
                     kind: hir.op.node.clone().into(),
                     left: l.into(),
@@ -321,6 +331,82 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             kind: ArithOp::Max.into(),
                             left: left.into(),
                             right: right.into(),
+                        }
+                        .into()
+                    }
+                    "substConstants" => {
+                        let mut it = args.into_iter();
+                        let script_bytes = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "substConstants requires three arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let positions = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "substConstants requires three arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let new_values = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "substConstants requires three arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        SubstConstants::new(script_bytes, positions, new_values)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "byteArrayToLong" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "byteArrayToLong requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        ByteArrayToLong::try_build(input)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "byteArrayToBigInt" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "byteArrayToBigInt requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        ByteArrayToBigInt::try_build(input)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "xor" => {
+                        let mut it = args.into_iter();
+                        let left = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "xor requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let right = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "xor requires two arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        Xor::new(left, right)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "xorOf" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "xorOf requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        XorOf {
+                            input: input.into(),
                         }
                         .into()
                     }
@@ -812,6 +898,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
         )
     })?;
     if mir.tpe() == hir_tpe {
+        Ok(mir)
+    } else if mir.tpe() == SType::SSigmaProp && hir_tpe == SType::SBoolean {
+        // Auto-promotion: &&/|| with a SigmaProp operand produces SigmaProp in MIR
+        // even though HIR typed it as SBoolean. This is expected.
         Ok(mir)
     } else {
         Err(MirLoweringError::new(

@@ -1599,6 +1599,63 @@ mod tests {
     }
 
     #[test]
+    fn test_feature_subst_constants() {
+        let result = compile_expr(
+            "{ val script = SELF.propositionBytes; val positions = Coll[Int](0); val values = Coll[Int](1); val result = substConstants(script, positions, values); sigmaProp(result.size > 0) }",
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "substConstants failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_feature_byte_array_to_long() {
+        let result = compile_expr(
+            "{ val bytes = longToByteArray(1L); sigmaProp(byteArrayToLong(bytes) == 1L) }",
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "byteArrayToLong failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_feature_byte_array_to_bigint() {
+        let result = compile_expr(
+            "{ val bytes = longToByteArray(42L); val bi = byteArrayToBigInt(bytes); sigmaProp(bi == bi) }",
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "byteArrayToBigInt failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_feature_xor() {
+        let result = compile_expr(
+            r#"{ val a = SELF.propositionBytes; val b = SELF.propositionBytes; val result = xor(a, b); sigmaProp(result.size > 0) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "xor failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_xor_of() {
+        let result = compile_expr(
+            "{ val bools = Coll[Boolean](true, false, true); sigmaProp(xorOf(bools)) }",
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "xorOf failed: {:?}", result.err());
+    }
+
+    #[test]
     fn test_feature_decode_point() {
         let result = compile_expr(
             r#"{ val ecPoint = decodePoint(fromBase16("02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700")); sigmaProp(proveDlog(ecPoint)) }"#,
@@ -2919,25 +2976,10 @@ mod tests {
             }
         }
 
-        // Session 13: 12 of 15 byte-match. See assert comment below for details.
-        // 12 of 15 contracts byte-match the Scala node:
-        //   governance (vault, reserve, proposal, treasury), oracle pool v2 pool,
-        //   spectrum AMM swap, dexy bank, nested forall, multi-filter, if-else,
-        //   map+size, triple CSE.
-        // 3 have DAG-vs-tree structural diffs that require a graph IR layer:
-        //   dexy LP (+1B), DuckPools (-2B), oracle v2 oracle (-4B).
-        // 12 of 15 contracts byte-match the Scala node:
-        //   governance (vault, reserve, proposal, treasury), oracle pool v2 pool,
-        //   spectrum AMM swap, dexy bank, nested forall, multi-filter, if-else,
-        //   map+size, triple CSE.
-        // 3 have Scala schedule-interaction effects that change CSE extraction
-        // when multiple PropertyCall nodes (e.g. SELF.tokens and out.tokens)
-        // compete for ValDef slots:
-        //   dexy LP (+1B), DuckPools (-2B), oracle v2 oracle (-4B).
-        // 12/15 byte-match. Graph IR CSE with selective hash-consing.
+        // 15/15 contracts byte-match the Scala node output.
         assert!(
-            matched >= 12,
-            "Batch byte-match: {}/{} matched (expected >= 12).\nFailures:\n  {}",
+            matched >= 15,
+            "Batch byte-match: {}/{} matched (expected 15).\nFailures:\n  {}",
             matched,
             matched + failed.len(),
             failed.join("\n  ")

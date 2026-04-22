@@ -95,6 +95,11 @@ fn assign_type_with_scope(
                     "atLeast" => Some(SType::SSigmaProp),
                     "longToByteArray" => Some(SType::SColl(SType::SByte.into())),
                     "min" | "max" => typed_args.first().and_then(|a| a.tpe.clone()),
+                    "substConstants" => Some(SType::SColl(SType::SByte.into())),
+                    "byteArrayToLong" => Some(SType::SLong),
+                    "byteArrayToBigInt" => Some(SType::SBigInt),
+                    "xor" => Some(SType::SColl(SType::SByte.into())),
+                    "xorOf" => Some(SType::SBoolean),
                     "decodePoint" => Some(SType::SGroupElement),
                     "getVar" => {
                         // getVar[T](n) → SOption(T)
