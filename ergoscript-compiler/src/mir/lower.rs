@@ -849,9 +849,34 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 "toLong" => Upcast::new(obj, SType::SLong)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
-                "toBigInt" => Upcast::new(obj, SType::SBigInt)
-                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                    .into(),
+                "toBigInt" => {
+                    // Constant fold: literal.toBigInt → BigInt constant
+                    if let Expr::Const(c) = &obj {
+                        use ergotree_ir::bigint256::BigInt256;
+                        let folded: Option<BigInt256> = match &c.v {
+                            ergotree_ir::mir::constant::Literal::Int(v) => {
+                                BigInt256::try_from(*v as i64).ok()
+                            }
+                            ergotree_ir::mir::constant::Literal::Long(v) => {
+                                BigInt256::try_from(*v).ok()
+                            }
+                            _ => None,
+                        };
+                        if let Some(bi) = folded {
+                            Constant::from(bi).into()
+                        } else {
+                            Upcast::new(obj, SType::SBigInt)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                    } else {
+                        Upcast::new(obj, SType::SBigInt)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                }
                 "toInt" => {
                     // Upcast for smaller→Int, Downcast for larger→Int
                     if matches!(obj.tpe(), SType::SLong | SType::SBigInt) {
