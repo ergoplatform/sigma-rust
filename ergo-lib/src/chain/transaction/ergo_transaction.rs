@@ -77,6 +77,19 @@ pub enum TxValidationError {
     /// Verifying input script failed
     #[error("Verifier error on input {0}: {1}")]
     VerifierError(usize, VerifierError),
+    /// Cumulative transaction cost exceeds `max_block_cost`. Phase identifies where the
+    /// breach was detected; `block_cost` is the accumulated block-scale cost at breach.
+    /// Matches Scala's per-input post-check at
+    /// `ErgoTransaction.scala:159` (`currCost <= maxCost`).
+    #[error("Cost limit exceeded at {phase}: block_cost={block_cost}, limit={limit}")]
+    CostLimitExceeded {
+        /// Where the breach was detected (`init`, `input {idx}`, `storage_rent {idx}`, or `post_eval {idx}`).
+        phase: alloc::string::String,
+        /// Accumulated block-scale cost at the moment of breach.
+        block_cost: u64,
+        /// Configured `max_block_cost` from protocol parameters.
+        limit: u64,
+    },
 }
 
 /// Exposes common properties for signed and unsigned transactions

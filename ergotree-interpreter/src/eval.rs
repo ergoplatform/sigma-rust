@@ -44,7 +44,7 @@ pub(crate) mod coll_map;
 pub(crate) mod coll_size;
 pub(crate) mod coll_slice;
 pub(crate) mod collection;
-pub(crate) mod cost_accum;
+pub mod cost_accum;
 pub(crate) mod costs;
 pub(crate) mod create_avl_tree;
 pub(crate) mod create_prove_dh_tuple;

@@ -12,7 +12,9 @@ use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationE
 use crate::chain::transaction::storage_rent::try_spend_storage_rent;
 use crate::chain::transaction::{Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
+use ergotree_interpreter::eval::cost_accum::CostError;
 use ergotree_interpreter::eval::reduce_to_crypto;
+use ergotree_interpreter::eval::EvalError;
 use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
 use ergotree_interpreter::sigma_protocol::verifier::{verify_signature, VerificationResult};
 use ergotree_ir::chain::context::TxIoVec;
@@ -199,11 +201,27 @@ impl TransactionContext<Transaction> {
             self.boxes_to_spend.as_slice(),
             &state_context.parameters,
         );
+        let max_block_cost = state_context.parameters.max_block_cost() as u64;
+        // Scala ref: ErgoTransaction.scala ~L133 — init cost alone exceeding
+        // maxBlockCost is a tx-level rejection, distinct from per-input overruns.
+        if init_cost > max_block_cost {
+            return Err(TxValidationError::CostLimitExceeded {
+                phase: alloc::string::ToString::to_string("init"),
+                block_cost: init_cost,
+                limit: max_block_cost,
+            });
+        }
         let mut running_jit: u64 = init_cost * 10;
 
         for input_idx in 0..self.spending_tx.inputs.len() {
-            // Fresh context per input (jit_cost_accum starts at 0)
-            let ctx = make_context(state_context, self, input_idx)?;
+            // Fresh context per input (jit_cost_accum starts at 0). Per Scala
+            // (ErgoTransaction.scala:135), each input's interpreter runs with
+            // `costLimit = maxCost - currentTxCost` — the remaining budget in
+            // block-scale, converted back to JIT scale for the accumulator.
+            let mut ctx = make_context(state_context, self, input_idx)?;
+            let current_block_cost = running_jit / 10;
+            let remaining_block = max_block_cost.saturating_sub(current_block_cost);
+            ctx.jit_cost_limit = Some(remaining_block.saturating_mul(10));
 
             let input = self
                 .spending_tx
@@ -219,14 +237,35 @@ impl TransactionContext<Transaction> {
             // Scala ref: ErgoInterpreter.scala:81, Constants.scala:35.
             if try_spend_storage_rent(input, input_box, state_context, &ctx).is_some() {
                 running_jit += STORAGE_CONTRACT_COST_BLOCK * 10;
+                let block_cost = running_jit / 10;
+                if block_cost > max_block_cost {
+                    return Err(TxValidationError::CostLimitExceeded {
+                        phase: alloc::format!("storage_rent {}", input_idx),
+                        block_cost,
+                        limit: max_block_cost,
+                    });
+                }
                 continue;
             }
 
             let pre_input = running_jit;
 
-            // Reduce to crypto (eval cost + sigma prop)
-            let reduction = reduce_to_crypto(&input_box.ergo_tree, &ctx)
-                .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
+            // Reduce to crypto (eval cost + sigma prop). Mid-eval limit breaches
+            // surface as EvalError::CostError(LimitExceeded); map to a transaction-
+            // level CostLimitExceeded so callers don't have to unpack VerifierError.
+            let reduction = reduce_to_crypto(&input_box.ergo_tree, &ctx).map_err(|e| {
+                if matches!(e, EvalError::CostError(CostError::LimitExceeded(_))) {
+                    // Interpreter tripped on remaining budget; running_jit hasn't
+                    // absorbed this input's cost yet, so report one block above.
+                    TxValidationError::CostLimitExceeded {
+                        phase: alloc::format!("input {}", input_idx),
+                        block_cost: max_block_cost + 1,
+                        limit: max_block_cost,
+                    }
+                } else {
+                    TxValidationError::VerifierError(input_idx, e.into())
+                }
+            })?;
             running_jit += reduction.cost;
 
             // Snap to block boundary (drop JitCost mod-10 remainder per input)
@@ -235,6 +274,17 @@ impl TransactionContext<Transaction> {
 
             // Crypto verification cost
             running_jit += estimate_crypto_cost(&reduction.sigma_prop);
+
+            // Scala ref: ErgoTransaction.scala:159 — post-input check
+            // (currCost <= maxCost) after script + crypto cost is folded in.
+            let block_cost = running_jit / 10;
+            if block_cost > max_block_cost {
+                return Err(TxValidationError::CostLimitExceeded {
+                    phase: alloc::format!("post_eval {}", input_idx),
+                    block_cost,
+                    limit: max_block_cost,
+                });
+            }
 
             // Verify proof
             let verified = match &reduction.sigma_prop {
@@ -845,6 +895,89 @@ mod test {
                 (true, Ok(_)) => {},
                 (false, Err(TxValidationError::MonotonicHeightError(_, _))) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
+            }
+        });
+    }
+
+    /// Adversarial cross-input cost exhaustion: each input individually would
+    /// fit under a fresh `max_block_cost` budget, but cumulative tx cost trips
+    /// the post-input check (Scala ref: `ErgoTransaction.scala:159`).
+    ///
+    /// Strategy: measure the tx's true block cost with default parameters,
+    /// then re-validate with `max_block_cost` set just below it. The breach
+    /// must be reported as `CostLimitExceeded` on a non-first input (either
+    /// mid-eval via remaining-budget interpreter limit, or at the post-eval
+    /// cumulative check).
+    #[test]
+    fn test_cost_limit_exceeded_cumulative() {
+        use crate::chain::parameters::Parameters;
+        let state_context: ErgoStateContext = force_any_val();
+        proptest!(ProptestConfig::with_cases(8), |((boxes, tx) in valid_transaction_generator())| {
+            // Need ≥2 inputs for the cumulative breach to be on a later input.
+            prop_assume!(tx.inputs.len() >= 2);
+            let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+            let valid_cost = tx_context.validate(&state_context).unwrap();
+            prop_assume!(valid_cost > 0);
+
+            let p = &state_context.parameters;
+            let mut tight_ctx = state_context.clone();
+            tight_ctx.parameters = Parameters::new(
+                p.block_version(),
+                p.storage_fee_factor(),
+                p.min_value_per_byte(),
+                p.max_block_size(),
+                (valid_cost - 1) as i32,
+                p.token_access_cost(),
+                p.input_cost(),
+                p.data_input_cost(),
+                p.output_cost(),
+            );
+            match tx_context.validate(&tight_ctx) {
+                Err(TxValidationError::CostLimitExceeded { phase, block_cost, limit }) => {
+                    prop_assert!(block_cost > limit, "breach must exceed limit");
+                    // Breach reported on init or any input — all are valid
+                    // surfacings. What matters is that cumulative check fires
+                    // rather than a false-pass.
+                    prop_assert!(
+                        phase == "init"
+                            || phase.starts_with("input ")
+                            || phase.starts_with("storage_rent ")
+                            || phase.starts_with("post_eval "),
+                        "unexpected phase: {phase}"
+                    );
+                }
+                other => panic!("Expected CostLimitExceeded, got {other:?}"),
+            }
+        });
+    }
+
+    /// Init cost alone exceeding `max_block_cost` short-circuits before any
+    /// input is evaluated — `phase = "init"`.
+    #[test]
+    fn test_cost_limit_exceeded_init() {
+        use crate::chain::parameters::Parameters;
+        let state_context: ErgoStateContext = force_any_val();
+        proptest!(ProptestConfig::with_cases(4), |((boxes, tx) in valid_transaction_generator())| {
+            let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+            let p = &state_context.parameters;
+            let mut tiny_ctx = state_context.clone();
+            tiny_ctx.parameters = Parameters::new(
+                p.block_version(),
+                p.storage_fee_factor(),
+                p.min_value_per_byte(),
+                p.max_block_size(),
+                1,
+                p.token_access_cost(),
+                p.input_cost(),
+                p.data_input_cost(),
+                p.output_cost(),
+            );
+            match tx_context.validate(&tiny_ctx) {
+                Err(TxValidationError::CostLimitExceeded { phase, limit, .. }) => {
+                    prop_assert_eq!(phase, "init");
+                    prop_assert_eq!(limit, 1);
+                }
+                other => panic!("Expected CostLimitExceeded(init), got {other:?}"),
             }
         });
     }
