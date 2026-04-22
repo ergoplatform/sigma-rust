@@ -904,6 +904,118 @@ fn mod_inverse_cost_matches_scala_methods_574() {
     assert_eq!(run_and_get_cost(&mc), 164u64);
 }
 
+// ===== Deserialize substitution costs =====
+//
+// Scala Interpreter.scala:
+//   :81 `CostPerByteDeserialized = 2`   (block cost, always-on)
+//   :88 `CostPerTreeByte         = 2`   (block cost, V6-activated only)
+//   :99-107 `deserializeMeasured` charges scriptBytes.length * CostPerByteDeserialized
+//   :240-259 `reductionWithDeserialize` charges ergoTree.bytes.length * CostPerTreeByte
+//           gated on VersionContext.current.isV6Activated
+// JitCost is 10x block scale, so per-byte charge in JIT = 2 * 10 = 20.
+
+/// Pre-V6 DeserializeContext: payload-byte cost present, tree-byte cost absent.
+/// Substituted payload is `Expr::Const(true)` (SBoolean). Total cost =
+/// payload_bytes.len() * 20 (deserialize) + CONST_COST(5) (eval of substituted expr).
+#[test]
+fn deserialize_context_cost_pre_v6() {
+    use ergotree_ir::chain::context_extension::ContextExtension;
+    use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
+    use ergotree_ir::mir::deserialize_context::DeserializeContext;
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let inner_expr: Expr = true.into();
+    let payload_bytes = inner_expr.sigma_serialize_bytes().unwrap();
+    let payload_len = payload_bytes.len();
+    let ctx_ext = ContextExtension {
+        values: [(1u8, payload_bytes.into())].iter().cloned().collect(),
+    };
+
+    let mut ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+    ctx.pre_header.version = 3; // activated_script_version = V2 (pre-V6)
+
+    let root: Expr = DeserializeContext {
+        tpe: SType::SBoolean,
+        id: 1,
+    }
+    .into();
+    let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &root).unwrap();
+
+    let reduction = super::reduce_to_crypto(&tree, &ctx).unwrap();
+    // Expected: payload-byte cost only + eval cost of Expr::Const(true) = 5.
+    let expected_payload_jit = (payload_len as u64) * 20;
+    let expected_eval_jit = 5u64; // CONST_COST
+    assert_eq!(reduction.cost, expected_payload_jit + expected_eval_jit);
+}
+
+/// V6-activated DeserializeContext: both tree-byte and payload-byte costs present.
+/// Delta from pre-V6 case equals serialized_ergo_tree_bytes.len() * 20.
+#[test]
+fn deserialize_context_cost_v6_adds_tree_bytes() {
+    use ergotree_ir::chain::context_extension::ContextExtension;
+    use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
+    use ergotree_ir::mir::deserialize_context::DeserializeContext;
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let inner_expr: Expr = true.into();
+    let payload_bytes = inner_expr.sigma_serialize_bytes().unwrap();
+    let payload_len = payload_bytes.len();
+    let ctx_ext = ContextExtension {
+        values: [(1u8, payload_bytes.into())].iter().cloned().collect(),
+    };
+
+    let mut ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+    ctx.pre_header.version = 4; // activated_script_version = V3 (V6)
+
+    let root: Expr = DeserializeContext {
+        tpe: SType::SBoolean,
+        id: 1,
+    }
+    .into();
+    let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &root).unwrap();
+    let tree_bytes_len = tree.sigma_serialize_bytes().unwrap().len();
+
+    let reduction = super::reduce_to_crypto(&tree, &ctx).unwrap();
+    let expected_tree_jit = (tree_bytes_len as u64) * 20;
+    let expected_payload_jit = (payload_len as u64) * 20;
+    let expected_eval_jit = 5u64;
+    assert_eq!(
+        reduction.cost,
+        expected_tree_jit + expected_payload_jit + expected_eval_jit
+    );
+}
+
+/// DeserializeRegister that falls back to `default`: no payload-byte cost
+/// (no deserialization happened). Only the eval cost of the default expr.
+/// Matches Scala's substDeserialize returning None for the missing-register
+/// branch, which skips `deserializeMeasured` entirely.
+#[test]
+fn deserialize_register_default_fallback_no_payload_cost() {
+    use ergotree_ir::chain::ergo_box::{ErgoBox, NonMandatoryRegisterId, NonMandatoryRegisters};
+    use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
+    use ergotree_ir::mir::deserialize_register::DeserializeRegister;
+
+    let self_box =
+        force_any_val::<ErgoBox>().with_additional_registers(NonMandatoryRegisters::empty());
+    let mut ctx = force_any_val::<Context>();
+    ctx.self_box = alloc::boxed::Box::leak(alloc::boxed::Box::new(self_box));
+    ctx.pre_header.version = 3; // activated = V2 (pre-V6) to isolate payload-vs-default semantics
+
+    let default: Expr = true.into();
+    let root: Expr = DeserializeRegister {
+        reg: NonMandatoryRegisterId::R5.into(),
+        tpe: SType::SBoolean,
+        default: Some(Box::new(default)),
+    }
+    .into();
+    let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &root).unwrap();
+
+    let reduction = super::reduce_to_crypto(&tree, &ctx).unwrap();
+    // No bytes deserialized: the default is inlined and then evaluated.
+    // Default expr is `Expr::Const(true)` — costs CONST_COST(5).
+    assert_eq!(reduction.cost, 5u64);
+}
+
 /// SHeader.checkPow: Scala: methods.scala:1816
 ///   `SFunc(Array(SHeader), SBoolean), 16, FixedCost(JitCost(700))`
 /// Isolated via delta: full = (Context -> Headers -> ByIndex(0) -> checkPow),

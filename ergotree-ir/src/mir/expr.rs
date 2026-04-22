@@ -406,7 +406,26 @@ impl Expr {
     /// Rewrite expr, replacing [`DeserializeContext`] and [`DeserializeRegister`] nodes with their respective context extension/register values
     // TODO: work on soft-fork for sigma-rust, in that case if deserializing expr fails with validation err, reduce_to_crypto should return true
     pub fn substitute_deserialize(self, ctx: &Context) -> Result<Self, SubstDeserializeError> {
-        self.try_rewrite_bu(
+        self.substitute_deserialize_with_stats(ctx).map(|(e, _)| e)
+    }
+
+    /// Like [`Self::substitute_deserialize`], but also returns the raw byte
+    /// lengths of each byte-backed substitution performed. Only substitutions
+    /// that actually deserialize a payload are recorded — a
+    /// `DeserializeRegister` that falls back to its `default` expression
+    /// contributes no entry (no deserialization happened).
+    ///
+    /// The returned lengths are the number of bytes passed to the script
+    /// parser (i.e. what Scala's `deserializeMeasured` measures as
+    /// `scriptBytes.length`). Callers that need to charge deserialization
+    /// cost should multiply each by the appropriate per-byte rate.
+    pub fn substitute_deserialize_with_stats(
+        self,
+        ctx: &Context,
+    ) -> Result<(Self, alloc::vec::Vec<usize>), SubstDeserializeError> {
+        let stats: core::cell::RefCell<alloc::vec::Vec<usize>> =
+            core::cell::RefCell::new(alloc::vec::Vec::new());
+        let rewritten = self.try_rewrite_bu(
             |expr| {
                 matches!(
                     expr,
@@ -414,51 +433,59 @@ impl Expr {
                 )
             },
             |expr| {
-                let (tpe, parsed_expr): (&mut SType, Expr) = match expr {
-                    Expr::DeserializeContext(DeserializeContext { tpe, id }) => {
-                        let vec = ctx
-                            .extension
-                            .values
-                            .get(&*id)
-                            .ok_or(SubstDeserializeError::ExtensionKeyNotFound(*id))?
-                            .clone()
-                            .try_extract_into::<Vec<u8>>()?;
-                        (
-                            tpe,
-                            sigma_byte_reader::from_bytes(&vec)
-                                .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?,
-                        )
-                    }
-                    Expr::DeserializeRegister(DeserializeRegister { reg, tpe, default }) => {
-                        let expr = ctx
-                            .self_box
-                            .get_register(*reg)?
-                            .map(|constant| -> Result<_, SubstDeserializeError> {
-                                Ok(sigma_byte_reader::from_bytes(
-                                    &constant.try_extract_into::<Vec<u8>>()?,
-                                )
-                                .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?)
-                            })
-                            .transpose()?
-                            .or(default.as_deref().cloned());
-                        match expr {
-                            Some(expr) => (tpe, expr),
-                            None => return Ok(()), // When script in register is not found, and default is not defined, leave DeserializeRegisterNode unchanged, which will error on evaluation
+                // Each arm returns (tpe slot, parsed_expr, payload_len_opt).
+                // `payload_len_opt = None` means no byte-backed substitution
+                // happened (e.g. DeserializeRegister falling back to `default`)
+                // and nothing will be recorded in stats.
+                let (tpe, parsed_expr, payload_len_opt): (&mut SType, Expr, Option<usize>) =
+                    match expr {
+                        Expr::DeserializeContext(DeserializeContext { tpe, id }) => {
+                            let vec = ctx
+                                .extension
+                                .values
+                                .get(&*id)
+                                .ok_or(SubstDeserializeError::ExtensionKeyNotFound(*id))?
+                                .clone()
+                                .try_extract_into::<Vec<u8>>()?;
+                            let payload_len = vec.len();
+                            let parsed = sigma_byte_reader::from_bytes(&vec)
+                                .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?;
+                            (tpe, parsed, Some(payload_len))
                         }
-                    }
-                    #[allow(clippy::unreachable)] // Rule is already checked in filter
-                    _ => unreachable!(),
-                };
+                        Expr::DeserializeRegister(DeserializeRegister { reg, tpe, default }) => {
+                            let reg_value = ctx.self_box.get_register(*reg)?;
+                            let (parsed, payload_len_opt) = match reg_value {
+                                Some(constant) => {
+                                    let bytes = constant.try_extract_into::<Vec<u8>>()?;
+                                    let len = bytes.len();
+                                    let parsed = sigma_byte_reader::from_bytes(&bytes)
+                                        .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?;
+                                    (Some(parsed), Some(len))
+                                }
+                                None => (default.as_deref().cloned(), None),
+                            };
+                            match parsed {
+                                Some(expr) => (tpe, expr, payload_len_opt),
+                                None => return Ok(()), // Register empty + no default: leave unchanged; evaluation will error.
+                            }
+                        }
+                        #[allow(clippy::unreachable)] // Rule is already checked in filter
+                        _ => unreachable!(),
+                    };
                 if parsed_expr.tpe() != *tpe {
                     return Err(SubstDeserializeError::ExprTpeError {
                         expected: tpe.clone(),
                         actual: parsed_expr.tpe(),
                     });
                 }
+                if let Some(len) = payload_len_opt {
+                    stats.borrow_mut().push(len);
+                }
                 *expr = parsed_expr;
                 Ok(())
             },
-        )
+        )?;
+        Ok((rewritten, stats.into_inner()))
     }
 
     /// Substitute [`ConstantPlaceholder`] nodes in `self` with [`Constant`]
