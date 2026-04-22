@@ -223,23 +223,25 @@ fn nested_binop_cost() {
 fn per_item_cost_calculation() {
     use super::costs::PerItemCost;
 
-    // base=20, per_chunk=10, chunk_size=2, n_items=5
-    // chunks = ceil(5/2) = 3
-    // total = 20 + 10*3 = 50
+    // Scala formula (CostKind.scala:26): chunks(n) = (n - 1) / chunkSize + 1
+    // With signed truncation toward zero. For n == 0: (-1)/size + 1 = 1.
     let cost = PerItemCost::new(20, 10, 2);
-    assert_eq!(cost.total_cost(5).0, 50);
 
-    // n_items = 0 => total = base (no chunks)
-    assert_eq!(cost.total_cost(0).0, 20);
+    // n=0: Scala's chunks(0) = (0-1)/2 + 1 = 0 + 1 = 1 chunk -> 20 + 10 = 30
+    // (was 20 before the zero-chunk fix; see PerItemCost doc comment)
+    assert_eq!(cost.total_cost(0).0, 30);
 
-    // n_items = 1 => ceil(1/2) = 1 chunk => 20 + 10 = 30
+    // n=1: (1-1)/2 + 1 = 0 + 1 = 1 chunk -> 20 + 10 = 30
     assert_eq!(cost.total_cost(1).0, 30);
 
-    // n_items = 2 => ceil(2/2) = 1 chunk => 20 + 10 = 30
+    // n=2: (2-1)/2 + 1 = 0 + 1 = 1 chunk -> 20 + 10 = 30
     assert_eq!(cost.total_cost(2).0, 30);
 
-    // n_items = 3 => ceil(3/2) = 2 chunks => 20 + 20 = 40
+    // n=3: (3-1)/2 + 1 = 1 + 1 = 2 chunks -> 20 + 20 = 40
     assert_eq!(cost.total_cost(3).0, 40);
+
+    // n=5: (5-1)/2 + 1 = 2 + 1 = 3 chunks -> 20 + 30 = 50
+    assert_eq!(cost.total_cost(5).0, 50);
 }
 
 // ===== Test 10: JitCost to_block_cost conversion (floor division, matches Scala) =====
@@ -690,4 +692,275 @@ fn forall_charges_add_to_env_per_iteration() {
         cost > cost_without_add_to_env,
         "ForAll cost must include ADD_TO_ENV_COST per iteration"
     );
+}
+
+// ===== Tier 1 conformance: fixed-cost crypto ops with hard-coded Scala literals =====
+//
+// These tests are intentionally written without `costs::X.0` references.
+// Expected values are numeric literals sourced directly from the Scala
+// interpreter so drift vs Scala is caught by reading the test alone.
+// All values are in JIT units (JitCost scale). Block cost = JIT / 10 (floor).
+
+/// DecodePoint: byte-array -> GroupElement. Scala: trees.scala:529
+///   `object DecodePoint ... costKind = FixedCost(JitCost(300))`
+/// Input is a single `Constant` whose eval charges Scala: values.scala:380
+///   `Constant.costKind = FixedCost(JitCost(5))`
+/// Expected total = DecodePoint(300) + Const(5) = 305 JIT.
+#[test]
+fn decode_point_cost_matches_scala_trees_529() {
+    use ergo_chain_types::EcPoint;
+    use ergotree_ir::mir::decode_point::DecodePoint;
+    use ergotree_ir::serialization::SigmaSerializable;
+    let point = force_any_val::<EcPoint>();
+    let bytes = point.sigma_serialize_bytes().unwrap();
+    let expr: Expr = DecodePoint {
+        input: Box::new(Expr::Const(bytes.into())),
+    }
+    .into();
+    assert_eq!(run_and_get_cost(&expr), 305u64);
+}
+
+/// Exponentiate: (GroupElement, BigInt) -> GroupElement. Scala: trees.scala:1046
+///   `object Exponentiate ... costKind = FixedCost(JitCost(900))`
+/// Two `Constant` inputs × 5 JIT = 10 JIT. Expected = 900 + 10 = 910 JIT.
+#[test]
+fn exponentiate_cost_matches_scala_trees_1046() {
+    use ergo_chain_types::EcPoint;
+    use ergotree_ir::mir::exponentiate::Exponentiate;
+    use num_bigint::BigInt;
+    let base = force_any_val::<EcPoint>();
+    let exp = BigInt::from(42i32);
+    let expr: Expr = Exponentiate::new(
+        Expr::Const(base.into()),
+        Expr::Const(
+            ergotree_ir::bigint256::BigInt256::try_from(exp)
+                .unwrap()
+                .into(),
+        ),
+    )
+    .unwrap()
+    .into();
+    assert_eq!(run_and_get_cost(&expr), 910u64);
+}
+
+/// MultiplyGroup: (GroupElement, GroupElement) -> GroupElement. Scala: trees.scala:1067
+///   `object MultiplyGroup ... costKind = FixedCost(JitCost(40))`
+/// Two `Constant` inputs × 5 JIT = 10 JIT. Expected = 40 + 10 = 50 JIT.
+#[test]
+fn multiply_group_cost_matches_scala_trees_1067() {
+    use ergo_chain_types::EcPoint;
+    use ergotree_ir::mir::multiply_group::MultiplyGroup;
+    let left = force_any_val::<EcPoint>();
+    let right = force_any_val::<EcPoint>();
+    let expr: Expr = MultiplyGroup::new(Expr::Const(left.into()), Expr::Const(right.into()))
+        .unwrap()
+        .into();
+    assert_eq!(run_and_get_cost(&expr), 50u64);
+}
+
+/// EQ_GroupElement: equality between two GroupElement values dispatches through
+/// DataValueComparer to a FixedCost. Scala: DataValueComparer.scala:44
+///   `CostKind_EQ_GroupElement = FixedCost(JitCost(172))`
+/// The RelationOp::Eq BinOp itself charges no flat cost — per-type dispatch only.
+/// Expected = 2*Const(5) + EQ_GroupElement(172) = 182 JIT.
+#[test]
+fn eq_group_element_cost_matches_scala_dvc_44() {
+    use ergo_chain_types::EcPoint;
+    let a = force_any_val::<EcPoint>();
+    let expr: Expr = BinOp {
+        kind: BinOpKind::Relation(RelationOp::Eq),
+        left: Box::new(Expr::Const(a.clone().into())),
+        right: Box::new(Expr::Const(a.into())),
+    }
+    .into();
+    assert_eq!(run_and_get_cost(&expr), 182u64);
+}
+
+// ===== PerItemCost primitive: zero-item conformance with Scala =====
+//
+// PerItemCost::total_cost previously returned `baseCost` for n=0 because the
+// `u32` representation forced a special case; Scala uses signed arithmetic,
+// `chunks(0) = (0 - 1) / chunkSize + 1 = 1`. These tests lock the fix in and
+// prevent regression back to the zero-chunk special case.
+
+/// PerItemCost::total_cost(0) must charge one chunk.
+/// Scala: CostKind.scala:26 `chunks(nItems) = (nItems - 1) / chunkSize + 1`
+#[test]
+fn per_item_cost_zero_items_charges_one_chunk() {
+    use super::costs::PerItemCost;
+    // base=20, per_chunk=3, chunk_size=5 (matches ATLEAST parameters)
+    // chunks(0) = 1 (Scala signed), cost = 20 + 3 = 23
+    let cost = PerItemCost::new(20, 3, 5);
+    assert_eq!(cost.total_cost(0).0, 23);
+    // Sanity: n=1..chunk_size should match (single chunk)
+    assert_eq!(cost.total_cost(1).0, 23);
+    assert_eq!(cost.total_cost(5).0, 23);
+    // n=chunk_size+1 crosses boundary to two chunks
+    assert_eq!(cost.total_cost(6).0, 26);
+}
+
+// ===== AtLeast per-item cost boundaries =====
+//
+// Scala: LanguageSpecificationV5.scala:8917
+//   `PerItemCost(JitCost(20), JitCost(3), 5)` — base=20, per_chunk=3, chunk_size=5
+// Plus: each SigmaProp element in the input collection and the i32 bound each
+// evaluate as a single Constant (values.scala:380 — Constant costKind 5 JIT).
+// The outer Collection (SColl[SigmaProp]) is itself a Constant literal here,
+// so we only pay one Const(5) for the coll and one Const(5) for the bound.
+// AtLeast overhead = PerItemCost(20,3,5).total_cost(n).
+
+fn make_atleast_expr(bound: i32, n: usize) -> Expr {
+    use alloc::sync::Arc;
+    use ergotree_ir::mir::atleast::Atleast;
+    use ergotree_ir::mir::constant::{Constant, Literal};
+    use ergotree_ir::mir::value::CollKind;
+    use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+    let sigmaprops: alloc::vec::Vec<SigmaProp> = (0..n).map(|_| force_any_val()).collect();
+    let items = Literal::Coll(
+        CollKind::from_collection(
+            SType::SSigmaProp,
+            sigmaprops
+                .into_iter()
+                .map(|s| s.into())
+                .collect::<Arc<[Literal]>>(),
+        )
+        .unwrap(),
+    );
+    Atleast::new(
+        bound.into(),
+        Constant {
+            tpe: SType::SColl(SType::SSigmaProp.into()),
+            v: items,
+        }
+        .into(),
+    )
+    .unwrap()
+    .into()
+}
+
+/// AtLeast with n=1 (first chunk, still 1 chunk).
+/// Cost = 2*Const(5) + AtLeast(20 + 1*3 = 23) = 33 JIT.
+#[test]
+fn atleast_cost_one_item() {
+    let expr = make_atleast_expr(1, 1);
+    assert_eq!(run_and_get_cost(&expr), 33u64);
+}
+
+/// AtLeast with n = chunk_size (5). Still 1 chunk per Scala formula.
+/// Cost = 2*Const(5) + AtLeast(20 + 1*3 = 23) = 33 JIT.
+#[test]
+fn atleast_cost_at_chunk_boundary_five() {
+    let expr = make_atleast_expr(1, 5);
+    assert_eq!(run_and_get_cost(&expr), 33u64);
+}
+
+/// AtLeast with n = chunk_size + 1 (6). Crosses to 2 chunks.
+/// Cost = 2*Const(5) + AtLeast(20 + 2*3 = 26) = 36 JIT.
+#[test]
+fn atleast_cost_past_chunk_boundary_six() {
+    let expr = make_atleast_expr(1, 6);
+    assert_eq!(run_and_get_cost(&expr), 36u64);
+}
+
+/// Measure cost with a caller-provided Context (for tests that need to set
+/// specific fields like `headers[0]` before running).
+fn cost_with_ctx(expr: &Expr, ctx: &Context<'static>) -> u64 {
+    ctx.jit_cost_accum.set(0);
+    let mut env = Env::empty();
+    <Expr as Evaluable>::eval(expr, &mut env, ctx).expect("expression should succeed");
+    ctx.jit_cost_accum.get()
+}
+
+/// UnsignedBigInt.modInverse(modulus): Scala: methods.scala:574
+///   `ModInverseCostInfo = OperationCostInfo(FixedCost(JitCost(150)), ...)`
+/// MethodCall dispatch adds FixedCost(JitCost(4)) per values.scala:1371.
+/// Each Constant operand is FixedCost(JitCost(5)) per values.scala:380.
+/// Expected = MethodCall(4) + Const(5) + Const(5) + ModInverse(150) = 164 JIT.
+#[test]
+fn mod_inverse_cost_matches_scala_methods_574() {
+    use ergotree_ir::bigint256::BigInt256;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::method_call::MethodCall;
+    use ergotree_ir::types::smethod::SMethod;
+    use ergotree_ir::types::snumeric::sunsignedbigint::MOD_INVERSE_METHOD_DESC;
+    use ergotree_ir::types::stype_companion::STypeCompanion;
+    use ergotree_ir::unsignedbigint256::UnsignedBigInt;
+    let obj =
+        UnsignedBigInt::try_from(BigInt256::try_from(num_bigint::BigInt::from(3i32)).unwrap())
+            .unwrap();
+    let modulus =
+        UnsignedBigInt::try_from(BigInt256::try_from(num_bigint::BigInt::from(11i32)).unwrap())
+            .unwrap();
+    let mc: Expr = MethodCall::new(
+        Constant::from(obj).into(),
+        SMethod::new(
+            STypeCompanion::SUnsignedBigInt,
+            MOD_INVERSE_METHOD_DESC.clone(),
+        ),
+        vec![Constant::from(modulus).into()],
+    )
+    .unwrap()
+    .into();
+    assert_eq!(run_and_get_cost(&mc), 164u64);
+}
+
+/// SHeader.checkPow: Scala: methods.scala:1816
+///   `SFunc(Array(SHeader), SBoolean), 16, FixedCost(JitCost(700))`
+/// Isolated via delta: full = (Context -> Headers -> ByIndex(0) -> checkPow),
+///                    baseline = (Context -> Headers -> ByIndex(0)).
+/// delta = MethodCall(4) + SHeader.checkPow(700) = 704 JIT.
+#[test]
+fn sheader_check_pow_cost_matches_scala_methods_1816() {
+    use ergotree_ir::mir::coll_by_index::ByIndex;
+    use ergotree_ir::mir::method_call::MethodCall;
+    use ergotree_ir::mir::property_call::PropertyCall;
+    use ergotree_ir::types::scontext::HEADERS_PROPERTY;
+    use ergotree_ir::types::sheader;
+
+    // Mainnet header with valid PoW (borrowed from sheader::tests::test_eval_check_pow).
+    let mut ctx = force_any_val::<Context>();
+    ctx.headers[0] = serde_json::from_str(
+        r#"{
+        "extensionId": "d51a477cc12b187d9bc7f464b22d00e3aa7c92463874e863bf3acf2f427bb48b",
+        "difficulty": "1595361307131904",
+        "votes": "000000",
+        "timestamp": 1736177881102,
+        "size": 220,
+        "unparsedBytes": "",
+        "stateRoot": "4dfafb43842680fd5870d8204a218f873479e1f5da1b34b059ca8da526abcc8719",
+        "height": 1433531,
+        "nBits": 117811961,
+        "version": 3,
+        "id": "3473e7b5aaf623e4260d5798253d26f3cdc912c12594b7e3a979e3db8ed883f6",
+        "adProofsRoot": "73160faa9f0e47bf7da598d4e9d3de58e8a24b8564458ad8a4d926514f435dc1",
+        "transactionsRoot": "c88d5f50ece85c2b918b5bd41d2bc06159e6db1b3aad95091d994c836a172950",
+        "extensionHash": "d5a43bf63c1d8c7f10b15b6d2446abe565b93a4fd3f5ca785b00e6bda831644f",
+        "powSolutions": {
+          "pk": "0274e729bb6615cbda94d9d176a2f1525068f12b330e38bbbf387232797dfd891f",
+          "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+          "n": "a6905b8c65f5864a",
+          "d": 0
+        },
+        "adProofsId": "80a5ff0c6cd98440163bd27f2d7c775ea516af09024a98d9d83f16029bfbd034",
+        "transactionsId": "c7315c49df258522d3e92ce2653d9f4d8a35309a7a7dd470ebf8db53dd3fb792",
+        "parentId": "93172f3152a6a25dc89dc45ede1130c5eb86636a50bfb93a999556d16016ceb7"
+      }"#,
+    )
+    .unwrap();
+
+    let headers: Expr = PropertyCall::new(Expr::Context, HEADERS_PROPERTY.clone())
+        .unwrap()
+        .into();
+    let header: Expr = ByIndex::new(headers, 0i32.into(), None).unwrap().into();
+    let check_pow: Expr = MethodCall::new(
+        header.clone(),
+        sheader::CHECK_POW_METHOD.clone(),
+        alloc::vec::Vec::new(),
+    )
+    .unwrap()
+    .into();
+
+    let baseline = cost_with_ctx(&header, &ctx);
+    let full = cost_with_ctx(&check_pow, &ctx);
+    assert_eq!(full - baseline, 704u64);
 }

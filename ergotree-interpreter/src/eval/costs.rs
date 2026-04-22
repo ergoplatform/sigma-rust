@@ -35,7 +35,10 @@ impl core::ops::Mul<u32> for JitCost {
 pub struct FixedCost(pub JitCost);
 
 /// Per-item cost for collection/sequence operations.
-/// Total cost = base_cost + per_chunk_cost * ceil(n_items / chunk_size)
+/// Total cost = base_cost + per_chunk_cost * chunks.
+/// Matches Scala `PerItemCost.chunks` (CostKind.scala:26): zero items still
+/// charges one chunk, because Scala's signed `(nItems - 1) / chunkSize + 1`
+/// yields `(-1) / chunkSize + 1 = 1` for `nItems == 0`.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct PerItemCost {
     pub base_cost: JitCost,
@@ -53,12 +56,12 @@ impl PerItemCost {
     }
 
     /// Calculate cost for the given number of items.
+    ///
+    /// Mirrors Scala's `(nItems - 1) / chunkSize + 1` at CostKind.scala:26.
+    /// `saturating_sub` avoids `u32` underflow at `n_items == 0` while still
+    /// returning 1 chunk (matching Scala's signed-arithmetic truncation).
     pub fn total_cost(&self, n_items: u32) -> JitCost {
-        let chunks = if n_items == 0 {
-            0
-        } else {
-            n_items.div_ceil(self.chunk_size)
-        };
+        let chunks = n_items.saturating_sub(1) / self.chunk_size + 1;
         JitCost(self.base_cost.0 + self.per_chunk_cost.0 * chunks)
     }
 }

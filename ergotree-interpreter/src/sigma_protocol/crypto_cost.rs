@@ -118,8 +118,60 @@ mod tests {
         .unwrap();
         let ct = Cthreshold { k: 2, children };
         let prop = SigmaBoolean::from(ct);
-        // n=3, k=2, n_coefs=1, parse_poly=10+10=20, eval_poly=(3+3)*3=18,
-        // TO_BYTES_CONJUNCTION=15, children=3*3980=11940
-        assert_eq!(estimate_crypto_cost(&prop), 20 + 18 + 15 + 11940);
+        // Scala: Interpreter.scala:580-587
+        //   parseC + evalC + nodeC + childrenC
+        //   parseC = 10 + 10 * n_coefs     where n_coefs = n - k = 3 - 2 = 1
+        //   evalC  = (3 + 3 * n_coefs) * n = (3 + 3) * 3 = 18
+        //   nodeC  = TO_BYTES_CONJUNCTION  = 15
+        //   childrenC = 3 * ProveDlog(3980) = 11940
+        //   total = 20 + 18 + 15 + 11940 = 11993 JIT
+        assert_eq!(estimate_crypto_cost(&prop), 11993u64);
+    }
+
+    #[test]
+    fn test_cthreshold_3_of_5_dlog() {
+        let children: SigmaConjectureItems<SigmaBoolean> = vec![
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+        ]
+        .try_into()
+        .unwrap();
+        let ct = Cthreshold { k: 3, children };
+        let prop = SigmaBoolean::from(ct);
+        // Scala: Interpreter.scala:580-587
+        //   n = 5, k = 3, n_coefs = 2
+        //   parseC = 10 + 10*2 = 30
+        //   evalC  = (3 + 3*2) * 5 = 45
+        //   nodeC  = 15
+        //   childrenC = 5 * 3980 = 19900
+        //   total = 30 + 45 + 15 + 19900 = 19990 JIT
+        assert_eq!(estimate_crypto_cost(&prop), 19990u64);
+    }
+
+    #[test]
+    fn test_cthreshold_5_of_5_dlog_degenerate() {
+        // k == n degenerates n_coefs to 0: polynomial parse/eval minimums.
+        let children: SigmaConjectureItems<SigmaBoolean> = vec![
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+            SigmaBoolean::from(force_any_val::<ProveDlog>()),
+        ]
+        .try_into()
+        .unwrap();
+        let ct = Cthreshold { k: 5, children };
+        let prop = SigmaBoolean::from(ct);
+        // Scala: Interpreter.scala:580-587
+        //   n = 5, k = 5, n_coefs = 0
+        //   parseC = 10 + 10*0 = 10
+        //   evalC  = (3 + 3*0) * 5 = 15
+        //   nodeC  = 15
+        //   childrenC = 5 * 3980 = 19900
+        //   total = 10 + 15 + 15 + 19900 = 19940 JIT
+        assert_eq!(estimate_crypto_cost(&prop), 19940u64);
     }
 }
