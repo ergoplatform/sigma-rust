@@ -365,6 +365,74 @@ impl VariableDef {
         })
     }
 
+    /// Returns true if this VariableDef came from a `def` (function definition).
+    pub fn is_def(&self) -> bool {
+        self.0
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .any(|t| t.kind() == SyntaxKind::FnKw)
+    }
+
+    /// For `def` definitions, extract parameter names and types.
+    /// Returns Vec of (name, optional_type_string).
+    pub fn def_params(&self) -> Vec<(String, Option<String>)> {
+        let mut params = Vec::new();
+        let mut in_parens = false;
+        let mut current_name: Option<String> = None;
+        let mut current_type = String::new();
+        let mut found_colon = false;
+
+        for element in self.0.children_with_tokens() {
+            if let Some(token) = element.into_token() {
+                match token.kind() {
+                    SyntaxKind::LParen => {
+                        in_parens = true;
+                    }
+                    SyntaxKind::RParen => {
+                        // Push last param if any
+                        if let Some(name) = current_name.take() {
+                            let tpe = if current_type.is_empty() {
+                                None
+                            } else {
+                                Some(current_type.clone())
+                            };
+                            params.push((name, tpe));
+                        }
+                        break;
+                    }
+                    SyntaxKind::Comma if in_parens => {
+                        if let Some(name) = current_name.take() {
+                            let tpe = if current_type.is_empty() {
+                                None
+                            } else {
+                                Some(current_type.clone())
+                            };
+                            params.push((name, tpe));
+                        }
+                        current_type.clear();
+                        found_colon = false;
+                    }
+                    SyntaxKind::Colon if in_parens && current_name.is_some() => {
+                        found_colon = true;
+                        current_type.clear();
+                    }
+                    SyntaxKind::Ident if in_parens => {
+                        if found_colon {
+                            current_type.push_str(token.text());
+                        } else if current_name.is_none() {
+                            current_name = Some(token.text().to_string());
+                        }
+                    }
+                    SyntaxKind::LBracket | SyntaxKind::RBracket if in_parens && found_colon => {
+                        current_type.push_str(token.text());
+                    }
+                    _ => {}
+                }
+            }
+        }
+        params
+    }
+
     pub fn span(&self) -> TextRange {
         self.0.text_range()
     }

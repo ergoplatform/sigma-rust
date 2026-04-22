@@ -3,9 +3,52 @@ use super::*;
 pub(super) fn stmt(p: &mut Parser) -> Option<CompletedMarker> {
     if p.at(TokenKind::ValKw) {
         Some(variable_def(p))
+    } else if p.at(TokenKind::FnKw) {
+        Some(function_def(p))
     } else {
         expr::expr(p)
     }
+}
+
+/// Parse `def name(params): ReturnType = body` as a VariableDef with lambda RHS.
+/// ErgoScript `def` is syntactic sugar for `val name = { (params) => body }`.
+fn function_def(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::FnKw));
+    let m = p.start();
+    // Rewrite: emit ValKw token position but consume FnKw
+    p.bump(); // eat 'def'
+
+    p.expect(TokenKind::Ident); // function name
+
+    // Parse parameter list: (param1: Type1, param2: Type2, ...)
+    p.expect(TokenKind::LParen);
+    if !p.at(TokenKind::RParen) {
+        loop {
+            p.expect(TokenKind::Ident); // param name
+            if p.at(TokenKind::Colon) {
+                p.bump(); // eat ':'
+                expr::parse_type(p);
+            }
+            if !p.at(TokenKind::Comma) {
+                break;
+            }
+            p.bump(); // eat ','
+        }
+    }
+    p.expect(TokenKind::RParen);
+
+    // Optional return type annotation: `: ReturnType`
+    if p.at(TokenKind::Colon) {
+        p.bump();
+        expr::parse_type(p);
+    }
+
+    p.expect(TokenKind::Equals);
+
+    // Body expression
+    expr::expr(p);
+
+    m.complete(p, SyntaxKind::VariableDef)
 }
 
 fn variable_def(p: &mut Parser) -> CompletedMarker {

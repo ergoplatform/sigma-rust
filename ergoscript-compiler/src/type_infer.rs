@@ -100,6 +100,8 @@ fn assign_type_with_scope(
                     "byteArrayToBigInt" => Some(SType::SBigInt),
                     "xor" => Some(SType::SColl(SType::SByte.into())),
                     "xorOf" => Some(SType::SBoolean),
+                    "allOf" => Some(SType::SBoolean),
+                    "anyOf" => Some(SType::SBoolean),
                     "decodePoint" => Some(SType::SGroupElement),
                     "getVar" => {
                         // getVar[T](n) → SOption(T)
@@ -172,6 +174,7 @@ fn assign_type_with_scope(
                 }
                 _ => match typed_func.tpe.as_ref() {
                     Some(SType::SColl(elem_tpe)) => Some(elem_tpe.as_ref().clone()),
+                    Some(SType::SFunc(sfunc)) => Some(sfunc.t_range.as_ref().clone()),
                     _ => None,
                 },
             };
@@ -283,6 +286,7 @@ fn assign_type_with_scope(
                 Some(SType::SContext) => match fa.field.as_str() {
                     "dataInputs" => Some(SType::SColl(SType::SBox.into())),
                     "preHeader" => Some(SType::SPreHeader),
+                    "selfBoxIndex" => Some(SType::SInt),
                     _ => None,
                 },
                 Some(SType::SAvlTree) => match fa.field.as_str() {
@@ -304,12 +308,14 @@ fn assign_type_with_scope(
                 // Numeric .toLong / .toInt
                 Some(SType::SInt) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
+                    "toBigInt" => Some(SType::SBigInt),
                     "toByte" => Some(SType::SByte),
                     "toShort" => Some(SType::SShort),
                     _ => None,
                 },
                 Some(SType::SLong) => match fa.field.as_str() {
                     "toInt" => Some(SType::SInt),
+                    "toBigInt" => Some(SType::SBigInt),
                     "toByte" => Some(SType::SByte),
                     "toShort" => Some(SType::SShort),
                     _ => None,
@@ -317,11 +323,13 @@ fn assign_type_with_scope(
                 Some(SType::SByte) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
                     "toInt" => Some(SType::SInt),
+                    "toBigInt" => Some(SType::SBigInt),
                     _ => None,
                 },
                 Some(SType::SShort) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
                     "toInt" => Some(SType::SInt),
+                    "toBigInt" => Some(SType::SBigInt),
                     _ => None,
                 },
                 _ => None,

@@ -221,18 +221,53 @@ impl Expr {
             }
             ast::Expr::VariableDef(ast) => {
                 let name = ast.name()?;
-                let tpe = ast.type_annotation().and_then(|t| parse_type_str(&t));
-                let rhs = Expr::lower(&ast.value()?)?;
-                Ok(Expr {
-                    kind: ExprKind::ValDef(ValDef {
-                        name,
-                        id: None,
-                        tpe: tpe.clone(),
-                        rhs: Box::new(rhs),
-                    }),
-                    span: ast.span(),
-                    tpe,
-                })
+                let body = Expr::lower(&ast.value()?)?;
+
+                if ast.is_def() {
+                    // `def name(params): RetType = body` → `val name = { (params) => body }`
+                    let params = ast.def_params();
+                    let lambda_params: Vec<(String, SType)> = params
+                        .into_iter()
+                        .map(|(pname, ptype)| {
+                            let stype = ptype
+                                .and_then(|t| parse_type_str(&t))
+                                .unwrap_or(SType::SAny);
+                            (pname, stype)
+                        })
+                        .collect();
+                    let lambda = Expr {
+                        kind: ExprKind::Lambda(LambdaExpr {
+                            params: lambda_params,
+                            param_ids: Vec::new(),
+                            body: Box::new(body),
+                        }),
+                        span: ast.span(),
+                        tpe: None, // Function type inferred later
+                    };
+                    let tpe = ast.type_annotation().and_then(|t| parse_type_str(&t));
+                    Ok(Expr {
+                        kind: ExprKind::ValDef(ValDef {
+                            name,
+                            id: None,
+                            tpe: tpe.clone(),
+                            rhs: Box::new(lambda),
+                        }),
+                        span: ast.span(),
+                        tpe,
+                    })
+                } else {
+                    let tpe = ast.type_annotation().and_then(|t| parse_type_str(&t));
+                    Ok(Expr {
+                        kind: ExprKind::ValDef(ValDef {
+                            name,
+                            id: None,
+                            tpe: tpe.clone(),
+                            rhs: Box::new(body),
+                        }),
+                        span: ast.span(),
+                        tpe,
+                    })
+                }
             }
         }
     }

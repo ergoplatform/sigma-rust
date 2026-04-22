@@ -1648,6 +1648,90 @@ mod tests {
     }
 
     #[test]
+    fn test_feature_to_bigint() {
+        let result = compile_expr(
+            "{ val x = SELF.value.toBigInt; val y = 100L.toBigInt; sigmaProp(x > y) }",
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "toBigInt failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_self_box_index() {
+        let result = compile_expr(
+            "{ val idx = CONTEXT.selfBoxIndex; sigmaProp(idx >= 0) }",
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "selfBoxIndex failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_all_of() {
+        let result = compile_expr(
+            r#"{
+  val a = SELF.value > 0L
+  val b = OUTPUTS(0).propositionBytes == SELF.propositionBytes
+  sigmaProp(allOf(Coll[Boolean](a, b)))
+}"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "allOf failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_any_of() {
+        let result = compile_expr(
+            r#"{
+  val a = SELF.value > 0L
+  val b = HEIGHT > 100
+  sigmaProp(anyOf(Coll[Boolean](a, b)))
+}"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "anyOf failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_def_function() {
+        let result = compile_expr(
+            r#"{
+  def tokenAmount(box: Box): Long = box.tokens(0)._2
+  sigmaProp(tokenAmount(SELF) > 0L)
+}"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "def function failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_def_multi_param() {
+        let result = compile_expr(
+            r#"{
+  def checkValue(box: Box, minVal: Long): Boolean = box.value >= minVal
+  sigmaProp(checkValue(OUTPUTS(0), SELF.value))
+}"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "def multi-param failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_feature_lambda_application() {
+        let result = compile_expr(
+            r#"{
+  val getValue = { (box: Box) => box.value }
+  sigmaProp(getValue(SELF) > 0L)
+}"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "lambda application failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
     fn test_feature_decode_point() {
         let result = compile_expr(
             r#"{ val ecPoint = decodePoint(fromBase16("02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700")); sigmaProp(proveDlog(ecPoint)) }"#,
@@ -3054,6 +3138,60 @@ mod tests {
   sigmaProp(validLP && outValid && validSwap)
 }"#,
             ),
+            // --- Ecosystem contracts from EKB ---
+            (
+                "toBigInt arithmetic",
+                "{ val x = SELF.value.toBigInt; val y = 100L.toBigInt; sigmaProp(x > y) }",
+            ),
+            (
+                "selfBoxIndex",
+                "{ val idx = CONTEXT.selfBoxIndex; sigmaProp(idx >= 0) }",
+            ),
+            (
+                "allOf / anyOf",
+                r#"{ val a = SELF.value > 0L; val b = OUTPUTS(0).propositionBytes == SELF.propositionBytes; sigmaProp(allOf(Coll(a, b))) }"#,
+            ),
+            (
+                "def function + lambda application",
+                r#"{
+  def tokenAmount(box: Box): Long = box.tokens(0)._2
+  sigmaProp(tokenAmount(SELF) > 0L)
+}"#,
+            ),
+            (
+                "Off-the-grid (grid orders)",
+                r#"{
+  val ownerGroupElement = SELF.R4[GroupElement].get
+  val selfIndex = CONTEXT.selfBoxIndex
+  val validSwap = if (OUTPUTS.size <= selfIndex) {
+    false
+  } else {
+    val recreatedBox = OUTPUTS(selfIndex)
+    val orderRecreated = recreatedBox.R4[GroupElement].get == SELF.R4[GroupElement].get &&
+                         recreatedBox.propositionBytes == SELF.propositionBytes
+    val tokenIdOk = recreatedBox.tokens.size <= 1
+    val valueDiff = recreatedBox.value - SELF.value
+    valueDiff != 0L && orderRecreated && tokenIdOk
+  }
+  sigmaProp(proveDlog(ownerGroupElement) || validSwap)
+}"#,
+            ),
+            (
+                "Crystal Pool (buy token pattern)",
+                r#"{
+  def getBuyRate(box: Box): Long = box.R7[Long].get
+  def unlockHeight(box: Box): Int = box.R5[Int].get
+  def tokenAmount(box: Box): Long = box.tokens(0)._2
+  def isSameContract(box: Box): Boolean = box.propositionBytes == SELF.propositionBytes
+  val minBuyRate = getBuyRate(SELF)
+  val isBuyerPaid = tokenAmount(SELF) > 0L
+  if (HEIGHT > unlockHeight(SELF)) {
+    sigmaProp(true)
+  } else {
+    sigmaProp(isBuyerPaid && isSameContract(OUTPUTS(0)) && OUTPUTS(0).value >= SELF.value)
+  }
+}"#,
+            ),
         ];
 
         for (name, source) in &contracts {
@@ -3208,4 +3346,112 @@ mod tests {
         );
         assert_eq!(errors, 0, "Some contracts failed to compile");
     }
+}
+
+#[test]
+#[ignore] // CSE ValDef renumbering issue with BigInt expressions in if/else branches
+fn test_ecosystem_phoenix_hodlerg_bank() {
+    // Phoenix HodlERG Bank — simplified but with all key patterns
+    let result = compile(
+        r#"{
+  val phoenixFeeContractBytesHash = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
+  val totalTokenSupply: Long = SELF.R4[Long].get
+  val precisionFactor: Long = SELF.R5[Long].get
+  val minBankValue: Long = SELF.R6[Long].get
+  val devFeeNum: Long = SELF.R7[Long].get
+  val bankFeeNum: Long = SELF.R8[Long].get
+  val feeDenom: Long = 1000L
+  val reserveIn: Long = SELF.value
+  val hodlERGIn: Long = SELF.tokens(1)._2
+  val hodlERGCircIn: Long = totalTokenSupply - hodlERGIn
+  val bankBoxOUT: Box = OUTPUTS(0)
+  val reserveOut: Long = bankBoxOUT.value
+  val hodlERGOut: Long = bankBoxOUT.tokens(1)._2
+  val hodlERGCircDelta: Long = hodlERGIn - hodlERGOut
+  val price: BigInt = (reserveIn.toBigInt * precisionFactor) / hodlERGCircIn
+  val isMintTx: Boolean = (hodlERGCircDelta > 0L)
+  val validBankRecreation: Boolean = {
+    val validValue: Boolean = (bankBoxOUT.value >= minBankValue)
+    val validContract: Boolean = (bankBoxOUT.propositionBytes == SELF.propositionBytes)
+    val validBankSingleton: Boolean = (bankBoxOUT.tokens(0) == SELF.tokens(0))
+    val validHodlERGTokenId: Boolean = (bankBoxOUT.tokens(1)._1 == SELF.tokens(1)._1)
+    allOf(Coll[Boolean](validValue, validContract, validBankSingleton, validHodlERGTokenId))
+  }
+  if (isMintTx) {
+    val expectedAmountDeposited: Long = (hodlERGCircDelta * price) / precisionFactor
+    val validBankDeposit: Boolean = (reserveOut >= reserveIn + expectedAmountDeposited)
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankDeposit)))
+  } else {
+    val phoenixFeeBoxOUT: Box = OUTPUTS(2)
+    val hodlCoinsBurned: Long = hodlERGOut - hodlERGIn
+    val expectedAmountBeforeFees: Long = (hodlCoinsBurned * price) / precisionFactor
+    val bankFeeAmount: Long = (expectedAmountBeforeFees * bankFeeNum) / feeDenom
+    val devFeeAmount: Long = (expectedAmountBeforeFees * devFeeNum) / feeDenom
+    val validBankWithdraw: Boolean = (reserveOut == reserveIn - expectedAmountBeforeFees + bankFeeAmount)
+    val validPhoenixFee: Boolean = {
+      allOf(Coll[Boolean](
+        (phoenixFeeBoxOUT.value == devFeeAmount),
+        (blake2b256(phoenixFeeBoxOUT.propositionBytes) == phoenixFeeContractBytesHash)
+      ))
+    }
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankWithdraw, validPhoenixFee)))
+  }
+}"#,
+        ScriptEnv::new(),
+    );
+    assert!(
+        result.is_ok(),
+        "Phoenix HodlERG Bank failed: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_ecosystem_off_the_grid() {
+    // Off-the-grid — simplified grid order with selfBoxIndex and def
+    let result = compile(
+        r#"{
+  val ownerGroupElement = SELF.R4[GroupElement].get
+  val selfIndex = CONTEXT.selfBoxIndex
+  val validSwap = if (OUTPUTS.size <= selfIndex) {
+    false
+  } else {
+    val recreatedBox = OUTPUTS(selfIndex)
+    val orderRecreated = recreatedBox.R4[GroupElement].get == SELF.R4[GroupElement].get &&
+                         recreatedBox.propositionBytes == SELF.propositionBytes
+    val tokenIdOk = recreatedBox.tokens.size <= 1
+    val valueDiff = recreatedBox.value - SELF.value
+    valueDiff != 0L && orderRecreated && tokenIdOk
+  }
+  sigmaProp(proveDlog(ownerGroupElement) || validSwap)
+}"#,
+        ScriptEnv::new(),
+    );
+    assert!(result.is_ok(), "Off-the-grid failed: {:?}", result.err());
+}
+
+#[test]
+fn test_ecosystem_crystal_pool_buy() {
+    // Crystal Pool buy-token-for-erg — tests def syntax
+    let result = compile(
+        r#"{
+  def getBuyerPk(box: Box): SigmaProp = sigmaProp(box.R5[Int].get > 0)
+  def unlockHeight(box: Box): Int = box.R5[Int].get
+  def tokenAmount(box: Box): Long = box.tokens(0)._2
+  def isSameContract(box: Box): Boolean = box.propositionBytes == SELF.propositionBytes
+  val minBuyRate = SELF.R7[Long].get
+  val isBuyerPaid = tokenAmount(SELF) > 0L
+  if (HEIGHT > unlockHeight(SELF)) {
+    getBuyerPk(SELF)
+  } else {
+    sigmaProp(isBuyerPaid && isSameContract(OUTPUTS(0)))
+  }
+}"#,
+        ScriptEnv::new(),
+    );
+    assert!(
+        result.is_ok(),
+        "Crystal Pool buy failed: {:?}",
+        result.err()
+    );
 }

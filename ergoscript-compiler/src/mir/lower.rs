@@ -238,6 +238,30 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
+                    "allOf" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "allOf requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        ergotree_ir::mir::and::And {
+                            input: input.into(),
+                        }
+                        .into()
+                    }
+                    "anyOf" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "anyOf requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        ergotree_ir::mir::or::Or {
+                            input: input.into(),
+                        }
+                        .into()
+                    }
                     "longToByteArray" => {
                         let input = args.into_iter().next().ok_or_else(|| {
                             MirLoweringError::new(
@@ -664,6 +688,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
+                    SType::SFunc(_) => {
+                        // Lambda/function application: f(args)
+                        ergotree_ir::mir::apply::Apply::new(func, args)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
                     _ => {
                         return Err(MirLoweringError::new(
                             "MIR error: Cannot apply non-function/non-collection".to_string(),
@@ -801,6 +831,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
+                "selfBoxIndex" => {
+                    use ergotree_ir::types::scontext::SELF_BOX_INDEX_PROPERTY;
+                    PropertyCall::new(obj, SELF_BOX_INDEX_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
                 "get" => OptionGet::try_build(obj)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
@@ -811,6 +847,9 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
                 "toLong" => Upcast::new(obj, SType::SLong)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into(),
+                "toBigInt" => Upcast::new(obj, SType::SBigInt)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
                 "toInt" => {
