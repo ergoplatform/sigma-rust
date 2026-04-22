@@ -18,6 +18,12 @@ pub fn apply_cse(expr: Expr) -> Expr {
     std::thread::Builder::new()
         .stack_size(16 * 1024 * 1024)
         .spawn(move || {
+            // Normalize all source spans to empty so CSE hash-consing
+            // treats structurally identical nodes as equal regardless
+            // of source position. Without this, two identical expressions
+            // from different source locations (e.g. SELF.R4[T].get used
+            // in two places) would be treated as different nodes.
+            let expr = strip_source_spans(expr);
             let global_max_id = find_max_val_id(&expr);
             let cse_result = cse_expr(expr, global_max_id, false);
             // Reorder ValDefs to match Scala's DFS dependency order, then renumber
@@ -27,6 +33,116 @@ pub fn apply_cse(expr: Expr) -> Expr {
         .expect("failed to spawn CSE thread")
         .join()
         .expect("CSE thread panicked")
+}
+
+/// Strip all source spans from an expression tree, replacing with empty spans.
+/// This ensures CSE hash-consing treats structurally identical nodes as equal
+/// regardless of their source position.
+fn strip_source_spans(expr: Expr) -> Expr {
+    use ergotree_ir::source_span::SourceSpan;
+    let empty = SourceSpan::empty();
+    // First recurse into children
+    let expr = map_children(expr, strip_source_spans);
+    // Then clear the span on this node
+    match expr {
+        Expr::BinOp(mut s) => {
+            s.source_span = empty;
+            Expr::BinOp(s)
+        }
+        Expr::PropertyCall(mut s) => {
+            s.source_span = empty;
+            Expr::PropertyCall(s)
+        }
+        Expr::MethodCall(mut s) => {
+            s.source_span = empty;
+            Expr::MethodCall(s)
+        }
+        Expr::ByIndex(mut s) => {
+            s.source_span = empty;
+            Expr::ByIndex(s)
+        }
+        Expr::SelectField(mut s) => {
+            s.source_span = empty;
+            Expr::SelectField(s)
+        }
+        Expr::ExtractRegisterAs(mut s) => {
+            s.source_span = empty;
+            Expr::ExtractRegisterAs(s)
+        }
+        Expr::OptionGet(mut s) => {
+            s.source_span = empty;
+            Expr::OptionGet(s)
+        }
+        Expr::OptionIsDefined(mut s) => {
+            s.source_span = empty;
+            Expr::OptionIsDefined(s)
+        }
+        Expr::OptionGetOrElse(mut s) => {
+            s.source_span = empty;
+            Expr::OptionGetOrElse(s)
+        }
+        Expr::ValDef(mut s) => {
+            s.source_span = empty;
+            Expr::ValDef(s)
+        }
+        Expr::BlockValue(mut s) => {
+            s.source_span = empty;
+            Expr::BlockValue(s)
+        }
+        Expr::Filter(mut s) => {
+            s.source_span = empty;
+            Expr::Filter(s)
+        }
+        Expr::Exists(mut s) => {
+            s.source_span = empty;
+            Expr::Exists(s)
+        }
+        Expr::ForAll(mut s) => {
+            s.source_span = empty;
+            Expr::ForAll(s)
+        }
+        Expr::Map(mut s) => {
+            s.source_span = empty;
+            Expr::Map(s)
+        }
+        Expr::Fold(mut s) => {
+            s.source_span = empty;
+            Expr::Fold(s)
+        }
+        Expr::LogicalNot(mut s) => {
+            s.source_span = empty;
+            Expr::LogicalNot(s)
+        }
+        Expr::Negation(mut s) => {
+            s.source_span = empty;
+            Expr::Negation(s)
+        }
+        Expr::GetVar(mut s) => {
+            s.source_span = empty;
+            Expr::GetVar(s)
+        }
+        Expr::Slice(mut s) => {
+            s.source_span = empty;
+            Expr::Slice(s)
+        }
+        Expr::Append(mut s) => {
+            s.source_span = empty;
+            Expr::Append(s)
+        }
+        Expr::TreeLookup(mut s) => {
+            s.source_span = empty;
+            Expr::TreeLookup(s)
+        }
+        Expr::And(mut s) => {
+            s.source_span = empty;
+            Expr::And(s)
+        }
+        Expr::Or(mut s) => {
+            s.source_span = empty;
+            Expr::Or(s)
+        }
+        other => other, // non-Spanned: Const, GlobalVars, ValUse, etc.
+    }
 }
 
 /// Reorder BlockValue items to match Scala's DFS dependency ordering.
@@ -1763,6 +1879,9 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
 
     for (parent_idx, parent) in unique.iter().enumerate() {
         let children = direct_children(parent);
+        // In Scala's graph, OptionGet/OptionIsDefined create separate symbols
+        // per occurrence (not hash-consed). Count tree occurrences as separate
+        // parents so their children see the correct usage count.
         for child in children {
             if let Some(child_idx) = unique.iter().position(|u| u == child) {
                 parent_sets[child_idx].insert(parent_idx);
