@@ -1476,9 +1476,9 @@ fn is_input_global(expr: &Expr) -> bool {
     }
 }
 
-/// Like is_input_global but also accepts PropertyCall on a ValUse.
-/// In Scala's graph, MethodCall(coll, apply, [idx]) on a val-bound or
-/// CSE-extracted collection is shared. ValUse indicates a stable binding.
+/// Like `is_input_global` but also accepts `PropertyCall` on a `ValUse`.
+/// In Scala's graph, `MethodCall(coll, apply, idx)` on a val-bound or
+/// CSE-extracted collection is shared. `ValUse` indicates a stable binding.
 fn is_input_stable(expr: &Expr) -> bool {
     match expr {
         Expr::GlobalVars(_) | Expr::Context => true,
