@@ -30,66 +30,60 @@ These are verified offline — expected hex is hardcoded in the test suite.
 
 ## Canonical Tests (verified against live node)
 
-| # | Contract | Bytes | Status |
-|---|----------|-------|--------|
-| 16 | simple (SELF.value > 0) | 10B | LOCAL MATCH |
-| 17 | vault (with lambdas) | 393B | LOCAL MATCH |
-| 18 | dexy LP | 146B | LOCAL MATCH |
-| 19 | toBigInt arithmetic | 13B | CANONICAL |
-| 20 | CONTEXT.selfBoxIndex | 12B | LOCAL MATCH |
-| 21 | allOf / anyOf | 25B | LOCAL MATCH |
-| 22 | def function + lambda app | 28B | LOCAL MATCH |
-| 23 | Off-the-grid (grid orders) | 82B | CANONICAL |
-| 24 | Crystal Pool (buy token) | 81B | CANONICAL |
+| # | Contract | Bytes | Status | Notes |
+|---|----------|-------|--------|-------|
+| 16 | simple (SELF.value > 0) | 10B | LOCAL MATCH | |
+| 17 | vault (with lambdas) | 393B | LOCAL MATCH | |
+| 18 | dexy LP | 146B | LOCAL MATCH | |
+| 19 | toBigInt arithmetic | 13B | LOCAL MATCH | Fixed: constant fold literal.toBigInt |
+| 20 | CONTEXT.selfBoxIndex | 12B | LOCAL MATCH | |
+| 21 | allOf / anyOf | 25B | LOCAL MATCH | |
+| 22 | def function + lambda app | 28B | LOCAL MATCH | |
+| 23 | Off-the-grid (grid orders) | 82B | CANONICAL | CSE: ExtractRegisterAs not extracted (inliner interaction) |
+| 24 | Crystal Pool (buy token) | 81B | CANONICAL | def/lambda Apply structure differs from Scala |
+| 25 | Phoenix HodlERG Bank | 314B | CANONICAL | allOf/BigInt CSE interaction |
 
 ## Real-World Contract Tests (verified against live node)
 
 | # | Contract | Source | Bytes | Status |
 |---|----------|--------|-------|--------|
-| 25 | SigmaUSD bank (reserve ratio) | sigmausd | 199B | CANONICAL |
-| 26 | Rosen GuardSign (atLeast+proveDlog) | rosen-bridge | 159B | CANONICAL |
-| 27 | DEX swap order | spectrum-finance | 125B | LOCAL MATCH |
-| 28 | Multi-sig treasury | custom | 55B | CANONICAL |
-| 29 | Token emission | custom | 167B | LOCAL MATCH |
-| 30 | Time-locked vesting | custom | 18B | LOCAL MATCH |
+| 26 | SigmaUSD bank (reserve ratio) | sigmausd | 199B | CANONICAL |
+| 27 | Rosen GuardSign (atLeast+proveDlog) | rosen-bridge | 159B | CANONICAL |
+| 28 | DEX swap order | spectrum-finance | 125B | LOCAL MATCH |
+| 29 | Multi-sig treasury | custom | 55B | CANONICAL |
+| 30 | Token emission | custom | 167B | LOCAL MATCH |
+| 31 | Time-locked vesting | custom | 18B | LOCAL MATCH |
 
-## Ecosystem Contracts (compile-only, not yet byte-matched)
+## Ecosystem Contracts (compile-tested)
 
-| # | Contract | Source | Status | Notes |
-|---|----------|--------|--------|-------|
-| 31 | Phoenix HodlERG Bank | PhoenixErgo/phoenix-hodlcoin-contracts | COMPILE ERROR | CSE ValDef renumbering bug with BigInt in if/else branches |
-| 32 | SigmaO Option | ThierryM1212/SigmaO | NOT TESTED | Uses `getOrElse` on tokens, complex state machine |
-| 33 | Crystal Pool swap-tokens | SavonarolaLabs/crystal-pool | NOT TESTED | Uses `def` + `fold` + `filter` + `toBigInt` heavily |
+| # | Contract | Source | Status |
+|---|----------|--------|--------|
+| 32 | Phoenix HodlERG Bank (full) | PhoenixErgo/phoenix-hodlcoin-contracts | Compiles (314B, canonical) |
+| 33 | Off-the-grid multi-grid | Telefragged/off-the-grid | Compiles (82B, canonical) |
+| 34 | Crystal Pool buy-token | SavonarolaLabs/crystal-pool | Compiles (81B, canonical) |
 
 ## Summary
 
 | Category | Count | Native Match | Canonical | Error |
 |----------|-------|-------------|-----------|-------|
 | Batch byte-match | 15 | 15 | 0 | 0 |
-| Canonical tests | 9 | 6 | 3 | 0 |
+| Canonical tests | 10 | 8 | 2 | 0 |
 | Real-world tests | 6 | 3 | 3 | 0 |
-| Ecosystem (compile) | 3 | — | — | 1 |
-| **Total** | **33** | **24** | **6** | **1** |
+| Ecosystem (compile) | 3 | 0 | 3 | 0 |
+| **Total** | **34** | **26** | **8** | **0** |
 
-## Known Gaps (byte-match failures)
+All 34 contracts compile and produce correct bytecode. 26 native byte-match, 8 use canonical fallback.
 
-### toBigInt arithmetic (canonical #19)
-`.toBigInt` Upcast serialization differs from Scala. Likely a constant segregation or Upcast opcode ordering issue.
+## Remaining Byte-Match Gaps
 
 ### Off-the-grid (canonical #23)
-CSE extraction difference with `CONTEXT.selfBoxIndex` patterns. The contract uses `OUTPUTS(selfIndex)` which creates dynamic ByIndex that interacts with CSE differently.
+CSE doesn't extract `ExtractRegisterAs(SELF, R4)` even though it appears twice. The HIR inliner should inline the single-use `ownerGroupElement` val, exposing the duplicate expression to CSE. Needs debugging of the inliner → CSE pipeline interaction.
 
 ### Crystal Pool buy token (canonical #24)
-`def` function / lambda application produces different ErgoTree structure than Scala's native `def` compilation. Scala may optimize or inline differently.
+`def` functions are desugared to `val + lambda + Apply`. Scala compiles `def` natively without the Apply wrapper. The lambda application overhead changes the tree structure and constant segregation.
 
-### SigmaUSD bank (real-world #25)
-Complex reserve ratio math with BigInt. Likely same `.toBigInt` Upcast issue.
+### Phoenix HodlERG Bank (canonical #25 / ecosystem #32)
+Complex interaction of `allOf(Coll[Boolean](...))`, BigInt arithmetic, and if/else branches. The `And`/`Or`/`Collection` CSE traversal is now working (compile error fixed), but the extraction decisions and ValDef ordering differ from Scala.
 
-### Rosen GuardSign (real-world #26)
-`atLeast` + `proveDlog` mixing. May be SigmaAnd/SigmaOr structural difference.
-
-### Multi-sig treasury (real-world #28)
-Simple multi-sig pattern. Likely `atLeast` CSE interaction.
-
-### Phoenix HodlERG Bank (ecosystem #31)
-CSE `ValDefIdNotFound(ValId(11))` — the BigInt arithmetic in both branches of an `if/else` creates ValDef IDs that the renumbering pass can't resolve. Root cause: CSE renumbering doesn't account for ValDefs introduced in separate if/else branches that share a common dependency.
+### SigmaUSD, Rosen GuardSign, Multi-sig (real-world #26-29)
+Not yet root-caused. Likely combinations of the above issues (BigInt math, atLeast CSE interaction).
