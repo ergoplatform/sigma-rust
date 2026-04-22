@@ -54,7 +54,13 @@ fn reorder_valdefs(expr: Expr) -> Expr {
 
             // Walk the result expression DFS; when a ValUse is encountered,
             // recursively emit its ValDef (and that ValDef's deps) first.
-            emit_deps(&s.expr.result, &val_map, &mut emitted, &mut emitted_ids, false);
+            emit_deps(
+                &s.expr.result,
+                &val_map,
+                &mut emitted,
+                &mut emitted_ids,
+                false,
+            );
 
             // Any ValDefs not referenced transitively from result go at the end
             for item in &s.expr.items {
@@ -159,7 +165,9 @@ fn emit_deps(
                 emit_deps(&s.expr.right, val_map, emitted, emitted_ids, in_thunk);
             }
         }
-        Expr::BoolToSigmaProp(bts) => emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::BoolToSigmaProp(bts) => {
+            emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::If(if_op) => {
             emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk);
             emit_deps(&if_op.true_branch, val_map, emitted, emitted_ids, in_thunk);
@@ -195,11 +203,17 @@ fn emit_deps(
             }
         }
         Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::ExtractRegisterAs(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::ExtractScriptBytes(esb) => emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractRegisterAs(s) => {
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+        }
+        Expr::ExtractScriptBytes(esb) => {
+            emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::ExtractCreationInfo(eci) => emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractCreationInfo(eci) => {
+            emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::ByIndex(s) => {
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
@@ -210,7 +224,9 @@ fn emit_deps(
         }
         Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::OptionIsDefined(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::OptionIsDefined(s) => {
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::OptionGetOrElse(s) => {
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
             emit_deps(&s.expr.default, val_map, emitted, emitted_ids, in_thunk);
@@ -226,7 +242,9 @@ fn emit_deps(
         Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::CreateProveDlog(cpd) => emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::CreateProveDlog(cpd) => {
+            emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::SigmaAnd(sa) => {
             for i in sa.items.iter() {
                 emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
@@ -2155,7 +2173,6 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
 // Helpers
 // -----------------------------------------------------------------------
 
-
 /// Check if `target` appears anywhere in `tree` that is NOT exclusively
 /// inside the right arm of a logical &&/|| chain. In Scala, the right arm
 /// of &&/|| is wrapped in a ThunkDef — expressions first created there
@@ -2191,7 +2208,6 @@ fn appears_in_main_scope_inner(expr: &Expr, target: &Expr, directly_in_thunk: bo
             .any(|child| appears_in_main_scope_inner(child, target, directly_in_thunk)),
     }
 }
-
 
 /// Get the type of an expression.
 fn expr_type(expr: &Expr) -> SType {

@@ -106,7 +106,7 @@ impl<const N: usize> From<Digest<N>> for String {
     }
 }
 
-/// Decode Digest<N> from a base16-encoded string
+/// Decode `Digest<N>` from a base16-encoded string
 impl<const N: usize> FromStr for Digest<N> {
     type Err = DigestNError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

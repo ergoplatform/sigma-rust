@@ -5,6 +5,8 @@ use ergotree_ir::mir::bin_op::LogicalOp;
 use ergotree_ir::mir::bin_op::RelationOp;
 use ergotree_ir::mir::block::BlockValue;
 use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
+use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
+use ergotree_ir::mir::byte_array_to_long::ByteArrayToLong;
 use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
 use ergotree_ir::mir::coll_by_index::ByIndex;
 use ergotree_ir::mir::coll_exists::Exists;
@@ -32,12 +34,7 @@ use ergotree_ir::mir::get_var::GetVar;
 use ergotree_ir::mir::global_vars::GlobalVars;
 use ergotree_ir::mir::if_op::If;
 use ergotree_ir::mir::logical_not::LogicalNot;
-use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
-use ergotree_ir::mir::byte_array_to_long::ByteArrayToLong;
 use ergotree_ir::mir::long_to_byte_array::LongToByteArray;
-use ergotree_ir::mir::subst_const::SubstConstants;
-use ergotree_ir::mir::xor::Xor;
-use ergotree_ir::mir::xor_of::XorOf;
 use ergotree_ir::mir::method_call::MethodCall;
 use ergotree_ir::mir::negation::Negation;
 use ergotree_ir::mir::option_get::OptionGet;
@@ -48,6 +45,7 @@ use ergotree_ir::mir::select_field::TupleFieldIndex;
 use ergotree_ir::mir::sigma_and::SigmaAnd;
 use ergotree_ir::mir::sigma_or::SigmaOr;
 use ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes;
+use ergotree_ir::mir::subst_const::SubstConstants;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
 use ergotree_ir::mir::tuple::Tuple;
 use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
@@ -55,6 +53,8 @@ use ergotree_ir::mir::upcast::Upcast;
 use ergotree_ir::mir::val_def::ValDef;
 use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::val_use::ValUse;
+use ergotree_ir::mir::xor::Xor;
+use ergotree_ir::mir::xor_of::XorOf;
 use ergotree_ir::types::stuple::STuple;
 use ergotree_ir::types::stype::SType;
 use hir::BinaryOp;
@@ -102,8 +102,20 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 let l_sigma = l.tpe() == SType::SSigmaProp;
                 let r_sigma = r.tpe() == SType::SSigmaProp;
                 if l_sigma || r_sigma {
-                    let l = if !l_sigma { Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(l).map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?) } else { l };
-                    let r = if !r_sigma { Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(r).map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?) } else { r };
+                    let l = if !l_sigma {
+                        Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(l).map_err(|e| {
+                            MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                        })?)
+                    } else {
+                        l
+                    };
+                    let r = if !r_sigma {
+                        Expr::BoolToSigmaProp(BoolToSigmaProp::try_build(r).map_err(|e| {
+                            MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                        })?)
+                    } else {
+                        r
+                    };
                     return Ok(match hir.op.node {
                         BinaryOp::And => SigmaAnd::new(vec![l, r])
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?

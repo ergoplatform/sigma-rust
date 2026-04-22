@@ -1604,11 +1604,7 @@ mod tests {
             "{ val script = SELF.propositionBytes; val positions = Coll[Int](0); val values = Coll[Int](1); val result = substConstants(script, positions, values); sigmaProp(result.size > 0) }",
             ScriptEnv::new(),
         );
-        assert!(
-            result.is_ok(),
-            "substConstants failed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "substConstants failed: {:?}", result.err());
     }
 
     #[test]
@@ -1617,11 +1613,7 @@ mod tests {
             "{ val bytes = longToByteArray(1L); sigmaProp(byteArrayToLong(bytes) == 1L) }",
             ScriptEnv::new(),
         );
-        assert!(
-            result.is_ok(),
-            "byteArrayToLong failed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "byteArrayToLong failed: {:?}", result.err());
     }
 
     #[test]
