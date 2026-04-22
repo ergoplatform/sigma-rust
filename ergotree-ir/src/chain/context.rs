@@ -33,6 +33,10 @@ pub struct Context<'ctx> {
     /// ContextExtension provider for inputs of transaction
     #[debug(skip)]
     pub extension_provider: &'ctx dyn ContextExtensionProvider,
+    /// Accumulated JIT cost of evaluation (uses Cell for interior mutability)
+    pub jit_cost_accum: Cell<u64>,
+    /// Optional cost limit for evaluation. If set, evaluation will fail when limit is exceeded.
+    pub jit_cost_limit: Option<u64>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -126,6 +130,8 @@ pub mod arbitrary {
                             extension_provider: Box::leak(
                                 DummyContextExtensionProvider(extensions).into(),
                             ),
+                            jit_cost_accum: Cell::new(0),
+                            jit_cost_limit: None,
                         }
                     },
                 )

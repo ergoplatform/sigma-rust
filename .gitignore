@@ -30,3 +30,6 @@ build/
 .log/
 
 **/proptest-regressions
+.serena/
+.codex
+docs/superpowers/

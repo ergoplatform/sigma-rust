@@ -11,10 +11,13 @@ use ergotree_ir::reference::Ref;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::types::stype::SType;
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::EvalError;
 use super::EvalFn;
 
 pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_DATA_INPUTS_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.dataInputs: expected object of Value::Context, got {:?}",
@@ -30,6 +33,7 @@ pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_SELF_BOX_INDEX_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.selfBoxIndex: expected object of Value::Context, got {:?}",
@@ -45,6 +49,7 @@ pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| 
 };
 
 pub(crate) static HEADERS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_HEADERS_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.headers: expected object of Value::Context, got {:?}",
@@ -58,6 +63,7 @@ pub(crate) static HEADERS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static PRE_HEADER_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_PRE_HEADER_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.preHeader: expected object of Value::Context, got {:?}",
@@ -68,6 +74,7 @@ pub(crate) static PRE_HEADER_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::LAST_BLOCK_UTXO_ROOT_HASH_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.LastBlockUtxoRootHash: expected object of Value::Context, got {:?}",
@@ -85,6 +92,7 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_mc, _env, ctx, o
 };
 
 pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_MINER_PUBKEY_COST)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.preHeader: expected object of Value::Context, got {:?}",
@@ -100,6 +108,7 @@ pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static GET_VAR_FROM_INPUT_EVAL_FN: EvalFn = |mc, _env, ctx, _obj, args| {
+    add_fixed_cost(ctx, costs::SCONTEXT_GET_VAR_FROM_INPUT_COST)?;
     #[allow(clippy::unreachable)] // getVarFromInput output type is always SOption[T]
     let SType::SOption(output_tpe) = &*mc.tpe().t_range
     else {

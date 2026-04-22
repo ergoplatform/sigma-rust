@@ -19,6 +19,8 @@ use ergotree_ir::{
 };
 use num_bigint::BigInt;
 
+use super::cost_accum::{add_fixed_cost, add_seq_cost};
+use super::costs;
 use super::EvalFn;
 use crate::eval::Vec;
 use ergo_chain_types::{autolykos_pow_scheme::AutolykosPowScheme, ec_point::generator};
@@ -29,7 +31,8 @@ fn helper_xor(x: &[i8], y: &[i8]) -> Arc<[i8]> {
     x.iter().zip(y.iter()).map(|(x1, x2)| *x1 ^ *x2).collect()
 }
 
-pub(crate) static GROUP_GENERATOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static GROUP_GENERATOR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_GROUP_GENERATOR_COST)?;
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
             "sglobal.groupGenerator expected obj to be Value::Global, got {:?}",
@@ -39,7 +42,7 @@ pub(crate) static GROUP_GENERATOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args
     Ok(Value::from(generator()))
 };
 
-pub(crate) static XOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static XOR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
             "sglobal.xor expected obj to be Value::Global, got {:?}",
@@ -60,6 +63,7 @@ pub(crate) static XOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte))),
         ) => {
+            add_seq_cost(ctx, costs::SGLOBAL_XOR_COST, l_byte.len() as u32)?;
             let xor = helper_xor(&l_byte, &r_byte);
             Ok(CollKind::NativeColl(NativeColl::CollByte(xor)).into())
         }
@@ -70,7 +74,8 @@ pub(crate) static XOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     }
 };
 
-pub(crate) static SGLOBAL_FROM_BIGENDIAN_BYTES_EVAL_FN: EvalFn = |mc, _env, _ctx, obj, args| {
+pub(crate) static SGLOBAL_FROM_BIGENDIAN_BYTES_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_FROM_BIGENDIAN_BYTES_COST)?;
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
             "sglobal.fromBigEndianBytes expected obj to be Value::Global, got {:?}",
@@ -178,11 +183,12 @@ pub(crate) static DESERIALIZE_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
         )));
     }
     let output_type = &mc.tpe().t_range;
-    let bytes = args
+    let bytes: Vec<u8> = args
         .first()
         .ok_or_else(|| EvalError::NotFound("deserialize: missing first arg".into()))?
         .clone()
         .try_extract_into::<Vec<u8>>()?;
+    add_seq_cost(ctx, costs::SGLOBAL_DESERIALIZE_COST, bytes.len() as u32)?;
     let mut reader = sigma_byte_reader::from_bytes(&bytes);
     Ok(Value::from(
         reader.with_tree_version(ctx.tree_version(), |reader| {
@@ -205,15 +211,24 @@ pub(crate) static SERIALIZE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
         .try_into()
         .map_err(EvalError::UnexpectedValue)?;
 
+    // Charge StartWriterCost, then use an instrumented writer that charges
+    // per-operation costs matching Scala's SigmaByteWriter cost model.
+    add_fixed_cost(
+        ctx,
+        costs::FixedCost(costs::JitCost(
+            ergotree_ir::serialization::sigma_byte_writer::START_WRITER_COST,
+        )),
+    )?;
     let mut buf = vec![];
-    let mut writer = SigmaByteWriter::new(&mut buf, None);
+    let mut writer = SigmaByteWriter::new_with_cost(&mut buf, None, &ctx.jit_cost_accum);
     writer.with_tree_version(ctx.tree_version(), |writer| {
         DataSerializer::sigma_serialize(&arg, writer)
     })?;
     Ok(Value::from(buf))
 };
 
-pub(crate) static SGLOBAL_SOME_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static SGLOBAL_SOME_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_SOME_COST)?;
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
             "sglobal.some expected obj to be Value::Global, got {:?}",
@@ -227,7 +242,8 @@ pub(crate) static SGLOBAL_SOME_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::Opt(Some(Box::new(value))))
 };
 
-pub(crate) static SGLOBAL_NONE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static SGLOBAL_NONE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_NONE_COST)?;
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
             "sglobal.none expected obj to be Value::Global, got {:?}",
@@ -237,7 +253,8 @@ pub(crate) static SGLOBAL_NONE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     Ok(Value::Opt(None))
 };
 
-pub(crate) static ENCODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, args| {
+pub(crate) static ENCODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_ENCODE_NBITS_COST)?;
     let bigint: BigInt = args
         .first()
         .cloned()
@@ -247,7 +264,8 @@ pub(crate) static ENCODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, args| {
     Ok(Value::Long(encode_compact_bits(&bigint)))
 };
 
-pub(crate) static DECODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, args| {
+pub(crate) static DECODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, args| {
+    add_fixed_cost(ctx, costs::SGLOBAL_DECODE_NBITS_COST)?;
     let nbits: i64 = args
         .first()
         .cloned()
@@ -261,8 +279,8 @@ pub(crate) static DECODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, args| {
             .map_err(EvalError::UnexpectedValue)?,
     ))
 };
-pub(crate) static POW_HIT_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, mut args| {
-    // Pop arguments to avoid cloning
+pub(crate) static POW_HIT_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, mut args| {
+    // Pop arguments first — cost depends on input sizes
     let big_n: u32 = args
         .pop()
         .ok_or_else(|| EvalError::NotFound("powHit: missing N".into()))?
@@ -283,8 +301,20 @@ pub(crate) static POW_HIT_EVAL_FN: EvalFn = |_mc, _env, _ctx, _obj, mut args| {
         .try_extract_into::<Vec<u8>>()?;
     let k = args
         .pop()
-        .ok_or_else(|| EvalError::NotFound("powHit: missing msg".into()))?
+        .ok_or_else(|| EvalError::NotFound("powHit: missing k".into()))?
         .try_extract_into::<i32>()?;
+
+    // DynamicCost matching Scala: baseCost(500) + perChunkCost(7) * nChunks * (k+1)
+    // where nChunks = totalLen / chunkSize + 1 (floor division + 1, matching Scala)
+    let total_len = (msg.len() + nonce.len() + h.len()) as u32;
+    let chunk_size = costs::CALC_BLAKE2B256_COST.chunk_size; // 128
+    let per_chunk = costs::CALC_BLAKE2B256_COST.per_chunk_cost.0; // 7
+    let n_chunks = total_len / chunk_size + 1;
+    let k_plus_1 = (k + 1).max(0) as u32;
+    let pow_cost =
+        costs::JitCost(costs::SGLOBAL_POW_HIT_BASE_COST + per_chunk * n_chunks * k_plus_1);
+    super::cost_accum::add_cost(ctx, pow_cost)?;
+
     Ok(UnsignedBigInt::try_from(
         AutolykosPowScheme::new(
             k.try_into()

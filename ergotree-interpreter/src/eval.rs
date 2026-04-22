@@ -4,12 +4,17 @@ use alloc::vec::Vec;
 use core::fmt::Display;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use snumeric::numeric_method_evalfn;
 
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+use ergotree_ir::types::stype::SType;
+
+use self::cost_accum::add_cost;
+use self::costs::JitCost;
 
 use ergotree_ir::types::smethod::SMethod;
 
@@ -40,11 +45,12 @@ pub(crate) mod coll_map;
 pub(crate) mod coll_size;
 pub(crate) mod coll_slice;
 pub(crate) mod collection;
-pub(crate) mod cost_accum;
+pub mod cost_accum;
 pub(crate) mod costs;
 pub(crate) mod create_avl_tree;
 pub(crate) mod create_prove_dh_tuple;
 pub(crate) mod create_provedlog;
+pub(crate) mod data_value_comparer;
 pub(crate) mod decode_point;
 mod deserialize_context;
 mod deserialize_register;
@@ -95,6 +101,10 @@ pub(crate) mod val_use;
 pub(crate) mod xor;
 pub(crate) mod xor_of;
 
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod cost_tests;
+
 pub use error::EvalError;
 
 /// Diagnostic information about the reduction (pretty printed expr and/or env)
@@ -126,16 +136,78 @@ pub struct ReductionResult {
     pub diag: ReductionDiagnosticInfo,
 }
 
+const EVAL_SIGMA_PROP_CONSTANT: JitCost = JitCost(50);
+
+/// Per-byte deserialize cost in JIT units.
+///
+/// Scala's `Interpreter.scala:81, 88` declares `CostPerByteDeserialized = 2` and
+/// `CostPerTreeByte = 2` — both in block-cost scale. JitCost is 10× block scale,
+/// so the JIT-scale per-byte cost is `2 * 10 = 20`. This helper multiplies a
+/// byte length by that rate with checked arithmetic (consensus-safe even for
+/// adversarially sized inputs near the u32 ceiling).
+fn byte_len_to_deserialize_jit_cost(bytes_len: usize) -> Result<JitCost, EvalError> {
+    let jit = (bytes_len as u64).checked_mul(20).ok_or_else(|| {
+        EvalError::Misc(alloc::format!(
+            "deserialize cost overflow for byte length {}",
+            bytes_len
+        ))
+    })?;
+    let jit_u32: u32 = jit.try_into().map_err(|_| {
+        EvalError::Misc(alloc::format!(
+            "deserialize cost exceeds u32 for byte length {}",
+            bytes_len
+        ))
+    })?;
+    Ok(JitCost(jit_u32))
+}
+
+/// Try to reduce an ErgoTree to a SigmaBoolean without full evaluation.
+/// Returns Some(sigma_bool) for trivially-reducible scripts (P2PK),
+/// None for scripts that require full evaluation.
+fn trivial_reduce(tree: &ErgoTree) -> Result<Option<SigmaBoolean>, EvalError> {
+    let expr = tree.proposition_for_cost_eval()?;
+    match &expr {
+        // Non-segregated: body is Const(SSigmaProp)
+        Expr::Const(c) if c.tpe == SType::SSigmaProp => {
+            let sp: SigmaProp = c.clone().try_extract_into()?;
+            Ok(Some(sp.into()))
+        }
+        // Segregated: body is ConstPlaceholder with resolved SSigmaProp
+        Expr::ConstPlaceholder(cp) => match &cp.resolved {
+            Some(c) if c.tpe == SType::SSigmaProp => {
+                let sp: SigmaProp = c.clone().try_extract_into()?;
+                Ok(Some(sp.into()))
+            }
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
+}
+
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
+    // Try trivial reduction first (P2PK fast path, cost = 50 JitCost)
+    if let Some(sigma_bool) = trivial_reduce(tree)? {
+        add_cost(ctx, EVAL_SIGMA_PROP_CONSTANT)?;
+        return Ok(ReductionResult {
+            sigma_prop: sigma_bool,
+            cost: ctx.jit_cost_accum.get(),
+            diag: ReductionDiagnosticInfo {
+                env: Env::empty(),
+                pretty_printed_expr: None,
+            },
+        });
+    }
+
     fn inner<'ctx>(expr: &'ctx Expr, ctx: &Context<'ctx>) -> Result<ReductionResult, EvalError> {
         let mut env_mut = Env::empty();
         expr.eval(&mut env_mut, ctx)
             .and_then(|v| -> Result<ReductionResult, EvalError> {
+                let accumulated_cost = ctx.jit_cost_accum.get();
                 match v {
                     Value::Boolean(b) => Ok(ReductionResult {
                         sigma_prop: SigmaBoolean::TrivialProp(b),
-                        cost: 0,
+                        cost: accumulated_cost,
                         diag: ReductionDiagnosticInfo {
                             env: env_mut.to_static(),
                             pretty_printed_expr: None,
@@ -143,7 +215,7 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
                     }),
                     Value::SigmaProp(sp) => Ok(ReductionResult {
                         sigma_prop: sp.value().clone(),
-                        cost: 0,
+                        cost: accumulated_cost,
                         diag: ReductionDiagnosticInfo {
                             env: env_mut.to_static(),
                             pretty_printed_expr: None,
@@ -154,9 +226,25 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
             })
     }
 
-    let expr = tree.proposition()?;
+    let expr = tree.proposition_for_cost_eval()?;
     let expr = if tree.has_deserialize() {
-        expr.substitute_deserialize(ctx)?
+        // Scala runtime cost path for scripts containing DeserializeContext/Register:
+        //   - Interpreter.scala:81 `CostPerByteDeserialized = 2` (block cost)
+        //     charged per byte of each substituted payload (always, any version).
+        //   - Interpreter.scala:88,246 `CostPerTreeByte = 2` (block cost) charged
+        //     once per serialized ErgoTree byte — V6-activated only.
+        // Converted to JIT scale by multiplying by 10 (JitCost = block * 10).
+        if ctx.activated_script_version() >= ergotree_ir::ergo_tree::ErgoTreeVersion::V3 {
+            let tree_bytes_len = tree.sigma_serialize_bytes().map_err(EvalError::from)?.len();
+            let tree_jit = byte_len_to_deserialize_jit_cost(tree_bytes_len)?;
+            cost_accum::add_cost(ctx, tree_jit)?;
+        }
+        let (substituted, payload_lens) = expr.substitute_deserialize_with_stats(ctx)?;
+        for len in payload_lens {
+            let payload_jit = byte_len_to_deserialize_jit_cost(len)?;
+            cost_accum::add_cost(ctx, payload_jit)?;
+        }
+        substituted
     } else {
         expr
     };

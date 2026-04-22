@@ -454,5 +454,8 @@ pub fn validate_tx(
         data_boxes,
     )
     .map_err(to_js)?;
-    tx_context.validate(&state_context.0).map_err(to_js)
+    tx_context
+        .validate(&state_context.0)
+        .map(|_| ())
+        .map_err(to_js)
 }

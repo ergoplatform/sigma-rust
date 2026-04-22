@@ -4,6 +4,8 @@ use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::value::Value;
 use hashbrown::HashMap;
 
+use crate::eval::cost_accum::add_fixed_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -26,14 +28,15 @@ impl Evaluable for Apply {
                 let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
                 let mut existing_variables = HashMap::new();
                 let mut new_variables = vec![];
-                arg_ids.iter().zip(args_v).for_each(|(idx, arg_v)| {
+                for (idx, arg_v) in arg_ids.iter().zip(args_v) {
                     if let Some(old_val) = env.get(*idx) {
                         existing_variables.insert(idx, old_val.clone());
                     } else {
                         new_variables.push(*idx);
                     }
+                    add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
                     env.insert(*idx, arg_v);
-                });
+                }
                 let res = fv.body.eval(env, ctx);
                 new_variables.into_iter().for_each(|idx| {
                     env.remove(&idx);

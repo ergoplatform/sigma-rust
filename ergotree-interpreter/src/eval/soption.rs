@@ -7,6 +7,8 @@ use alloc::vec::Vec;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::smethod::SMethod;
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::env::Env;
 use super::Context;
 
@@ -17,6 +19,7 @@ pub fn map_eval<'ctx>(
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
 ) -> Result<Value<'ctx>, EvalError> {
+    add_fixed_cost(ctx, costs::SOPTION_MAP_COST)?;
     let input_v = obj;
     let lambda_v = args
         .first()
@@ -35,6 +38,7 @@ pub fn map_eval<'ctx>(
             EvalError::NotFound("map: lambda has empty arguments list".to_string())
         })?;
         let orig_val = env.get(func_arg.idx).cloned();
+        add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
         env.insert(func_arg.idx, arg);
         let res = lambda.body.eval(env, ctx);
         if let Some(orig_val) = orig_val {
@@ -65,6 +69,7 @@ pub fn filter_eval<'ctx>(
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
 ) -> Result<Value<'ctx>, EvalError> {
+    add_fixed_cost(ctx, costs::SOPTION_FILTER_COST)?;
     let input_v = obj;
     let lambda_v = args
         .first()
@@ -83,6 +88,7 @@ pub fn filter_eval<'ctx>(
             EvalError::NotFound("filter: lambda has empty arguments list".to_string())
         })?;
         let orig_val = env.get(func_arg.idx).cloned();
+        add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
         env.insert(func_arg.idx, arg);
         let res = lambda.body.eval(env, ctx);
         if let Some(orig_val) = orig_val {

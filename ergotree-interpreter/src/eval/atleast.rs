@@ -10,6 +10,8 @@ use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 
+use crate::eval::cost_accum::add_seq_cost;
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -24,6 +26,11 @@ impl Evaluable for Atleast {
         let bound_v = self.bound.eval(env, ctx)?;
         let input_v = self.input.eval(env, ctx)?;
 
+        let n_items = match &input_v {
+            Value::Coll(coll) => coll.as_vec().len() as u32,
+            _ => 0,
+        };
+        add_seq_cost(ctx, costs::ATLEAST_COST, n_items)?;
         let normalized_input_vals: Vec<Value> = match input_v {
             Value::Coll(coll) => Ok(coll.as_vec()),
             _ => Err(EvalError::UnexpectedValue(format!(

@@ -12,13 +12,15 @@ use ergotree_ir::types::smethod::SMethod;
 use ergotree_ir::types::stuple::STuple;
 use ergotree_ir::types::stype::SType::SInt;
 
+use super::cost_accum::{add_fixed_cost, add_seq_cost};
+use super::costs;
 use super::env::Env;
 use super::Context;
 use super::EvalFn;
 use alloc::sync::Arc;
 use core::convert::TryFrom;
 
-pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     Ok(Value::Int({
         let normalized_input_vals: Vec<Value> = match obj {
             Value::Coll(coll) => Ok(coll.as_vec()),
@@ -27,6 +29,11 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
                 obj
             ))),
         }?;
+        add_seq_cost(
+            ctx,
+            costs::SCOLL_INDEX_OF_COST,
+            normalized_input_vals.len() as u32,
+        )?;
         let target_element = args
             .first()
             .cloned()
@@ -54,6 +61,11 @@ pub(crate) fn flatmap_eval<'ctx>(
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
 ) -> Result<Value<'ctx>, EvalError> {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_FLATMAP_COST, coll_len)?;
     let input_v = obj;
     let lambda_v = args
         .first()
@@ -85,6 +97,7 @@ pub(crate) fn flatmap_eval<'ctx>(
             EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
         })?;
         let orig_val = env.get(func_arg.idx).cloned();
+        add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
         env.insert(func_arg.idx, arg);
         let res = lambda.body.eval(env, ctx);
         if let Some(orig_val) = orig_val {
@@ -131,7 +144,12 @@ pub(crate) fn flatmap_eval<'ctx>(
         .map(Value::Coll)
 }
 
-pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_ZIP_COST, coll_len)?;
     let (type_1, coll_1) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -162,7 +180,12 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     }
 };
 
-pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_INDICES_COST, coll_len)?;
     let input_len = match obj {
         Value::Coll(coll) => Ok(coll.len()),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -185,7 +208,12 @@ pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     }
 };
 
-pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_PATCH_COST, coll_len)?;
     let (input_tpe, normalized_input_vals) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -226,7 +254,12 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::Coll(CollKind::from_collection(input_tpe, res)?))
 };
 
-pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_UPDATED_COST, coll_len)?;
     let (input_tpe, normalized_input_vals) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -260,7 +293,12 @@ pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
 };
 
 pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
-    |_mc, _env, _ctx, obj, args| {
+    |_mc, _env, ctx, obj, args| {
+        let coll_len = match &obj {
+            Value::Coll(coll) => coll.len() as u32,
+            _ => 0,
+        };
+        add_seq_cost(ctx, costs::SCOLL_UPDATE_MANY_COST, coll_len)?;
         let (input_tpe, normalized_input_vals) = match obj {
             Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
             _ => Err(EvalError::UnexpectedValue(format!(
@@ -335,7 +373,12 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
         Ok(Value::Coll(CollKind::from_collection(input_tpe, &res[..])?))
     };
 
-pub(crate) static REVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static REVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_REVERSE_COST, coll_len)?;
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "Reverse: expected Coll, found {obj:?}"
@@ -344,7 +387,12 @@ pub(crate) static REVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     Ok(Value::from(coll.reverse()))
 };
 
-pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_STARTS_WITH_COST, coll_len)?;
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "endsWith: expected Coll, found {obj:?}"
@@ -366,7 +414,12 @@ pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::from(coll.starts_with(prefix)))
 };
 
-pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    let coll_len = match &obj {
+        Value::Coll(coll) => coll.len() as u32,
+        _ => 0,
+    };
+    add_seq_cost(ctx, costs::SCOLL_ENDS_WITH_COST, coll_len)?;
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "endsWith: expected Coll, found {obj:?}"
@@ -388,7 +441,8 @@ pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::from(coll.ends_with(suffix)))
 };
 
-pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    add_fixed_cost(ctx, costs::SCOLL_GET_COST)?;
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "get: expected Coll, found {obj:?}"

@@ -3,39 +3,48 @@ use alloc::{sync::Arc, vec::Vec};
 use ergo_chain_types::PreHeader;
 use ergotree_ir::mir::constant::TryExtractInto;
 
+use super::cost_accum::add_fixed_cost;
+use super::costs;
 use super::EvalFn;
 
-pub(crate) static VERSION_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static VERSION_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok((preheader.version as i8).into())
 };
 
-pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static PARENT_ID_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok(Into::<Vec<i8>>::into(preheader.parent_id).into())
 };
 
-pub(crate) static TIMESTAMP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static TIMESTAMP_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok((preheader.timestamp as i64).into())
 };
 
-pub(crate) static N_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static N_BITS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok((preheader.n_bits as i64).into())
 };
 
-pub(crate) static HEIGHT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static HEIGHT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok((preheader.height as i32).into())
 };
 
-pub(crate) static MINER_PK_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static MINER_PK_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok(Arc::new(*preheader.miner_pk).into())
 };
 
-pub(crate) static VOTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static VOTES_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    add_fixed_cost(ctx, costs::SPREHEADER_PROP_COST)?;
     let preheader = obj.try_extract_into::<PreHeader>()?;
     Ok(Into::<Vec<u8>>::into(preheader.votes).into())
 };

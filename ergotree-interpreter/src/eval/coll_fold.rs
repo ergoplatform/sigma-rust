@@ -4,6 +4,8 @@ use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
 
+use crate::eval::cost_accum::{add_fixed_cost, add_seq_cost};
+use crate::eval::costs;
 use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
@@ -26,6 +28,7 @@ impl Evaluable for Fold {
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
                 let orig_val = env.get(func_arg.idx).cloned();
+                add_fixed_cost(ctx, costs::ADD_TO_ENV_COST)?;
                 env.insert(func_arg.idx, arg);
                 let res = func_value.body.eval(env, ctx);
                 if let Some(orig_val) = orig_val {
@@ -40,6 +43,12 @@ impl Evaluable for Fold {
                 input_v_clone
             ))),
         };
+        let n_items = match &input_v {
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) => b.len() as u32,
+            Value::Coll(CollKind::WrappedColl { items, .. }) => items.len() as u32,
+            _ => 0,
+        };
+        add_seq_cost(ctx, costs::FOLD_COST, n_items)?;
         match input_v {
             Value::Coll(coll) => match coll {
                 CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {
