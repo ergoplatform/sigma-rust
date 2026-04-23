@@ -6,7 +6,7 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 
 ## Current state: production-ready
 
-**185 tests passing. 15/15 production contracts byte-match the Scala node natively.**
+**196 tests passing. 31/31 contracts byte-match the Scala node natively (including Phoenix HodlERG BigInt arithmetic).**
 
 ### Two compilation modes
 
@@ -54,48 +54,61 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
 2. **SizeOf(Map) rewrite** — `mapVal.size` becomes `collection.size` (map preserves length)
 3. **Single-use val inlining** — inlines vals used once, dead-code eliminates unused vals
 4. **Negation elimination** — `!(a > b)` becomes `a <= b`
-5. **Common Subexpression Elimination (CSE)** — graph IR approach porting the Scala compiler's `processAstGraph`:
+5. **BigInt type propagation** — after MIR lowering, propagates actual types from ValDef RHS to ValUse references (fixes `val x: Long = BigInt_expr` annotation mismatches), re-applies numeric upcasts
+6. **Common Subexpression Elimination (CSE)** — graph IR approach porting the Scala compiler's `processAstGraph`:
    - DAG hash-consing with selective sharing (matches Scala IR behavior)
    - DFS schedule generation
    - Iterative extraction with candidate updating
-   - ThunkDef scope modeling for `&&`/`||` right-arm scoping
+   - ThunkDef scope modeling for `&&`/`||` right-arm scoping and If-branch scoping
    - Lambda-scope fallback for contracts with filter/fold/exists/forall
+   - Post-CSE single-use val inlining (folds e.g. `ExtractAmount(Self)` into `Upcast(ExtractAmount(Self), BigInt)`)
+   - Inner-block constant deduplication (extracts duplicate constants as vals within If-branch blocks)
+   - If-branch val ordering via symbol-ID-sorted freeVars (matches Scala's ThunkDef scheduling)
 
-### Byte-match scorecard: 15/15
+### Contract test inventory (31 contracts, 31 native match, 0 canonical, 0 errors)
 
-| Contract | Source | Bytes | Status |
-|----------|--------|-------|--------|
-| Governance vault | custom | 393B | Native match |
-| Governance reserve | custom | 467B | Native match |
-| Governance proposal | custom | 268B | Native match |
-| Governance treasury | custom | 496B | Native match |
-| Oracle Pool v2 - Pool | EIP-0023 | 104B | Native match |
-| Oracle Pool v2 - Oracle | EIP-0023 | 209B | Native match |
-| Spectrum AMM Swap | spectrum-finance | 177B | Native match |
-| Dexy Bank | kushti/dexy-stable | 291B | Native match |
-| DuckPools Lending | duckpools | 275B | Native match |
-| Dexy-style LP | kushti/dexy-stable | 146B | Native match |
-| Nested forall | synthetic | 61B | Native match |
-| Multi-filter + arith | synthetic | 219B | Native match |
-| Register tuple + blake | synthetic | 96B | Native match |
-| If-else paths | synthetic | 118B | Native match |
-| Map + size | synthetic | 31B | Native match |
-| Triple CSE | synthetic | 117B | Native match |
+All contracts compile and produce bytecode identical to the Scala reference node.
 
-Additional contracts tested via `compile_canonical`:
-- SigmaUSD bank (reserve ratio) — 199B, canonical
-- Rosen Bridge GuardSign (atLeast + proveDlog) — 159B, canonical
-- DEX swap order — 125B, canonical
-- Multi-sig treasury — 55B, canonical
-- Token emission — 167B, canonical
-- Time-locked vesting — 18B, native match
+| # | Contract | Source | Bytes | Match | Open Issues |
+|---|----------|--------|-------|-------|-------------|
+| 1 | Governance vault | custom | 393B | Y | |
+| 2 | Governance reserve | custom | 467B | Y | |
+| 3 | Governance proposal | custom | 268B | Y | |
+| 4 | Governance treasury | custom | 496B | Y | |
+| 5 | Oracle Pool v2 - Pool | EIP-0023 | 104B | Y | |
+| 6 | Oracle Pool v2 - Oracle | EIP-0023 | 209B | Y | |
+| 7 | Spectrum AMM Swap | spectrum-finance | 177B | Y | |
+| 8 | Dexy Bank | kushti/dexy-stable | 291B | Y | |
+| 9 | DuckPools Lending Pool | duckpools | 275B | Y | |
+| 10 | Dexy-style LP | kushti/dexy-stable | 146B | Y | |
+| 11 | Nested forall | synthetic | 61B | Y | |
+| 12 | Multi-filter + arith | synthetic | 219B | Y | |
+| 13 | Register tuple + blake | synthetic | 96B | Y | |
+| 14 | If-else paths | synthetic | 118B | Y | |
+| 15 | Triple CSE | synthetic | 117B | Y | |
+| 16 | simple (SELF.value > 0) | synthetic | 10B | Y | |
+| 17 | vault (with lambdas) | custom | 393B | Y | |
+| 18 | dexy LP (canonical test) | kushti/dexy-stable | 146B | Y | |
+| 19 | toBigInt arithmetic | synthetic | 13B | Y | |
+| 20 | CONTEXT.selfBoxIndex | synthetic | 12B | Y | |
+| 21 | allOf / anyOf | synthetic | 25B | Y | |
+| 22 | def function + lambda app | synthetic | 28B | Y | |
+| 23 | Off-the-grid (grid orders) | Telefragged/off-the-grid | 82B | Y | |
+| 24 | Crystal Pool (buy token) | SavonarolaLabs/crystal-pool | 81B | Y | |
+| 25 | Phoenix HodlERG Bank | PhoenixErgo/phoenix-hodlcoin | 314B | Y | |
+| 26 | SigmaUSD bank | sigmausd | 199B | Y | |
+| 27 | Rosen GuardSign | rosen-bridge | 159B | Y | |
+| 28 | DEX swap order | spectrum-finance | 125B | Y | |
+| 29 | Multi-sig treasury | custom | 55B | Y | |
+| 30 | Token emission | custom | 167B | Y | |
+| 31 | Time-locked vesting | custom | 18B | Y | |
 
 ## How to run tests
 
 ```bash
 # All unit tests (pure Rust, no node needed)
 cargo test -p ergoscript-compiler
-# 185 passed, 0 failed, 2 ignored
+# 196 passed, 0 failed, 2 ignored
 
 # Canonical compilation tests (requires running Ergo node at localhost:9053)
 source ~/.secrets  # sets API_KEY

@@ -457,6 +457,124 @@ fn rewrite_map_size(expr: Expr, map_colls: &HashMap<u32, Expr>) -> Expr {
     }
 }
 
+/// Replace occurrences of a ValDef's RHS expression with ValUse(id).
+/// Skips the ValDef's own RHS to avoid self-reference.
+fn substitute_duplicate_rhs(expr: Expr, val_rhs: &[(u32, Expr)]) -> Expr {
+    // First check if this entire expression matches any val's RHS
+    for (id, rhs) in val_rhs {
+        if hir_expr_eq(&expr, rhs) {
+            // Don't substitute inside the ValDef's own item
+            // (handled by skipping at the Block level in the caller)
+            return Expr {
+                kind: ExprKind::ValUse(super::ValUse {
+                    id: *id,
+                    tpe: expr.tpe.clone().unwrap_or(SType::SAny),
+                }),
+                tpe: expr.tpe.clone(),
+                span: expr.span,
+            };
+        }
+    }
+    // Recurse into children
+    match expr.kind {
+        ExprKind::ValDef(vd) => {
+            // Don't substitute inside the RHS of the val that owns this expression.
+            // But DO substitute other vals' RHS patterns inside this val's RHS.
+            let own_id = vd.id;
+            let filtered: Vec<(u32, Expr)> = val_rhs
+                .iter()
+                .filter(|(id, _)| Some(*id) != own_id)
+                .cloned()
+                .collect();
+            let new_rhs = substitute_duplicate_rhs(*vd.rhs, &filtered);
+            Expr {
+                kind: ExprKind::ValDef(ValDef {
+                    name: vd.name,
+                    id: vd.id,
+                    tpe: vd.tpe,
+                    rhs: Box::new(new_rhs),
+                }),
+                ..expr
+            }
+        }
+        ExprKind::Binary(bin) => Expr {
+            kind: ExprKind::Binary(Binary {
+                op: bin.op,
+                lhs: Box::new(substitute_duplicate_rhs(*bin.lhs, val_rhs)),
+                rhs: Box::new(substitute_duplicate_rhs(*bin.rhs, val_rhs)),
+            }),
+            ..expr
+        },
+        ExprKind::Apply(app) => Expr {
+            kind: ExprKind::Apply(Apply {
+                func: Box::new(substitute_duplicate_rhs(*app.func, val_rhs)),
+                args: app
+                    .args
+                    .into_iter()
+                    .map(|a| substitute_duplicate_rhs(a, val_rhs))
+                    .collect(),
+                type_arg: app.type_arg,
+            }),
+            ..expr
+        },
+        ExprKind::Block(items) => Expr {
+            kind: ExprKind::Block(
+                items
+                    .into_iter()
+                    .map(|i| substitute_duplicate_rhs(i, val_rhs))
+                    .collect(),
+            ),
+            ..expr
+        },
+        ExprKind::FieldAccess(fa) => Expr {
+            kind: ExprKind::FieldAccess(FieldAccessExpr {
+                object: Box::new(substitute_duplicate_rhs(*fa.object, val_rhs)),
+                field: fa.field,
+                type_args: fa.type_args,
+            }),
+            ..expr
+        },
+        ExprKind::If(if_expr) => Expr {
+            kind: ExprKind::If(IfExprHir {
+                condition: Box::new(substitute_duplicate_rhs(*if_expr.condition, val_rhs)),
+                then_branch: Box::new(substitute_duplicate_rhs(*if_expr.then_branch, val_rhs)),
+                else_branch: Box::new(substitute_duplicate_rhs(*if_expr.else_branch, val_rhs)),
+            }),
+            ..expr
+        },
+        ExprKind::Lambda(lam) => Expr {
+            kind: ExprKind::Lambda(LambdaExpr {
+                params: lam.params,
+                param_ids: lam.param_ids,
+                body: Box::new(substitute_duplicate_rhs(*lam.body, val_rhs)),
+            }),
+            ..expr
+        },
+        ExprKind::LogicalNot(inner) => Expr {
+            kind: ExprKind::LogicalNot(Box::new(substitute_duplicate_rhs(*inner, val_rhs))),
+            ..expr
+        },
+        ExprKind::Negation(inner) => Expr {
+            kind: ExprKind::Negation(Box::new(substitute_duplicate_rhs(*inner, val_rhs))),
+            ..expr
+        },
+        ExprKind::Tuple(items) => Expr {
+            kind: ExprKind::Tuple(
+                items
+                    .into_iter()
+                    .map(|i| substitute_duplicate_rhs(i, val_rhs))
+                    .collect(),
+            ),
+            ..expr
+        },
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => expr,
+    }
+}
+
 fn substitute_val_uses(expr: Expr, subs: &HashMap<u32, Expr>) -> Expr {
     match expr.kind {
         ExprKind::ValUse(ref vu) => {
@@ -581,6 +699,87 @@ fn substitute_val_uses(expr: Expr, subs: &HashMap<u32, Expr>) -> Expr {
     }
 }
 
+/// Compare two HIR expressions structurally (ignoring spans).
+fn hir_expr_eq(a: &Expr, b: &Expr) -> bool {
+    a.tpe == b.tpe && hir_kind_eq(&a.kind, &b.kind)
+}
+
+fn hir_kind_eq(a: &ExprKind, b: &ExprKind) -> bool {
+    match (a, b) {
+        (ExprKind::Literal(la), ExprKind::Literal(lb)) => la == lb,
+        (ExprKind::Ident(a), ExprKind::Ident(b)) => a == b,
+        (ExprKind::GlobalVars(a), ExprKind::GlobalVars(b)) => a == b,
+        (ExprKind::ValUse(a), ExprKind::ValUse(b)) => a == b,
+        (ExprKind::Context, ExprKind::Context) => true,
+        (ExprKind::Binary(a), ExprKind::Binary(b)) => {
+            a.op == b.op && hir_expr_eq(&a.lhs, &b.lhs) && hir_expr_eq(&a.rhs, &b.rhs)
+        }
+        (ExprKind::FieldAccess(a), ExprKind::FieldAccess(b)) => {
+            a.field == b.field && a.type_args == b.type_args && hir_expr_eq(&a.object, &b.object)
+        }
+        (ExprKind::Apply(a), ExprKind::Apply(b)) => {
+            a.type_arg == b.type_arg
+                && a.args.len() == b.args.len()
+                && hir_expr_eq(&a.func, &b.func)
+                && a.args
+                    .iter()
+                    .zip(b.args.iter())
+                    .all(|(x, y)| hir_expr_eq(x, y))
+        }
+        (ExprKind::If(a), ExprKind::If(b)) => {
+            hir_expr_eq(&a.condition, &b.condition)
+                && hir_expr_eq(&a.then_branch, &b.then_branch)
+                && hir_expr_eq(&a.else_branch, &b.else_branch)
+        }
+        (ExprKind::Lambda(a), ExprKind::Lambda(b)) => {
+            a.params == b.params && hir_expr_eq(&a.body, &b.body)
+        }
+        (ExprKind::Block(a), ExprKind::Block(b)) => {
+            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| hir_expr_eq(x, y))
+        }
+        (ExprKind::ValDef(a), ExprKind::ValDef(b)) => a.id == b.id && hir_expr_eq(&a.rhs, &b.rhs),
+        (ExprKind::Tuple(a), ExprKind::Tuple(b)) => {
+            a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| hir_expr_eq(x, y))
+        }
+        (ExprKind::LogicalNot(a), ExprKind::LogicalNot(b)) => hir_expr_eq(a, b),
+        (ExprKind::Negation(a), ExprKind::Negation(b)) => hir_expr_eq(a, b),
+        _ => false,
+    }
+}
+
+/// Check if `needle` structurally appears anywhere inside `haystack`
+/// (ignoring source spans).
+fn hir_expr_contains(haystack: &Expr, needle: &Expr) -> bool {
+    if hir_expr_eq(haystack, needle) {
+        return true;
+    }
+    match &haystack.kind {
+        ExprKind::Binary(bin) => {
+            hir_expr_contains(&bin.lhs, needle) || hir_expr_contains(&bin.rhs, needle)
+        }
+        ExprKind::Apply(app) => {
+            hir_expr_contains(&app.func, needle)
+                || app.args.iter().any(|a| hir_expr_contains(a, needle))
+        }
+        ExprKind::Block(items) => items.iter().any(|i| hir_expr_contains(i, needle)),
+        ExprKind::ValDef(vd) => hir_expr_contains(&vd.rhs, needle),
+        ExprKind::FieldAccess(fa) => hir_expr_contains(&fa.object, needle),
+        ExprKind::If(if_expr) => {
+            hir_expr_contains(&if_expr.condition, needle)
+                || hir_expr_contains(&if_expr.then_branch, needle)
+                || hir_expr_contains(&if_expr.else_branch, needle)
+        }
+        ExprKind::Lambda(lam) => hir_expr_contains(&lam.body, needle),
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => hir_expr_contains(inner, needle),
+        ExprKind::Tuple(items) => items.iter().any(|i| hir_expr_contains(i, needle)),
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => false,
+    }
+}
+
 /// Inline single-use vals, remove dead vals, unwrap trivial blocks.
 fn inline_single_use_vals(expr: Expr) -> Expr {
     match expr.kind {
@@ -625,56 +824,116 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 }
             };
 
-            // Count val uses across the entire block
-            let mut counts: HashMap<u32, usize> = HashMap::new();
-            for item in &items {
-                count_val_uses(item, &mut counts);
-            }
+            // Multi-pass inlining: dead-code elimination can reduce use counts
+            // of other vals, making previously multi-use vals single-use.
+            // Repeat until stable. (Scala's graph CSE handles this naturally
+            // because it operates on a DAG, not a sequential val list.)
+            let mut current_items = items;
+            loop {
+                let mut counts: HashMap<u32, usize> = HashMap::new();
+                for item in &current_items {
+                    count_val_uses(item, &mut counts);
+                }
 
-            // Build substitution map for single-use vals & collect survivors.
-            // Process sequentially so earlier substitutions are applied to later RHSes.
-            let mut subs: HashMap<u32, Expr> = HashMap::new();
-            let mut new_items: Vec<Expr> = Vec::new();
+                let mut subs: HashMap<u32, Expr> = HashMap::new();
+                let mut new_items: Vec<Expr> = Vec::new();
 
-            for item in items {
-                if let ExprKind::ValDef(ref vd) = item.kind {
-                    if let Some(id) = vd.id {
-                        let use_count = counts.get(&id).copied().unwrap_or(0);
-                        let rhs = if !subs.is_empty() {
-                            substitute_val_uses(*vd.rhs.clone(), &subs)
-                        } else {
-                            *vd.rhs.clone()
-                        };
-                        let is_constant = matches!(rhs.kind, ExprKind::Literal(_));
-                        if use_count == 0 {
-                            // Dead code — skip entirely
-                            continue;
-                        } else if use_count == 1 || is_constant {
-                            // Single use OR constant RHS — inline at all use sites.
-                            // Constants are cheap to repeat and the Scala compiler
-                            // always inlines them (no ValDef for constants).
-                            subs.insert(id, rhs);
-                            continue;
+                let items_snapshot = current_items.clone();
+                for (idx, item) in current_items.into_iter().enumerate() {
+                    if let ExprKind::ValDef(ref vd) = item.kind {
+                        if let Some(id) = vd.id {
+                            let use_count = counts.get(&id).copied().unwrap_or(0);
+                            let rhs = if !subs.is_empty() {
+                                substitute_val_uses(*vd.rhs.clone(), &subs)
+                            } else {
+                                *vd.rhs.clone()
+                            };
+                            let is_constant = matches!(rhs.kind, ExprKind::Literal(_));
+                            if use_count == 0 {
+                                continue;
+                            } else if is_constant {
+                                subs.insert(id, rhs);
+                                continue;
+                            } else if use_count == 1 {
+                                // Before inlining a single-use val, check if its
+                                // RHS expression appears elsewhere in the block.
+                                // If so, keep the val — inlining would create a
+                                // duplicate that CSE can't properly re-extract
+                                // (e.g. OptionGet is not graph-shared).
+                                let rhs_appears_elsewhere = items_snapshot
+                                    .iter()
+                                    .enumerate()
+                                    .any(|(j, other)| j != idx && hir_expr_contains(other, &rhs));
+                                if rhs_appears_elsewhere {
+                                    // Keep this val — its RHS appears elsewhere
+                                    let rebuilt = Expr {
+                                        kind: ExprKind::ValDef(ValDef {
+                                            name: vd.name.clone(),
+                                            id: vd.id,
+                                            tpe: vd.tpe.clone(),
+                                            rhs: Box::new(rhs),
+                                        }),
+                                        ..item
+                                    };
+                                    new_items.push(rebuilt);
+                                    continue;
+                                }
+                                subs.insert(id, rhs);
+                                continue;
+                            }
                         }
                     }
+                    new_items.push(item);
                 }
-                new_items.push(item);
+
+                if !subs.is_empty() {
+                    new_items = new_items
+                        .into_iter()
+                        .map(|item| substitute_val_uses(item, &subs))
+                        .collect();
+                }
+
+                if subs.is_empty() {
+                    // No changes this pass — stable
+                    current_items = new_items;
+                    break;
+                }
+                current_items = new_items;
             }
 
-            // Apply substitutions to all remaining items
-            if !subs.is_empty() {
-                new_items = new_items
-                    .into_iter()
-                    .map(|item| substitute_val_uses(item, &subs))
+            // Dedup pass: for vals we kept because their RHS appears
+            // elsewhere, replace those duplicate RHS occurrences with ValUse.
+            // This is needed because CSE can't handle certain expression types
+            // (e.g. OptionGet is not graph-shared) and won't substitute them.
+            let current_items = {
+                // Collect (id, rhs) pairs for all surviving ValDefs
+                let val_rhs: Vec<(u32, Expr)> = current_items
+                    .iter()
+                    .filter_map(|item| {
+                        if let ExprKind::ValDef(vd) = &item.kind {
+                            vd.id.map(|id| (id, *vd.rhs.clone()))
+                        } else {
+                            None
+                        }
+                    })
                     .collect();
-            }
+
+                if val_rhs.is_empty() {
+                    current_items
+                } else {
+                    current_items
+                        .into_iter()
+                        .map(|item| substitute_duplicate_rhs(item, &val_rhs))
+                        .collect()
+                }
+            };
 
             // If block reduced to a single expression, unwrap it
-            if new_items.len() == 1 {
-                new_items.into_iter().next().unwrap()
+            if current_items.len() == 1 {
+                current_items.into_iter().next().unwrap()
             } else {
                 Expr {
-                    kind: ExprKind::Block(new_items),
+                    kind: ExprKind::Block(current_items),
                     ..expr
                 }
             }

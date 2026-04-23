@@ -26,8 +26,14 @@ pub fn apply_cse(expr: Expr) -> Expr {
             let expr = strip_source_spans(expr);
             let global_max_id = find_max_val_id(&expr);
             let cse_result = cse_expr(expr, global_max_id, false);
+            // Inline single-use vals (e.g., after CSE extracts Upcast(ValUse(x), BigInt),
+            // the original val x may become single-use and should be folded in)
+            let inlined = inline_single_use_vals(cse_result);
+            // Extract duplicate constants in inner blocks as ValDefs (matches Scala's
+            // graph IR where multi-use constants get shared symbols within ThunkDef scopes)
+            let deduped = deduplicate_inner_consts(inlined);
             // Reorder ValDefs to match Scala's DFS dependency order, then renumber
-            let reordered = reorder_valdefs(cse_result);
+            let reordered = reorder_valdefs(deduped);
             sequential_renumber(reordered)
         })
         .expect("failed to spawn CSE thread")
@@ -152,6 +158,9 @@ fn strip_source_spans(expr: Expr) -> Expr {
 /// (with dependencies emitted before dependents). Our CSE prepends all
 /// extracted vals before user vals, which can produce a different order.
 fn reorder_valdefs(expr: Expr) -> Expr {
+    // Recurse into If branches to reorder inner blocks too
+    let expr = map_children(expr, reorder_valdefs);
+
     match expr {
         Expr::BlockValue(s) => {
             if s.expr.items.is_empty() {
@@ -200,11 +209,225 @@ fn reorder_valdefs(expr: Expr) -> Expr {
     }
 }
 
+/// Inline ValDefs that are used exactly once in their enclosing BlockValue.
+/// After CSE extraction, some user-defined vals (e.g., `val reserveIn = SELF.value`)
+/// may become single-use because their only reference is inside a CSE-extracted
+/// val (e.g., `Upcast(ValUse(reserveIn), BigInt)`). Inlining these single-use
+/// vals produces the combined form that Scala's graph IR would generate
+/// (e.g., `Upcast(ExtractAmount(Self), BigInt)` as a single val).
+fn inline_single_use_vals(expr: Expr) -> Expr {
+    match expr {
+        Expr::BlockValue(s) => {
+            let inner = s.expr;
+            // First, recurse into nested blocks (If branches, inner BlockValues)
+            let items: Vec<Expr> = inner
+                .items
+                .into_iter()
+                .map(inline_single_use_vals)
+                .collect();
+            let result = inline_single_use_vals(*inner.result);
+
+            // Count ValUse references for each val_id in items + result.
+            // Only count uses OUTSIDE of ValDef RHS for the same val.
+            let mut use_counts: std::collections::HashMap<u32, usize> =
+                std::collections::HashMap::new();
+            for item in &items {
+                if let Expr::ValDef(vd) = item {
+                    // Count uses of OTHER vals in this RHS
+                    count_val_uses_in(&vd.expr.rhs, &mut use_counts);
+                } else {
+                    count_val_uses_in(item, &mut use_counts);
+                }
+            }
+            count_val_uses_in(&result, &mut use_counts);
+
+            // Build map of single-use val_id -> RHS for inlining
+            let mut inline_map: std::collections::HashMap<u32, Expr> =
+                std::collections::HashMap::new();
+            for item in &items {
+                if let Expr::ValDef(vd) = item {
+                    let id = vd.expr.id.0;
+                    let count = use_counts.get(&id).copied().unwrap_or(0);
+                    if count == 1 {
+                        inline_map.insert(id, (*vd.expr.rhs).clone());
+                    }
+                }
+            }
+
+            if inline_map.is_empty() {
+                return Expr::BlockValue(Spanned {
+                    source_span: s.source_span,
+                    expr: BlockValue {
+                        items,
+                        result: result.into(),
+                    },
+                });
+            }
+
+            // Remove inlined ValDefs from items
+            let remaining_items: Vec<Expr> = items
+                .into_iter()
+                .filter(|item| {
+                    if let Expr::ValDef(vd) = item {
+                        !inline_map.contains_key(&vd.expr.id.0)
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+
+            // Substitute all inlined vals using replace_all
+            let mut block = Expr::BlockValue(Spanned {
+                source_span: s.source_span,
+                expr: BlockValue {
+                    items: remaining_items,
+                    result: result.into(),
+                },
+            });
+            for (val_id, rhs) in &inline_map {
+                let val_use = Expr::ValUse(ValUse {
+                    val_id: ValId(*val_id),
+                    tpe: rhs.tpe(),
+                });
+                block = replace_all(&block, &val_use, rhs);
+            }
+            block
+        }
+        Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
+            condition: inline_single_use_vals(*if_op.condition).into(),
+            true_branch: inline_single_use_vals(*if_op.true_branch).into(),
+            false_branch: inline_single_use_vals(*if_op.false_branch).into(),
+        }),
+        other => other,
+    }
+}
+
+/// Count ValUse references in an expression, incrementing counts in the map.
+fn count_val_uses_in(expr: &Expr, counts: &mut std::collections::HashMap<u32, usize>) {
+    match expr {
+        Expr::ValUse(vu) => {
+            *counts.entry(vu.val_id.0).or_insert(0) += 1;
+        }
+        _ => {
+            for child in direct_children(expr) {
+                count_val_uses_in(child, counts);
+            }
+        }
+    }
+}
+
+/// Extract duplicate constants within inner BlockValues as ValDefs.
+/// After CSE scope-checking prevents extracting Upcast(Const(X), BigInt) from
+/// If branches, the same Const(X) may appear multiple times in an inner block.
+/// ConstantStore::put() doesn't deduplicate, so each bare Const creates a
+/// separate constant pool entry. This pass finds duplicates and extracts them
+/// as vals, matching Scala's graph IR behavior.
+fn deduplicate_inner_consts(expr: Expr) -> Expr {
+    match expr {
+        // Only dedup inside If branches — these correspond to Scala's ThunkDef
+        // scopes where multi-use constants get their own graph symbols.
+        Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
+            condition: deduplicate_inner_consts(*if_op.condition).into(),
+            true_branch: dedup_consts_in_block(*if_op.true_branch).into(),
+            false_branch: dedup_consts_in_block(*if_op.false_branch).into(),
+        }),
+        // For all other nodes, just recurse to find nested If expressions
+        other => map_children(other, deduplicate_inner_consts),
+    }
+}
+
+/// Dedup constants within a block, then recurse for deeper If nodes.
+fn dedup_consts_in_block(expr: Expr) -> Expr {
+    // First recurse to handle nested If expressions
+    let expr = deduplicate_inner_consts(expr);
+
+    match expr {
+        Expr::BlockValue(s) => {
+            // Collect all Const nodes in the block
+            let mut all_consts: Vec<Expr> = Vec::new();
+            for item in &s.expr.items {
+                collect_consts(item, &mut all_consts);
+            }
+            collect_consts(&s.expr.result, &mut all_consts);
+
+            // Find constants appearing 2+ times (dedup by equality)
+            let mut duplicates: Vec<Expr> = Vec::new();
+            for c in &all_consts {
+                let count = all_consts.iter().filter(|x| *x == c).count();
+                if count >= 2 && !duplicates.contains(c) {
+                    duplicates.push(c.clone());
+                }
+            }
+
+            if duplicates.is_empty() {
+                return Expr::BlockValue(s);
+            }
+
+            let mut next_id = find_max_val_id(&Expr::BlockValue(s.clone())) + 1;
+            let mut result_items = s.expr.items;
+            let mut result_expr = *s.expr.result;
+            let mut new_defs: Vec<Expr> = Vec::new();
+
+            for const_expr in duplicates {
+                let val_use = Expr::ValUse(ValUse {
+                    val_id: ValId(next_id),
+                    tpe: const_expr.tpe(),
+                });
+                result_items = result_items
+                    .into_iter()
+                    .map(|item| replace_all(&item, &const_expr, &val_use))
+                    .collect();
+                result_expr = replace_all(&result_expr, &const_expr, &val_use);
+
+                new_defs.push(Expr::ValDef(Spanned {
+                    source_span: SourceSpan::empty(),
+                    expr: ValDef {
+                        id: ValId(next_id),
+                        rhs: const_expr.into(),
+                    },
+                }));
+                next_id += 1;
+            }
+
+            // Prepend new const defs before existing items
+            new_defs.extend(result_items);
+            Expr::BlockValue(Spanned {
+                source_span: s.source_span,
+                expr: BlockValue {
+                    items: new_defs,
+                    result: result_expr.into(),
+                },
+            })
+        }
+        other => other,
+    }
+}
+
+/// Collect all Const nodes in an expression tree.
+fn collect_consts(expr: &Expr, out: &mut Vec<Expr>) {
+    if let Expr::Const(_) = expr {
+        out.push(expr.clone());
+    }
+    for child in direct_children(expr) {
+        collect_consts(child, out);
+    }
+}
+
 /// DFS walk an expression; when a ValUse is found whose ValDef is in val_map
 /// and hasn't been emitted yet, recursively emit its RHS dependencies first,
 /// then emit the ValDef.
 ///
 /// `in_thunk`: true when we're inside the right arm of a logical &&/|| chain.
+/// Collect all ValUse IDs referenced in an expression tree (non-recursive into inner blocks).
+fn collect_all_val_uses(expr: &Expr, out: &mut Vec<u32>) {
+    if let Expr::ValUse(vu) = expr {
+        out.push(vu.val_id.0);
+    }
+    for child in direct_children(expr) {
+        collect_all_val_uses(child, out);
+    }
+}
+
 /// In Scala's graph, this corresponds to being inside a ThunkDef body. The
 /// ThunkDef's flatSchedule lists inner ThunkDefs before their parent expressions,
 /// which causes the innermost || in a left-associative chain to effectively
@@ -285,9 +508,28 @@ fn emit_deps(
             emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk)
         }
         Expr::If(if_op) => {
+            // Condition is in the main scope — process normally
             emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&if_op.true_branch, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&if_op.false_branch, val_map, emitted, emitted_ids, in_thunk);
+            // If branches are ThunkDef scopes in Scala's graph IR.
+            // ThunkDef.deps (free variables) are ordered by symbol ID,
+            // so we collect all val refs from both branches, sort by ID,
+            // and emit in that order (matching Scala's schedule).
+            let mut branch_val_ids: Vec<u32> = Vec::new();
+            collect_all_val_uses(&if_op.true_branch, &mut branch_val_ids);
+            collect_all_val_uses(&if_op.false_branch, &mut branch_val_ids);
+            branch_val_ids.sort();
+            branch_val_ids.dedup();
+            for id in branch_val_ids {
+                if !emitted_ids.contains(&id) {
+                    if let Some(vd_expr) = val_map.get(&id) {
+                        if let Expr::ValDef(vd) = vd_expr {
+                            emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk);
+                        }
+                        emitted_ids.insert(id);
+                        emitted.push(vd_expr.clone());
+                    }
+                }
+            }
         }
         Expr::Filter(s) => {
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
@@ -389,14 +631,11 @@ fn emit_deps(
         }
         Expr::And(a) => emit_deps(&a.expr.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::Or(o) => emit_deps(&o.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                for item in items {
-                    emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
-                }
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
             }
-            _ => {}
-        },
+        }
         _ => {}
     }
 }
@@ -455,7 +694,6 @@ fn collect_and_assign_ids(
                 Some(did) => did + 1,
                 None => *next_id + 1, // defId = curId = *next_id; varId = defId + 1
             };
-
             // Assign FuncArg IDs starting at func_arg_start
             let mut body_id = func_arg_start;
             for arg in fv.args() {
@@ -580,17 +818,82 @@ fn collect_and_assign_ids(
                 collect_and_assign_ids(a, id_map, next_id, def_id);
             }
         }
+        Expr::Atleast(s) => {
+            collect_and_assign_ids(&s.bound, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.input, id_map, next_id, def_id);
+        }
         Expr::And(a) => collect_and_assign_ids(&a.expr.input, id_map, next_id, def_id),
         Expr::Or(o) => collect_and_assign_ids(&o.expr.input, id_map, next_id, def_id),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                for item in items {
-                    collect_and_assign_ids(item, id_map, next_id, def_id);
-                }
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                collect_and_assign_ids(item, id_map, next_id, def_id);
             }
-            _ => {}
-        },
-        _ => {}
+        }
+        Expr::Collection(_) => {}
+        // Single-input wrappers (non-Spanned)
+        Expr::LongToByteArray(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        Expr::DecodePoint(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        Expr::ExtractBytesWithNoRef(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        Expr::CalcSha256(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        Expr::BitInversion(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        Expr::XorOf(s) => collect_and_assign_ids(&s.input, id_map, next_id, def_id),
+        // Single-input wrappers (Spanned)
+        Expr::ByteArrayToLong(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
+        Expr::ByteArrayToBigInt(s) => {
+            collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id)
+        }
+        // Multi-child nodes (Spanned)
+        Expr::Append(s) => {
+            collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.expr.col_2, id_map, next_id, def_id);
+        }
+        Expr::SubstConstants(s) => {
+            collect_and_assign_ids(&s.expr.script_bytes, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.expr.positions, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.expr.new_values, id_map, next_id, def_id);
+        }
+        // Multi-child nodes (non-Spanned)
+        Expr::Xor(s) => {
+            collect_and_assign_ids(&s.left, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.right, id_map, next_id, def_id);
+        }
+        Expr::CreateProveDhTuple(s) => {
+            collect_and_assign_ids(&s.g, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.h, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.u, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.v, id_map, next_id, def_id);
+        }
+        Expr::CreateAvlTree(s) => {
+            collect_and_assign_ids(&s.flags, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.digest, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.key_length, id_map, next_id, def_id);
+            if let Some(ref vl) = s.value_length {
+                collect_and_assign_ids(vl, id_map, next_id, def_id);
+            }
+        }
+        Expr::MultiplyGroup(s) => {
+            collect_and_assign_ids(&s.left, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.right, id_map, next_id, def_id);
+        }
+        Expr::Exponentiate(s) => {
+            collect_and_assign_ids(&s.left, id_map, next_id, def_id);
+            collect_and_assign_ids(&s.right, id_map, next_id, def_id);
+        }
+        // Optional child only
+        Expr::DeserializeRegister(s) => {
+            if let Some(ref d) = s.default {
+                collect_and_assign_ids(d, id_map, next_id, def_id);
+            }
+        }
+        // True leaves — no child Expr fields
+        Expr::Const(_)
+        | Expr::ConstPlaceholder(_)
+        | Expr::GlobalVars(_)
+        | Expr::ValUse(_)
+        | Expr::Context
+        | Expr::Global
+        | Expr::GetVar(_)
+        | Expr::DeserializeContext(_) => {}
     }
 }
 
@@ -843,8 +1146,6 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         }
     } else {
         // Top-level without lambdas: use graph IR approach (processAstGraph port).
-        // Build a DAG via hash-consing, iterate in DFS schedule order,
-        // extract multi-use nodes as ValDefs.
         process_ast_graph(expr, global_max_id)
     }
 }
@@ -1334,7 +1635,7 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
         }),
         Expr::Collection(c) => match c {
             ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
-                let new_items: Vec<Expr> = items.into_iter().map(|i| f(i)).collect();
+                let new_items: Vec<Expr> = items.into_iter().map(f).collect();
                 Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
                     elem_tpe,
                     items: new_items,
@@ -1499,13 +1800,10 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
         }
         Expr::And(a) => collect_subexprs(&a.expr.input, out),
         Expr::Or(o) => collect_subexprs(&o.expr.input, out),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                for item in items {
-                    collect_subexprs(item, out);
-                }
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                collect_subexprs(item, out);
             }
-            _ => {}
         },
         Expr::FuncValue(_) => {
             // Don't recurse into lambda bodies — handled separately
@@ -1822,10 +2120,9 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Append(s) => vec![&s.expr.input, &s.expr.col_2],
         Expr::And(a) => vec![&a.expr.input],
         Expr::Or(o) => vec![&o.expr.input],
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => items.iter().collect(),
-            _ => vec![],
-        },
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            items.iter().collect()
+        }
         // Leaf nodes — no children
         Expr::Const(_)
         | Expr::ConstPlaceholder(_)
@@ -2253,14 +2550,18 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
             .unwrap_or(0);
         if dag_count >= 2 {
             // In Scala, && and || wrap the right operand in a ThunkDef,
-            // creating a separate hash-consing scope. Expressions on a
-            // local val (ValUse) — PropertyCall or ByIndex — may create
-            // separate graph symbols per ThunkDef if they only appear
-            // inside right arms. Only extract if it also appears in a
-            // left-arm (scope-main) position.
-            let is_valuse_dependent = matches!(node, Expr::PropertyCall(s) if matches!(&*s.expr.obj, Expr::ValUse(_)))
-                || matches!(node, Expr::ByIndex(s) if matches!(&*s.expr.input, Expr::ValUse(_) | Expr::PropertyCall(_)));
-            if is_valuse_dependent && !appears_in_main_scope(&expr, node) {
+            // creating a separate hash-consing scope. Expressions that
+            // only appear inside &&/|| right arms get separate graph
+            // symbols per ThunkDef scope. Only extract if it also appears
+            // in a left-arm (main scope) position.
+            //
+            // This applies to ValUse-dependent expressions (PropertyCall
+            // or ByIndex on a ValUse/PropertyCall) and ByIndex on globals
+            // (e.g., ByIndex(Outputs, 0) used only in && right arms).
+            let needs_scope_check = matches!(node, Expr::PropertyCall(s) if matches!(&*s.expr.obj, Expr::ValUse(_)))
+                || matches!(node, Expr::ByIndex(s) if matches!(&*s.expr.input, Expr::ValUse(_) | Expr::PropertyCall(_) | Expr::GlobalVars(_)))
+                || matches!(node, Expr::Upcast(uc) if matches!(&*uc.input, Expr::ValUse(_) | Expr::Const(_)));
+            if needs_scope_check && !appears_in_main_scope(&expr, node) {
                 continue;
             }
             env.push((node.clone(), next_id));
@@ -2380,6 +2681,14 @@ fn appears_in_main_scope_inner(expr: &Expr, target: &Expr, directly_in_thunk: bo
             appears_in_main_scope_inner(&s.expr.left, target, false)
                 || appears_in_main_scope_inner(&s.expr.right, target, true)
         }
+        // In Scala's graph IR, If branches are ThunkDefs (lazy evaluation).
+        // The condition is eagerly evaluated (main scope), but true/false
+        // branches are separate ThunkDef scopes.
+        Expr::If(if_op) => {
+            appears_in_main_scope_inner(&if_op.condition, target, directly_in_thunk)
+                || appears_in_main_scope_inner(&if_op.true_branch, target, true)
+                || appears_in_main_scope_inner(&if_op.false_branch, target, true)
+        }
         _ => direct_children(expr)
             .into_iter()
             .any(|child| appears_in_main_scope_inner(child, target, directly_in_thunk)),
@@ -2491,11 +2800,8 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         }
         Expr::And(a) => find_max_val_id(&a.expr.input),
         Expr::Or(o) => find_max_val_id(&o.expr.input),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                items.iter().map(find_max_val_id).max().unwrap_or(0)
-            }
-            _ => 0,
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            items.iter().map(find_max_val_id).max().unwrap_or(0)
         },
         _ => 0,
     }
@@ -2617,13 +2923,10 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
         }
         Expr::And(a) => count += count_occurrences(&a.expr.input, target),
         Expr::Or(o) => count += count_occurrences(&o.expr.input, target),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                for item in items {
-                    count += count_occurrences(item, target);
-                }
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                count += count_occurrences(item, target);
             }
-            _ => {}
         },
         Expr::FuncValue(_) => {
             // Don't count inside lambda bodies — they're handled separately
@@ -3667,6 +3970,12 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 .map(Expr::Apply)
                 .expect("Apply::new in rewrite_ids")
         }
+        Expr::Atleast(s) => ergotree_ir::mir::atleast::Atleast::new(
+            rewrite_ids(*s.bound, id_map),
+            rewrite_ids(*s.input, id_map),
+        )
+        .map(Expr::Atleast)
+        .expect("Atleast::new in rewrite_ids"),
         Expr::And(a) => Expr::And(ergotree_ir::source_span::Spanned {
             source_span: a.source_span,
             expr: ergotree_ir::mir::and::And {
@@ -3690,7 +3999,151 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
             }
             other => Expr::Collection(other),
         },
-        // Leaves pass through unchanged
-        other => other,
+        // Single-input wrappers (OneArgOpTryBuild, non-Spanned)
+        Expr::LongToByteArray(s) => {
+            ergotree_ir::mir::long_to_byte_array::LongToByteArray::try_build(rewrite_ids(
+                *s.input, id_map,
+            ))
+            .map(Expr::LongToByteArray)
+            .expect("LongToByteArray in rewrite_ids")
+        }
+        Expr::DecodePoint(s) => {
+            ergotree_ir::mir::decode_point::DecodePoint::try_build(rewrite_ids(*s.input, id_map))
+                .map(Expr::DecodePoint)
+                .expect("DecodePoint in rewrite_ids")
+        }
+        Expr::ExtractBytesWithNoRef(s) => {
+            ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef::try_build(
+                rewrite_ids(*s.input, id_map),
+            )
+            .map(Expr::ExtractBytesWithNoRef)
+            .expect("ExtractBytesWithNoRef in rewrite_ids")
+        }
+        Expr::CalcSha256(s) => {
+            ergotree_ir::mir::calc_sha256::CalcSha256::try_build(rewrite_ids(*s.input, id_map))
+                .map(Expr::CalcSha256)
+                .expect("CalcSha256 in rewrite_ids")
+        }
+        Expr::BitInversion(s) => {
+            ergotree_ir::mir::bit_inversion::BitInversion::try_build(rewrite_ids(*s.input, id_map))
+                .map(Expr::BitInversion)
+                .expect("BitInversion in rewrite_ids")
+        }
+        // XorOf — direct struct literal (no constructor)
+        Expr::XorOf(s) => Expr::XorOf(ergotree_ir::mir::xor_of::XorOf {
+            input: rewrite_ids(*s.input, id_map).into(),
+        }),
+        // Single-input wrappers (OneArgOpTryBuild, Spanned)
+        Expr::ByteArrayToLong(s) => {
+            ergotree_ir::mir::byte_array_to_long::ByteArrayToLong::try_build(rewrite_ids(
+                *s.expr.input,
+                id_map,
+            ))
+            .map(|v| {
+                Expr::ByteArrayToLong(Spanned {
+                    source_span: s.source_span,
+                    expr: v,
+                })
+            })
+            .expect("ByteArrayToLong in rewrite_ids")
+        }
+        Expr::ByteArrayToBigInt(s) => {
+            ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt::try_build(rewrite_ids(
+                *s.expr.input,
+                id_map,
+            ))
+            .map(|v| {
+                Expr::ByteArrayToBigInt(Spanned {
+                    source_span: s.source_span,
+                    expr: v,
+                })
+            })
+            .expect("ByteArrayToBigInt in rewrite_ids")
+        }
+        // Multi-child nodes (Spanned, with constructor)
+        Expr::Append(s) => ergotree_ir::mir::coll_append::Append::new(
+            rewrite_ids(*s.expr.input, id_map),
+            rewrite_ids(*s.expr.col_2, id_map),
+        )
+        .map(|v| {
+            Expr::Append(Spanned {
+                source_span: s.source_span,
+                expr: v,
+            })
+        })
+        .expect("Append in rewrite_ids"),
+        Expr::SubstConstants(s) => ergotree_ir::mir::subst_const::SubstConstants::new(
+            rewrite_ids(*s.expr.script_bytes, id_map),
+            rewrite_ids(*s.expr.positions, id_map),
+            rewrite_ids(*s.expr.new_values, id_map),
+        )
+        .map(|v| {
+            Expr::SubstConstants(Spanned {
+                source_span: s.source_span,
+                expr: v,
+            })
+        })
+        .expect("SubstConstants in rewrite_ids"),
+        // Multi-child nodes (non-Spanned, with constructor)
+        Expr::Xor(s) => ergotree_ir::mir::xor::Xor::new(
+            rewrite_ids(*s.left, id_map),
+            rewrite_ids(*s.right, id_map),
+        )
+        .map(Expr::Xor)
+        .expect("Xor in rewrite_ids"),
+        Expr::CreateProveDhTuple(s) => {
+            ergotree_ir::mir::create_prove_dh_tuple::CreateProveDhTuple::new(
+                rewrite_ids(*s.g, id_map),
+                rewrite_ids(*s.h, id_map),
+                rewrite_ids(*s.u, id_map),
+                rewrite_ids(*s.v, id_map),
+            )
+            .map(Expr::CreateProveDhTuple)
+            .expect("CreateProveDhTuple in rewrite_ids")
+        }
+        Expr::CreateAvlTree(s) => ergotree_ir::mir::create_avl_tree::CreateAvlTree::new(
+            rewrite_ids(*s.flags, id_map),
+            rewrite_ids(*s.digest, id_map),
+            rewrite_ids(*s.key_length, id_map),
+            s.value_length.map(|vl| Box::new(rewrite_ids(*vl, id_map))),
+        )
+        .map(Expr::CreateAvlTree)
+        .expect("CreateAvlTree in rewrite_ids"),
+        Expr::MultiplyGroup(s) => ergotree_ir::mir::multiply_group::MultiplyGroup::new(
+            rewrite_ids(*s.left, id_map),
+            rewrite_ids(*s.right, id_map),
+        )
+        .map(Expr::MultiplyGroup)
+        .expect("MultiplyGroup in rewrite_ids"),
+        Expr::Exponentiate(s) => ergotree_ir::mir::exponentiate::Exponentiate::new(
+            rewrite_ids(*s.left, id_map),
+            rewrite_ids(*s.right, id_map),
+        )
+        .map(Expr::Exponentiate)
+        .expect("Exponentiate in rewrite_ids"),
+        // Downcast — same pattern as Upcast
+        Expr::Downcast(dc) => Expr::Downcast(ergotree_ir::mir::downcast::Downcast {
+            input: rewrite_ids(*dc.input, id_map).into(),
+            tpe: dc.tpe,
+        }),
+        // Optional child only (direct struct literal)
+        Expr::DeserializeRegister(s) => {
+            let new_default = s.default.map(|d| Box::new(rewrite_ids(*d, id_map)));
+            Expr::DeserializeRegister(
+                ergotree_ir::mir::deserialize_register::DeserializeRegister {
+                    reg: s.reg,
+                    tpe: s.tpe,
+                    default: new_default,
+                },
+            )
+        }
+        // True leaves — no child Expr fields, pass through unchanged
+        Expr::Const(_)
+        | Expr::ConstPlaceholder(_)
+        | Expr::GlobalVars(_)
+        | Expr::Context
+        | Expr::Global
+        | Expr::GetVar(_)
+        | Expr::DeserializeContext(_) => expr,
     }
 }

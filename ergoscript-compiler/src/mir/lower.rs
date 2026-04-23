@@ -55,10 +55,12 @@ use ergotree_ir::mir::val_def::ValId;
 use ergotree_ir::mir::val_use::ValUse;
 use ergotree_ir::mir::xor::Xor;
 use ergotree_ir::mir::xor_of::XorOf;
+use ergotree_ir::source_span::Spanned;
 use ergotree_ir::types::stuple::STuple;
 use ergotree_ir::types::stype::SType;
 use hir::BinaryOp;
 use rowan::TextRange;
+use std::collections::HashMap;
 
 use crate::error::pretty_error_desc;
 use crate::hir;
@@ -76,6 +78,46 @@ impl MirLoweringError {
 
     pub fn pretty_desc(&self, source: &str) -> String {
         pretty_error_desc(source, self.span, &self.msg)
+    }
+}
+
+/// Numeric type promotion rank: higher number = wider type.
+/// Returns None for non-numeric types.
+fn numeric_rank(tpe: &SType) -> Option<u8> {
+    match tpe {
+        SType::SByte => Some(1),
+        SType::SShort => Some(2),
+        SType::SInt => Some(3),
+        SType::SLong => Some(4),
+        SType::SBigInt => Some(5),
+        _ => None,
+    }
+}
+
+/// If one operand is BigInt and the other is a smaller numeric type,
+/// upcast the smaller one to BigInt. This matches the Scala ErgoScript
+/// compiler's implicit numeric promotion for BigInt arithmetic
+/// (e.g., Long * BigInt → Upcast(Long, SBigInt) * BigInt).
+///
+/// Only applies to BigInt; Scala does NOT auto-upcast Int→Long etc.
+fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
+    let lt = l.tpe();
+    let rt = r.tpe();
+    if lt == rt {
+        return (l, r);
+    }
+    match (&lt, &rt) {
+        (SType::SBigInt, _) if numeric_rank(&rt).is_some() && rt != SType::SBigInt => {
+            // Right is narrower than BigInt — upcast to BigInt
+            let upcast = Upcast::new(r, SType::SBigInt).expect("numeric upcast right to BigInt");
+            (l, upcast.into())
+        }
+        (_, SType::SBigInt) if numeric_rank(&lt).is_some() && lt != SType::SBigInt => {
+            // Left is narrower than BigInt — upcast to BigInt
+            let upcast = Upcast::new(l, SType::SBigInt).expect("numeric upcast left to BigInt");
+            (upcast.into(), r)
+        }
+        _ => (l, r),
     }
 }
 
@@ -128,6 +170,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 }
             }
             {
+                // Auto-upcast: when mixing numeric types in arithmetic/comparison,
+                // upcast the narrower operand to match the wider one.
+                // This matches the Scala ErgoScript compiler's implicit conversions.
+                let (l, r) = numeric_upcast_pair(l, r);
                 BinOp {
                     kind: hir.op.node.clone().into(),
                     left: l.into(),
@@ -191,10 +237,16 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        BoolToSigmaProp {
-                            input: input.into(),
+                        // If the input is already SSigmaProp, sigmaProp is
+                        // a no-op (Scala compiler elides it).
+                        if input.tpe() == SType::SSigmaProp {
+                            input
+                        } else {
+                            BoolToSigmaProp {
+                                input: input.into(),
+                            }
+                            .into()
                         }
-                        .into()
                     }
                     "blake2b256" => {
                         let input = args.into_iter().next().ok_or_else(|| {
@@ -855,10 +907,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         use ergotree_ir::bigint256::BigInt256;
                         let folded: Option<BigInt256> = match &c.v {
                             ergotree_ir::mir::constant::Literal::Int(v) => {
-                                BigInt256::try_from(*v as i64).ok()
+                                Some(BigInt256::from(*v as i64))
                             }
                             ergotree_ir::mir::constant::Literal::Long(v) => {
-                                BigInt256::try_from(*v).ok()
+                                Some(BigInt256::from(*v))
                             }
                             _ => None,
                         };
@@ -978,6 +1030,15 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     } else if mir.tpe() == SType::SSigmaProp && hir_tpe == SType::SBoolean {
         // Auto-promotion: &&/|| with a SigmaProp operand produces SigmaProp in MIR
         // even though HIR typed it as SBoolean. This is expected.
+        Ok(mir)
+    } else if mir.tpe() == SType::SBigInt
+        && numeric_rank(&hir_tpe).is_some()
+        && hir_tpe != SType::SBigInt
+    {
+        // BigInt result assigned to a narrower type (e.g., val x: Long = bigIntExpr).
+        // The Scala node's REST API handles this implicitly. We accept BigInt as-is
+        // since the ErgoTree interpreter will handle the actual truncation at runtime.
+        // Don't insert a Downcast — the node doesn't either.
         Ok(mir)
     } else {
         Err(MirLoweringError::new(
@@ -1271,6 +1332,355 @@ fn replace_val_uses(
         }
         // Leaf nodes or nodes that don't contain our ValUse refs
         other => Ok(other),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Type propagation pass
+// ---------------------------------------------------------------------------
+//
+// After MIR lowering, val annotations may disagree with the actual RHS type.
+// For example, `val x: Long = BigInt_expr` produces a ValUse(x, Long) but the
+// RHS is BigInt. Downstream `x * y` is then Long*Long (no upcast) instead of
+// BigInt*Long (with upcast). The Scala compiler computes types from the graph
+// IR, so the annotation is ignored.
+//
+// This pass walks the MIR tree, collects actual ValDef RHS types, updates
+// ValUse types, and re-applies numeric_upcast_pair on BinOps.
+
+/// Propagate actual types from ValDef RHS expressions to ValUse references.
+pub fn propagate_val_types(expr: Expr) -> Expr {
+    let mut type_map: HashMap<ValId, SType> = HashMap::new();
+    propagate_inner(expr, &mut type_map)
+}
+
+fn propagate_inner(expr: Expr, type_map: &mut HashMap<ValId, SType>) -> Expr {
+    match expr {
+        Expr::BlockValue(s) => {
+            let inner = s.expr;
+            // Process items sequentially so each ValDef's type is available
+            // for subsequent items.
+            let new_items: Vec<Expr> = inner
+                .items
+                .into_iter()
+                .map(|item| {
+                    let item = propagate_inner(item, type_map);
+                    // Record actual RHS type for this ValDef
+                    if let Expr::ValDef(ref vd_s) = item {
+                        let rhs_tpe = vd_s.expr.rhs.tpe();
+                        type_map.insert(vd_s.expr.id, rhs_tpe);
+                    }
+                    item
+                })
+                .collect();
+            let new_result = propagate_inner(*inner.result, type_map);
+            Expr::BlockValue(Spanned {
+                source_span: s.source_span,
+                expr: BlockValue {
+                    items: new_items,
+                    result: new_result.into(),
+                },
+            })
+        }
+        Expr::ValDef(s) => {
+            let new_rhs = propagate_inner(*s.expr.rhs, type_map);
+            Expr::ValDef(Spanned {
+                source_span: s.source_span,
+                expr: ValDef {
+                    id: s.expr.id,
+                    rhs: new_rhs.into(),
+                },
+            })
+        }
+        Expr::ValUse(vu) => {
+            if let Some(actual_tpe) = type_map.get(&vu.val_id) {
+                if *actual_tpe != vu.tpe {
+                    return Expr::ValUse(ValUse {
+                        val_id: vu.val_id,
+                        tpe: actual_tpe.clone(),
+                    });
+                }
+            }
+            Expr::ValUse(vu)
+        }
+        Expr::BinOp(s) => {
+            let inner = s.expr;
+            let new_left = propagate_inner(*inner.left, type_map);
+            let new_right = propagate_inner(*inner.right, type_map);
+            // Re-apply numeric upcast after type propagation
+            let (new_left, new_right) = numeric_upcast_pair(new_left, new_right);
+            Expr::BinOp(Spanned {
+                source_span: s.source_span,
+                expr: BinOp {
+                    kind: inner.kind,
+                    left: new_left.into(),
+                    right: new_right.into(),
+                },
+            })
+        }
+        Expr::Upcast(uc) => {
+            let new_input = propagate_inner(*uc.input, type_map);
+            // Remove redundant upcasts (e.g., BigInt → BigInt after propagation)
+            if new_input.tpe() == uc.tpe {
+                return new_input;
+            }
+            Expr::Upcast(Upcast {
+                input: new_input.into(),
+                tpe: uc.tpe,
+            })
+        }
+        Expr::If(if_op) => Expr::If(If {
+            condition: propagate_inner(*if_op.condition, type_map).into(),
+            true_branch: propagate_inner(*if_op.true_branch, type_map).into(),
+            false_branch: propagate_inner(*if_op.false_branch, type_map).into(),
+        }),
+        Expr::BoolToSigmaProp(bts) => Expr::BoolToSigmaProp(BoolToSigmaProp {
+            input: propagate_inner(*bts.input, type_map).into(),
+        }),
+        Expr::FuncValue(fv) => {
+            let new_body = propagate_inner(fv.body().clone(), type_map);
+            Expr::FuncValue(FuncValue::new(fv.args().to_vec(), new_body))
+        }
+        Expr::Filter(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let cond = propagate_inner(*s.expr.condition, type_map);
+            Expr::Filter(Spanned {
+                source_span: s.source_span,
+                expr: Filter::new(input, cond).expect("Filter in propagate"),
+            })
+        }
+        Expr::Exists(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let cond = propagate_inner(*s.expr.condition, type_map);
+            Expr::Exists(Spanned {
+                source_span: s.source_span,
+                expr: Exists::new(input, cond).expect("Exists in propagate"),
+            })
+        }
+        Expr::ForAll(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let cond = propagate_inner(*s.expr.condition, type_map);
+            Expr::ForAll(Spanned {
+                source_span: s.source_span,
+                expr: ForAll::new(input, cond).expect("ForAll in propagate"),
+            })
+        }
+        Expr::Map(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let mapper = propagate_inner(*s.expr.mapper, type_map);
+            Expr::Map(Spanned {
+                source_span: s.source_span,
+                expr: Map::new(input, mapper).expect("Map in propagate"),
+            })
+        }
+        Expr::Fold(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let zero = propagate_inner(*s.expr.zero, type_map);
+            let fold_op = propagate_inner(*s.expr.fold_op, type_map);
+            Expr::Fold(Spanned {
+                source_span: s.source_span,
+                expr: Fold::new(input, zero, fold_op).expect("Fold in propagate"),
+            })
+        }
+        Expr::ExtractAmount(ea) => Expr::ExtractAmount(ExtractAmount {
+            input: propagate_inner(*ea.input, type_map).into(),
+        }),
+        Expr::ExtractScriptBytes(esb) => Expr::ExtractScriptBytes(ExtractScriptBytes {
+            input: propagate_inner(*esb.input, type_map).into(),
+        }),
+        Expr::ExtractBytes(eb) => Expr::ExtractBytes(ExtractBytes {
+            input: propagate_inner(*eb.input, type_map).into(),
+        }),
+        Expr::ExtractId(ei) => Expr::ExtractId(ExtractId {
+            input: propagate_inner(*ei.input, type_map).into(),
+        }),
+        Expr::ExtractCreationInfo(eci) => Expr::ExtractCreationInfo(ExtractCreationInfo {
+            input: propagate_inner(*eci.input, type_map).into(),
+        }),
+        Expr::ExtractRegisterAs(s) => Expr::ExtractRegisterAs(Spanned {
+            source_span: s.source_span,
+            expr: ExtractRegisterAs::new(
+                propagate_inner(*s.expr.input, type_map),
+                s.expr.register_id,
+                SType::SOption(s.expr.elem_tpe.clone()),
+            )
+            .expect("ExtractRegisterAs in propagate"),
+        }),
+        Expr::SizeOf(so) => Expr::SizeOf(SizeOf {
+            input: propagate_inner(*so.input, type_map).into(),
+        }),
+        Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
+            source_span: s.source_span,
+            expr: PropertyCall::new(propagate_inner(*s.expr.obj, type_map), s.expr.method)
+                .expect("PropertyCall in propagate"),
+        }),
+        Expr::MethodCall(s) => {
+            let obj = propagate_inner(*s.expr.obj, type_map);
+            let args: Vec<Expr> = s
+                .expr
+                .args
+                .into_iter()
+                .map(|a| propagate_inner(a, type_map))
+                .collect();
+            Expr::MethodCall(Spanned {
+                source_span: s.source_span,
+                expr: MethodCall::new(obj, s.expr.method, args).expect("MethodCall in propagate"),
+            })
+        }
+        Expr::ByIndex(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            let index = propagate_inner(*s.expr.index, type_map);
+            let default = s
+                .expr
+                .default
+                .map(|d| Box::new(propagate_inner(*d, type_map)));
+            Expr::ByIndex(Spanned {
+                source_span: s.source_span,
+                expr: ByIndex::new(input, index, default).expect("ByIndex in propagate"),
+            })
+        }
+        Expr::SelectField(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            Expr::SelectField(Spanned {
+                source_span: s.source_span,
+                expr: SelectField::new(input, s.expr.field_index)
+                    .expect("SelectField in propagate"),
+            })
+        }
+        Expr::OptionGet(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            Expr::OptionGet(Spanned {
+                source_span: s.source_span,
+                expr: OptionGet::try_build(input).expect("OptionGet in propagate"),
+            })
+        }
+        Expr::OptionIsDefined(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            Expr::OptionIsDefined(Spanned {
+                source_span: s.source_span,
+                expr: OptionIsDefined::try_build(input).expect("OptionIsDefined in propagate"),
+            })
+        }
+        Expr::LogicalNot(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            Expr::LogicalNot(Spanned {
+                source_span: s.source_span,
+                expr: LogicalNot::try_build(input).expect("LogicalNot in propagate"),
+            })
+        }
+        Expr::Negation(s) => {
+            let input = propagate_inner(*s.expr.input, type_map);
+            Expr::Negation(Spanned {
+                source_span: s.source_span,
+                expr: Negation::try_build(input).expect("Negation in propagate"),
+            })
+        }
+        Expr::SigmaPropBytes(spb) => Expr::SigmaPropBytes(SigmaPropBytes {
+            input: propagate_inner(*spb.input, type_map).into(),
+        }),
+        Expr::CalcBlake2b256(cb) => Expr::CalcBlake2b256(CalcBlake2b256 {
+            input: propagate_inner(*cb.input, type_map).into(),
+        }),
+        Expr::SigmaAnd(sa) => {
+            let items: Vec<Expr> = sa
+                .items
+                .into_iter()
+                .map(|i| propagate_inner(i, type_map))
+                .collect();
+            Expr::SigmaAnd(SigmaAnd {
+                items: items.try_into().expect("SigmaAnd in propagate"),
+            })
+        }
+        Expr::SigmaOr(so) => {
+            let items: Vec<Expr> = so
+                .items
+                .into_iter()
+                .map(|i| propagate_inner(i, type_map))
+                .collect();
+            Expr::SigmaOr(SigmaOr {
+                items: items.try_into().expect("SigmaOr in propagate"),
+            })
+        }
+        Expr::Tuple(t) => {
+            let items: Vec<Expr> = t
+                .items
+                .into_iter()
+                .map(|i| propagate_inner(i, type_map))
+                .collect();
+            Expr::Tuple(Tuple::new(items).expect("Tuple in propagate"))
+        }
+        Expr::Collection(c) => match c {
+            Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items
+                    .into_iter()
+                    .map(|i| propagate_inner(i, type_map))
+                    .collect();
+                Expr::Collection(Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
+        Expr::And(a) => Expr::And(Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: propagate_inner(*a.expr.input, type_map).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: propagate_inner(*o.expr.input, type_map).into(),
+            },
+        }),
+        Expr::Downcast(dc) => {
+            let input = propagate_inner(*dc.input, type_map);
+            Expr::Downcast(Downcast::new(input, dc.tpe).expect("Downcast in propagate"))
+        }
+        Expr::Slice(s) => Expr::Slice(Spanned {
+            source_span: s.source_span,
+            expr: Slice::new(
+                propagate_inner(*s.expr.input, type_map),
+                propagate_inner(*s.expr.from, type_map),
+                propagate_inner(*s.expr.until, type_map),
+            )
+            .expect("Slice in propagate"),
+        }),
+        Expr::TreeLookup(s) => Expr::TreeLookup(Spanned {
+            source_span: s.source_span,
+            expr: TreeLookup {
+                tree: propagate_inner(*s.expr.tree, type_map).into(),
+                key: propagate_inner(*s.expr.key, type_map).into(),
+                proof: propagate_inner(*s.expr.proof, type_map).into(),
+            },
+        }),
+        Expr::CreateProveDlog(cpd) => Expr::CreateProveDlog(CreateProveDlog {
+            input: propagate_inner(*cpd.input, type_map).into(),
+        }),
+        Expr::LongToByteArray(ltba) => Expr::LongToByteArray(LongToByteArray {
+            input: propagate_inner(*ltba.input, type_map).into(),
+        }),
+        Expr::Apply(app) => {
+            let func = propagate_inner(*app.func, type_map);
+            let args: Vec<Expr> = app
+                .args
+                .into_iter()
+                .map(|a| propagate_inner(a, type_map))
+                .collect();
+            ergotree_ir::mir::apply::Apply::new(func, args)
+                .map(Expr::Apply)
+                .expect("Apply in propagate")
+        }
+        Expr::Atleast(s) => {
+            let bound = propagate_inner(*s.bound, type_map);
+            let input = propagate_inner(*s.input, type_map);
+            ergotree_ir::mir::atleast::Atleast::new(bound, input)
+                .map(Expr::Atleast)
+                .expect("Atleast in propagate")
+        }
+        // Leaf nodes: Const, GlobalVars, Context, GetVar, etc.
+        other => other,
     }
 }
 

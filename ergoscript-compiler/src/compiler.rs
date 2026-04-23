@@ -79,6 +79,7 @@ fn compile_from_hir(
             let typed = assign_type(bind)?;
             let optimized = hir::optimize::optimize(typed);
             let mir = mir::lower::lower(optimized)?;
+            let mir = mir::lower::propagate_val_types(mir);
             let cse_mir = mir::cse::apply_cse(mir);
             let res = ergotree_ir::type_check::type_check(cse_mir)?;
             Ok(res)
