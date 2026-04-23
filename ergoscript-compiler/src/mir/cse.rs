@@ -1804,7 +1804,7 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
             for item in items {
                 collect_subexprs(item, out);
             }
-        },
+        }
         Expr::FuncValue(_) => {
             // Don't recurse into lambda bodies — handled separately
         }
@@ -2802,7 +2802,7 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         Expr::Or(o) => find_max_val_id(&o.expr.input),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             items.iter().map(find_max_val_id).max().unwrap_or(0)
-        },
+        }
         _ => 0,
     }
 }
@@ -2927,7 +2927,7 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
             for item in items {
                 count += count_occurrences(item, target);
             }
-        },
+        }
         Expr::FuncValue(_) => {
             // Don't count inside lambda bodies — they're handled separately
         }
