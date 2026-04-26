@@ -89,7 +89,7 @@ fn assign_type_with_scope(
             let tpe = match &typed_func.kind {
                 ExprKind::Ident(name) => match name.as_str() {
                     "sigmaProp" => Some(SType::SSigmaProp),
-                    "fromBase16" => Some(SType::SColl(SType::SByte.into())),
+                    "fromBase16" | "fromBase58" => Some(SType::SColl(SType::SByte.into())),
                     "blake2b256" => Some(SType::SColl(SType::SByte.into())),
                     "proveDlog" => Some(SType::SSigmaProp),
                     "atLeast" => Some(SType::SSigmaProp),
@@ -148,7 +148,9 @@ fn assign_type_with_scope(
                                 _ => None,
                             },
                             Some(SType::SColl(elem_tpe)) => match fa.field.as_str() {
-                                "filter" | "slice" => Some(SType::SColl(elem_tpe.clone())),
+                                "filter" | "slice" | "append" => {
+                                    Some(SType::SColl(elem_tpe.clone()))
+                                }
                                 "exists" | "forall" => Some(SType::SBoolean),
                                 "getOrElse" => Some(elem_tpe.as_ref().clone()),
                                 "fold" => {
@@ -161,6 +163,16 @@ fn assign_type_with_scope(
                                             Some(SType::SColl(Arc::from(
                                                 sf.t_range.as_ref().clone(),
                                             )))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                }),
+                                "flatMap" => typed_args.first().and_then(|arg| {
+                                    // flatMap: (A => Coll[B]) — return type is the mapper's return type directly
+                                    arg.tpe.as_ref().and_then(|t| {
+                                        if let SType::SFunc(sf) = t {
+                                            Some(sf.t_range.as_ref().clone())
                                         } else {
                                             None
                                         }
@@ -330,6 +342,10 @@ fn assign_type_with_scope(
                     "toLong" => Some(SType::SLong),
                     "toInt" => Some(SType::SInt),
                     "toBigInt" => Some(SType::SBigInt),
+                    _ => None,
+                },
+                Some(SType::SBigInt) => match fa.field.as_str() {
+                    "toBigInt" => Some(SType::SBigInt), // no-op identity
                     _ => None,
                 },
                 _ => None,

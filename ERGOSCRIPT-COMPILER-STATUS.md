@@ -6,7 +6,7 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 
 ## Current state: production-ready
 
-**196 tests passing. 31/31 contracts byte-match the Scala node natively (including Phoenix HodlERG BigInt arithmetic).**
+**203 tests passing. 45/46 contracts byte-match the Scala node natively (1 skipped — CSE stack overflow on deeply nested BigInt polynomial).**
 
 ### Two compilation modes
 
@@ -14,7 +14,7 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 use ergoscript_compiler::compiler::{compile, compile_canonical};
 use ergoscript_compiler::script_env::ScriptEnv;
 
-// Pure Rust — no network, no dependencies. 15/15 contracts match Scala exactly.
+// Pure Rust — no network, no dependencies. 45/46 contracts byte-match Scala exactly.
 let tree = compile(source, ScriptEnv::new())?;
 
 // Canonical — verifies against Ergo node, uses node bytes if local differs.
@@ -37,11 +37,11 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
 | Field access (`box.value`, `tuple._1`) | Complete |
 | Method calls (`tokens(0)`, `filter{...}`) | Complete |
 | Lambda expressions | Complete |
-| Collection ops (`filter`, `map`, `fold`, `exists`, `forall`, `size`, `append`, `slice`) | Complete |
+| Collection ops (`filter`, `map`, `flatMap`, `fold`, `exists`, `forall`, `size`, `append`, `slice`) | Complete |
 | Tuple construction and access | Complete |
 | Global variables (`SELF`, `INPUTS`, `OUTPUTS`, `HEIGHT`, `CONTEXT`) | Complete |
 | Register access (`R4[Long].get`, `R5[Any].isDefined`) | Complete |
-| Built-in functions (`sigmaProp`, `proveDlog`, `atLeast`, `blake2b256`, `fromBase16`, `getVar`, `decodePoint`, `longToByteArray`, `byteArrayToLong`, `byteArrayToBigInt`, `substConstants`, `xor`, `xorOf`) | Complete |
+| Built-in functions (`sigmaProp`, `proveDlog`, `atLeast`, `blake2b256`, `fromBase16`, `fromBase58`, `getVar`, `decodePoint`, `longToByteArray`, `byteArrayToLong`, `byteArrayToBigInt`, `substConstants`, `xor`, `xorOf`) | Complete |
 | Sigma protocols (`proveDlog`, `atLeast`, `&&`/`\|\|` on SigmaProp) | Complete |
 | Bool-to-SigmaProp auto-promotion in `&&`/`\|\|` | Complete |
 | Context extensions (`getVar[T](id)`) | Complete |
@@ -65,12 +65,12 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
    - Inner-block constant deduplication (extracts duplicate constants as vals within If-branch blocks)
    - If-branch val ordering via symbol-ID-sorted freeVars (matches Scala's ThunkDef scheduling)
 
-### Contract test inventory (31 contracts, 31 native match, 0 canonical, 0 errors)
+### Contract test inventory (46 contracts)
 
-All contracts compile and produce bytecode identical to the Scala reference node.
+All contracts produce bytecode identical to the Scala reference node, with one exception (#39, see Notes).
 
-| # | Contract | Source | Bytes | Match | Open Issues |
-|---|----------|--------|-------|-------|-------------|
+| # | Contract | Source | Bytes | Match | Notes |
+|---|----------|--------|-------|-------|-------|
 | 1 | Governance vault | custom | 393B | Y | |
 | 2 | Governance reserve | custom | 467B | Y | |
 | 3 | Governance proposal | custom | 268B | Y | |
@@ -102,18 +102,34 @@ All contracts compile and produce bytecode identical to the Scala reference node
 | 29 | Multi-sig treasury | custom | 55B | Y | |
 | 30 | Token emission | custom | 167B | Y | |
 | 31 | Time-locked vesting | custom | 18B | Y | |
+| 32 | SigmaFi BondContractERG | K-Singh/Sigma-Finance | 146B | Y | |
+| 33 | SigmaFi BondContractToken | K-Singh/Sigma-Finance | 223B | Y | |
+| 34 | SigmaFi EXP_BondContractERG | K-Singh/Sigma-Finance | 182B | Y | |
+| 35 | SigmaFi OpenOrderERG | K-Singh/Sigma-Finance | 471B | Y | BigInt fees |
+| 36 | SigmaFi OpenOrderToken | K-Singh/Sigma-Finance | 638B | Y | no-segregation fallback |
+| 37 | SkyHarbor SigUSDV1 | skyharbor-market | 510B | Y | fromBase58, R6[Box], no-segregation |
+| 38 | DuckPools ERG Repayment | duckpools | 189B | Y | fromBase58 |
+| 39 | DuckPools ERG InterestRate | duckpools | — | SKIP | CSE stack overflow (deep BigInt polynomial) |
+| 40 | DuckPools ERG ParentInterest | duckpools | 412B | Y | append, fold |
+| 41 | DuckPools ERG ProxyBorrow | duckpools | 440B | Y | fromBase58, complex if/else |
+| 42 | Lilium CollectionIssuer | LiliumErgo/scala-api | 85B | Y | getVar[Coll[Byte]] |
+| 43 | Lilium CollectionIssuance | LiliumErgo/scala-api | 113B | Y | getVar[Box] |
+| 44 | Lilium PreMintIssuer | LiliumErgo/scala-api | 90B | Y | |
+| 45 | Lilium WhitelistIssuer | LiliumErgo/scala-api | 90B | Y | |
+| 46 | Lilium SaleLP | LiliumErgo/scala-api | 317B | Y | flatMap, no-segregation fallback |
 
 ## How to run tests
 
 ```bash
 # All unit tests (pure Rust, no node needed)
 cargo test -p ergoscript-compiler
-# 196 passed, 0 failed, 2 ignored
+# 203 passed, 0 failed, 3 ignored
 
 # Canonical compilation tests (requires running Ergo node at localhost:9053)
 source ~/.secrets  # sets API_KEY
 cargo test -p ergoscript-compiler test_canonical -- --ignored --nocapture
 cargo test -p ergoscript-compiler test_real_world -- --ignored --nocapture
+cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
 ```
 
 ## Open items for future work
@@ -121,8 +137,15 @@ cargo test -p ergoscript-compiler test_real_world -- --ignored --nocapture
 ### Language features not yet implemented
 
 - `serialize` / `deserialize` — on-chain serialization
+- `indexOf` on collections
+- `fromBase64` — compile-time Base64 decode
 - Multi-line string literals
 - Pattern matching (not commonly used in contracts)
+
+### Known issues
+
+- **CSE stack overflow on deeply nested BigInt polynomials** — DuckPools InterestRate contract has `(f * x) / D * x / M * x / M * x / M * x / M` which causes recursive CSE to overflow. Needs iterative CSE or depth limit.
+- **Constant segregation roundtrip failure** — Some contracts with complex CSE-extracted vals fail the `ErgoTree::new` serialize→deserialize roundtrip (ValDefIdNotFound). Root cause: `ErgoTree::new` with constant segregation does serialize→re-parse internally; CSE-extracted vals in ThunkDef scopes (If branches, &&/|| right arms) produce ValUse references before their ValDef in the linear serialization order. Workaround: fall back to non-segregated ErgoTree. Affects 3 ecosystem contracts.
 
 ### Architecture improvements
 

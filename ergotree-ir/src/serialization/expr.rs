@@ -1,6 +1,7 @@
 use super::bin_op::bin_op_sigma_parse;
 use super::bin_op::bin_op_sigma_serialize;
 use super::{op_code::OpCode, sigma_byte_writer::SigmaByteWrite};
+use crate::ergo_tree::ErgoTreeVersion;
 use crate::has_opcode::HasOpCode;
 use crate::has_opcode::HasStaticOpCode;
 use crate::mir::and::And;
@@ -214,6 +215,25 @@ impl<T: SigmaSerializable + HasOpCode> SigmaSerializableWithOpCode for T {}
 
 impl SigmaSerializable for Expr {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        // S58 (mirror of sigma.serialization.ValueSerializer.serializable() combined with
+        // the `case c: Constant =>` arm of ValueSerializer.serialize): for pre-v3 trees,
+        // strip Upcast(_, _) when the inner expression is a Constant — emit the bare
+        // constant placeholder bytes instead of wrapping in an Upcast op. Strip is
+        // Constant-only: Upcasts wrapping ValUse / MethodCall / etc. fall through to the
+        // generic arm and keep their wrapper. The wider arith/comparison shape is restored
+        // on parse by bin_op_sigma_parse re-inserting Upcast at use sites.
+        // See SESSION-57-HANDOFF.md §1-2 and the doc comment in cse.rs.
+        if w.tree_version() < ErgoTreeVersion::V3 {
+            if let Expr::Upcast(op) = self {
+                if let Expr::Const(c) = op.input.as_ref() {
+                    if let Some(cs) = w.constant_store_mut_ref() {
+                        let ph = cs.put(c.clone());
+                        ph.op_code().sigma_serialize(w)?;
+                        return ph.sigma_serialize(w);
+                    }
+                }
+            }
+        }
         match self {
             Expr::Const(c) => match w.constant_store_mut_ref() {
                 Some(cs) => {

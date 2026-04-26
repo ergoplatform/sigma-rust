@@ -174,6 +174,84 @@ curl -s "http://localhost:9053/script/addressToTree/$ADDR" -H "api_key: $API_KEY
 | 15 | Multi-pass inlining + RHS dedup + catch-all audit | DONE | 30/31 total byte-match (196 tests) |
 | 16 | Crystal Pool ThunkDef scope + Phoenix BigInt auto-upcast | DONE | 31/31 total byte-match (196 tests) |
 | 17 | Phoenix HodlERG BigInt type propagation + CSE parity | DONE | 31/31 native byte-match, 0 canonical (196 tests) |
+| 18 | Ecosystem corpus + fromBase58 + append + flatMap | DONE | 31/31 core match, 14/15 ecosystem compile, 3/14 match (198 tests) |
+
+### Session 20 handoff: ecosystem byte-match progress
+
+**Result:** BondContractERG now matches (4 ecosystem LOCAL MATCH, up from 3). 198 core tests pass.
+
+**What was done:**
+
+1. **DFS val ID reassignment (`dfs_reassign_val_ids` in cse.rs):** New pass added between `deduplicate_inner_consts` and `reorder_valdefs` in the `apply_cse` pipeline. Walks the result expression in DFS order, collects val IDs in encounter order, and reassigns them so that `reorder_valdefs`' sort-by-ID produces the same ordering as Scala's graph schedule. Uses iterative DFS to avoid stack overflow. Only applies to the top-level BlockValue (inner blocks handled by `reorder_valdefs` independently).
+
+2. **Attempted but reverted:**
+   - Removing PropertyCall(ValUse) from scope check → broke dexy-style LP (147 vs 146B)
+   - Changing `is_graph_shared` to use `is_input_stable` for box accessors (ExtractAmount etc.) → broke Oracle Pool v2 (over-extraction)
+   - Disabling HIR `inline_single_use_vals` entirely → stack overflow on large contracts
+   - HIR `has_shared_field_access` check → also broke dexy-style LP
+
+**Root cause analysis for remaining 10 contracts:**
+
+The remaining contracts share a common blocker: **HIR val inlining vs CSE scope interaction**. Our HIR optimizer (`optimize.rs:inline_single_use_vals`) inlines single-use vals before CSE runs. Scala's graph IR processes ALL user vals as graph nodes first, counts usages on the pre-inline DAG, then inlines during tree reconstruction. This means:
+
+- **DuckPools Repayment (1B):** Node extracts `initalPool.tokens` (PropertyCall on val-bound box). In Scala, it appears in two ValDef RHSes (main scope) → DAG count 2 → extracted. After our HIR inlining, both vals are inlined into the `&&` chain (thunk positions) → scope check blocks extraction.
+
+- **EXP_BondContractERG (same size 182B, different bytes):** Node has 10 vals, we have 8. Extra 2 are `repaymentBox.propositionBytes` and `repaymentBox.value`. Same pattern — user vals containing these subexpressions get inlined, moving the subexpressions into thunk positions.
+
+- **Lilium CollectionIssuance (110 vs 113B):** Node has 3 vals, we have 2. Extra 1 is `SigmaPropBytes(ValUse(txOperatorPK))`. Similar CSE extraction gap.
+
+- **Larger contracts (BondContractToken, DuckPools ParentInterest/ProxyBorrow, OpenOrder*):** Combinations of the above issues plus no-segregation fallbacks.
+
+**Key discriminator found but not yet exploitable:**
+- DuckPools' `initalPool.tokens` SHOULD be extracted (Scala does). Both occurrences were in main-scope ValDef RHSes before HIR inlining moved them to thunks.
+- dexy-style LP's `out.tokens` should NOT be extracted (Scala doesn't). Even though both occurrences were also in main-scope ValDef RHSes before HIR inlining.
+- The difference is unclear — may be related to Scala's ThunkDef-scoped hash-consing or the ByIndex input type (constant vs runtime index). Needs Scala IR debug logging to resolve.
+
+**Fix direction for next session:**
+The most promising approach is to modify the HIR optimizer to preserve vals whose inlining would move shared subexpressions from main scope to thunk positions. The challenge is distinguishing which vals to keep (DuckPools' `borrow0`/`validInitialPool`) from which to inline (dexy-style LP's `outValid`/`deltaY`). A Scala IR debug trace would clarify the exact extraction criteria.
+
+**Alternative:** Implement scope-aware DAG counting in `process_ast_graph` that counts usages while ignoring ThunkDef boundaries, matching Scala's `flatSchedule` counting. This would avoid needing to change HIR inlining.
+
+**Verification:** `cargo test -p ergoscript-compiler` (198 passed, 0 failed) + `test_ecosystem_batch --ignored` (4 match, 10 fallback).
+
+### Session 19 handoff: ecosystem byte-match parity
+
+**Goal:** Get 11 ecosystem contracts from USED NODE → LOCAL MATCH.
+
+**Root cause (all 11):** CSE val extraction ordering. Our binder assigns ValIds in source order (1, 2, 3... as val definitions appear in the source). Scala's `buildTree`/`processAstGraph` assigns IDs in DFS graph traversal order from the root expression. When `reorder_valdefs` does DFS from result and sorts If-branch refs by val ID, the IDs are already "wrong" — they reflect source order, not graph order.
+
+**Example — BondContractERG (146B, same size but different bytes):**
+- Node: `val1=OUTPUTS(0)`, `val5=SELF.R5[SigmaProp]` — DFS from result sees repaymentBox first
+- Local: `val1=SELF.R5[SigmaProp]`, `val5=OUTPUTS(0)` — source order has borrowerPK first
+
+**Fix approach:** In `process_ast_graph` (cse.rs), after DAG construction and CSE extraction but BEFORE `sequential_renumber`, re-assign val IDs in DFS traversal order from the result expression. This makes `reorder_valdefs` sort produce the same ordering as Scala. The 31 core contracts already match (their DFS order happens to coincide with source order), so this should be safe if done correctly.
+
+**Specific contracts to target (easiest first):**
+1. BondContractERG — 146B same size, pure val reordering
+2. DuckPools Repayment — 188 vs 189B, 1 byte diff (likely constant store ordering)
+3. Lilium CollectionIssuance — 110 vs 113B, small
+4. EXP_BondContractERG — 182B same size
+5. BondContractToken — 231 vs 223B
+6. DuckPools ParentInterest — 409 vs 412B
+7. DuckPools ProxyBorrow — 434 vs 440B
+8. SigmaFi OpenOrderERG — 440 vs 471B (BigInt fees, complex)
+9. SigmaFi OpenOrderToken — 572 vs 638B (no-segregation fallback)
+10. SkyHarbor SigUSDV1 — 459 vs 510B (no-segregation fallback)
+11. Lilium SaleLP — 298 vs 317B (flatMap, no-segregation fallback)
+
+**Also pending:**
+- DuckPools InterestRate — CSE stack overflow on `(f*x)/D*x/M*x/M*x/M*x/M`. Needs iterative CSE or recursion depth limit.
+- 3 contracts use non-segregated fallback — once CSE ordering is fixed, the ValDef scoping issue may resolve too (they may start passing the `ErgoTree::new` roundtrip).
+
+**Verification:** After every change run `cargo test -p ergoscript-compiler` (198 passed, 0 failed) + `test_ecosystem_batch` (--ignored).
+
+### Session 18 changes
+- **fromBase58:** Compile-time constant fold identical to fromBase16. Decodes Base58 string literal to `Const(Coll[Byte])` via `bs58` crate. Added to `type_infer.rs` and `mir/lower.rs`.
+- **append on collections:** Added `Append::new(obj, col2)` lowering in `mir/lower.rs`. CSE already handled `Expr::Append`. Type: `SColl(T).append(SColl(T)) → SColl(T)`.
+- **flatMap on collections:** Uses `MethodCall` with `FLATMAP_METHOD` from `ergotree_ir::types::scoll`, specialized via `specialize_for()` for concrete types. Type: `SColl(A).flatMap(A => Coll[B]) → SColl(B)`.
+- **.toBigInt on BigInt:** Identity no-op — when input is already `SBigInt`, emit input unchanged instead of `Upcast`. Added `SBigInt` arm to `type_infer.rs`.
+- **Constant segregation fallback:** `compile()` now falls back to non-segregated ErgoTree (`v0(false)`) when the `ErgoTree::new` serialize→deserialize roundtrip fails. Root cause: CSE extracts vals into ThunkDef scopes whose ValDefs aren't encountered during linear re-parsing.
+- **Ecosystem test corpus:** 15 real-world contracts from SigmaFi (5), SkyHarbor (1), DuckPools (4+1 skipped), Lilium (5). 3 local match, 11 byte-diff (CSE ordering), 1 skipped (CSE stack overflow).
 
 ### Session 17 changes
 - **Type propagation pass (→ Phoenix 309B→312B):** Added `propagate_val_types()` in `lower.rs`. After MIR lowering, walks the tree collecting actual ValDef RHS types, updates ValUse types (fixing `val x: Long = BigInt_expr` annotation mismatches), and re-applies `numeric_upcast_pair` on BinOps. Wired into pipeline between `lower()` and `apply_cse()`.
@@ -197,7 +275,7 @@ curl -s "http://localhost:9053/script/addressToTree/$ADDR" -H "api_key: $API_KEY
 All 31 contracts produce bytecode identical to the Scala reference node. Phoenix HodlERG (#25) was the final contract — fixed in Session 17 via type propagation, CSE scope fixes, constant dedup, and val ordering alignment.
 
 ### Known missing traversals
-The `collect_and_assign_ids` and `rewrite_ids` functions in `cse.rs` use `_ => {}` / `_ => other` catch-alls. Any new expression type must be explicitly added to BOTH functions or lambda params inside that expression type will get wrong IDs. Currently handled: BlockValue, ValDef, FuncValue, BinOp, BoolToSigmaProp, If, Filter, Exists, ForAll, Map, Fold, PropertyCall, MethodCall, Extract*, SizeOf, ByIndex, SelectField, OptionGet, OptionIsDefined, OptionGetOrElse, Slice, LogicalNot, Negation, SigmaPropBytes, Upcast, Downcast, CalcBlake2b256, CreateProveDlog, SigmaAnd, SigmaOr, Tuple, TreeLookup, Apply, And, Or, Collection, Atleast.
+The `collect_and_assign_ids` and `rewrite_ids` functions in `cse.rs` use `_ => {}` / `_ => other` catch-alls. Any new expression type must be explicitly added to BOTH functions or lambda params inside that expression type will get wrong IDs. Currently handled: BlockValue, ValDef, FuncValue, BinOp, BoolToSigmaProp, If, Filter, Exists, ForAll, Map, Fold, Append, PropertyCall, MethodCall, Extract*, SizeOf, ByIndex, SelectField, OptionGet, OptionIsDefined, OptionGetOrElse, Slice, LogicalNot, Negation, SigmaPropBytes, Upcast, Downcast, CalcBlake2b256, CreateProveDlog, SigmaAnd, SigmaOr, Tuple, TreeLookup, Apply, And, Or, Collection, Atleast.
 
 ## Files Modified in Session 1
 

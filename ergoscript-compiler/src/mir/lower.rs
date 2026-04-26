@@ -8,6 +8,7 @@ use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
 use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::byte_array_to_long::ByteArrayToLong;
 use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
+use ergotree_ir::mir::coll_append::Append;
 use ergotree_ir::mir::coll_by_index::ByIndex;
 use ergotree_ir::mir::coll_exists::Exists;
 use ergotree_ir::mir::coll_filter::Filter;
@@ -94,31 +95,40 @@ fn numeric_rank(tpe: &SType) -> Option<u8> {
     }
 }
 
-/// If one operand is BigInt and the other is a smaller numeric type,
-/// upcast the smaller one to BigInt. This matches the Scala ErgoScript
-/// compiler's implicit numeric promotion for BigInt arithmetic
-/// (e.g., Long * BigInt → Upcast(Long, SBigInt) * BigInt).
-///
-/// Only applies to BigInt; Scala does NOT auto-upcast Int→Long etc.
+/// When mixing numeric types in a BinOp, insert Upcast on the narrower operand
+/// to promote it to the wider type. This matches the Scala ErgoScript compiler's
+/// implicit numeric promotion (e.g., Int * Long → Upcast(Int, SLong) * Long,
+/// Long * BigInt → Upcast(Long, SBigInt) * BigInt).
 fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
     let lt = l.tpe();
     let rt = r.tpe();
     if lt == rt {
         return (l, r);
     }
-    match (&lt, &rt) {
-        (SType::SBigInt, _) if numeric_rank(&rt).is_some() && rt != SType::SBigInt => {
-            // Right is narrower than BigInt — upcast to BigInt
-            let upcast = Upcast::new(r, SType::SBigInt).expect("numeric upcast right to BigInt");
-            (l, upcast.into())
-        }
-        (_, SType::SBigInt) if numeric_rank(&lt).is_some() && lt != SType::SBigInt => {
-            // Left is narrower than BigInt — upcast to BigInt
-            let upcast = Upcast::new(l, SType::SBigInt).expect("numeric upcast left to BigInt");
-            (upcast.into(), r)
-        }
+    let lr = numeric_rank(&lt);
+    let rr = numeric_rank(&rt);
+    match (lr, rr) {
+        (Some(l_rank), Some(r_rank)) if l_rank < r_rank => (numeric_upcast(l, rt), r),
+        (Some(l_rank), Some(r_rank)) if l_rank > r_rank => (l, numeric_upcast(r, lt)),
         _ => (l, r),
     }
+}
+
+/// Insert Upcast to promote a narrower numeric type to a wider one.
+/// Folds `Upcast(Const(N: SInt), SBigInt)` to `Const(BigInt256(N))` to match
+/// Scala's behavior where bare integer literals in BigInt context are typed
+/// directly as BigInt. Explicit Long literals (with L suffix) are NOT folded
+/// because Scala preserves `500L.toBigInt` as `Upcast(500L, SBigInt)` at runtime.
+fn numeric_upcast(expr: Expr, target: SType) -> Expr {
+    if target == SType::SBigInt {
+        if let Expr::Const(c) = &expr {
+            if let ergotree_ir::mir::constant::Literal::Int(v) = &c.v {
+                use ergotree_ir::bigint256::BigInt256;
+                return Constant::from(BigInt256::from(*v as i64)).into();
+            }
+        }
+    }
+    Upcast::new(expr, target).expect("numeric upcast").into()
 }
 
 pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
@@ -188,7 +198,7 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 hir::Literal::Long(v) => (*v).into(),
                 hir::Literal::Bool(v) => (*v).into(),
                 hir::Literal::String(_) => {
-                    // String literals are only used in fromBase16 — they shouldn't reach MIR directly
+                    // String literals are only used in fromBase16/fromBase58 — they shouldn't reach MIR directly
                     return Err(MirLoweringError::new(
                         "String literal cannot be used directly; use fromBase16()".to_string(),
                         hir_expr.span,
@@ -220,6 +230,31 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     let bytes = base16::decode(hex_str.as_bytes()).map_err(|e| {
                         MirLoweringError::new(
                             format!("Invalid hex in fromBase16: {:?}", e),
+                            hir_expr.span,
+                        )
+                    })?;
+                    return Ok(Constant::from(bytes).into());
+                }
+                // Special handling for fromBase58 — decode Base58 string at compile time
+                if name == "fromBase58" {
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "fromBase58 requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let b58_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "fromBase58 argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    let bytes = bs58::decode(&b58_str).into_vec().map_err(|e| {
+                        MirLoweringError::new(
+                            format!("Invalid Base58 in fromBase58: {:?}", e),
                             hir_expr.span,
                         )
                     })?;
@@ -521,8 +556,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         | "exists"
                         | "forall"
                         | "map"
+                        | "flatMap"
                         | "fold"
                         | "slice"
+                        | "append"
                         | "getOrElse"
                         | "insert"
                         | "update"
@@ -629,6 +666,40 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 )
                             })?;
                             Map::new(obj, mapper)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "append" => {
+                            let col2 = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "append requires a collection argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Append::new(obj, col2)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "flatMap" => {
+                            let mapper = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "flatMap requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            use ergotree_ir::types::scoll::FLATMAP_METHOD;
+                            // Specialize generic FLATMAP_METHOD with concrete types
+                            let specialized = FLATMAP_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), vec![mapper.tpe()])
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, vec![mapper])
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?
@@ -902,27 +973,9 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
                 "toBigInt" => {
-                    // Constant fold: literal.toBigInt → BigInt constant
-                    if let Expr::Const(c) = &obj {
-                        use ergotree_ir::bigint256::BigInt256;
-                        let folded: Option<BigInt256> = match &c.v {
-                            ergotree_ir::mir::constant::Literal::Int(v) => {
-                                Some(BigInt256::from(*v as i64))
-                            }
-                            ergotree_ir::mir::constant::Literal::Long(v) => {
-                                Some(BigInt256::from(*v))
-                            }
-                            _ => None,
-                        };
-                        if let Some(bi) = folded {
-                            Constant::from(bi).into()
-                        } else {
-                            Upcast::new(obj, SType::SBigInt)
-                                .map_err(|e| {
-                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
-                                })?
-                                .into()
-                        }
+                    // No-op: already BigInt
+                    if obj.tpe() == SType::SBigInt {
+                        obj
                     } else {
                         Upcast::new(obj, SType::SBigInt)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
@@ -1031,14 +1084,13 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
         // Auto-promotion: &&/|| with a SigmaProp operand produces SigmaProp in MIR
         // even though HIR typed it as SBoolean. This is expected.
         Ok(mir)
-    } else if mir.tpe() == SType::SBigInt
+    } else if numeric_rank(&mir.tpe()).is_some()
         && numeric_rank(&hir_tpe).is_some()
-        && hir_tpe != SType::SBigInt
+        && numeric_rank(&mir.tpe()) > numeric_rank(&hir_tpe)
     {
-        // BigInt result assigned to a narrower type (e.g., val x: Long = bigIntExpr).
-        // The Scala node's REST API handles this implicitly. We accept BigInt as-is
-        // since the ErgoTree interpreter will handle the actual truncation at runtime.
-        // Don't insert a Downcast — the node doesn't either.
+        // Numeric widening: BinOp with mixed numeric types (e.g., Int * Long)
+        // produces the wider type in MIR due to implicit upcast, even though
+        // HIR typed it using the narrower operand's type.
         Ok(mir)
     } else {
         Err(MirLoweringError::new(

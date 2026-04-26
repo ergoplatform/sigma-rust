@@ -24,6 +24,7 @@ rowan = "0.16.1"
 drop_bomb = "0.1.5"
 line-col = "0.2.1"
 base16 = { workspace = true }
+bs58 = { workspace = true }
 
 [dev-dependencies]
 expect-test = "1.0.1"

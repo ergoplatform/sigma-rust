@@ -26,14 +26,26 @@ pub fn apply_cse(expr: Expr) -> Expr {
             let expr = strip_source_spans(expr);
             let global_max_id = find_max_val_id(&expr);
             let cse_result = cse_expr(expr, global_max_id, false);
-            // Inline single-use vals (e.g., after CSE extracts Upcast(ValUse(x), BigInt),
-            // the original val x may become single-use and should be folded in)
-            let inlined = inline_single_use_vals(cse_result);
-            // Extract duplicate constants in inner blocks as ValDefs (matches Scala's
-            // graph IR where multi-use constants get shared symbols within ThunkDef scopes)
+            let branch_cse_max = find_max_val_id(&cse_result);
+            let branch_cse = apply_cse_within_branches(cse_result, branch_cse_max);
+            let pre_extract_max = find_max_val_id(&branch_cse);
+            let mut next_id = pre_extract_max + 1;
+            let pre_extracted = pre_extract_from_valdefs(branch_cse, &mut next_id);
+            let inlined = inline_single_use_vals(pre_extracted);
             let deduped = deduplicate_inner_consts(inlined);
-            // Reorder ValDefs to match Scala's DFS dependency order, then renumber
-            let reordered = reorder_valdefs(deduped);
+            let flattened = flatten_nested_blocks(deduped);
+            // S60: disambiguate FIRST so outer/inner ValDef ids don't collide.
+            // Both `dfs_reassign_val_ids` and `reorder_valdefs.emit_deps`
+            // build outer val_rhs/val_map from items[].id and then walk the
+            // outer body for ValUses. Without prior disambiguation, an inner
+            // ValUse(K) where K coincidentally equals an outer ValDef id is
+            // wrongly attributed to the outer ValDef — polluting body-walk
+            // encounter order and (for OpenOrderToken) shifting `_tokenId`
+            // from items[3] to items[8]. Disambig is order-independent on
+            // tree shape; it only renames ids to be globally unique.
+            let disambiguated = disambiguate_val_ids(flattened);
+            let reassigned = dfs_reassign_val_ids(disambiguated);
+            let reordered = reorder_valdefs(reassigned);
             sequential_renumber(reordered)
         })
         .expect("failed to spawn CSE thread")
@@ -151,6 +163,218 @@ fn strip_source_spans(expr: Expr) -> Expr {
     }
 }
 
+/// Re-assign val IDs in DFS traversal order from the result expression.
+///
+/// In Scala's graph IR, symbol IDs are assigned during graph construction
+/// which follows DFS order from the result. When `reorder_valdefs` sorts
+/// If-branch deps by val ID, the IDs need to reflect this DFS order rather
+/// than the source/binder order. This pass walks each BlockValue's result
+/// in DFS order, recording the encounter order of ValUse references, and
+/// reassigns IDs accordingly.
+fn dfs_reassign_val_ids(expr: Expr) -> Expr {
+    // Only process the top-level BlockValue. Inner blocks are handled
+    // by reorder_valdefs which recurses independently.
+    match expr {
+        Expr::BlockValue(s) => {
+            if s.expr.items.is_empty() {
+                return Expr::BlockValue(s);
+            }
+            // DFS from result to determine encounter order of val IDs.
+            // When encountering a ValUse(id), first recurse into the ValDef's
+            // RHS to process its deps, then record the id.
+            // Per S50 unified rule: walk only the body root in syntactic child
+            // order; assign IDs at point-of-first-use. Do NOT fall back to
+            // items-order for unreachable vals — that produces wrong ordering
+            // (S48 A.i regressed 3 contracts).
+            let mut ordered_ids: Vec<u32> = Vec::new();
+            let mut visited: std::collections::HashSet<u32> = std::collections::HashSet::new();
+            {
+                // Build val_id -> ValDef RHS map (borrows from s.expr.items).
+                // Scoped so it's dropped before we move `s` into block_expr.
+                let mut val_rhs: HashMap<u32, &Expr> = HashMap::new();
+                for item in &s.expr.items {
+                    if let Expr::ValDef(vd) = item {
+                        val_rhs.insert(vd.expr.id.0, &vd.expr.rhs);
+                    }
+                }
+                if val_rhs.is_empty() {
+                    return Expr::BlockValue(s);
+                }
+                dfs_collect_val_order(&s.expr.result, &val_rhs, &mut ordered_ids, &mut visited);
+            }
+
+            // Pass 2: sweep the entire tree (incl. inner BlockValue items) for
+            // any ValDef IDs not yet in ordered_ids; append in tree-encounter
+            // order. Pass 1 deliberately skips inner items so they don't leak
+            // ValUses into outer-scope ordering, but rewrite_ids still needs a
+            // mapping for every ValDef id in the tree — otherwise an unmapped
+            // inner id can collide with a freshly-assigned outer id.
+            let block_expr = Expr::BlockValue(s);
+            collect_all_valdef_ids_in_order(&block_expr, &mut ordered_ids, &mut visited);
+
+            // Build old_id -> new_id map (1-indexed to match Scala's curId scheme)
+            let mut id_map: HashMap<u32, u32> = HashMap::new();
+            for (new_idx, old_id) in ordered_ids.iter().enumerate() {
+                id_map.insert(*old_id, (new_idx + 1) as u32);
+            }
+
+            // Only rewrite if the mapping actually changes something
+            if id_map.iter().all(|(old, new)| old == new) {
+                return block_expr;
+            }
+
+            rewrite_ids(block_expr, &id_map)
+        }
+        other => other,
+    }
+}
+
+/// Children walk that respects ThunkDef boundaries: for inner BlockValues,
+/// only descend into the result (skip items). This mirrors Scala's
+/// processAstGraph, which scopes inner ThunkDef contents to their own
+/// schedule rather than leaking them into the outer scope's ordering.
+fn body_walk_children(expr: &Expr) -> Vec<&Expr> {
+    match expr {
+        Expr::BlockValue(bv) => vec![&bv.expr.result],
+        _ => direct_children(expr),
+    }
+}
+
+/// DFS walk an expression, collecting val IDs in encounter order.
+/// Uses an iterative approach to avoid stack overflow on deeply nested trees.
+fn dfs_collect_val_order(
+    root: &Expr,
+    val_rhs: &HashMap<u32, &Expr>,
+    ordered: &mut Vec<u32>,
+    visited: &mut std::collections::HashSet<u32>,
+) {
+    // Use an explicit stack instead of recursion
+    let mut work: Vec<&Expr> = vec![root];
+    while let Some(expr) = work.pop() {
+        match expr {
+            Expr::ValUse(vu) => {
+                let id = vu.val_id.0;
+                // S60: only count ValUses that refer to OUTER ValDefs (id is
+                // in val_rhs). Inner-scope ValUses with ids that happen to
+                // coincide with outer ValDef ids (pre-disambig collisions are
+                // common, since disambiguation runs *after* dfs_reassign)
+                // would otherwise pollute the outer body-walk encounter
+                // order — Pass 2's `collect_all_valdef_ids_in_order` already
+                // sweeps inner ValDef ids for the id_map coverage invariant.
+                // Without this filter, OpenOrderToken's `_tokenId` (an outer
+                // top-level val referenced inside an inner BlockValue's
+                // result) was getting displaced to ordered position 9 by
+                // unrelated inner ValUses, which then placed its ValDef at
+                // items[8] (last) and shifted its constant from pool[1] (the
+                // node-correct position) to pool[7].
+                if val_rhs.contains_key(&id) && !visited.contains(&id) {
+                    visited.insert(id);
+                    if let Some(rhs) = val_rhs.get(&id) {
+                        // Process deps first (children-before-parent), then record id.
+                        dfs_collect_val_order_inner(rhs, val_rhs, ordered, visited);
+                    }
+                    ordered.push(id);
+                }
+            }
+            _ => {
+                // Push children in REVERSE order so first child is processed first.
+                // Use body_walk_children to skip inner BlockValue items — their
+                // ValUses belong to the inner scope's schedule, not the outer's.
+                let children = body_walk_children(expr);
+                for child in children.into_iter().rev() {
+                    work.push(child);
+                }
+            }
+        }
+    }
+}
+
+/// Recursive helper for processing a ValDef's RHS deps.
+/// This can recurse through val chains but is bounded by the number of vals.
+fn dfs_collect_val_order_inner(
+    expr: &Expr,
+    val_rhs: &HashMap<u32, &Expr>,
+    ordered: &mut Vec<u32>,
+    visited: &mut std::collections::HashSet<u32>,
+) {
+    // Use iterative DFS for expression tree traversal
+    let mut work: Vec<&Expr> = vec![expr];
+    while let Some(e) = work.pop() {
+        match e {
+            Expr::ValUse(vu) => {
+                let id = vu.val_id.0;
+                // S60 mirror of dfs_collect_val_order: skip ValUses whose id
+                // doesn't belong to the outer scope's val_rhs map. See comment
+                // in dfs_collect_val_order for rationale.
+                if val_rhs.contains_key(&id) && !visited.contains(&id) {
+                    visited.insert(id);
+                    if let Some(rhs) = val_rhs.get(&id) {
+                        dfs_collect_val_order_inner(rhs, val_rhs, ordered, visited);
+                    }
+                    ordered.push(id);
+                }
+            }
+            _ => {
+                let children = body_walk_children(e);
+                for child in children.into_iter().rev() {
+                    work.push(child);
+                }
+            }
+        }
+    }
+}
+
+/// Pass 2 sweep: walk the full tree (including inner BlockValue items) and
+/// append every ValId not already in `ordered`. Collects ValDef.id,
+/// FuncArg.idx, and ValUse.val_id so id_map is total over the whole tree.
+///
+/// Why all three: rewrite_ids leaves any unmapped id as-is. After Pass 1
+/// renames root ValDefs to small new ids (1..k), an unmapped FuncArg whose
+/// id happens to equal a fresh new id creates a phantom collision —
+/// reorder_valdefs's emit_deps then treats a lambda-internal ValUse
+/// (really a FuncArg ref) as a reference to the renamed outer ValDef and
+/// recurses into its RHS, which contains the same FuncArg ValUse → cycle →
+/// stack overflow. Mapping every id removes the collision class entirely.
+fn collect_all_valdef_ids_in_order(
+    root: &Expr,
+    ordered: &mut Vec<u32>,
+    visited: &mut std::collections::HashSet<u32>,
+) {
+    let mut work: Vec<&Expr> = vec![root];
+    while let Some(expr) = work.pop() {
+        match expr {
+            Expr::ValDef(vd) => {
+                let id = vd.expr.id.0;
+                if !visited.contains(&id) {
+                    visited.insert(id);
+                    ordered.push(id);
+                }
+            }
+            Expr::ValUse(vu) => {
+                let id = vu.val_id.0;
+                if !visited.contains(&id) {
+                    visited.insert(id);
+                    ordered.push(id);
+                }
+            }
+            Expr::FuncValue(fv) => {
+                for arg in fv.args() {
+                    let id = arg.idx.0;
+                    if !visited.contains(&id) {
+                        visited.insert(id);
+                        ordered.push(id);
+                    }
+                }
+            }
+            _ => {}
+        }
+        let children = direct_children(expr);
+        for child in children.into_iter().rev() {
+            work.push(child);
+        }
+    }
+}
+
 /// Reorder BlockValue items to match Scala's DFS dependency ordering.
 ///
 /// The Scala compiler linearizes its graph in DFS order from the root, so
@@ -215,6 +439,349 @@ fn reorder_valdefs(expr: Expr) -> Expr {
 /// val (e.g., `Upcast(ValUse(reserveIn), BigInt)`). Inlining these single-use
 /// vals produces the combined form that Scala's graph IR would generate
 /// (e.g., `Upcast(ExtractAmount(Self), BigInt)` as a single val).
+/// Pre-inline CSE: for each BlockValue B, extract sub-expressions that
+/// appear in an If's cond AND in one of its branches within B's tree.
+///
+/// Motivation: source-level `val v = if(c) t else f` declarations get
+/// the `if` expression inlined by HIR→MIR when v has only one use. After
+/// inlining, the If lives inside a lazy thunk position (&&/|| right arm
+/// or outer If branch), so our scope-restricted CSE can't see its cond
+/// sub-expressions at B's scope. But in Scala's graph IR, the If sym
+/// (and its cond sub-expressions) were created at B's scope during the
+/// val's RHS evaluation — they're in B's schedule regardless of where
+/// the val ends up being inlined. `hasManyUsagesGlobal` then extracts
+/// them as ValDefs at B.
+///
+/// This pass approximates Scala's behavior: for every If node appearing
+/// anywhere in B's tree (even inside sub-thunks of B), find sub-expressions
+/// that appear in If.cond AND also elsewhere in B's tree (≥2 occurrences
+/// total). Extract those as new ValDefs at B's scope.
+fn pre_extract_from_valdefs(expr: Expr, next_id: &mut u32) -> Expr {
+    match expr {
+        Expr::BlockValue(s) => {
+            let inner = s.expr;
+            // Collect candidates appearing in any If.cond inside this BlockValue.
+            let (new_defs, rewritten) =
+                extract_if_cond_shared(inner.items.clone(), (*inner.result).clone(), next_id);
+
+            // Topologically order: a ValDef Y that references ValUse(id=X)
+            // must come AFTER the ValDef defining X. The extracted new_defs
+            // may depend on existing items (e.g., SigUSDV1: val_8's RHS
+            // references ValUse(3), an existing item). Conversely,
+            // existing items may depend on new_defs via replace_all.
+            let combined = {
+                let mut v = new_defs;
+                v.extend(rewritten.0);
+                v
+            };
+            let final_items = topo_order_valdefs(combined);
+            let result_expr = rewritten.1;
+
+            // Recurse into nested BlockValues.
+            let processed_items: Vec<Expr> = final_items
+                .into_iter()
+                .map(|i| pre_extract_from_valdefs(i, next_id))
+                .collect();
+            let processed_result = pre_extract_from_valdefs(result_expr, next_id);
+            Expr::BlockValue(Spanned {
+                source_span: s.source_span,
+                expr: BlockValue {
+                    items: processed_items,
+                    result: processed_result.into(),
+                },
+            })
+        }
+        other => map_children_with_id_mut(other, next_id, pre_extract_from_valdefs),
+    }
+}
+
+/// At a BlockValue scope, find sub-expressions X that:
+///   1. Appear inside at least one If.cond somewhere in the scope's tree
+///      (possibly nested inside sub-thunks), AND
+///   2. Have ≥ 2 total occurrences in the scope's tree, AND
+///   3. Are extractable (non-leaf, hash-consable), AND
+///   4. Don't depend on ValDefs defined inside the scope (other than the
+///      pre-existing items, which are fine).
+///
+/// Returns (new_valdefs_to_prepend, (rewritten_items, rewritten_result)).
+fn extract_if_cond_shared(
+    items: Vec<Expr>,
+    result: Expr,
+    next_id: &mut u32,
+) -> (Vec<Expr>, (Vec<Expr>, Expr)) {
+    // Build a combined view of the scope's tree for counting:
+    // wrap items+result in a synthetic BlockValue so count_occurrences sees
+    // everything in one shot.
+    let synthetic = Expr::BlockValue(Spanned {
+        source_span: SourceSpan::empty(),
+        expr: BlockValue {
+            items: items.clone(),
+            result: result.clone().into(),
+        },
+    });
+
+    // Collect sub-expressions that appear inside any If.cond within the
+    // scope's tree (ordered DFS, dedup).
+    let mut if_cond_subs: Vec<Expr> = Vec::new();
+    collect_if_cond_subexprs(&synthetic, &mut if_cond_subs);
+
+    let mut unique: Vec<Expr> = Vec::new();
+    for sub in if_cond_subs {
+        if !unique.iter().any(|u| u == &sub) {
+            unique.push(sub);
+        }
+    }
+
+    // Don't hoist things depending on vals defined inside nested BlockValues.
+    // But items' ValDefs are fine to depend on — they're at this scope.
+    let mut nested_locals = std::collections::HashSet::new();
+    collect_nested_block_val_ids(&result, &mut nested_locals);
+    for item in &items {
+        collect_nested_block_val_ids(item, &mut nested_locals);
+    }
+
+    // Local ValDef IDs at this scope. A candidate that references one of
+    // these is "anchored" to this scope in Scala's graph IR — its sym lives
+    // here (via createDefinition's capture-set placement), so its global
+    // usage count is what matters. A candidate that references NO local
+    // item could live in any scope; in Scala, sibling-Thunk uses each
+    // build their own sym, so the outer-scope sym would have only the
+    // direct outer-scope uses. Mirror this by switching count modes.
+    let scope_local_ids: std::collections::HashSet<u32> = items
+        .iter()
+        .filter_map(|i| {
+            if let Expr::ValDef(vd) = i {
+                Some(vd.expr.id.0)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let mut extracted_defs: Vec<Expr> = Vec::new();
+    let mut current_items = items;
+    let mut current_result = result;
+    for sub in unique {
+        if !is_extractable(&sub) {
+            continue;
+        }
+        if !is_graph_shared(&sub) {
+            continue;
+        }
+        if references_locally_defined(&sub, &nested_locals) {
+            continue;
+        }
+        // Bidirectional Thunk-aware count:
+        //   - candidate references a local item → count globally (rescue:
+        //     ProxyBorrow's PropertyCall(ValUse(N), tokens), `if-else paths`)
+        //   - else → count scope-restricted, stopping at inner-Thunk
+        //     boundaries (closes SigUSDV1 (B) OptionGet(extReg(R5))
+        //     and OpenOrders constant-collapse over-extractions)
+        let rescue =
+            !scope_local_ids.is_empty() && expr_references_any_local(&sub, &scope_local_ids);
+        // S54: always count globally within this scope's tree. The earlier
+        // scope-restricted counter (which stopped at And/Or right arms and
+        // If branches) under-counted candidates whose uses straddled a
+        // ThunkDef boundary — e.g. `Const(BigInt(0))` used in two sibling
+        // If conds inside the orderIsClosed-true_branch BlockValue. The
+        // `deeper_block_with_ge_two_occurrences` defer-to-inner-scope guard
+        // (now also active in non-rescue mode) prevents over-extraction.
+        let _ = rescue;
+        let counter: fn(&Expr, &Expr) -> usize = count_occurrences;
+        let mut cnt = counter(&current_result, &sub);
+        for item in &current_items {
+            cnt += counter(item, &sub);
+        }
+        if cnt < 2 {
+            continue;
+        }
+        // Defer-to-inner-scope guard (S43): when rescue=true (candidate
+        // references a local item so we used the global count), suppress
+        // extraction at this scope if there's a deeper BlockValue strictly
+        // nested in this scope's tree that already contains ≥2 occurrences
+        // of the candidate. That inner BlockValue is its own scope where
+        // `pre_extract_from_valdefs` will recurse and run another
+        // `extract_if_cond_shared` pass — extracting here would hijack it
+        // and produce a ValDef at the wrong scope.
+        //
+        // Mirrors Scala's `bodyIds` placement: when all global uses of a
+        // candidate sit inside an inner ThunkDef's BlockValue body, the
+        // sym's `bodyIds` is that inner block's, not this scope's.
+        //
+        // Closes OpenOrders 2B trailing ByIndex extract (candidate's 2
+        // occurrences are inside the outer If's true_branch BlockValue).
+        // Preserves ProxyBorrow's PropertyCall(VU(N), tokens) — that
+        // candidate's occurrences sit inside the right arm of `&&` which
+        // has no BlockValue body, so no deeper scope exists.
+        // S54: defer extraction whenever the candidate's global occurrences
+        // are concentrated inside a single deeper BlockValue (regardless of
+        // whether the candidate references a local item). Previously
+        // gated on `rescue`; that left bare-Const candidates (no ValUse,
+        // never local-rescued) extracting at outer scope, which bloated
+        // outer items[] and shifted the constant pool order vs node.
+        if deeper_block_with_ge_two_occurrences(&current_items, &current_result, &sub) {
+            continue;
+        }
+        let id = *next_id;
+        *next_id += 1;
+        let val_use = Expr::ValUse(ValUse {
+            val_id: ValId(id),
+            tpe: expr_type(&sub),
+        });
+        current_result = replace_all(&current_result, &sub, &val_use);
+        current_items = current_items
+            .into_iter()
+            .map(|i| replace_all(&i, &sub, &val_use))
+            .collect();
+        extracted_defs.push(Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: ValId(id),
+                rhs: sub.into(),
+            },
+        }));
+    }
+    (extracted_defs, (current_items, current_result))
+}
+
+/// Collect sub-expressions that appear inside any If.cond in the tree,
+/// without descending into inner BlockValues (those have their own scope
+/// and will be handled by the recursive pre_extract_from_valdefs call).
+fn collect_if_cond_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
+    match expr {
+        Expr::BlockValue(s) => {
+            // Don't descend into nested blocks — they're their own scope.
+            // But DO process ValDefs' RHSs since those are in this scope.
+            for item in &s.expr.items {
+                collect_if_cond_subexprs(item, out);
+            }
+            collect_if_cond_subexprs(&s.expr.result, out);
+        }
+        Expr::ValDef(s) => {
+            collect_if_cond_subexprs(&s.expr.rhs, out);
+        }
+        Expr::If(if_op) => {
+            // This If's cond contributes all its non-leaf sub-expressions.
+            collect_subexprs(&if_op.condition, out);
+            // And recurse into branches for any nested Ifs.
+            collect_if_cond_subexprs(&if_op.true_branch, out);
+            collect_if_cond_subexprs(&if_op.false_branch, out);
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_if_cond_subexprs(child, out);
+            }
+        }
+    }
+}
+
+/// Collect ValDef IDs defined inside nested BlockValues (not the top-level
+/// items, which belong to the current scope).
+fn collect_nested_block_val_ids(expr: &Expr, ids: &mut std::collections::HashSet<u32>) {
+    match expr {
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    ids.insert(vd.expr.id.0);
+                }
+                collect_nested_block_val_ids(item, ids);
+            }
+            collect_nested_block_val_ids(&s.expr.result, ids);
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_nested_block_val_ids(child, ids);
+            }
+        }
+    }
+}
+
+/// Topologically order ValDef items so each ValDef appears AFTER all its
+/// ValUse dependencies within the list. Non-ValDef items keep their
+/// position relative to each other. The algorithm: iteratively emit any
+/// item whose unresolved deps are empty; if none, break cycles by emitting
+/// the first remaining item (should not happen with well-formed SSA).
+fn topo_order_valdefs(items: Vec<Expr>) -> Vec<Expr> {
+    // Collect all ValDef IDs present in this list.
+    let mut defined_here: std::collections::HashSet<u32> = std::collections::HashSet::new();
+    for item in &items {
+        if let Expr::ValDef(vd) = item {
+            defined_here.insert(vd.expr.id.0);
+        }
+    }
+
+    // Compute intra-list deps for each item.
+    let mut deps: Vec<std::collections::HashSet<u32>> = Vec::with_capacity(items.len());
+    for item in &items {
+        let mut used = Vec::new();
+        match item {
+            Expr::ValDef(vd) => collect_all_val_uses(&vd.expr.rhs, &mut used),
+            other => collect_all_val_uses(other, &mut used),
+        }
+        let d: std::collections::HashSet<u32> = used
+            .into_iter()
+            .filter(|id| defined_here.contains(id))
+            .collect();
+        // A ValDef does not "depend on itself".
+        let d = if let Expr::ValDef(vd) = item {
+            let mut d = d;
+            d.remove(&vd.expr.id.0);
+            d
+        } else {
+            d
+        };
+        deps.push(d);
+    }
+
+    let n = items.len();
+    let mut emitted: Vec<bool> = vec![false; n];
+    let mut emitted_ids: std::collections::HashSet<u32> = std::collections::HashSet::new();
+    let mut out: Vec<Expr> = Vec::with_capacity(n);
+    // Keep iterating; Kahn-style.
+    loop {
+        let mut progressed = false;
+        for i in 0..n {
+            if emitted[i] {
+                continue;
+            }
+            // Dependencies satisfied if every dep ID is already emitted.
+            if deps[i].iter().all(|id| emitted_ids.contains(id)) {
+                if let Expr::ValDef(vd) = &items[i] {
+                    emitted_ids.insert(vd.expr.id.0);
+                }
+                out.push(items[i].clone());
+                emitted[i] = true;
+                progressed = true;
+            }
+        }
+        if !progressed {
+            break;
+        }
+    }
+    // Append any stragglers (cycle — shouldn't happen) to keep items preserved.
+    for i in 0..n {
+        if !emitted[i] {
+            out.push(items[i].clone());
+        }
+    }
+    out
+}
+
+fn references_locally_defined(
+    expr: &Expr,
+    locally_defined: &std::collections::HashSet<u32>,
+) -> bool {
+    if locally_defined.is_empty() {
+        return false;
+    }
+    match expr {
+        Expr::ValUse(vu) => locally_defined.contains(&vu.val_id.0),
+        _ => direct_children(expr)
+            .into_iter()
+            .any(|c| references_locally_defined(c, locally_defined)),
+    }
+}
+
 fn inline_single_use_vals(expr: Expr) -> Expr {
     match expr {
         Expr::BlockValue(s) => {
@@ -293,15 +860,9 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             }
             block
         }
-        Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
-            condition: inline_single_use_vals(*if_op.condition).into(),
-            true_branch: inline_single_use_vals(*if_op.true_branch).into(),
-            false_branch: inline_single_use_vals(*if_op.false_branch).into(),
-        }),
-        other => other,
+        other => map_children(other, inline_single_use_vals),
     }
 }
-
 /// Count ValUse references in an expression, incrementing counts in the map.
 fn count_val_uses_in(expr: &Expr, counts: &mut std::collections::HashMap<u32, usize>) {
     match expr {
@@ -336,66 +897,115 @@ fn deduplicate_inner_consts(expr: Expr) -> Expr {
     }
 }
 
-/// Dedup constants within a block, then recurse for deeper If nodes.
-fn dedup_consts_in_block(expr: Expr) -> Expr {
-    // First recurse to handle nested If expressions
-    let expr = deduplicate_inner_consts(expr);
+/// Hoist and flatten BlockValues to match Scala's `processAstGraph` output.
+///
+/// Scala creates ONE flat BlockValue per ThunkDef scope with all ValDefs,
+/// and wrapper nodes (BoolToSigmaProp, SigmaAnd, SigmaOr) appear inside
+/// the BlockValue's result. Our CSE creates BlockValues inside these
+/// wrappers, producing nested structures. This pass normalizes by:
+///
+/// 1. `BoolToSigmaProp(BlockValue([items], R))` → `BlockValue([items], BoolToSigmaProp(R))`
+/// 2. `SigmaAnd/SigmaOr` with BlockValue items → hoist items out
+/// 3. `BlockValue([A], BlockValue([B], R))` → `BlockValue([A, B], R)`
+fn flatten_nested_blocks(expr: Expr) -> Expr {
+    // Recurse bottom-up so inner nesting is resolved first
+    let expr = map_children(expr, flatten_nested_blocks);
 
     match expr {
-        Expr::BlockValue(s) => {
-            // Collect all Const nodes in the block
-            let mut all_consts: Vec<Expr> = Vec::new();
-            for item in &s.expr.items {
-                collect_consts(item, &mut all_consts);
+        // Step 1: Hoist BlockValue through BoolToSigmaProp
+        Expr::BoolToSigmaProp(bts) => {
+            match *bts.input {
+                Expr::BlockValue(inner_s) => {
+                    // BoolToSigmaProp(BlockValue([items], R)) → BlockValue([items], BoolToSigmaProp(R))
+                    Expr::BlockValue(Spanned {
+                        source_span: inner_s.source_span,
+                        expr: BlockValue {
+                            items: inner_s.expr.items,
+                            result: Expr::BoolToSigmaProp(
+                                ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                                    input: inner_s.expr.result,
+                                },
+                            )
+                            .into(),
+                        },
+                    })
+                }
+                other => Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                    input: other.into(),
+                }),
             }
-            collect_consts(&s.expr.result, &mut all_consts);
+        }
 
-            // Find constants appearing 2+ times (dedup by equality)
-            let mut duplicates: Vec<Expr> = Vec::new();
-            for c in &all_consts {
-                let count = all_consts.iter().filter(|x| *x == c).count();
-                if count >= 2 && !duplicates.contains(c) {
-                    duplicates.push(c.clone());
+        // Step 2: Hoist BlockValue items out of SigmaAnd/SigmaOr
+        Expr::SigmaAnd(sa) => {
+            let mut hoisted_items: Vec<Expr> = Vec::new();
+            let mut new_sa_items: Vec<Expr> = Vec::new();
+            for item in sa.items.into_iter() {
+                if let Expr::BlockValue(bv_s) = item {
+                    hoisted_items.extend(bv_s.expr.items);
+                    new_sa_items.push(*bv_s.expr.result);
+                } else {
+                    new_sa_items.push(item);
                 }
             }
-
-            if duplicates.is_empty() {
-                return Expr::BlockValue(s);
-            }
-
-            let mut next_id = find_max_val_id(&Expr::BlockValue(s.clone())) + 1;
-            let mut result_items = s.expr.items;
-            let mut result_expr = *s.expr.result;
-            let mut new_defs: Vec<Expr> = Vec::new();
-
-            for const_expr in duplicates {
-                let val_use = Expr::ValUse(ValUse {
-                    val_id: ValId(next_id),
-                    tpe: const_expr.tpe(),
-                });
-                result_items = result_items
-                    .into_iter()
-                    .map(|item| replace_all(&item, &const_expr, &val_use))
-                    .collect();
-                result_expr = replace_all(&result_expr, &const_expr, &val_use);
-
-                new_defs.push(Expr::ValDef(Spanned {
+            let sigma_and = Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
+                items: new_sa_items.try_into().expect("SigmaAnd >= 2"),
+            });
+            if hoisted_items.is_empty() {
+                sigma_and
+            } else {
+                Expr::BlockValue(Spanned {
                     source_span: SourceSpan::empty(),
-                    expr: ValDef {
-                        id: ValId(next_id),
-                        rhs: const_expr.into(),
+                    expr: BlockValue {
+                        items: hoisted_items,
+                        result: sigma_and.into(),
                     },
-                }));
-                next_id += 1;
+                })
+            }
+        }
+        Expr::SigmaOr(so) => {
+            let mut hoisted_items: Vec<Expr> = Vec::new();
+            let mut new_so_items: Vec<Expr> = Vec::new();
+            for item in so.items.into_iter() {
+                if let Expr::BlockValue(bv_s) = item {
+                    hoisted_items.extend(bv_s.expr.items);
+                    new_so_items.push(*bv_s.expr.result);
+                } else {
+                    new_so_items.push(item);
+                }
+            }
+            let sigma_or = Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr {
+                items: new_so_items.try_into().expect("SigmaOr >= 2"),
+            });
+            if hoisted_items.is_empty() {
+                sigma_or
+            } else {
+                Expr::BlockValue(Spanned {
+                    source_span: SourceSpan::empty(),
+                    expr: BlockValue {
+                        items: hoisted_items,
+                        result: sigma_or.into(),
+                    },
+                })
+            }
+        }
+
+        // Step 3: Merge nested BlockValues
+        Expr::BlockValue(s) => {
+            let mut items = s.expr.items;
+            let mut result = *s.expr.result;
+
+            // Iteratively merge while result is another BlockValue
+            while let Expr::BlockValue(inner_s) = result {
+                items.extend(inner_s.expr.items);
+                result = *inner_s.expr.result;
             }
 
-            // Prepend new const defs before existing items
-            new_defs.extend(result_items);
             Expr::BlockValue(Spanned {
                 source_span: s.source_span,
                 expr: BlockValue {
-                    items: new_defs,
-                    result: result_expr.into(),
+                    items,
+                    result: result.into(),
                 },
             })
         }
@@ -403,7 +1013,340 @@ fn dedup_consts_in_block(expr: Expr) -> Expr {
     }
 }
 
+/// Dedup inner-scope expressions within an If branch.
+/// Phase 1: OptionGet dedup (single pass, original behavior).
+/// Phase 2: PropertyCall/ByIndex dedup (iterative, handles dependency chains).
+fn dedup_consts_in_block(expr: Expr) -> Expr {
+    // First recurse to handle nested If expressions
+    let mut expr = deduplicate_inner_consts(expr);
+
+    // Compute set of ValIds defined ONLY inside nested-If branches of this
+    // expr (not at expr's top-level items). Candidates that reference these
+    // cannot be hoisted to expr's top-level scope — doing so creates a
+    // forward ValUse(id) reference to a branch-local ValDef.
+    let branch_local_ids = collect_branch_local_val_ids(&expr);
+    let filter_candidates = |duplicates: Vec<Expr>| -> Vec<Expr> {
+        duplicates
+            .into_iter()
+            .filter(|d| {
+                let mut uses = Vec::new();
+                collect_all_val_uses(d, &mut uses);
+                uses.iter().all(|id| !branch_local_ids.contains(id))
+            })
+            .collect()
+    };
+
+    // Bidirectional Thunk-aware count: a candidate that references a
+    // local-scope ValDef is "anchored" to this block (its sym lives here
+    // in Scala's IR via capture-set placement) — count global occurrences.
+    // A candidate that references no local item could live in any sibling
+    // Thunk and would NOT hash-cons up to this scope — count only
+    // occurrences reachable without crossing inner-Thunk boundaries.
+    let scope_local_ids = top_level_val_ids(&expr);
+    let count_for_rule = |target: &Expr, tree: &Expr| -> usize {
+        let rescue =
+            !scope_local_ids.is_empty() && expr_references_any_local(target, &scope_local_ids);
+        if rescue {
+            count_occurrences(tree, target)
+        } else {
+            count_occurrences_scope(tree, target)
+        }
+    };
+
+    // Phase 1: OptionGet dedup — single pass matching original behavior.
+    let mut option_gets: Vec<Expr> = Vec::new();
+    collect_option_gets(&expr, &mut option_gets);
+    let mut og_seen: Vec<Expr> = Vec::new();
+    let mut og_duplicates: Vec<Expr> = Vec::new();
+    for c in &option_gets {
+        if og_seen.iter().any(|s| s == c) {
+            continue;
+        }
+        og_seen.push(c.clone());
+        if count_for_rule(c, &expr) >= 2 {
+            og_duplicates.push(c.clone());
+        }
+    }
+    let og_duplicates = filter_candidates(og_duplicates);
+    if !og_duplicates.is_empty() {
+        expr = extract_inner_vals(expr, og_duplicates);
+    }
+
+    // Phase 2: PropertyCall/ByIndex dedup — iterative to handle dependency
+    // chains (PropertyCall extracted first, then ByIndex referencing it).
+    //
+    // Thresholds:
+    // - PropertyCall: ≥3 uses (with 2 uses, extraction costs 1B: inline 2×5B=10B
+    //   vs extracted 7B+2×2B=11B). With ≥3, it saves bytes.
+    // - ByIndex: ≥2 uses (extraction is body-size-neutral but saves ~2B from
+    //   constant pool dedup — each inline ByIndex has its own Const index node).
+    loop {
+        let mut candidates: Vec<Expr> = Vec::new();
+        collect_property_byindex_candidates(&expr, &mut candidates);
+
+        let mut seen: Vec<Expr> = Vec::new();
+        let mut duplicates: Vec<Expr> = Vec::new();
+        for c in &candidates {
+            if seen.iter().any(|s| s == c) {
+                continue;
+            }
+            seen.push(c.clone());
+            let min_count = if matches!(c, Expr::PropertyCall(_)) {
+                3
+            } else {
+                2
+            };
+            if count_for_rule(c, &expr) >= min_count {
+                duplicates.push(c.clone());
+            }
+        }
+
+        let duplicates = filter_candidates(duplicates);
+        if duplicates.is_empty() {
+            break;
+        }
+
+        // Sort by AST size (smallest first) to handle dependencies
+        let mut duplicates = duplicates;
+        duplicates.sort_by_key(expr_size);
+
+        // Extract all duplicates of the smallest size in this pass
+        let smallest_size = expr_size(&duplicates[0]);
+        let batch: Vec<Expr> = duplicates
+            .into_iter()
+            .take_while(|e| expr_size(e) == smallest_size)
+            .collect();
+
+        expr = extract_inner_vals(expr, batch);
+    }
+
+    // Phase 3: Arithmetic BinOp dedup — extracts expressions like
+    // Minus(ValUse(X), Const(Y)) that appear ≥2 times within a branch.
+    // In Scala's graph, arithmetic ops are hash-consed (singleton ExactNumeric).
+    // Body-wise extraction costs 1B with 2 uses, but saves ~2B from constant
+    // pool dedup (each inline BinOp has its own Const node), net -1B.
+    //
+    // S42: skip BinOps whose both operands are ValUses — those over-extract
+    // (e.g. SigUSDV1's Minus(VU, VU) at count=3 costs 1B). And always run
+    // inline_single_use_vals afterwards: gating it on `extracted.is_empty()`
+    // leaks ~23B in cascade because single-use vals (like the ExtractRegisterAs
+    // inside an OptionGet) stay split into separate ValDefs.
+    {
+        let log = std::env::var("CSE_PHASE3_LOG").is_ok();
+
+        let mut candidates: Vec<Expr> = Vec::new();
+        collect_binop_candidates(&expr, &mut candidates);
+
+        if log {
+            eprintln!(
+                "[P3] === Phase 3 BinOp dedup === (raw_candidates={})",
+                candidates.len()
+            );
+        }
+
+        let mut seen: Vec<Expr> = Vec::new();
+        let mut duplicates: Vec<Expr> = Vec::new();
+        for c in &candidates {
+            if seen.iter().any(|s| s == c) {
+                continue;
+            }
+            seen.push(c.clone());
+            let cnt = count_for_rule(c, &expr);
+            let kept = cnt >= 2;
+            if log {
+                eprintln!(
+                    "[P3] cand size={} count={} kept_thresh={} :: {}",
+                    expr_size(c),
+                    cnt,
+                    kept,
+                    format_binop_brief(c)
+                );
+            }
+            if kept {
+                duplicates.push(c.clone());
+            }
+        }
+
+        let duplicates = filter_candidates(duplicates);
+
+        // Drop BinOps whose both operands are ValUses (over-extract pattern).
+        let duplicates: Vec<Expr> = duplicates
+            .into_iter()
+            .filter(|d| {
+                if let Expr::BinOp(s) = d {
+                    let both_valuse = matches!(&*s.expr.left, Expr::ValUse(_))
+                        && matches!(&*s.expr.right, Expr::ValUse(_));
+                    if log && both_valuse {
+                        eprintln!("[P3] DROP both-ValUse :: {}", format_binop_brief(d));
+                    }
+                    !both_valuse
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        if log {
+            eprintln!("[P3] final extract count: {}", duplicates.len());
+        }
+
+        if !duplicates.is_empty() {
+            expr = extract_inner_vals(expr, duplicates);
+        }
+        // Always inline: even when nothing was extracted, some source-level
+        // vals may be single-use (e.g. ExtractRegisterAs nested under OptionGet)
+        // and must collapse to match Scala's graph output.
+        expr = inline_single_use_vals(expr);
+    }
+
+    expr
+}
+
+/// Collect ValDef IDs at the top level of a block-shaped expression.
+/// Recognizes Expr::BlockValue and Expr::BoolToSigmaProp(BlockValue).
+fn top_level_val_ids(expr: &Expr) -> std::collections::HashSet<u32> {
+    let items: &[Expr] = match expr {
+        Expr::BlockValue(s) => &s.expr.items,
+        Expr::BoolToSigmaProp(bts) => match &*bts.input {
+            Expr::BlockValue(s) => &s.expr.items,
+            _ => return std::collections::HashSet::new(),
+        },
+        _ => return std::collections::HashSet::new(),
+    };
+    items
+        .iter()
+        .filter_map(|i| {
+            if let Expr::ValDef(vd) = i {
+                Some(vd.expr.id.0)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Collect ValIds defined inside nested-If branches of `expr`, excluding
+/// the top-level items of the outermost BlockValue in `expr`.
+fn collect_branch_local_val_ids(expr: &Expr) -> std::collections::HashSet<u32> {
+    let mut ids = std::collections::HashSet::new();
+    fn walk(expr: &Expr, inside_if_branch: bool, ids: &mut std::collections::HashSet<u32>) {
+        match expr {
+            Expr::ValDef(vd) => {
+                if inside_if_branch {
+                    ids.insert(vd.expr.id.0);
+                }
+                walk(&vd.expr.rhs, inside_if_branch, ids);
+            }
+            Expr::If(if_op) => {
+                walk(&if_op.condition, inside_if_branch, ids);
+                walk(&if_op.true_branch, true, ids);
+                walk(&if_op.false_branch, true, ids);
+            }
+            other => {
+                for c in direct_children(other) {
+                    walk(c, inside_if_branch, ids);
+                }
+            }
+        }
+    }
+    walk(expr, false, &mut ids);
+    ids
+}
+
+/// Extract a batch of duplicate expressions as inner ValDefs.
+fn extract_inner_vals(expr: Expr, duplicates: Vec<Expr>) -> Expr {
+    match expr {
+        Expr::BlockValue(s) => {
+            let mut next_id = find_max_val_id(&Expr::BlockValue(s.clone())) + 1;
+            let mut result_items = s.expr.items;
+            let mut result_expr = *s.expr.result;
+            let mut new_defs: Vec<Expr> = Vec::new();
+
+            for dup_expr in duplicates {
+                let val_use = Expr::ValUse(ValUse {
+                    val_id: ValId(next_id),
+                    tpe: dup_expr.tpe(),
+                });
+                result_items = result_items
+                    .into_iter()
+                    .map(|item| replace_all(&item, &dup_expr, &val_use))
+                    .collect();
+                result_expr = replace_all(&result_expr, &dup_expr, &val_use);
+                new_defs.push(Expr::ValDef(Spanned {
+                    source_span: SourceSpan::empty(),
+                    expr: ValDef {
+                        id: ValId(next_id),
+                        rhs: dup_expr.into(),
+                    },
+                }));
+                next_id += 1;
+            }
+
+            new_defs.extend(result_items);
+            // Topologically order: the new ValDefs may reference existing
+            // item IDs via ValUse (if the extracted expr contained such
+            // references). And existing items may reference new ValDef IDs
+            // via replace_all. Sort so every ValUse sees its ValDef earlier.
+            let ordered = topo_order_valdefs(new_defs);
+            Expr::BlockValue(Spanned {
+                source_span: s.source_span,
+                expr: BlockValue {
+                    items: ordered,
+                    result: result_expr.into(),
+                },
+            })
+        }
+        // BoolToSigmaProp(BlockValue) — add items to inner BlockValue so
+        // new ValDefs share the same scope as existing vals (enables inlining
+        // of vals that become single-use after extraction).
+        Expr::BoolToSigmaProp(bts) if matches!(&*bts.input, Expr::BlockValue(_)) => {
+            let inner = extract_inner_vals(*bts.input, duplicates);
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: inner.into(),
+            })
+        }
+        // BoolToSigmaProp(If(...)) — similar unwrap through BoolToSigmaProp
+        Expr::BoolToSigmaProp(bts) if matches!(&*bts.input, Expr::If(_)) => {
+            let inner = extract_inner_vals(*bts.input, duplicates);
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: inner.into(),
+            })
+        }
+        other => {
+            // Bare expression — wrap in new BlockValue
+            let mut next_id = find_max_val_id(&other) + 1;
+            let mut result_expr = other;
+            let mut new_defs: Vec<Expr> = Vec::new();
+
+            for dup_expr in duplicates {
+                let val_use = Expr::ValUse(ValUse {
+                    val_id: ValId(next_id),
+                    tpe: dup_expr.tpe(),
+                });
+                result_expr = replace_all(&result_expr, &dup_expr, &val_use);
+                new_defs.push(Expr::ValDef(Spanned {
+                    source_span: SourceSpan::empty(),
+                    expr: ValDef {
+                        id: ValId(next_id),
+                        rhs: dup_expr.into(),
+                    },
+                }));
+                next_id += 1;
+            }
+
+            Expr::BlockValue(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: BlockValue {
+                    items: new_defs,
+                    result: result_expr.into(),
+                },
+            })
+        }
+    }
+}
+
 /// Collect all Const nodes in an expression tree.
+#[allow(dead_code)]
 fn collect_consts(expr: &Expr, out: &mut Vec<Expr>) {
     if let Expr::Const(_) = expr {
         out.push(expr.clone());
@@ -413,12 +1356,109 @@ fn collect_consts(expr: &Expr, out: &mut Vec<Expr>) {
     }
 }
 
+/// Collect OptionGet nodes in an expression tree (Phase 1).
+fn collect_option_gets(expr: &Expr, out: &mut Vec<Expr>) {
+    if let Expr::OptionGet(_) = expr {
+        out.push(expr.clone());
+    }
+    for child in direct_children(expr) {
+        collect_option_gets(child, out);
+    }
+}
+
+/// Collect PropertyCall/ByIndex candidates for inner-scope dedup (Phase 2).
+/// Only collects expressions whose direct input is a ValUse (derived from
+/// outer-scope or previously-extracted inner val). This prevents extracting
+/// root-level expressions like PropertyCall(SELF) or ByIndex(OUTPUTS, ...)
+/// which are already handled by root-scope CSE.
+fn collect_property_byindex_candidates(expr: &Expr, out: &mut Vec<Expr>) {
+    match expr {
+        Expr::PropertyCall(pc) => {
+            if matches!(&*pc.expr.obj, Expr::ValUse(_)) {
+                out.push(expr.clone());
+            }
+        }
+        Expr::ByIndex(bi) => {
+            if matches!(&*bi.expr.input, Expr::ValUse(_)) {
+                out.push(expr.clone());
+            }
+        }
+        _ => {}
+    }
+    for child in direct_children(expr) {
+        collect_property_byindex_candidates(child, out);
+    }
+}
+
+/// One-line brief for a BinOp candidate, for Phase 3 instrumentation logs.
+/// Format: `Kind(left, right)` where leaves are summarized (ValUse(id),
+/// `Const(<type>=<short>)`, or just the variant name for nested expressions).
+fn format_expr_leaf(expr: &Expr) -> String {
+    match expr {
+        Expr::ValUse(vu) => format!("VU({})", vu.val_id.0),
+        Expr::Const(c) => format!("Const({:?})", c.tpe),
+        Expr::BinOp(s) => format!(
+            "BinOp({:?}, {}, {})",
+            s.expr.kind,
+            format_expr_leaf(&s.expr.left),
+            format_expr_leaf(&s.expr.right)
+        ),
+        Expr::OptionGet(og) => format!("OptionGet({})", format_expr_leaf(&og.expr.input)),
+        Expr::PropertyCall(pc) => format!("PC.{}", pc.expr.method.name()),
+        Expr::ByIndex(_) => "ByIndex(..)".to_string(),
+        other => {
+            let s = format!("{:?}", other);
+            let s = s.split_whitespace().next().unwrap_or("?").to_string();
+            s.chars().take(24).collect()
+        }
+    }
+}
+
+fn format_binop_brief(expr: &Expr) -> String {
+    if let Expr::BinOp(s) = expr {
+        format!(
+            "BinOp({:?}, {}, {})",
+            s.expr.kind,
+            format_expr_leaf(&s.expr.left),
+            format_expr_leaf(&s.expr.right)
+        )
+    } else {
+        format_expr_leaf(expr)
+    }
+}
+
+/// Collect arithmetic BinOp candidates for inner-scope dedup (Phase 3).
+/// Only collects arithmetic BinOps (Minus, Plus, Multiply, etc.) where
+/// at least one child is a ValUse. In Scala's graph, arithmetic ops use
+/// singleton ExactNumeric and are hash-consed within ThunkDef scopes.
+fn collect_binop_candidates(expr: &Expr, out: &mut Vec<Expr>) {
+    if let Expr::BinOp(s) = expr {
+        let is_arith = matches!(s.expr.kind, ergotree_ir::mir::bin_op::BinOpKind::Arith(_));
+        if is_arith
+            && (matches!(&*s.expr.left, Expr::ValUse(_))
+                || matches!(&*s.expr.right, Expr::ValUse(_)))
+        {
+            out.push(expr.clone());
+        }
+    }
+    for child in direct_children(expr) {
+        collect_binop_candidates(child, out);
+    }
+}
+
+/// Count AST nodes in an expression (for sorting duplicates by size).
+fn expr_size(expr: &Expr) -> usize {
+    1 + direct_children(expr)
+        .iter()
+        .map(|c| expr_size(c))
+        .sum::<usize>()
+}
+
 /// DFS walk an expression; when a ValUse is found whose ValDef is in val_map
 /// and hasn't been emitted yet, recursively emit its RHS dependencies first,
 /// then emit the ValDef.
 ///
-/// `in_thunk`: true when we're inside the right arm of a logical &&/|| chain.
-/// Collect all ValUse IDs referenced in an expression tree (non-recursive into inner blocks).
+/// Collect all ValUse IDs referenced in an expression tree.
 fn collect_all_val_uses(expr: &Expr, out: &mut Vec<u32>) {
     if let Expr::ValUse(vu) = expr {
         out.push(vu.val_id.0);
@@ -519,6 +1559,43 @@ fn emit_deps(
             collect_all_val_uses(&if_op.false_branch, &mut branch_val_ids);
             branch_val_ids.sort();
             branch_val_ids.dedup();
+            // Partition: non-Const(/CP)-RHS ValDefs first, then Const-RHS.
+            // In Scala's graph, sym IDs reflect creation order; bare Const
+            // syms tend to be created later (when the body's expressions are
+            // built) than chained MethodCall/extract syms, so Const-RHS
+            // ValDefs land at the end of the outer block. Mirror that
+            // empirically here. (S47 — closes SigUSDV1 pool ordering)
+            //
+            // S60: skip the partition when val_map's keys are dense 1..N
+            // (i.e. the enclosing BlockValue has been processed by
+            // `dfs_reassign_val_ids`, so IDs already reflect body-walk
+            // first-encounter order = Scala's flatSchedule). In that case
+            // sorting by ID alone reproduces Scala's order, and partition
+            // wrongly defers a top-level `val` Const literal that's
+            // referenced early (OpenOrderToken: `_tokenId` was at items[3]
+            // in Scala but the partition pushed it to items[8]). Inner
+            // BlockValues are NOT touched by `dfs_reassign_val_ids`, so
+            // their pre-renumber IDs include CSE-extracted high IDs and
+            // are sparse — partition still needed there (SigUSDV1's
+            // `currency` ConstPH inside the true-branch BlockValue).
+            let dense_post_reassign = !val_map.is_empty()
+                && val_map.keys().copied().max().unwrap_or(0) == val_map.len() as u32
+                && val_map.keys().copied().min().unwrap_or(0) >= 1;
+            let branch_val_ids: Vec<u32> = if dense_post_reassign {
+                branch_val_ids
+            } else {
+                let (const_ids, nonconst_ids): (Vec<u32>, Vec<u32>) =
+                    branch_val_ids.into_iter().partition(|id| {
+                        val_map.get(id).is_some_and(|vd| {
+                            if let Expr::ValDef(s) = vd {
+                                matches!(&*s.expr.rhs, Expr::Const(_) | Expr::ConstPlaceholder(_))
+                            } else {
+                                false
+                            }
+                        })
+                    });
+                nonconst_ids.into_iter().chain(const_ids).collect()
+            };
             for id in branch_val_ids {
                 if !emitted_ids.contains(&id) {
                     if let Some(vd_expr) = val_map.get(&id) {
@@ -636,6 +1713,10 @@ fn emit_deps(
                 emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
             }
         }
+        Expr::Append(s) => {
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.col_2, val_map, emitted, emitted_ids, in_thunk);
+        }
         _ => {}
     }
 }
@@ -647,6 +1728,115 @@ fn emit_deps(
 ///   for each ValDef: rhs = buildValue(defId=curId); curId += 1; ValDef(curId)
 /// When buildValue encounters a lambda: varId = defId + 1 (same as the ValDef id).
 /// Lambda body uses an independent counter starting at varId + 1.
+/// Alpha-rename every `ValDef` in `expr` to a globally-unique id, with
+/// scope-aware `ValUse` rewriting. After this pass:
+///
+/// - No two `ValDef`s anywhere in the tree share an id.
+/// - Each `ValUse(K)` is rewritten to point at the renamed id of the
+///   `ValDef` that was in scope at that position (per ergotree's nearest-
+///   enclosing-binding rule).
+///
+/// **Why this exists:** `sequential_renumber` uses a single global
+/// `HashMap<old_id, new_id>` keyed by old_id. If the input tree contains
+/// two `ValDef`s with the same old_id in disjoint scopes (e.g. one in
+/// each If branch, where Scala's IR legitimately resets `curId` per
+/// branch), the global map collapses them into the same new_id. When
+/// later combined with the `if !id_map.contains_key` skip-advance path,
+/// this produces same-scope duplicate `ValDef`s in the rewritten tree.
+/// See `mod renumber_scope_safety` for the failing repro that motivates
+/// this pass.
+///
+/// Globally uniquifying ids before `sequential_renumber` runs sidesteps
+/// the issue without changing `sequential_renumber`'s logic.
+fn disambiguate_val_ids(mut expr: Expr) -> Expr {
+    let max = find_max_val_id(&expr);
+    let mut st = DisambigState {
+        scopes: vec![HashMap::new()],
+        next: max + 1,
+    };
+    disambig_walk(&mut expr, &mut st);
+    expr
+}
+
+struct DisambigState {
+    /// Stack of scope frames. Each frame: pre-pass-old_id → renamed_id.
+    /// Pushed at: BlockValue, If branches, FuncValue body. Popped on exit.
+    scopes: Vec<HashMap<u32, u32>>,
+    /// Next fresh id to allocate.
+    next: u32,
+}
+
+/// In-place tree walk that alpha-renames `ValDef`s to fresh ids and
+/// rewrites `ValUse` references via scope chain lookup.
+///
+/// Uses `Traversable::children_mut()` for the structural recurse on
+/// variants we don't intercept — that trait is implemented for *every*
+/// `Expr` variant, so we can't accidentally skip a sub-tree the way
+/// `map_children` (which has gaps such as `CreateProveDlog`, `Atleast`,
+/// `Append`, `Xor`, etc.) would.
+fn disambig_walk(expr: &mut Expr, st: &mut DisambigState) {
+    use ergotree_ir::traversable::Traversable;
+    match expr {
+        Expr::BlockValue(s) => {
+            st.scopes.push(HashMap::new());
+            for item in &mut s.expr.items {
+                disambig_walk(item, st);
+            }
+            disambig_walk(&mut s.expr.result, st);
+            st.scopes.pop();
+        }
+        Expr::ValDef(s) => {
+            // RHS evaluated in the surrounding scope (no self-binding).
+            disambig_walk(&mut s.expr.rhs, st);
+            let old = s.expr.id.0;
+            let new_id = st.next;
+            st.next += 1;
+            st.scopes
+                .last_mut()
+                .expect("at least one scope frame")
+                .insert(old, new_id);
+            s.expr.id = ValId(new_id);
+        }
+        Expr::ValUse(vu) => {
+            for m in st.scopes.iter().rev() {
+                if let Some(&v) = m.get(&vu.val_id.0) {
+                    vu.val_id = ValId(v);
+                    return;
+                }
+            }
+            // Not found in any scope: leave as-is (malformed input —
+            // `sequential_renumber` will surface it via missing-id later).
+        }
+        Expr::If(i) => {
+            disambig_walk(&mut i.condition, st);
+            st.scopes.push(HashMap::new());
+            disambig_walk(&mut i.true_branch, st);
+            st.scopes.pop();
+            st.scopes.push(HashMap::new());
+            disambig_walk(&mut i.false_branch, st);
+            st.scopes.pop();
+        }
+        Expr::FuncValue(fv) => {
+            // FuncArgs introduce ids visible in body; their idx slots are
+            // structural (parameter positions), so we keep them as-is
+            // (map old→old) — `sequential_renumber`'s FuncValue arm will
+            // renumber them based on the enclosing `defId`.
+            st.scopes.push(HashMap::new());
+            for arg in fv.args() {
+                st.scopes.last_mut().unwrap().insert(arg.idx.0, arg.idx.0);
+            }
+            disambig_walk(fv.body_mut(), st);
+            st.scopes.pop();
+        }
+        // Everything else: structural recurse via Traversable.
+        other => {
+            for child in other.children_mut() {
+                disambig_walk(child, st);
+            }
+        }
+    }
+}
+
 fn sequential_renumber(expr: Expr) -> Expr {
     let mut id_map: HashMap<u32, u32> = HashMap::new();
     let mut next_id: u32 = 0; // Scala curId starts at 0; first ValDef gets 0+1=1
@@ -722,8 +1912,15 @@ fn collect_and_assign_ids(
         Expr::BoolToSigmaProp(bts) => collect_and_assign_ids(&bts.input, id_map, next_id, def_id),
         Expr::If(if_op) => {
             collect_and_assign_ids(&if_op.condition, id_map, next_id, def_id);
+            // Scala's IfThenElseLazy: both branches are ThunkDefs processed via
+            // processAstGraph with the SAME defId (outer curId). Each branch gets
+            // an independent local curId starting from defId, producing overlapping
+            // val IDs. The outer curId is unchanged after both branches.
+            let branch_start = *next_id;
             collect_and_assign_ids(&if_op.true_branch, id_map, next_id, def_id);
+            *next_id = branch_start;
             collect_and_assign_ids(&if_op.false_branch, id_map, next_id, def_id);
+            *next_id = branch_start;
         }
         Expr::Filter(s) => {
             collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id);
@@ -1643,7 +2840,131 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
             }
             other => Expr::Collection(other),
         },
-        // FuncValue handled above in process_lambdas; leaves pass through
+        // ---- Variants added during 2026-04 audit (previously fell through
+        // to `other => other`, silently skipping their child Expr fields). ----
+        Expr::CreateProveDlog(cpd) => {
+            ergotree_ir::mir::create_provedlog::CreateProveDlog::try_build(f(*cpd.input))
+                .map(Expr::CreateProveDlog)
+                .expect("CreateProveDlog::try_build in map_children")
+        }
+        Expr::CreateProveDhTuple(s) => {
+            ergotree_ir::mir::create_prove_dh_tuple::CreateProveDhTuple::new(
+                f(*s.g),
+                f(*s.h),
+                f(*s.u),
+                f(*s.v),
+            )
+            .map(Expr::CreateProveDhTuple)
+            .expect("CreateProveDhTuple::new in map_children")
+        }
+        Expr::CreateAvlTree(s) => ergotree_ir::mir::create_avl_tree::CreateAvlTree::new(
+            f(*s.flags),
+            f(*s.digest),
+            f(*s.key_length),
+            s.value_length.map(|vl| Box::new(f(*vl))),
+        )
+        .map(Expr::CreateAvlTree)
+        .expect("CreateAvlTree::new in map_children"),
+        Expr::Atleast(s) => ergotree_ir::mir::atleast::Atleast::new(f(*s.bound), f(*s.input))
+            .map(Expr::Atleast)
+            .expect("Atleast::new in map_children"),
+        Expr::Append(s) => {
+            ergotree_ir::mir::coll_append::Append::new(f(*s.expr.input), f(*s.expr.col_2))
+                .map(|v| {
+                    Expr::Append(Spanned {
+                        source_span: s.source_span,
+                        expr: v,
+                    })
+                })
+                .expect("Append::new in map_children")
+        }
+        Expr::SubstConstants(s) => ergotree_ir::mir::subst_const::SubstConstants::new(
+            f(*s.expr.script_bytes),
+            f(*s.expr.positions),
+            f(*s.expr.new_values),
+        )
+        .map(|v| {
+            Expr::SubstConstants(Spanned {
+                source_span: s.source_span,
+                expr: v,
+            })
+        })
+        .expect("SubstConstants::new in map_children"),
+        Expr::Xor(s) => ergotree_ir::mir::xor::Xor::new(f(*s.left), f(*s.right))
+            .map(Expr::Xor)
+            .expect("Xor::new in map_children"),
+        Expr::MultiplyGroup(s) => {
+            ergotree_ir::mir::multiply_group::MultiplyGroup::new(f(*s.left), f(*s.right))
+                .map(Expr::MultiplyGroup)
+                .expect("MultiplyGroup::new in map_children")
+        }
+        Expr::Exponentiate(s) => {
+            ergotree_ir::mir::exponentiate::Exponentiate::new(f(*s.left), f(*s.right))
+                .map(Expr::Exponentiate)
+                .expect("Exponentiate::new in map_children")
+        }
+        Expr::Downcast(dc) => Expr::Downcast(ergotree_ir::mir::downcast::Downcast {
+            input: f(*dc.input).into(),
+            tpe: dc.tpe,
+        }),
+        Expr::DeserializeRegister(s) => Expr::DeserializeRegister(
+            ergotree_ir::mir::deserialize_register::DeserializeRegister {
+                reg: s.reg,
+                tpe: s.tpe,
+                default: s.default.map(|d| Box::new(f(*d))),
+            },
+        ),
+        // Single-input wrappers (OneArgOpTryBuild, non-Spanned)
+        Expr::LongToByteArray(s) => {
+            ergotree_ir::mir::long_to_byte_array::LongToByteArray::try_build(f(*s.input))
+                .map(Expr::LongToByteArray)
+                .expect("LongToByteArray in map_children")
+        }
+        Expr::DecodePoint(s) => ergotree_ir::mir::decode_point::DecodePoint::try_build(f(*s.input))
+            .map(Expr::DecodePoint)
+            .expect("DecodePoint in map_children"),
+        Expr::ExtractBytesWithNoRef(s) => {
+            ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef::try_build(f(
+                *s.input
+            ))
+            .map(Expr::ExtractBytesWithNoRef)
+            .expect("ExtractBytesWithNoRef in map_children")
+        }
+        Expr::CalcSha256(s) => ergotree_ir::mir::calc_sha256::CalcSha256::try_build(f(*s.input))
+            .map(Expr::CalcSha256)
+            .expect("CalcSha256 in map_children"),
+        Expr::BitInversion(s) => {
+            ergotree_ir::mir::bit_inversion::BitInversion::try_build(f(*s.input))
+                .map(Expr::BitInversion)
+                .expect("BitInversion in map_children")
+        }
+        Expr::XorOf(s) => Expr::XorOf(ergotree_ir::mir::xor_of::XorOf {
+            input: f(*s.input).into(),
+        }),
+        Expr::ByteArrayToLong(s) => {
+            ergotree_ir::mir::byte_array_to_long::ByteArrayToLong::try_build(f(*s.expr.input))
+                .map(|v| {
+                    Expr::ByteArrayToLong(Spanned {
+                        source_span: s.source_span,
+                        expr: v,
+                    })
+                })
+                .expect("ByteArrayToLong in map_children")
+        }
+        Expr::ByteArrayToBigInt(s) => {
+            ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt::try_build(f(*s.expr.input))
+                .map(|v| {
+                    Expr::ByteArrayToBigInt(Spanned {
+                        source_span: s.source_span,
+                        expr: v,
+                    })
+                })
+                .expect("ByteArrayToBigInt in map_children")
+        }
+        // ---- end audit additions ----
+        // FuncValue intentionally NOT recursed into here — `process_lambdas`
+        // owns lambda-body traversal and callers of `map_children` rely on
+        // it not crossing the lambda boundary. True leaves pass through.
         other => other,
     }
 }
@@ -1798,6 +3119,13 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
                 collect_subexprs(arg, out);
             }
         }
+        Expr::Append(s) => {
+            collect_subexprs(&s.expr.input, out);
+            collect_subexprs(&s.expr.col_2, out);
+        }
+        Expr::CreateProveDlog(cpd) => {
+            collect_subexprs(&cpd.input, out);
+        }
         Expr::And(a) => collect_subexprs(&a.expr.input, out),
         Expr::Or(o) => collect_subexprs(&o.expr.input, out),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
@@ -1826,6 +3154,16 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
 
 /// Is this expression worth collecting as a CSE candidate?
 fn is_collectible(expr: &Expr) -> bool {
+    // S54: allow CSE on bare `Const(SBigInt)` literals. Scala's IR
+    // hash-conses Const graph nodes, so duplicate `0L.toBigInt` /
+    // `BigInt256(0)` literals collapse to one sym whose schedule placement
+    // becomes a `ValDef(rhs: Const)` at the LCA scope. Gating to SBigInt
+    // keeps the byte savings (32-byte literals × N inline → 1 ValDef) while
+    // avoiding regressions on small types (SLong/SInt) where a ValDef +
+    // ValUse pair costs more than redundant inline placeholders.
+    if let Expr::Const(c) = expr {
+        return matches!(c.tpe, ergotree_ir::types::stype::SType::SBigInt);
+    }
     !matches!(
         expr,
         Expr::Const(_)
@@ -1900,49 +3238,53 @@ fn is_collectible(expr: &Expr) -> bool {
 #[allow(clippy::doc_lazy_continuation)]
 fn is_graph_shared(expr: &Expr) -> bool {
     match expr {
-        // Eq/NEq: non-singleton Equals[A: Elem]
-        Expr::BinOp(s) => !matches!(
-            s.expr.kind,
-            ergotree_ir::mir::bin_op::BinOpKind::Relation(
-                ergotree_ir::mir::bin_op::RelationOp::Eq
-                    | ergotree_ir::mir::bin_op::RelationOp::NEq
-            )
-        ),
-        // Box accessor methods: shared only when the input is a global
-        // (SELF.value is one graph node; output.value creates separate nodes)
-        Expr::ExtractAmount(ea) => is_input_global(&ea.input),
-        Expr::ExtractRegisterAs(s) => is_input_global(&s.expr.input),
-        Expr::ExtractScriptBytes(esb) => is_input_global(&esb.input),
-        Expr::ExtractBytes(eb) => is_input_global(&eb.input),
-        Expr::ExtractId(ei) => is_input_global(&ei.input),
-        Expr::ExtractCreationInfo(eci) => is_input_global(&eci.input),
+        // Eq/NEq: In Scala's graph, Equals[A: Elem]() is instantiated per call
+        // site, but when both operands are already shared graph symbols the
+        // resulting ApplyBinOp node hashes identically → shared.  We allow
+        // sharing unconditionally and rely on dag_count >= 2 to extract only
+        // when the full expression is actually duplicated.
+        Expr::BinOp(_) => true,
+        // Box accessor methods: shared when the input is a stable graph node
+        // (global like SELF, or val-bound via ValUse).  In Scala's graph IR,
+        // ExtractAmount/ExtractScriptBytes on a shared symbol (ValUse) are
+        // hash-consed to one node.  Previously we only allowed globals, but
+        // val-bound boxes (e.g., `val repaymentBox = OUTPUTS(0)`) also produce
+        // stable symbols whose accessors are shared.
+        Expr::ExtractAmount(ea) => is_input_stable(&ea.input),
+        Expr::ExtractRegisterAs(s) => is_input_stable(&s.expr.input),
+        Expr::ExtractScriptBytes(esb) => is_input_stable(&esb.input),
+        Expr::ExtractBytes(eb) => is_input_stable(&eb.input),
+        Expr::ExtractId(ei) => is_input_stable(&ei.input),
+        Expr::ExtractCreationInfo(eci) => is_input_stable(&eci.input),
         // ByIndex (Coll.apply in Scala): shared when input is stable
         // (global, PropertyCall chain on global, or referencing a val-bound collection).
         // In Scala's graph, MethodCall(coll, apply, [idx]) is extractable when usages >= 2.
         Expr::ByIndex(s) => is_input_stable(&s.expr.input),
-        // OptionGet/IsDefined: separate per call site in Scala graph
-        Expr::OptionGet(_) | Expr::OptionIsDefined(_) => false,
+        // OptionGet: separate per call site in Scala graph (rewriteDef
+        // produces different syms per call site).
+        Expr::OptionGet(_) => false,
+        // OptionIsDefined: shared when input is a stable graph node.
+        // In Scala's graph IR, `MethodCall(stable_sym, OptionIsDefined)`
+        // hash-conses to one Def via findOrCreateDefinition. With the S45
+        // Upcast(Const,_) per-Thunk dedup landed, extracting
+        // OptionIsDefined(stable) at outer scope mirrors node's ValDef
+        // structure. (S45)
+        Expr::OptionIsDefined(s) => is_input_stable(&s.expr.input),
         // MethodCall: not shared (rewriteDef produces different results per call)
         Expr::MethodCall(_) => false,
+        // Pure-constant Upcast wrappers (e.g. `Upcast(Const(100000:SLong), SBigInt)`):
+        // Scala's TreeBuilding interns these via findOrCreateDefinition (structural
+        // equality on (input, toType)) — they ARE graph-shared syms, scoped per
+        // ThunkScope. To match Scala, treat them as shareable here AND apply the
+        // strict scope check (`appears_in_main_scope`) at Root mode below — see
+        // process_ast_graph_impl `is_pure_const_upcast` gate. (S45)
         // Everything else (PropertyCall/tokens, SizeOf, ByIndex, SelectField,
         // arithmetic BinOp, constants): shared
         _ => true,
     }
 }
 
-/// Check if an expression resolves to a shared graph node.
-/// GlobalVars are singletons. PropertyCall on a global is shared.
-/// ByIndex on a shared collection is shared. Used to determine if
-/// box accessor methods on it are graph-shared.
-fn is_input_global(expr: &Expr) -> bool {
-    match expr {
-        Expr::GlobalVars(_) | Expr::Context => true,
-        Expr::PropertyCall(s) => is_input_global(&s.expr.obj),
-        _ => false,
-    }
-}
-
-/// Like `is_input_global` but also accepts `PropertyCall` on a `ValUse`.
+/// Check if an expression resolves to a stable graph node.
 /// In Scala's graph, `MethodCall(coll, apply, idx)` on a val-bound or
 /// CSE-extracted collection is shared. `ValUse` indicates a stable binding.
 fn is_input_stable(expr: &Expr) -> bool {
@@ -2090,6 +3432,7 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Negation(s) => vec![&s.expr.input],
         Expr::BoolToSigmaProp(bsp) => vec![&bsp.input],
         Expr::Upcast(uc) => vec![&uc.input],
+        Expr::Downcast(dc) => vec![&dc.input],
         Expr::CalcBlake2b256(cb) => vec![&cb.input],
         Expr::SigmaPropBytes(spb) => vec![&spb.input],
         Expr::CreateProveDlog(cpd) => vec![&cpd.input],
@@ -2225,14 +3568,361 @@ fn dfs_visit(expr: &Expr, visited: &mut Vec<Expr>, schedule: &mut Vec<Expr>) {
     schedule.push(expr.clone());
 }
 
+// -----------------------------------------------------------------------
+// Scope-aware DAG helpers for branch-level CSE
+// -----------------------------------------------------------------------
+//
+// Scala's `processAstGraph` runs once per ThunkDef scope. Inner If branches
+// and And/Or right arms are separate ThunkDefs — their contents are opaque
+// to the outer processAstGraph's DAG. These scope-aware helpers stop
+// recursion at ThunkDef boundaries so dag counting matches Scala's model.
+
+/// Like `collect_subexprs` but stops at inner-If branches and And/Or right arms.
+#[allow(dead_code)]
+fn collect_subexprs_scope(expr: &Expr, out: &mut Vec<Expr>) {
+    if is_collectible(expr) {
+        out.push(expr.clone());
+    }
+    match expr {
+        // ThunkDef boundary: only recurse into the condition (eager), not branches
+        Expr::If(if_op) => {
+            collect_subexprs_scope(&if_op.condition, out);
+        }
+        // And/Or right arm is a ThunkDef: only recurse into left (eager)
+        Expr::BinOp(s)
+            if matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::And
+                        | ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            ) =>
+        {
+            collect_subexprs_scope(&s.expr.left, out);
+        }
+        Expr::BinOp(s) => {
+            collect_subexprs_scope(&s.expr.left, out);
+            collect_subexprs_scope(&s.expr.right, out);
+        }
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                collect_subexprs_scope(item, out);
+            }
+            collect_subexprs_scope(&s.expr.result, out);
+        }
+        Expr::ValDef(s) => {
+            collect_subexprs_scope(&s.expr.rhs, out);
+        }
+        Expr::BoolToSigmaProp(bts) => {
+            collect_subexprs_scope(&bts.input, out);
+        }
+        Expr::PropertyCall(s) => {
+            collect_subexprs_scope(&s.expr.obj, out);
+        }
+        Expr::MethodCall(s) => {
+            collect_subexprs_scope(&s.expr.obj, out);
+            for arg in &s.expr.args {
+                collect_subexprs_scope(arg, out);
+            }
+        }
+        Expr::ExtractAmount(ea) => collect_subexprs_scope(&ea.input, out),
+        Expr::ExtractRegisterAs(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::ExtractScriptBytes(esb) => collect_subexprs_scope(&esb.input, out),
+        Expr::ExtractBytes(eb) => collect_subexprs_scope(&eb.input, out),
+        Expr::ExtractId(ei) => collect_subexprs_scope(&ei.input, out),
+        Expr::ExtractCreationInfo(eci) => collect_subexprs_scope(&eci.input, out),
+        Expr::SizeOf(so) => collect_subexprs_scope(&so.input, out),
+        Expr::ByIndex(s) => {
+            collect_subexprs_scope(&s.expr.input, out);
+            collect_subexprs_scope(&s.expr.index, out);
+            if let Some(ref d) = s.expr.default {
+                collect_subexprs_scope(d, out);
+            }
+        }
+        Expr::SelectField(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::OptionGet(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::OptionIsDefined(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::OptionGetOrElse(s) => {
+            collect_subexprs_scope(&s.expr.input, out);
+            collect_subexprs_scope(&s.expr.default, out);
+        }
+        Expr::Filter(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::Exists(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::ForAll(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::Map(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::Fold(s) => {
+            collect_subexprs_scope(&s.expr.input, out);
+            collect_subexprs_scope(&s.expr.zero, out);
+        }
+        Expr::Slice(s) => {
+            collect_subexprs_scope(&s.expr.input, out);
+            collect_subexprs_scope(&s.expr.from, out);
+            collect_subexprs_scope(&s.expr.until, out);
+        }
+        Expr::LogicalNot(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::Negation(s) => collect_subexprs_scope(&s.expr.input, out),
+        Expr::SigmaPropBytes(spb) => collect_subexprs_scope(&spb.input, out),
+        Expr::Upcast(uc) => collect_subexprs_scope(&uc.input, out),
+        Expr::Downcast(dc) => collect_subexprs_scope(&dc.input, out),
+        Expr::CalcBlake2b256(cb) => collect_subexprs_scope(&cb.input, out),
+        Expr::SigmaAnd(sa) => {
+            for item in sa.items.iter() {
+                collect_subexprs_scope(item, out);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for item in so.items.iter() {
+                collect_subexprs_scope(item, out);
+            }
+        }
+        Expr::Tuple(t) => {
+            for item in t.items.iter() {
+                collect_subexprs_scope(item, out);
+            }
+        }
+        Expr::TreeLookup(s) => {
+            collect_subexprs_scope(&s.expr.tree, out);
+            collect_subexprs_scope(&s.expr.key, out);
+            collect_subexprs_scope(&s.expr.proof, out);
+        }
+        Expr::Apply(app) => {
+            collect_subexprs_scope(&app.func, out);
+            for arg in &app.args {
+                collect_subexprs_scope(arg, out);
+            }
+        }
+        Expr::Append(s) => {
+            collect_subexprs_scope(&s.expr.input, out);
+            collect_subexprs_scope(&s.expr.col_2, out);
+        }
+        Expr::CreateProveDlog(cpd) => collect_subexprs_scope(&cpd.input, out),
+        Expr::And(a) => collect_subexprs_scope(&a.expr.input, out),
+        Expr::Or(o) => collect_subexprs_scope(&o.expr.input, out),
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                collect_subexprs_scope(item, out);
+            }
+        }
+        Expr::FuncValue(_) => {}
+        Expr::Const(_)
+        | Expr::ConstPlaceholder(_)
+        | Expr::GlobalVars(_)
+        | Expr::ValUse(_)
+        | Expr::Context
+        | Expr::Global => {}
+        _ => {}
+    }
+}
+
+/// Like `count_occurrences` but stops at inner-Thunk boundaries
+/// (If branches, And/Or right arms). Mirrors Scala's
+/// `subG.schedule` membership: a sym created inside a sibling Thunk is
+/// not in the outer scope's schedule, so its uses there don't drive
+/// outer-scope extraction decisions.
+fn count_occurrences_scope(expr: &Expr, target: &Expr) -> usize {
+    let mut count = if expr == target { 1 } else { 0 };
+    for child in direct_children_scope(expr) {
+        count += count_occurrences_scope(child, target);
+    }
+    count
+}
+
+/// True iff there exists a BlockValue strictly nested inside this scope's
+/// items or result whose subtree contains ≥2 occurrences of `target`.
+/// Such an inner BlockValue is its own scope where `extract_if_cond_shared`
+/// will fire when `pre_extract_from_valdefs` recurses — extracting at THIS
+/// scope would hijack the inner pass, producing a ValDef at the wrong scope.
+///
+/// In Scala terms: when all global occurrences of a candidate sit inside an
+/// inner ThunkDef's BlockValue body, the sym's `bodyIds` is that inner
+/// BlockValue's, not this scope's. Suppress rescue extraction here so the
+/// inner pass can place the ValDef where Scala does.
+///
+/// Used to close OpenOrders 2B trailing ByIndex extract: at the outer scope,
+/// `ByIndex(VU(15), Const(0))` appears 2× inside the outer If's true_branch
+/// BlockValue and 0× elsewhere — defer to that branch's pass.
+/// Preserves ProxyBorrow's PropertyCall(VU(N), tokens) extraction: that
+/// candidate's occurrences are inside the right arm of `&&`, which has no
+/// BlockValue body — there's no deeper scope to defer to, so extract here.
+fn deeper_block_with_ge_two_occurrences(items: &[Expr], result: &Expr, target: &Expr) -> bool {
+    // Compute total count over this scope's tree (excluding the synthetic
+    // ValDef wrappers — which would double-count if the wrapper itself
+    // matched, but in practice ValDef is never a CSE target).
+    let total: usize = items
+        .iter()
+        .map(|i| {
+            if let Expr::ValDef(vd) = i {
+                count_occurrences(&vd.expr.rhs, target)
+            } else {
+                count_occurrences(i, target)
+            }
+        })
+        .sum::<usize>()
+        + count_occurrences(result, target);
+
+    fn walk(expr: &Expr, target: &Expr, total: usize) -> bool {
+        if let Expr::BlockValue(_) = expr {
+            let c = count_occurrences(expr, target);
+            // Only defer when ALL global occurrences are concentrated in
+            // this single deeper block. If uses are split across this scope
+            // and a deeper block, extracting HERE allows the inner block
+            // to share via outer ValUse (Scala's LCA placement).
+            if c >= 2 && c == total {
+                return true;
+            }
+        }
+        for c in direct_children(expr) {
+            if walk(c, target, total) {
+                return true;
+            }
+        }
+        false
+    }
+    for item in items {
+        if let Expr::ValDef(vd) = item {
+            if walk(&vd.expr.rhs, target, total) {
+                return true;
+            }
+        } else if walk(item, target, total) {
+            return true;
+        }
+    }
+    walk(result, target, total)
+}
+
+/// Whether `expr` contains any `ValUse(id)` for an id in `local_ids`.
+/// Used as the "capture-set reaches this scope's local items" signal:
+/// a candidate that references a local ValDef is anchored to this
+/// scope in Scala's IR (the dep edge keeps the candidate's sym in
+/// scope when free-vars are resolved).
+fn expr_references_any_local(expr: &Expr, local_ids: &std::collections::HashSet<u32>) -> bool {
+    match expr {
+        Expr::ValUse(vu) => local_ids.contains(&vu.val_id.0),
+        _ => direct_children(expr)
+            .iter()
+            .any(|c| expr_references_any_local(c, local_ids)),
+    }
+}
+
+/// Like `direct_children` but stops at ThunkDef boundaries.
+/// For If: returns only `condition`. For And/Or BinOp: returns only `left`.
+#[allow(dead_code)]
+fn direct_children_scope(expr: &Expr) -> Vec<&Expr> {
+    match expr {
+        Expr::If(ite) => vec![&ite.condition],
+        Expr::BinOp(s)
+            if matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::And
+                        | ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            ) =>
+        {
+            vec![&s.expr.left]
+        }
+        _ => direct_children(expr),
+    }
+}
+
+/// Like `count_dag_usages` but uses scope-restricted traversal.
+/// Stops at inner-If branches and And/Or right arms so references inside
+/// sub-ThunkDefs don't inflate dag counts at the current ThunkDef level.
+#[allow(dead_code)]
+fn count_dag_usages_scope(expr: &Expr) -> Vec<(Expr, usize)> {
+    let mut all_subexprs: Vec<Expr> = Vec::new();
+    collect_subexprs_scope(expr, &mut all_subexprs);
+
+    let mut unique: Vec<Expr> = Vec::new();
+    for sub in &all_subexprs {
+        if !unique.iter().any(|u| u == sub) {
+            unique.push(sub.clone());
+        }
+    }
+
+    let mut parent_sets: Vec<std::collections::HashSet<usize>> =
+        vec![std::collections::HashSet::new(); unique.len()];
+
+    let root_children = direct_children_scope(expr);
+    for child in &root_children {
+        if let Some(child_idx) = unique.iter().position(|u| u == *child) {
+            parent_sets[child_idx].insert(unique.len());
+        }
+    }
+
+    for (parent_idx, parent) in unique.iter().enumerate() {
+        let children = direct_children_scope(parent);
+        for child in children {
+            if let Some(child_idx) = unique.iter().position(|u| u == child) {
+                parent_sets[child_idx].insert(parent_idx);
+            }
+        }
+    }
+
+    if std::env::var("CSE_DEBUG_PARENTS").is_ok() {
+        for (idx, e) in unique.iter().enumerate() {
+            let parents = &parent_sets[idx];
+            if parents.len() >= 2 {
+                eprintln!(
+                    "  PARENTS of unique[{}] (count={}) {:.180?}",
+                    idx,
+                    parents.len(),
+                    e
+                );
+                let mut sorted_parents: Vec<usize> = parents.iter().copied().collect();
+                sorted_parents.sort();
+                for p in &sorted_parents {
+                    if *p == unique.len() {
+                        eprintln!("    parent=ROOT");
+                    } else {
+                        eprintln!("    parent[{}] {:.220?}", p, unique[*p]);
+                    }
+                }
+            }
+        }
+    }
+
+    unique
+        .into_iter()
+        .zip(parent_sets)
+        .map(|(expr, parents)| (expr, parents.len()))
+        .collect()
+}
+
+/// Like `dfs_schedule` but uses scope-restricted traversal.
+#[allow(dead_code)]
+fn dfs_schedule_scope(expr: &Expr) -> Vec<Expr> {
+    let mut visited: Vec<Expr> = Vec::new();
+    let mut schedule: Vec<Expr> = Vec::new();
+    dfs_visit_scope(expr, &mut visited, &mut schedule);
+    schedule
+}
+
+#[allow(dead_code)]
+fn dfs_visit_scope(expr: &Expr, visited: &mut Vec<Expr>, schedule: &mut Vec<Expr>) {
+    if visited.iter().any(|v| v == expr) {
+        return;
+    }
+    visited.push(expr.clone());
+    for child in direct_children_scope(expr) {
+        dfs_visit_scope(child, visited, schedule);
+    }
+    schedule.push(expr.clone());
+}
+
 /// Can this expression be extracted as a ValDef?
 /// Mirrors the Scala compiler's filters in processAstGraph:
 ///   !IsContextProperty && !IsInternalDef && !IsConstantDef
 fn is_extractable(expr: &Expr) -> bool {
+    // S54: SBigInt Const literals are extractable. Other Const types
+    // (SInt/SLong/SBoolean/...) are still inline-only — `is_collectible`
+    // already gates collection to SBigInt, so this matches that gate.
+    if let Expr::Const(c) = expr {
+        return matches!(c.tpe, ergotree_ir::types::stype::SType::SBigInt);
+    }
     !matches!(
         expr,
-        // IsConstantDef: constants are segregated, not extracted
-        Expr::Const(_) | Expr::ConstPlaceholder(_)
+        Expr::ConstPlaceholder(_)
         // IsContextProperty: HEIGHT, INPUTS, OUTPUTS, SELF are always inline
         | Expr::GlobalVars(_)
         // Leaf references
@@ -2519,28 +4209,383 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
     }
 }
 
-/// Port of the Scala compiler's `processAstGraph`.
-/// Builds a DAG via hash-consing, iterates nodes in DFS schedule order,
-/// and extracts multi-use nodes as ValDefs.
+/// Apply `process_ast_graph` independently to each If-branch in the tree.
+///
+/// Scala's `processAstGraph` runs once per ThunkDef scope: the root scope
+/// plus each If branch (and &&/|| right arms). This means expressions that
+/// appear 2+ times *within a single branch* get extracted as ValDefs inside
+/// that branch. Our root-level CSE pass only handles the root scope; branch-
+/// only expressions are blocked by the `appears_in_main_scope` check.
+///
+/// This pass walks the post-root-CSE tree, finds every `If` node, and runs
+/// `process_ast_graph` on each branch independently with the current
+/// `global_max` to avoid ID conflicts with outer-scope vals.
+fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
+    match expr {
+        Expr::If(if_op) => {
+            // Apply branch-level CSE to each branch using scope-aware dag counting
+            // so inner-If contents don't inflate counts at this ThunkDef level.
+            let true_cse = process_ast_graph_branch(*if_op.true_branch, global_max);
+            let false_cse = process_ast_graph_branch(*if_op.false_branch, global_max);
+            // Recurse into results for nested Ifs, bumping global_max past
+            // any IDs assigned in both branches.
+            let new_max = global_max
+                .max(find_max_val_id(&true_cse))
+                .max(find_max_val_id(&false_cse));
+            let true_final = apply_cse_within_branches(true_cse, new_max);
+            let false_final = apply_cse_within_branches(false_cse, new_max);
+            let cond_final = apply_cse_within_branches(*if_op.condition, new_max);
+            Expr::If(ergotree_ir::mir::if_op::If {
+                condition: cond_final.into(),
+                true_branch: true_final.into(),
+                false_branch: false_final.into(),
+            })
+        }
+        // Recurse into all other expression types using the generic child mapper
+        other => map_children_with_id(other, global_max, apply_cse_within_branches),
+    }
+}
+
+/// True if `expr` depends on any runtime context — a `ValUse`, a
+/// `GlobalVars` (HEIGHT, INPUTS, OUTPUTS, SELF), `Context`, `Global`, or a
+/// `GetVar`. Pure-constant expressions (only `Const`/`ConstPlaceholder`
+/// transitively) return false; those are safe to hoist to root because
+/// their value doesn't depend on where they're evaluated.
+fn touches_context(expr: &Expr) -> bool {
+    match expr {
+        Expr::ValUse(_) | Expr::GlobalVars(_) | Expr::Context | Expr::Global | Expr::GetVar(_) => {
+            true
+        }
+        _ => direct_children(expr).into_iter().any(touches_context),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum ScopeMode {
+    /// Outermost ThunkDef — extracted ValDefs land at root scope.
+    Root,
+    /// Inside an If true/false branch — extracted ValDefs land at branch scope.
+    Branch,
+}
+
+/// Compact debug-string for a candidate expression. Truncated for trace output.
+fn short_expr(e: &Expr) -> String {
+    let s = format!("{:?}", e);
+    if s.len() > 160 {
+        format!("{}…(len={})", &s[..160], s.len())
+    } else {
+        s
+    }
+}
+
+/// Port of the Scala compiler's `processAstGraph` — full-tree variant.
+/// Used for root-scope CSE where the entire tree is one ThunkDef.
 fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
-    // Step 1-2: DAG usage counts (hash-consing + parent edge counting)
     let dag_usages = count_dag_usages(&expr);
-
-    // Step 3: DFS schedule (children before parents)
     let schedule = dfs_schedule(&expr);
+    process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
+}
 
-    // Step 4: Iterate schedule, select multi-use nodes for extraction.
-    // Unlike the old approach, we do NOT modify the tree during selection.
-    // This matches the Scala processAstGraph which marks nodes for ValDef
-    // and then builds the result tree from scratch via buildValue.
+/// Branch-level variant of `process_ast_graph`.
+///
+/// Base counts are scope-restricted (don't see across deeper-If ThunkDef
+/// boundaries) — same as before — but augmented with a "cross-branch
+/// dominator" pass: for each inner-If at this branch scope, expressions
+/// present in BOTH arms get count≥2 here, so they get extracted at this
+/// scope rather than living inline in each arm. This mirrors Scala's
+/// behaviour: `mainG.hasManyUsagesGlobal` sees the cross-arm shared symbol
+/// as having ≥2 uses, and TreeBuilding extracts it at the surrounding
+/// `processAstGraph` scope.
+///
+/// `branch_local_ids` filtering inside `process_ast_graph_impl` rejects any
+/// cross-branch candidate whose RHS references a ValDef defined inside a
+/// deeper-If's arm (forward-ref guard).
+fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
+    // Schedule = scope-restricted: only expressions first-created at this
+    // scope's main level (mirroring Scala's `subG.flatSchedule`).
+    let mut schedule = dfs_schedule_scope(&expr);
+
+    // Counts: scope-restricted base, with cross-branch dominators bumped
+    // to ≥ 2. A cross-branch dominator is a sub-expression appearing in
+    // BOTH arms of an inner-If at this scope; extracting it here turns
+    // two inline copies into one ValDef + two ValUses (typically a net
+    // byte saving, and matches Scala's behaviour of hash-consing across
+    // sibling ThunkDefs into the surrounding scope).
+    //
+    // We only bump entries already present in the scope-restricted
+    // schedule — adding new schedule entries for cross-branch-only
+    // expressions over-extracts compared to node (Scala's
+    // `subG.flatSchedule` doesn't contain such expressions).
+    let mut dag_usages = count_dag_usages_scope(&expr);
+    let raw_cross = collect_cross_branch_dominators(&expr);
+    // Filter: in Scala's hash-consed graph, a sub-expression c that is shared
+    // across arms inherits its sym-parent count from the unified scope. If c
+    // has exactly one dominator-set parent X (i.e. every appearance of c in
+    // the arms is wrapped by X, which is itself shared), then c's sym has
+    // only ONE sym-parent (X) — count=1 in Scala — so it should NOT be
+    // extracted at this scope. X handles the sharing. Only keep c when its
+    // dominator-parent count is 0 (c is "top-level" within the arms relative
+    // to the dom set) or >= 2 (c has multiple distinct sym parents, all of
+    // which are themselves cross-shared).
+    let cross: Vec<Expr> = raw_cross
+        .iter()
+        .filter(|c| {
+            let dom_parent_count = raw_cross
+                .iter()
+                .filter(|p| *p != *c)
+                .filter(|p| direct_children(p).contains(c))
+                .count();
+            dom_parent_count != 1
+        })
+        .cloned()
+        .collect();
+    for cb_expr in cross {
+        if let Some(entry) = dag_usages.iter_mut().find(|(e, _)| *e == cb_expr) {
+            if entry.1 < 2 {
+                entry.1 = 2;
+            }
+        }
+    }
+
+    // Global bump (S40):
+    //
+    // Scala's `mainG.hasManyUsagesGlobal(s)` checks the GLOBAL parent count
+    // of any sym in this scope's `bodyIds`. Our scope-restricted
+    // `count_dag_usages_scope` undercounts when a candidate is also referenced
+    // inside sibling Thunks (which Scala's global walk would see).
+    //
+    // For each `dag_usages` entry already reachable in scope, bump count to
+    // max(scope_count, global_occurrence_count) when global_occ >= 2 — but
+    // skip BinOps. BinOps are deduped separately by Phase 3 (`rescue=true`),
+    // and re-bumping them here over-extracts in cases where the BinOp
+    // references a local ValDef that node leaves inline (e.g. SaleLP's
+    // `BinOp(Minus, ValUse(10), 1)` at global_occ=2). Non-BinOp candidates
+    // at global_occ=2 (OptionGet, ExtractRegisterAs, PropertyCall, ByIndex)
+    // do match node's extraction decisions and close ~25B on SigUSDV1.
+    //
+    // The earlier `>= 3` threshold (S39) was overly conservative — it left
+    // 25B of SigUSDV1 extractions unrealized because most of its
+    // global_occ=2 candidates are non-BinOp and node DOES extract them.
+    for (cand, count) in dag_usages.iter_mut() {
+        if matches!(cand, Expr::BinOp(_)) {
+            continue;
+        }
+        let global_occ = count_occurrences(&expr, cand);
+        if global_occ >= 2 && global_occ > *count {
+            *count = global_occ;
+        }
+    }
+
+    // S59 — Cross-condition-branch seeding (§2b SelectField fix).
+    //
+    // Scala's graph IR places sub-expressions used in BOTH an inner If's
+    // condition (eager part, evaluated at the surrounding scope) AND that
+    // If's true/false branch (a ThunkDef) into the SURROUNDING scope's
+    // bodyIds. `findOrCreateDefinition` finds the sym in parent scope when
+    // the inner Thunk references it, so the sym's hash-cons collapses both
+    // uses to one Sym whose hasManyUsagesGlobal == true → extracted at the
+    // surrounding scope (THIS branch).
+    //
+    // Our `count_dag_usages_scope` stops at If branches and `&&`/`||` right
+    // arms, so sub-expressions whose only structural occurrences are inside
+    // those Thunks never enter dag_usages. The S40 global bump only updates
+    // existing entries — it can't help here. Seed missing entries explicitly.
+    //
+    // Safety: we only seed candidates that span across an If's
+    // condition/branch boundary (a "cross-cond-branch" pattern). Sub-exprs
+    // confined to a single Thunk (e.g. all uses inside one true_branch) are
+    // NOT seeded here — those are handled by the inner If's own
+    // process_ast_graph_branch pass. The branch_local_ids check inside
+    // process_ast_graph_impl still rejects any candidate referencing a
+    // ValDef defined inside a deeper If arm, so forward-ref hoisting is
+    // impossible.
+    let cond_branch_shared = collect_cond_branch_shared(&expr);
+    // Reverse pre-order = post-order ⇒ children appear before parents in
+    // the schedule, matching dfs_schedule's topo order.
+    for cb in cond_branch_shared.into_iter().rev() {
+        if !is_collectible(&cb) || !is_extractable(&cb) {
+            continue;
+        }
+        if matches!(cb, Expr::BinOp(_)) {
+            continue;
+        }
+        let global_occ = count_occurrences(&expr, &cb);
+        if global_occ < 2 {
+            continue;
+        }
+        if dag_usages.iter().any(|(e, _)| *e == cb) {
+            continue;
+        }
+        dag_usages.push((cb.clone(), global_occ));
+        if !schedule.iter().any(|s| s == &cb) {
+            schedule.push(cb);
+        }
+    }
+
+    if std::env::var("CSE_DEBUG").is_ok() {
+        eprintln!(
+            "\n=== process_ast_graph_branch (global_max_id={}) ===",
+            global_max_id
+        );
+        eprintln!("--- branch root expr (full Debug):\n{:?}", expr);
+        eprintln!("--- scope schedule ({} entries):", schedule.len());
+        for (i, n) in schedule.iter().enumerate() {
+            eprintln!("  [{}] {:.220?}", i, n);
+        }
+        eprintln!("--- dag_usages_scope ({} entries):", dag_usages.len());
+        for (e, c) in &dag_usages {
+            eprintln!("  count={} {:.220?}", c, e);
+        }
+        eprintln!("=== end branch dump ===\n");
+    }
+
+    process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
+}
+
+/// Collect sub-expressions that appear in BOTH arms of some inner-If reachable
+/// from `expr` without crossing another scope boundary along the way to that
+/// If. Each If contributes its own intersection of true_branch ⋂ false_branch
+/// sub-expressions; nested Ifs inside a branch contribute their own
+/// intersections recursively (they live at the same outer scope as far as
+/// `processAstGraph` is concerned, since both arms execute at the same
+/// scope-relative position).
+#[allow(dead_code)]
+fn collect_cross_branch_dominators(expr: &Expr) -> Vec<Expr> {
+    let mut out: Vec<Expr> = Vec::new();
+    fn walk(expr: &Expr, out: &mut Vec<Expr>) {
+        if let Expr::If(if_op) = expr {
+            let mut true_subs: Vec<Expr> = Vec::new();
+            collect_subexprs(&if_op.true_branch, &mut true_subs);
+            let mut false_subs: Vec<Expr> = Vec::new();
+            collect_subexprs(&if_op.false_branch, &mut false_subs);
+            for e in &true_subs {
+                if false_subs.iter().any(|f| f == e) && !out.iter().any(|o| o == e) {
+                    out.push(e.clone());
+                }
+            }
+            // Recurse: an If nested inside true/false branch is also a
+            // cross-branch source, but its candidates land at the *inner*
+            // branch's scope when that branch is processed via the branch
+            // recursion in `apply_cse_within_branches` — so don't double-count
+            // by walking deeper here.
+            return;
+        }
+        for c in direct_children(expr) {
+            walk(c, out);
+        }
+    }
+    walk(expr, &mut out);
+    out
+}
+
+/// Collect sub-expressions that appear in BOTH an inner-If's CONDITION and
+/// at least one of its branches (true_branch or false_branch). The walk
+/// stops at If branches (so nested Ifs inside a branch belong to that
+/// branch's own scope and aren't reported here), but recurses into
+/// conditions to handle nested Ifs in conditions. Walking uses
+/// `direct_children` (not scope-restricted) so the walker reaches Ifs
+/// nested inside `&&`/`||` right arms — Scala places those Ifs at the
+/// surrounding scope when the surrounding `&&` is itself just a sym
+/// reference (the common case for inlined right arms post-CSE).
+///
+/// Used by `process_ast_graph_branch` to seed dag_usages with candidates
+/// that should be extracted at this scope (matching Scala's
+/// eager-condition + branch-thunk model). See §2b in S55/S58 handoffs.
+fn collect_cond_branch_shared(expr: &Expr) -> Vec<Expr> {
+    let mut out: Vec<Expr> = Vec::new();
+    fn walk(expr: &Expr, out: &mut Vec<Expr>) {
+        if let Expr::If(if_op) = expr {
+            let mut cond_subs: Vec<Expr> = Vec::new();
+            collect_subexprs(&if_op.condition, &mut cond_subs);
+            let mut true_subs: Vec<Expr> = Vec::new();
+            collect_subexprs(&if_op.true_branch, &mut true_subs);
+            let mut false_subs: Vec<Expr> = Vec::new();
+            collect_subexprs(&if_op.false_branch, &mut false_subs);
+            for e in &cond_subs {
+                let in_true = true_subs.iter().any(|t| t == e);
+                let in_false = false_subs.iter().any(|f| f == e);
+                if (in_true || in_false) && !out.iter().any(|o| o == e) {
+                    out.push(e.clone());
+                }
+            }
+            // Recurse into the condition to handle nested Ifs in cond.
+            // Don't recurse into branches — those are inner scope.
+            walk(&if_op.condition, out);
+            return;
+        }
+        for c in direct_children(expr) {
+            walk(c, out);
+        }
+    }
+    walk(expr, &mut out);
+    out
+}
+
+// S58 — Pre-v3 ergotree Upcast(Const, _) handling note
+// =====================================================
+// Pre-v3 ErgoTrees (header version 0..=2) emit Upcast(Const, _) ValDef RHSs in a
+// post-round-trip shape, NOT the "natural" shape produced by processAstGraph.
+// Specifically:
+//
+//   PRE-segregation SValue:    val v9 = Upcast(Const(100000:SLong), SBigInt)  tpe SBigInt
+//                              site uses: ValUse(9, SBigInt)
+//
+//   POST-segregation SValue:   val v9 = Const(100000:SLong)                   tpe SLong
+//                              site uses: Upcast(ValUse(9, SLong), SBigInt)
+//
+// The transform happens during ErgoTree::new's serialize+reparse round-trip
+// (ergotree-ir/src/ergo_tree.rs ErgoTree::new, mirror of Scala
+// ErgoTree.withSegregation), driven by:
+//
+//   1. ValueSerializer.serializable() (Scala data/.../ValueSerializer.scala:154-166):
+//      strips Upcast wrapper when serializing a Value — but ONLY effective when
+//      the Upcast wraps a Constant (the strip + the `case c: Constant` arm in
+//      ValueSerializer.serialize together emit just the ConstantPlaceholder bytes;
+//      Upcasts wrapping ValUse / MethodCall / etc. fall through to `case _ =>`
+//      which uses the ORIGINAL v.opCode and preserves the wrapper).
+//
+//   2. TransformingSigmaBuilder.applyUpcast (Scala data/.../SigmaBuilder.scala:751,
+//      and DeserializationSigmaBuilder override): on parse, when an
+//      arith/comparison op's operands have mismatched numeric types, inserts
+//      Upcast at the smaller-typed operand. Disabled for v3+.
+//
+// Rust mirror: sigma_serialize for Expr::Upcast(Const, _) emits bare Const
+// placeholder bytes (Site 1, ergotree-ir/src/serialization/expr.rs);
+// bin_op_sigma_parse re-inserts Upcast at use-site arith/comparison ops
+// (Site 2, ergotree-ir/src/serialization/bin_op.rs). CSE itself does NOT
+// need to know about this — keep extracting Upcast(Const, T) as the candidate;
+// the round-trip in ErgoTree::new reshapes the tree before any final byte emission.
+//
+// If a new contract diverges from node bytes with a similar wrapper-vs-bare
+// issue, suspect another pre-v3 transform not yet mirrored: audit
+// ByIndexSerializer (default-arg shape), MethodCallSerializer (typeSubst).
+
+/// Shared implementation: given pre-computed dag_usages and schedule,
+/// select multi-use nodes for extraction and build the result BlockValue.
+fn process_ast_graph_impl(
+    expr: Expr,
+    global_max_id: u32,
+    dag_usages: Vec<(Expr, usize)>,
+    schedule: Vec<Expr>,
+    mode: ScopeMode,
+) -> Expr {
+    // ValIds defined only inside deeper-If arms within `expr`. A candidate
+    // whose RHS references any of these cannot be hoisted to this scope —
+    // doing so creates a forward `ValUse(id)` referencing a ValDef that
+    // isn't visible at this scope. (Same class as S32 Bug B.)
+    let branch_local_ids = collect_branch_local_val_ids(&expr);
     let mut env: Vec<(Expr, u32)> = Vec::new();
     let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
 
+    let trace = std::env::var("CSE_TRACE_EXTRACT").is_ok();
     for node in &schedule {
         if !is_extractable(node) {
             continue;
         }
         if !is_graph_shared(node) {
+            if trace {
+                eprintln!("[PAG/{:?}] skip-not-shared :: {}", mode, short_expr(node));
+            }
             continue;
         }
         let dag_count = dag_usages
@@ -2549,23 +4594,108 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
             .map(|(_, c)| *c)
             .unwrap_or(0);
         if dag_count >= 2 {
-            // In Scala, && and || wrap the right operand in a ThunkDef,
-            // creating a separate hash-consing scope. Expressions that
-            // only appear inside &&/|| right arms get separate graph
-            // symbols per ThunkDef scope. Only extract if it also appears
-            // in a left-arm (main scope) position.
-            //
-            // This applies to ValUse-dependent expressions (PropertyCall
-            // or ByIndex on a ValUse/PropertyCall) and ByIndex on globals
-            // (e.g., ByIndex(Outputs, 0) used only in && right arms).
-            let needs_scope_check = matches!(node, Expr::PropertyCall(s) if matches!(&*s.expr.obj, Expr::ValUse(_)))
-                || matches!(node, Expr::ByIndex(s) if matches!(&*s.expr.input, Expr::ValUse(_) | Expr::PropertyCall(_) | Expr::GlobalVars(_)))
-                || matches!(node, Expr::Upcast(uc) if matches!(&*uc.input, Expr::ValUse(_) | Expr::Const(_)));
-            if needs_scope_check && !appears_in_main_scope(&expr, node) {
+            // Reject candidates whose RHS references a ValId defined only
+            // inside a deeper-If arm — hoisting them here would create a
+            // forward ValUse to a ValDef that isn't visible at this scope.
+            if references_locally_defined(node, &branch_local_ids) {
+                if trace {
+                    eprintln!(
+                        "[PAG/{:?}] reject reason=branch_local_ids dag_count={} :: {}",
+                        mode,
+                        dag_count,
+                        short_expr(node)
+                    );
+                }
                 continue;
+            }
+
+            // Scope checks differ by mode:
+            //
+            // - Root: in Scala, && / || wrap the right operand in a
+            //   ThunkDef and `If` true/false branches are also ThunkDefs.
+            //   Expressions that ONLY appear inside such sub-ThunkDefs
+            //   create per-thunk graph symbols rather than hash-consing
+            //   into the outer program graph, so they should not be
+            //   extracted at root. Reject when not present in the main
+            //   scope. Exception: `GlobalVars`-input ExtractId / ExtractAmount
+            //   can be present in &&/|| right arms (Scala still counts
+            //   those references) — use the more permissive
+            //   `appears_outside_if_branches` for them.
+            //
+            // - Branch: rejection by branch_local_ids above already
+            //   prevents the analogue (forward references into deeper
+            //   sub-thunks). Don't apply the main-scope check here — the
+            //   whole point of branch mode is to extract at this branch
+            //   scope.
+            if mode == ScopeMode::Root {
+                let use_if_branch_check = matches!(node, Expr::ExtractId(ei) if matches!(&*ei.input, Expr::GlobalVars(_)))
+                    || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)));
+                // Pure-constant Upcast wrappers must be scope-checked even though
+                // they don't touch context: Scala's ThunkScope.findDef chain
+                // creates a separate sym per Thunk for these, so a wrapper used
+                // only inside If branches must extract at branch scope (where the
+                // ValDef RHS contributes 1 pool entry per branch), not at root.
+                // Without this check, root mode would hoist (1 ValDef + N ValUses)
+                // and segregation would emit fewer pool entries than Scala. (S45)
+                let is_pure_const_upcast = matches!(node,
+                    Expr::Upcast(uc)
+                        if matches!(&*uc.input, Expr::Const(_) | Expr::ConstPlaceholder(_))
+                );
+                // S55: bare Const literals (post-S54: SBigInt) need the same
+                // ThunkScope-aware extraction as pure-const Upcast wrappers.
+                // Scala creates a per-Thunk sym for the Const node, so a Const
+                // used only inside If branches must extract at the branch
+                // scope, not at root. Without this check, OpenOrderERG hoisted
+                // BigInt(0) to outer Lambda items[] — shifting its constant
+                // pool position from index 10 (node) to index 7 (local).
+                let is_bare_const = matches!(node, Expr::Const(_));
+                // Pure-constant candidates (no transitive ValUse / GlobalVars /
+                // Context / SelfBox / GetVar) can always be hoisted to root —
+                // their value doesn't depend on context, so eager evaluation
+                // at root is semantically equivalent to inline evaluation.
+                // Only context-touching and pure-const-Upcast/bare-Const
+                // candidates need the scope check.
+                let needs_check = use_if_branch_check
+                    || touches_context(node)
+                    || is_pure_const_upcast
+                    || is_bare_const;
+                if needs_check {
+                    let in_scope = if use_if_branch_check {
+                        appears_outside_if_branches(&expr, node)
+                    } else {
+                        appears_in_main_scope(&expr, node)
+                    };
+                    if !in_scope {
+                        if trace {
+                            eprintln!(
+                                "[PAG/Root] reject reason=not-in-main-scope dag_count={} :: {}",
+                                dag_count,
+                                short_expr(node)
+                            );
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            if trace {
+                eprintln!(
+                    "[PAG/{:?}] extract id={} dag_count={} :: {}",
+                    mode,
+                    next_id,
+                    dag_count,
+                    short_expr(node)
+                );
             }
             env.push((node.clone(), next_id));
             next_id += 1;
+        } else if trace {
+            eprintln!(
+                "[PAG/{:?}] skip dag_count={} :: {}",
+                mode,
+                dag_count,
+                short_expr(node)
+            );
         }
     }
 
@@ -2624,11 +4754,15 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
         })
         .collect();
 
-    // Wrap in BlockValue
+    // Wrap in BlockValue. New ValDefs are prepended to existing items, but
+    // their RHSs may ValUse existing item ids and existing items may ValUse
+    // newly-extracted ids. Topo-sort to ensure every ValUse comes after its
+    // ValDef (same class as S32 Bug A).
     match result {
         Expr::BlockValue(spanned) => {
             let mut items = val_defs;
             items.extend(spanned.expr.items);
+            let items = topo_order_valdefs(items);
             Expr::BlockValue(Spanned {
                 source_span: SourceSpan::empty(),
                 expr: BlockValue {
@@ -2640,7 +4774,7 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
         other => Expr::BlockValue(Spanned {
             source_span: SourceSpan::empty(),
             expr: BlockValue {
-                items: val_defs,
+                items: topo_order_valdefs(val_defs),
                 result: other.into(),
             },
         }),
@@ -2655,15 +4789,22 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
 /// inside the right arm of a logical &&/|| chain. In Scala, the right arm
 /// of &&/|| is wrapped in a ThunkDef — expressions first created there
 /// are scope-local and not shared with the parent scope.
+///
+/// If-branches are ALSO ThunkDef scopes. Importantly, once inside an If
+/// branch, And/Or left-arm "resets" do NOT escape the if-branch scope —
+/// the outer processAstGraph never sees those expressions at root scope.
 fn appears_in_main_scope(tree: &Expr, target: &Expr) -> bool {
-    appears_in_main_scope_inner(tree, target, false)
+    appears_in_main_scope_inner(tree, target, false, false)
 }
 
-fn appears_in_main_scope_inner(expr: &Expr, target: &Expr, directly_in_thunk: bool) -> bool {
+fn appears_in_main_scope_inner(
+    expr: &Expr,
+    target: &Expr,
+    in_and_thunk: bool, // true = inside the right arm of && / ||
+    in_if_branch: bool, // true = inside an If true/false branch (cannot be escaped by And/Or)
+) -> bool {
     if expr == target {
-        // Found the target. It's in a "left arm position" if we're NOT
-        // directly inside a right arm that hasn't been "reset" by a left arm.
-        return !directly_in_thunk;
+        return !in_and_thunk && !in_if_branch;
     }
     match expr {
         Expr::BinOp(s)
@@ -2675,23 +4816,52 @@ fn appears_in_main_scope_inner(expr: &Expr, target: &Expr, directly_in_thunk: bo
                 )
             ) =>
         {
-            // Left arm: entering a scope's "main" position — reset the thunk flag.
-            // In Scala, the left operand is eagerly evaluated in the enclosing scope.
-            // Even if we're inside a ThunkDef, the ThunkDef has its own main scope.
-            appears_in_main_scope_inner(&s.expr.left, target, false)
-                || appears_in_main_scope_inner(&s.expr.right, target, true)
+            // Left arm: reset in_and_thunk (left arm is eager = main scope for this ThunkDef).
+            // BUT in_if_branch stays: being in an And-left inside an If branch does NOT
+            // make the expression visible at the outer (root) processAstGraph scope.
+            appears_in_main_scope_inner(&s.expr.left, target, false, in_if_branch)
+                || appears_in_main_scope_inner(&s.expr.right, target, true, in_if_branch)
         }
         // In Scala's graph IR, If branches are ThunkDefs (lazy evaluation).
-        // The condition is eagerly evaluated (main scope), but true/false
-        // branches are separate ThunkDef scopes.
+        // The condition is eagerly evaluated (same scope as enclosing), but
+        // true/false branches are separate ThunkDef scopes that cannot be escaped.
         Expr::If(if_op) => {
-            appears_in_main_scope_inner(&if_op.condition, target, directly_in_thunk)
-                || appears_in_main_scope_inner(&if_op.true_branch, target, true)
-                || appears_in_main_scope_inner(&if_op.false_branch, target, true)
+            appears_in_main_scope_inner(&if_op.condition, target, in_and_thunk, in_if_branch)
+                || appears_in_main_scope_inner(&if_op.true_branch, target, false, true)
+                || appears_in_main_scope_inner(&if_op.false_branch, target, false, true)
         }
         _ => direct_children(expr)
             .into_iter()
-            .any(|child| appears_in_main_scope_inner(child, target, directly_in_thunk)),
+            .any(|child| appears_in_main_scope_inner(child, target, in_and_thunk, in_if_branch)),
+    }
+}
+
+/// Check if `target` appears anywhere outside of If branches.
+/// Unlike `appears_in_main_scope`, this does NOT treat And/Or right arms
+/// as separate scopes. In Scala's graph IR, root-scope expressions
+/// (those with GlobalVars input) have their references counted across
+/// And/Or ThunkDef scopes, but NOT across If branches.
+fn appears_outside_if_branches(tree: &Expr, target: &Expr) -> bool {
+    appears_outside_if_inner(tree, target, false)
+}
+
+fn appears_outside_if_inner(expr: &Expr, target: &Expr, in_if_branch: bool) -> bool {
+    if expr == target {
+        return !in_if_branch;
+    }
+    match expr {
+        // If branches are separate scopes — expressions only inside
+        // If branches don't get root-level ValDefs.
+        Expr::If(if_op) => {
+            appears_outside_if_inner(&if_op.condition, target, in_if_branch)
+                || appears_outside_if_inner(&if_op.true_branch, target, true)
+                || appears_outside_if_inner(&if_op.false_branch, target, true)
+        }
+        // And/Or right arms are NOT separate scopes for root-scope expressions.
+        // References from And/Or ThunkDefs count toward root scope.
+        _ => direct_children(expr)
+            .into_iter()
+            .any(|child| appears_outside_if_inner(child, target, in_if_branch)),
     }
 }
 
@@ -4145,5 +6315,284 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
         | Expr::Global
         | Expr::GetVar(_)
         | Expr::DeserializeContext(_) => expr,
+    }
+}
+
+#[cfg(test)]
+mod renumber_scope_safety {
+    //! Repro tests for the S33 latent bug: `sequential_renumber` can produce
+    //! a `BlockValue` whose `items` list contains two `ValDef`s with the
+    //! same `ValId`. Triggered when an old_id appears in a sibling If
+    //! branch *and* in this scope's items: the second occurrence is
+    //! treated as "already mapped" and does not advance `next_id`, so the
+    //! NEXT sibling ValDef steals the same new_id.
+    //!
+    //! These tests exercise `sequential_renumber` (and its prerequisite
+    //! `flatten_nested_blocks`) directly on hand-built MIR, no parser
+    //! involvement. They are intended to FAIL on master until the
+    //! scope-merge bug is fixed.
+    use super::*;
+    use ergotree_ir::mir::block::BlockValue;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::if_op::If;
+    use ergotree_ir::mir::val_def::{ValDef, ValId};
+    use ergotree_ir::mir::val_use::ValUse;
+    use ergotree_ir::source_span::{SourceSpan, Spanned};
+    use ergotree_ir::types::stype::SType;
+    use std::collections::HashSet;
+
+    fn c(v: i64) -> Expr {
+        Expr::Const(Constant::from(v))
+    }
+    fn cb(v: bool) -> Expr {
+        Expr::Const(Constant::from(v))
+    }
+    fn vdef(id: u32, rhs: Expr) -> Expr {
+        Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: ValId(id),
+                rhs: Box::new(rhs),
+            },
+        })
+    }
+    fn vuse(id: u32) -> Expr {
+        Expr::ValUse(ValUse {
+            val_id: ValId(id),
+            tpe: SType::SLong,
+        })
+    }
+    fn block(items: Vec<Expr>, result: Expr) -> Expr {
+        Expr::BlockValue(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: BlockValue {
+                items,
+                result: Box::new(result),
+            },
+        })
+    }
+    fn if_e(cond: Expr, t: Expr, f: Expr) -> Expr {
+        Expr::If(If {
+            condition: Box::new(cond),
+            true_branch: Box::new(t),
+            false_branch: Box::new(f),
+        })
+    }
+
+    /// Walk the tree; for every BlockValue, return any duplicate ValIds
+    /// among its direct `items` (each scope checked independently).
+    fn find_same_scope_dup_ids(expr: &Expr) -> Vec<(String, Vec<u32>)> {
+        let mut out = Vec::new();
+        walk(expr, "root", &mut out);
+        return out;
+
+        fn walk(e: &Expr, path: &str, out: &mut Vec<(String, Vec<u32>)>) {
+            if let Expr::BlockValue(s) = e {
+                let mut seen: HashSet<u32> = HashSet::new();
+                let mut dups: Vec<u32> = Vec::new();
+                for item in &s.expr.items {
+                    if let Expr::ValDef(vd) = item {
+                        let id = vd.expr.id.0;
+                        if !seen.insert(id) && !dups.contains(&id) {
+                            dups.push(id);
+                        }
+                    }
+                }
+                if !dups.is_empty() {
+                    out.push((path.to_string(), dups));
+                }
+            }
+            // Recurse into children
+            for (i, child) in expr_children(e).into_iter().enumerate() {
+                let p = format!("{}/{}", path, i);
+                walk(&child, &p, out);
+            }
+        }
+    }
+
+    fn expr_children(e: &Expr) -> Vec<Expr> {
+        match e {
+            Expr::BlockValue(s) => {
+                let mut v: Vec<Expr> = s.expr.items.clone();
+                v.push((*s.expr.result).clone());
+                v
+            }
+            Expr::ValDef(s) => vec![(*s.expr.rhs).clone()],
+            Expr::If(i) => vec![
+                (*i.condition).clone(),
+                (*i.true_branch).clone(),
+                (*i.false_branch).clone(),
+            ],
+            _ => Vec::new(),
+        }
+    }
+
+    /// Minimal repro of the S33 bug.
+    ///
+    /// Pre-renumber tree:
+    /// ```
+    /// BlockValue {
+    ///   items: [ValDef(id=1, Const(0))]
+    ///   result: If(true,
+    ///     then: BlockValue { items: [ValDef(id=2, Const(10))], result: ValUse(2) },
+    ///     else: BlockValue {
+    ///       items: [
+    ///         ValDef(id=2, Const(20)),   // same old_id as then-branch's V_x
+    ///         ValDef(id=3, Const(30)),
+    ///       ],
+    ///       result: ValUse(3)
+    ///     }
+    ///   )
+    /// }
+    /// ```
+    ///
+    /// Trace through `sequential_renumber`:
+    /// - Outer ValDef(1): my_def_id=0, new_id=1; id_map={1→1}, next_id=1
+    /// - If: branch_start=1
+    ///   - then: ValDef(2): my_def_id=1, new_id=2; id_map={1→1,2→2}, next_id=2
+    ///   - reset next_id=1
+    ///   - else:
+    ///     - ValDef(2): id_map ALREADY has 2 → skip assignment, just recurse RHS.
+    ///       next_id stays at 1. (BUG: this ValDef's id is now also 2, but
+    ///       next_id was not advanced.)
+    ///     - ValDef(3): my_def_id=1, new_id=2; id_map={1→1,2→2,3→2}, next_id=2
+    ///       *** Both else-branch items now bear new_id=2 — SAME SCOPE DUP. ***
+    ///
+    /// Documents the latent bug: `sequential_renumber` *alone* still
+    /// produces same-scope duplicate ValIds on this input. This is the
+    /// historical S33 failure mode. The fix lives in
+    /// `disambiguate_val_ids`, which is run by `apply_cse` before
+    /// `sequential_renumber`. Asserts the bug still reproduces if
+    /// disambig is skipped — guards against silent re-introduction.
+    #[test]
+    fn raw_sequential_renumber_still_buggy_without_disambig() {
+        let pre = block(
+            vec![vdef(1, c(0))],
+            if_e(
+                cb(true),
+                block(vec![vdef(2, c(10))], vuse(2)),
+                block(vec![vdef(2, c(20)), vdef(3, c(30))], vuse(3)),
+            ),
+        );
+
+        let post = sequential_renumber(pre);
+        let dups = find_same_scope_dup_ids(&post);
+        assert!(
+            !dups.is_empty(),
+            "expected raw sequential_renumber to still exhibit the bug \
+             (else disambiguate_val_ids no longer needed): {:#?}",
+            post
+        );
+    }
+
+    /// The actual fix: `disambiguate_val_ids` followed by
+    /// `sequential_renumber` produces no same-scope duplicates on the
+    /// shape that previously broke ProxyBorrow.
+    #[test]
+    fn disambig_then_renumber_resolves_collision() {
+        let pre = block(
+            vec![vdef(1, c(0))],
+            if_e(
+                cb(true),
+                block(vec![vdef(2, c(10))], vuse(2)),
+                block(vec![vdef(2, c(20)), vdef(3, c(30))], vuse(3)),
+            ),
+        );
+
+        let disambiguated = disambiguate_val_ids(pre);
+        // After disambig: every ValDef has a globally-unique id.
+        let mut seen: HashSet<u32> = HashSet::new();
+        let mut all_unique = true;
+        collect_all_valdef_ids(&disambiguated, &mut |id| {
+            if !seen.insert(id) {
+                all_unique = false;
+            }
+        });
+        assert!(
+            all_unique,
+            "disambig_val_ids did not produce globally-unique ValDef ids:\n{:#?}",
+            disambiguated
+        );
+
+        let post = sequential_renumber(disambiguated);
+        let dups = find_same_scope_dup_ids(&post);
+        assert!(
+            dups.is_empty(),
+            "fix regressed: same-scope dup after disambig+renumber: {:?}\n{:#?}",
+            dups,
+            post
+        );
+    }
+
+    fn collect_all_valdef_ids(expr: &Expr, f: &mut dyn FnMut(u32)) {
+        if let Expr::ValDef(s) = expr {
+            f(s.expr.id.0);
+        }
+        for child in expr_children(expr) {
+            collect_all_valdef_ids(&child, f);
+        }
+    }
+
+    /// Sanity check: when the same old_id appears in BOTH If branches but
+    /// no other items are added, no scope sees a dup (each branch has at
+    /// most one ValDef of that id). This should pass on master and serves
+    /// as a regression baseline.
+    #[test]
+    fn sequential_renumber_same_id_in_both_branches_no_dup() {
+        let pre = if_e(
+            cb(true),
+            block(vec![vdef(2, c(10))], vuse(2)),
+            block(vec![vdef(2, c(20))], vuse(2)),
+        );
+        let post = sequential_renumber(pre);
+        let dups = find_same_scope_dup_ids(&post);
+        assert!(dups.is_empty(), "unexpected dup: {:?}", dups);
+    }
+
+    /// Variant: collision when one branch's old_id matches an OUTER
+    /// scope's item-ValDef old_id. After renumber, the inner branch
+    /// item's new_id collides with the outer item's; if any later
+    /// inner-scope item picks the same `next_id` snapshot, we get a dup
+    /// inside the inner scope.
+    #[test]
+    fn sequential_renumber_collides_with_outer_scope_id() {
+        // Outer items use ids 7, 8. The inner else-branch reuses old_id=7
+        // (which would be plausible if dfs_reassign_val_ids didn't
+        // descend into branches), then has another fresh id.
+        let pre = block(
+            vec![vdef(7, c(0)), vdef(8, c(1))],
+            if_e(
+                cb(true),
+                vuse(7),
+                block(vec![vdef(7, c(20)), vdef(9, c(30))], vuse(9)),
+            ),
+        );
+        let post = sequential_renumber(pre);
+        let dups = find_same_scope_dup_ids(&post);
+        assert!(
+            dups.is_empty(),
+            "same-scope dup detected: {:?}\ntree:\n{:#?}",
+            dups,
+            post
+        );
+    }
+
+    /// Run `flatten_nested_blocks` then `sequential_renumber` on a tree
+    /// where flatten merges a nested BlockValue into the outer scope.
+    /// Confirm that flatten itself doesn't introduce dups, and renumber
+    /// after flatten doesn't either.
+    #[test]
+    fn flatten_then_renumber_no_dup() {
+        // BlockValue { items: [ValDef(1, c(0))],
+        //              result: BlockValue { items: [ValDef(2, c(1))], result: ValUse(2) } }
+        // After flatten: BlockValue { items: [ValDef(1, c(0)), ValDef(2, c(1))], result: ValUse(2) }
+        let pre = block(vec![vdef(1, c(0))], block(vec![vdef(2, c(1))], vuse(2)));
+        let flat = flatten_nested_blocks(pre);
+        let dups = find_same_scope_dup_ids(&flat);
+        assert!(dups.is_empty(), "flatten dup: {:?}", dups);
+        let post = sequential_renumber(flat);
+        let dups = find_same_scope_dup_ids(&post);
+        assert!(dups.is_empty(), "renumber dup: {:?}", dups);
     }
 }

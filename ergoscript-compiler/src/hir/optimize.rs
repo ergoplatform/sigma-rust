@@ -10,9 +10,199 @@ use ergotree_ir::types::stype::SType;
 
 /// Run all optimization passes in order.
 pub fn optimize(expr: Expr) -> Expr {
+    let expr = widen_numeric_literals(expr);
     let expr = constant_fold(expr, &mut HashMap::new());
     let expr = inline_single_use_vals(expr);
     eliminate_negation(expr)
+}
+
+// ---------------------------------------------------------------------------
+// Pass 0: Numeric Literal Widening
+// ---------------------------------------------------------------------------
+
+/// Widen inline numeric literals in BinOps to match a wider operand type.
+/// Must run BEFORE constant_fold so val-bound constants (ValUse) are still
+/// distinguishable from inline literals (Literal). This matches Scala's
+/// behavior: inline `1` in `longExpr - 1` becomes Long(1), but val-bound
+/// `MaxHistorySize` in `MaxHistorySize * longVal` stays Int with Upcast.
+fn widen_numeric_literals(expr: Expr) -> Expr {
+    match expr.kind {
+        ExprKind::Binary(bin) => {
+            let new_lhs = widen_numeric_literals(*bin.lhs);
+            let new_rhs = widen_numeric_literals(*bin.rhs);
+            let is_numeric_op = matches!(
+                bin.op.node,
+                BinaryOp::Plus
+                    | BinaryOp::Minus
+                    | BinaryOp::Multiply
+                    | BinaryOp::Divide
+                    | BinaryOp::Modulo
+                    | BinaryOp::Gt
+                    | BinaryOp::Lt
+                    | BinaryOp::Ge
+                    | BinaryOp::Le
+                    | BinaryOp::Eq
+                    | BinaryOp::Neq
+            );
+            if is_numeric_op {
+                let (wl, wr) = widen_binop_literal_pair(new_lhs, new_rhs);
+                // Update result type for arithmetic ops (left operand type)
+                let tpe = match bin.op.node {
+                    BinaryOp::Plus
+                    | BinaryOp::Minus
+                    | BinaryOp::Multiply
+                    | BinaryOp::Divide
+                    | BinaryOp::Modulo => wl.tpe.clone(),
+                    _ => expr.tpe,
+                };
+                Expr {
+                    kind: ExprKind::Binary(Binary {
+                        op: bin.op,
+                        lhs: Box::new(wl),
+                        rhs: Box::new(wr),
+                    }),
+                    tpe,
+                    span: expr.span,
+                }
+            } else {
+                Expr {
+                    kind: ExprKind::Binary(Binary {
+                        op: bin.op,
+                        lhs: Box::new(new_lhs),
+                        rhs: Box::new(new_rhs),
+                    }),
+                    ..expr
+                }
+            }
+        }
+        ExprKind::Block(items) => Expr {
+            kind: ExprKind::Block(items.into_iter().map(widen_numeric_literals).collect()),
+            ..expr
+        },
+        ExprKind::ValDef(vd) => Expr {
+            kind: ExprKind::ValDef(ValDef {
+                name: vd.name,
+                id: vd.id,
+                tpe: vd.tpe,
+                rhs: Box::new(widen_numeric_literals(*vd.rhs)),
+            }),
+            ..expr
+        },
+        ExprKind::Apply(app) => Expr {
+            kind: ExprKind::Apply(Apply {
+                func: Box::new(widen_numeric_literals(*app.func)),
+                args: app.args.into_iter().map(widen_numeric_literals).collect(),
+                type_arg: app.type_arg,
+            }),
+            ..expr
+        },
+        ExprKind::FieldAccess(fa) => Expr {
+            kind: ExprKind::FieldAccess(FieldAccessExpr {
+                object: Box::new(widen_numeric_literals(*fa.object)),
+                field: fa.field,
+                type_args: fa.type_args,
+            }),
+            ..expr
+        },
+        ExprKind::If(if_expr) => Expr {
+            kind: ExprKind::If(IfExprHir {
+                condition: Box::new(widen_numeric_literals(*if_expr.condition)),
+                then_branch: Box::new(widen_numeric_literals(*if_expr.then_branch)),
+                else_branch: Box::new(widen_numeric_literals(*if_expr.else_branch)),
+            }),
+            ..expr
+        },
+        ExprKind::Lambda(lam) => Expr {
+            kind: ExprKind::Lambda(LambdaExpr {
+                params: lam.params,
+                param_ids: lam.param_ids,
+                body: Box::new(widen_numeric_literals(*lam.body)),
+            }),
+            ..expr
+        },
+        ExprKind::LogicalNot(inner) => Expr {
+            kind: ExprKind::LogicalNot(Box::new(widen_numeric_literals(*inner))),
+            ..expr
+        },
+        ExprKind::Negation(inner) => Expr {
+            kind: ExprKind::Negation(Box::new(widen_numeric_literals(*inner))),
+            ..expr
+        },
+        ExprKind::Tuple(items) => Expr {
+            kind: ExprKind::Tuple(items.into_iter().map(widen_numeric_literals).collect()),
+            ..expr
+        },
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => expr,
+    }
+}
+
+fn hir_numeric_rank(tpe: &SType) -> Option<u8> {
+    match tpe {
+        SType::SByte => Some(1),
+        SType::SShort => Some(2),
+        SType::SInt => Some(3),
+        SType::SLong => Some(4),
+        SType::SBigInt => Some(5),
+        _ => None,
+    }
+}
+
+/// If exactly one operand is a Literal with a narrower numeric type than the
+/// other operand's known type, widen the literal in place.
+fn widen_binop_literal_pair(lhs: Expr, rhs: Expr) -> (Expr, Expr) {
+    // RHS is a literal, LHS has a wider known type
+    if let ExprKind::Literal(ref lit) = rhs.kind {
+        if let (Some(l), Some(r)) = (lhs.tpe.as_ref(), rhs.tpe.as_ref()) {
+            if let (Some(lr), Some(rr)) = (hir_numeric_rank(l), hir_numeric_rank(r)) {
+                if lr > rr {
+                    if let Some(widened) = widen_literal(lit, l) {
+                        let target = l.clone();
+                        return (
+                            lhs,
+                            Expr {
+                                kind: ExprKind::Literal(widened),
+                                tpe: Some(target),
+                                span: rhs.span,
+                            },
+                        );
+                    }
+                }
+            }
+        }
+    }
+    // LHS is a literal, RHS has a wider known type
+    if let ExprKind::Literal(ref lit) = lhs.kind {
+        if let (Some(l), Some(r)) = (lhs.tpe.as_ref(), rhs.tpe.as_ref()) {
+            if let (Some(lr), Some(rr)) = (hir_numeric_rank(l), hir_numeric_rank(r)) {
+                if rr > lr {
+                    if let Some(widened) = widen_literal(lit, r) {
+                        let target = r.clone();
+                        return (
+                            Expr {
+                                kind: ExprKind::Literal(widened),
+                                tpe: Some(target),
+                                span: lhs.span,
+                            },
+                            rhs,
+                        );
+                    }
+                }
+            }
+        }
+    }
+    (lhs, rhs)
+}
+
+/// Widen a numeric literal to a wider type.
+fn widen_literal(lit: &Literal, target: &SType) -> Option<Literal> {
+    match (lit, target) {
+        (Literal::Int(v), SType::SLong) => Some(Literal::Long(*v as i64)),
+        _ => None,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -780,6 +970,149 @@ fn hir_expr_contains(haystack: &Expr, needle: &Expr) -> bool {
     }
 }
 
+/// Check if `target` appears in `expr` in "clean scope" — i.e., NOT exclusively
+/// inside the right arm of a logical &&/|| chain. Mirrors the MIR
+/// `appears_in_main_scope` check but operates on HIR expressions.
+///
+/// In Scala's graph IR, &&/|| right operands are wrapped in ThunkDef (lazy
+/// evaluation). Expressions first created inside a ThunkDef get scope-local
+/// graph symbols. This function detects whether `target` would be in main
+/// scope (not ThunkDef-local) in Scala's graph construction.
+fn hir_in_clean_scope(expr: &Expr, target: &Expr) -> bool {
+    hir_in_clean_scope_inner(expr, target, false)
+}
+
+fn hir_in_clean_scope_inner(expr: &Expr, target: &Expr, in_thunk: bool) -> bool {
+    if hir_expr_eq(expr, target) {
+        return !in_thunk;
+    }
+    match &expr.kind {
+        ExprKind::Binary(bin) if matches!(bin.op.node, BinaryOp::And | BinaryOp::Or) => {
+            // Left arm: reset to main scope (even if we were in a thunk,
+            // the left operand is eagerly evaluated in the enclosing scope).
+            // Right arm: new ThunkDef scope.
+            hir_in_clean_scope_inner(&bin.lhs, target, false)
+                || hir_in_clean_scope_inner(&bin.rhs, target, true)
+        }
+        ExprKind::If(if_expr) => {
+            // Condition: inherits scope. Branches: ThunkDef scopes.
+            hir_in_clean_scope_inner(&if_expr.condition, target, in_thunk)
+                || hir_in_clean_scope_inner(&if_expr.then_branch, target, true)
+                || hir_in_clean_scope_inner(&if_expr.else_branch, target, true)
+        }
+        // All other nodes: recurse with inherited scope flag
+        ExprKind::Binary(bin) => {
+            hir_in_clean_scope_inner(&bin.lhs, target, in_thunk)
+                || hir_in_clean_scope_inner(&bin.rhs, target, in_thunk)
+        }
+        ExprKind::FieldAccess(fa) => hir_in_clean_scope_inner(&fa.object, target, in_thunk),
+        ExprKind::Apply(app) => {
+            hir_in_clean_scope_inner(&app.func, target, in_thunk)
+                || app
+                    .args
+                    .iter()
+                    .any(|a| hir_in_clean_scope_inner(a, target, in_thunk))
+        }
+        ExprKind::Block(items) => items
+            .iter()
+            .any(|i| hir_in_clean_scope_inner(i, target, in_thunk)),
+        ExprKind::ValDef(vd) => hir_in_clean_scope_inner(&vd.rhs, target, in_thunk),
+        ExprKind::Lambda(lam) => hir_in_clean_scope_inner(&lam.body, target, in_thunk),
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => {
+            hir_in_clean_scope_inner(inner, target, in_thunk)
+        }
+        ExprKind::Tuple(items) => items
+            .iter()
+            .any(|i| hir_in_clean_scope_inner(i, target, in_thunk)),
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => false,
+    }
+}
+
+/// Collect FieldAccess sub-expressions from an HIR expression where the
+/// object is a ValUse. These map to PropertyCall(ValUse, ...) in MIR —
+/// exactly the pattern that needs scope anchoring in CSE's
+/// `needs_scope_check`. GlobalVars-based accesses (SELF.tokens etc.)
+/// don't need anchoring since CSE handles them without a scope check.
+fn collect_field_accesses<'a>(expr: &'a Expr, result: &mut Vec<&'a Expr>) {
+    if let ExprKind::FieldAccess(fa) = &expr.kind {
+        if matches!(&fa.object.kind, ExprKind::ValUse(_)) {
+            result.push(expr);
+        }
+    }
+    match &expr.kind {
+        ExprKind::FieldAccess(fa) => collect_field_accesses(&fa.object, result),
+        ExprKind::Binary(bin) => {
+            collect_field_accesses(&bin.lhs, result);
+            collect_field_accesses(&bin.rhs, result);
+        }
+        ExprKind::Apply(app) => {
+            collect_field_accesses(&app.func, result);
+            for a in &app.args {
+                collect_field_accesses(a, result);
+            }
+        }
+        ExprKind::Block(items) => {
+            for i in items {
+                collect_field_accesses(i, result);
+            }
+        }
+        ExprKind::ValDef(vd) => collect_field_accesses(&vd.rhs, result),
+        ExprKind::If(if_expr) => {
+            collect_field_accesses(&if_expr.condition, result);
+            collect_field_accesses(&if_expr.then_branch, result);
+            collect_field_accesses(&if_expr.else_branch, result);
+        }
+        ExprKind::Lambda(lam) => collect_field_accesses(&lam.body, result),
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => {
+            collect_field_accesses(inner, result);
+        }
+        ExprKind::Tuple(items) => {
+            for i in items {
+                collect_field_accesses(i, result);
+            }
+        }
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => {}
+    }
+}
+
+/// Check if a single-use val should be preserved because its RHS shares a
+/// FieldAccess sub-expression with another val's RHS, where both occurrences
+/// are in "clean scope" (not inside &&/|| right arms).
+///
+/// This matches Scala's behavior where user vals serve as scope anchors in
+/// the graph IR — their sub-expressions get main-scope graph symbols even
+/// though the vals themselves may be inlined into ThunkDef positions later.
+fn has_shared_field_in_clean_scope(rhs: &Expr, items: &[Expr], current_idx: usize) -> bool {
+    let mut field_accesses = Vec::new();
+    collect_field_accesses(rhs, &mut field_accesses);
+    for fa in &field_accesses {
+        // FA must be in clean scope within this val's RHS
+        if !hir_in_clean_scope(rhs, fa) {
+            continue;
+        }
+        // Check if this FA appears in another val's RHS, also in clean scope
+        for (j, other) in items.iter().enumerate() {
+            if j == current_idx {
+                continue;
+            }
+            if let ExprKind::ValDef(vd) = &other.kind {
+                if hir_expr_contains(&vd.rhs, fa) && hir_in_clean_scope(&vd.rhs, fa) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Inline single-use vals, remove dead vals, unwrap trivial blocks.
 fn inline_single_use_vals(expr: Expr) -> Expr {
     match expr.kind {
@@ -866,6 +1199,26 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                                     .any(|(j, other)| j != idx && hir_expr_contains(other, &rhs));
                                 if rhs_appears_elsewhere {
                                     // Keep this val — its RHS appears elsewhere
+                                    let rebuilt = Expr {
+                                        kind: ExprKind::ValDef(ValDef {
+                                            name: vd.name.clone(),
+                                            id: vd.id,
+                                            tpe: vd.tpe.clone(),
+                                            rhs: Box::new(rhs),
+                                        }),
+                                        ..item
+                                    };
+                                    new_items.push(rebuilt);
+                                    continue;
+                                }
+                                // Check if this val's RHS shares a FieldAccess
+                                // sub-expression with another val's RHS, where
+                                // both are in "clean scope" (not inside &&/||
+                                // right arms). This preserves the scope-anchor
+                                // effect that Scala's user vals provide in the
+                                // graph IR — shared sub-expressions stay in main
+                                // scope for CSE extraction.
+                                if has_shared_field_in_clean_scope(&rhs, &items_snapshot, idx) {
                                     let rebuilt = Expr {
                                         kind: ExprKind::ValDef(ValDef {
                                             name: vd.name.clone(),
