@@ -67,7 +67,18 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
         // Upcast(Const, SBigInt) from a ValDef RHS and the use-site ValUse(N) resolves
         // through valDefTypeStore to the inner Const's narrower type — insert Upcast on
         // the smaller operand to restore the original wider arith. Disabled for v3+.
-        if r.tree_version() < ErgoTreeVersion::V3 && is_arith_or_comparison(&op_kind) {
+        //
+        // S60 narrowing: only fire when at least one operand is a ValUse (the actual
+        // production trigger — type came from the pre-populated valDefTypeStore, not
+        // from the operand's own structure). Without this gate, arbitrary proptest
+        // inputs like `BinOp(Ge, BinOp_SShort, BinOp_SByte)` get a spurious Upcast
+        // inserted on parse, breaking ser_roundtrip across ergotree-ir's MIR proptest
+        // suite (mir::and / or / if_op / collection / tuple / xor_of / block /
+        // coll_filter / coll_forall / apply / bin_op / serialization::expr).
+        if r.tree_version() < ErgoTreeVersion::V3
+            && is_arith_or_comparison(&op_kind)
+            && (matches!(left, Expr::ValUse(_)) || matches!(right, Expr::ValUse(_)))
+        {
             let lt = left.tpe();
             let rt = right.tpe();
             if lt != rt && lt.is_numeric() && rt.is_numeric() {
