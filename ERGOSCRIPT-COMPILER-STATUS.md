@@ -6,7 +6,19 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 
 ## Current state: production-ready
 
-**203 tests passing. 45/46 contracts byte-match the Scala node natively (1 skipped — CSE stack overflow on deeply nested BigInt polynomial).**
+**Test coverage**
+
+| Suite | Result |
+|---|---|
+| `ergoscript-compiler --lib` | 233/233 |
+| `ergoscript-compiler --lib -- --ignored` | 4/4 |
+| `ergoscript-compiler --test conformance` | 154/154 |
+| `test_batch_node_byte_match` | 1/1 |
+| `test_ecosystem_batch` (auth-gated, vs `localhost:9053`) | 14/14 LOCAL MATCH |
+| `ergotree-ir --features arbitrary --lib` | 255/255 |
+| `ergotree-interpreter --features arbitrary --lib` | 336/336 |
+
+**Byte-match parity with the Scala node**: 45/46 legacy contract fixtures (1 skipped — CSE stack overflow on a deeply nested BigInt polynomial; see Known issues) **plus** the 14 ecosystem contracts in the auth-gated batch (SigmaFi, SkyHarbor, DuckPools, Lilium).
 
 ### Two compilation modes
 
@@ -31,6 +43,7 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
 | Arithmetic (`+`, `-`, `*`, `/`, `%`, `min`, `max`) | Complete |
 | Comparisons (`==`, `!=`, `>`, `<`, `>=`, `<=`) | Complete |
 | Logical (`&&`, `\|\|`, `!`) | Complete |
+| Bitwise infix (`&`, `\|`, `^`, `~`, `<<`, `>>`, `>>>`) | Complete (lex→parse→HIR→type→lower; shift eval is `NotImplemented`, matching Scala `testMissingCosting`) |
 | Val bindings with type annotations | Complete |
 | If/else expressions | Complete |
 | Block expressions | Complete |
@@ -41,12 +54,14 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
 | Tuple construction and access | Complete |
 | Global variables (`SELF`, `INPUTS`, `OUTPUTS`, `HEIGHT`, `CONTEXT`) | Complete |
 | Register access (`R4[Long].get`, `R5[Any].isDefined`) | Complete |
-| Built-in functions (`sigmaProp`, `proveDlog`, `atLeast`, `blake2b256`, `fromBase16`, `fromBase58`, `getVar`, `decodePoint`, `longToByteArray`, `byteArrayToLong`, `byteArrayToBigInt`, `substConstants`, `xor`, `xorOf`) | Complete |
-| Sigma protocols (`proveDlog`, `atLeast`, `&&`/`\|\|` on SigmaProp) | Complete |
+| Predef / built-in functions (44/44 — see "Predef function coverage") | Complete |
+| Sigma protocols (`proveDlog`, `proveDHTuple`, `atLeast`, `&&`/`\|\|` on SigmaProp) | Complete |
 | Bool-to-SigmaProp auto-promotion in `&&`/`\|\|` | Complete |
-| Context extensions (`getVar[T](id)`) | Complete |
+| Context extensions (`getVar[T](id)`, `getVarFromInput`) | Complete |
 | Data inputs (`CONTEXT.dataInputs`) | Complete |
 | Constant segregation | Complete |
+| `ZKProof { ... }` block scope | Complete (frontend-only IR — no canonical op-code; serializing errors with `NotSupported`, mirroring Scala's `OpCodes.Undefined` + `testMissingCostingWOSerialization`) |
+| Method registries (SColl, SOption, SAvlTree, SBox, SContext, SHeader, SPreHeader, SGroupElement, SGlobal, SNumeric, SBigInt/SUnsignedBigInt) | Complete (per-method ground truth in [`tests/fixtures/conformance/method-coverage.md`](ergoscript-compiler/tests/fixtures/conformance/method-coverage.md)) |
 
 ### Optimization passes
 
@@ -64,6 +79,19 @@ let result = compile_canonical(source, ScriptEnv::new(), "http://localhost:9053"
    - Post-CSE single-use val inlining (folds e.g. `ExtractAmount(Self)` into `Upcast(ExtractAmount(Self), BigInt)`)
    - Inner-block constant deduplication (extracts duplicate constants as vals within If-branch blocks)
    - If-branch val ordering via symbol-ID-sorted freeVars (matches Scala's ThunkDef scheduling)
+
+### Language conformance
+
+The compiler tracks parity with the Scala reference (`sigmastate-interpreter`) along four workstreams. Per-method and per-predef ground truth lives in [`ergoscript-compiler/tests/fixtures/conformance/method-coverage.md`](ergoscript-compiler/tests/fixtures/conformance/method-coverage.md); durable status with file pointers lives in [`WORKSTREAM-STATUS.md`](WORKSTREAM-STATUS.md).
+
+| Workstream | Scope | Status |
+|---|---|---|
+| A — Predef functions | `SigmaPredef` parity (the 44 globally-named built-ins: `sigmaProp`, `bigInt`, `unsignedBigInt`, `proveDlog`, `proveDHTuple`, `PK`, `atLeast`, `min`/`max`, `longToByteArray`, `byteArrayToLong`, `byteArrayToBigInt`, `fromBigEndianBytes`, `decodePoint`, `xor`, `xorOf`, `allOf`, `anyOf`, `allZK`, `anyZK`, `getVar`, `getVarFromInput`, `serialize`, `deserializeTo`, `some`, `none`, `encodeNbits`, `decodeNbits`, `powHit`, `avlTree`, `treeLookup`, `substConstants`, `upcast`, `downcast`, `placeholder`, `fromBase16`/`fromBase58`/`fromBase64`, `blake2b256`, `sha256`, `executeFromVar`, `ZKProof { ... }`, etc.) | **44/44** (100%) |
+| B — Method registries | Method-call parity across the 11 type registries (SColl, SOption, SAvlTree, SBox, SContext, SHeader, SPreHeader, SGroupElement, SGlobal, SNumeric, SBigInt/SUnsignedBigInt) including V6 numeric extensions (`toBytes`/`toBits`/`bitwiseInverse`, `bitwiseOr`/`And`/`Xor`, `shiftLeft`/`Right`, BigInt+UnsignedBigInt modular arithmetic) | **100%** |
+| C — Lexer / parser conformance | Surface-syntax parity: bitwise infix tokens (`&`/`\|`/`^`/`~`/`<<`/`>>`/`>>>`), `expr { block }` application form, post-fix method dispatch, all literal forms required by ecosystem contracts | **byte-match-complete** (~95%; un-braced lambda body grammar remains as QoL — see Open items) |
+| D — Conformance smoke tests | Per-registry submodule layout under `ergoscript-compiler/tests/conformance/` mirroring the Scala test surface | **154 tests**; lexer-tokenization and parser-AST snapshot suites still to land (~95%) |
+
+The byte-op-code space (`OpCodes` 0..=255) is **exhausted** — `XOR_OF = 255` is the last entry. Newer frontend constructs that have no Scala op-code (e.g. `ZkProofBlock`) are wired as frontend-only IR nodes whose serialize arm returns `SigmaSerializationError::NotSupported`, matching how Scala marks them with `OpCodes.Undefined`.
 
 ### Contract test inventory (46 contracts)
 
@@ -122,8 +150,10 @@ All contracts produce bytecode identical to the Scala reference node, with one e
 
 ```bash
 # All unit tests (pure Rust, no node needed)
-cargo test -p ergoscript-compiler
-# 203 passed, 0 failed, 3 ignored
+cargo test -p ergoscript-compiler --lib                      # 233 / 0 / 4 ignored
+cargo test -p ergoscript-compiler --test conformance         # 154 / 0
+cargo test -p ergoscript-compiler --lib -- --ignored         # 4 / 0
+cargo test -p ergoscript-compiler --lib test_batch_node_byte_match  # 1 / 0
 
 # Canonical compilation tests (requires running Ergo node at localhost:9053)
 source ~/.secrets  # sets API_KEY
@@ -134,18 +164,24 @@ cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
 
 ## Open items for future work
 
-### Language features not yet implemented
+### Residuals from the language-conformance arc
 
-- `serialize` / `deserialize` — on-chain serialization
-- `indexOf` on collections
-- `fromBase64` — compile-time Base64 decode
-- Multi-line string literals
-- Pattern matching (not commonly used in contracts)
+These are off the byte-match critical path — none block any current ecosystem fixture — but they are the natural next batch of polish.
+
+- **`avlTree` IR shape mismatch** (flagged near-term priority). Rust's [`CreateAvlTree::value_length: Option<Box<Expr>>`](ergotree-ir/src/mir/create_avl_tree.rs) vs Scala's `valueLengthOpt: Value[SOption[SInt]]` (a runtime `SOption`-typed expression). The current `avlTree(...)` predef pattern-matches `none[Int]()` / `some(intExpr)` literals at compile time; runtime `SOption` arguments are rejected with a clear error. None of the 14/14 ecosystem fixtures call `avlTree` with a runtime SOption, so this is a documented IR-level discrepancy rather than a parity blocker — but fixing it unblocks Lithos / Etcha / Machina Finance byte-match. See `WORKSTREAM-STATUS.md §12a`.
+- **Un-braced lambda body grammar** — accept `(x: Long) => x + 1` without the surrounding `{ }`. Surface-syntax QoL only; not used by any current ecosystem fixture. Workstream C residual.
+- **Lexer / parser snapshot tests** — Workstream D §D.4 has stub plans for token-stream and parse-tree snapshot suites under `tests/conformance/lexer/` and `tests/conformance/parser/`. Independent of the byte-match path, good warm-up work.
 
 ### Known issues
 
 - **CSE stack overflow on deeply nested BigInt polynomials** — DuckPools InterestRate contract has `(f * x) / D * x / M * x / M * x / M * x / M` which causes recursive CSE to overflow. Needs iterative CSE or depth limit.
 - **Constant segregation roundtrip failure** — Some contracts with complex CSE-extracted vals fail the `ErgoTree::new` serialize→deserialize roundtrip (ValDefIdNotFound). Root cause: `ErgoTree::new` with constant segregation does serialize→re-parse internally; CSE-extracted vals in ThunkDef scopes (If branches, &&/|| right arms) produce ValUse references before their ValDef in the linear serialization order. Workaround: fall back to non-segregated ErgoTree. Affects 3 ecosystem contracts.
+
+### Language features not yet implemented
+
+- `indexOf` on collections (top-level — the method form on `Coll[T]` is supported)
+- Multi-line string literals
+- Pattern matching (not commonly used in contracts)
 
 ### Architecture improvements
 

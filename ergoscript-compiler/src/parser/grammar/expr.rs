@@ -5,22 +5,30 @@ pub(super) fn expr(p: &mut Parser) -> Option<CompletedMarker> {
 }
 
 // Pratt parser with binding powers.
-// ErgoScript precedence (low to high):
-//   ||          : 1,2
-//   &&          : 3,4
-//   ==, !=      : 5,6
-//   >, <, >=, <=: 7,8
-//   +, -        : 9,10
-//   *, /        : 11,12
-//   unary -, !  : ((), 13)
-//   postfix call: 15,16
+// ErgoScript precedence (low to high), per Scala first-char rule for the
+// bitwise tier (`|` < `^` < `&`), with `||`/`&&` sharing precedence with
+// their bitwise counterparts. Shifts sit between comparison and add (C-style)
+// rather than at Scala's strict same-as-comparison level — strict-Scala would
+// make `a < b << c` parse as `(a < b) << c`, which never type-checks anyway.
+//   ||          : 1,2     // logical or
+//   |           : 3,4     // bitwise or
+//   ^           : 5,6     // bitwise xor
+//   &&          : 7,8     // logical and
+//   &           : 9,10    // bitwise and
+//   ==, !=      : 11,12
+//   >, <, >=, <=: 13,14
+//   <<, >>, >>> : 15,16   // shifts (added later when IR is extended)
+//   +, -, ++    : 17,18
+//   *, /, %     : 19,20
+//   unary -, !, ~: ((), 21)
+//   postfix call: 23,24
 fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<CompletedMarker> {
     let mut lhs = lhs(p)?;
 
     loop {
         // Check for postfix: dot access `expr.ident`
         if p.at(TokenKind::Dot) {
-            let left_binding_power = 17_u8;
+            let left_binding_power = 25_u8;
             if left_binding_power < minimum_binding_power {
                 break;
             }
@@ -41,7 +49,7 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
         // Also handles type application: `Coll[Byte]()`, `getVar[Int](0)`
         // Don't treat ( or [ as postfix if preceded by newline
         if (p.at(TokenKind::LParen) || p.at(TokenKind::LBracket)) && !p.had_newline() {
-            let left_binding_power = 15_u8;
+            let left_binding_power = 23_u8;
             if left_binding_power < minimum_binding_power {
                 break;
             }
@@ -58,6 +66,10 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
                 expr_binding_power(p, 0);
                 while p.at(TokenKind::Comma) {
                     p.bump();
+                    // Allow trailing comma: stop if next non-trivia is ')'
+                    if p.at(TokenKind::RParen) {
+                        break;
+                    }
                     expr_binding_power(p, 0);
                 }
             }
@@ -69,7 +81,7 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
         // Check for postfix: method call with block arg `expr.method { lambda }`
         // Don't treat { as postfix block if preceded by newline
         if p.at(TokenKind::LBrace) && !p.had_newline() {
-            let left_binding_power = 15_u8;
+            let left_binding_power = 23_u8;
             if left_binding_power < minimum_binding_power {
                 break;
             }
@@ -80,7 +92,9 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
             continue;
         }
 
-        let op = if p.at(TokenKind::Plus) {
+        let op = if p.at(TokenKind::PlusPlus) {
+            BinaryOp::ConcatColl
+        } else if p.at(TokenKind::Plus) {
             BinaryOp::Add
         } else if p.at(TokenKind::Minus) {
             BinaryOp::Sub
@@ -94,6 +108,21 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
             BinaryOp::And
         } else if p.at(TokenKind::Or) {
             BinaryOp::Or
+        } else if p.at(TokenKind::Amp) {
+            BinaryOp::BitAnd
+        } else if p.at(TokenKind::Pipe) {
+            BinaryOp::BitOr
+        } else if p.at(TokenKind::Caret) {
+            BinaryOp::BitXor
+        } else if p.at(TokenKind::LShift) {
+            BinaryOp::Shl
+        } else if p.at(TokenKind::URShift) {
+            // URShift (`>>>`) must be matched before RShift (`>>`); Logos
+            // already produces the longer token, but if the order ever flips
+            // the parser would commit to RShift and leave a `>` lying around.
+            BinaryOp::UShr
+        } else if p.at(TokenKind::RShift) {
+            BinaryOp::Shr
         } else if p.at(TokenKind::EqEq) {
             BinaryOp::Eq
         } else if p.at(TokenKind::NotEq) {
@@ -132,9 +161,9 @@ fn expr_binding_power(p: &mut Parser, minimum_binding_power: u8) -> Option<Compl
 }
 
 fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
-    let cm = if p.at(TokenKind::IntNumber) {
+    let cm = if p.at(TokenKind::IntNumber) || p.at(TokenKind::HexIntNumber) {
         int_number(p)
-    } else if p.at(TokenKind::LongNumber) {
+    } else if p.at(TokenKind::LongNumber) || p.at(TokenKind::HexLongNumber) {
         long_number(p)
     } else if p.at(TokenKind::TrueKw) || p.at(TokenKind::FalseKw) {
         bool_literal(p)
@@ -146,6 +175,8 @@ fn lhs(p: &mut Parser) -> Option<CompletedMarker> {
         prefix_expr(p)
     } else if p.at(TokenKind::Bang) {
         prefix_not(p)
+    } else if p.at(TokenKind::Tilde) {
+        prefix_tilde(p)
     } else if p.at(TokenKind::LParen) {
         paren_expr(p)
     } else if p.at(TokenKind::IfKw) {
@@ -168,23 +199,34 @@ enum BinaryOp {
     Mod,
     And,
     Or,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
+    UShr,
     Eq,
     Neq,
     Gt,
     Lt,
     Ge,
     Le,
+    ConcatColl,
 }
 
 impl BinaryOp {
     fn binding_power(&self) -> (u8, u8) {
         match self {
             Self::Or => (1, 2),
-            Self::And => (3, 4),
-            Self::Eq | Self::Neq => (5, 6),
-            Self::Gt | Self::Lt | Self::Ge | Self::Le => (7, 8),
-            Self::Add | Self::Sub => (9, 10),
-            Self::Mul | Self::Div | Self::Mod => (11, 12),
+            Self::BitOr => (3, 4),
+            Self::BitXor => (5, 6),
+            Self::And => (7, 8),
+            Self::BitAnd => (9, 10),
+            Self::Eq | Self::Neq => (11, 12),
+            Self::Gt | Self::Lt | Self::Ge | Self::Le => (13, 14),
+            Self::Shl | Self::Shr | Self::UShr => (15, 16),
+            Self::Add | Self::Sub | Self::ConcatColl => (17, 18),
+            Self::Mul | Self::Div | Self::Mod => (19, 20),
         }
     }
 }
@@ -192,12 +234,13 @@ impl BinaryOp {
 enum UnaryOp {
     Neg,
     Not,
+    BitNot,
 }
 
 impl UnaryOp {
     fn binding_power(&self) -> ((), u8) {
         match self {
-            Self::Neg | Self::Not => ((), 13),
+            Self::Neg | Self::Not | Self::BitNot => ((), 21),
         }
     }
 }
@@ -224,14 +267,14 @@ fn string_literal(p: &mut Parser) -> CompletedMarker {
 }
 
 fn int_number(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::IntNumber));
+    assert!(p.at(TokenKind::IntNumber) || p.at(TokenKind::HexIntNumber));
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::IntNumber)
 }
 
 fn long_number(p: &mut Parser) -> CompletedMarker {
-    assert!(p.at(TokenKind::LongNumber));
+    assert!(p.at(TokenKind::LongNumber) || p.at(TokenKind::HexLongNumber));
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::LongNumber)
@@ -274,6 +317,17 @@ fn prefix_not(p: &mut Parser) -> CompletedMarker {
     m.complete(p, SyntaxKind::PrefixExpr)
 }
 
+fn prefix_tilde(p: &mut Parser) -> CompletedMarker {
+    assert!(p.at(TokenKind::Tilde));
+
+    let m = p.start();
+    let op = UnaryOp::BitNot;
+    let ((), right_binding_power) = op.binding_power();
+    p.bump();
+    expr_binding_power(p, right_binding_power);
+    m.complete(p, SyntaxKind::PrefixExpr)
+}
+
 fn paren_expr(p: &mut Parser) -> CompletedMarker {
     assert!(p.at(TokenKind::LParen));
 
@@ -284,6 +338,10 @@ fn paren_expr(p: &mut Parser) -> CompletedMarker {
         // Tuple literal: (expr, expr, ...)
         while p.at(TokenKind::Comma) {
             p.bump();
+            // Allow trailing comma
+            if p.at(TokenKind::RParen) {
+                break;
+            }
             expr_binding_power(p, 0);
         }
         p.expect(TokenKind::RParen);
@@ -397,6 +455,9 @@ pub(super) fn parse_type(p: &mut Parser) {
         parse_type(p);
         while p.at(TokenKind::Comma) {
             p.bump();
+            if p.at(TokenKind::RParen) {
+                break;
+            }
             parse_type(p);
         }
         p.expect(TokenKind::RParen);
@@ -639,6 +700,47 @@ mod tests {
                 Root@0..5
                   BoolLiteral@0..5
                     FalseKw@0..5 "false""#]],
+        );
+    }
+
+    #[test]
+    fn parse_trailing_comma_in_call() {
+        // Coll(...) is a function call; trailing comma should be tolerated.
+        check(
+            "Coll(1, 2,)",
+            expect![[r#"
+                Root@0..11
+                  FuncCall@0..11
+                    Ident@0..4
+                      Ident@0..4 "Coll"
+                    LParen@4..5 "("
+                    IntNumber@5..6
+                      IntNumber@5..6 "1"
+                    Comma@6..7 ","
+                    Whitespace@7..8 " "
+                    IntNumber@8..9
+                      IntNumber@8..9 "2"
+                    Comma@9..10 ","
+                    RParen@10..11 ")""#]],
+        );
+    }
+
+    #[test]
+    fn parse_trailing_comma_in_tuple() {
+        check(
+            "(1, 2,)",
+            expect![[r#"
+                Root@0..7
+                  TupleExpr@0..7
+                    LParen@0..1 "("
+                    IntNumber@1..2
+                      IntNumber@1..2 "1"
+                    Comma@2..3 ","
+                    Whitespace@3..4 " "
+                    IntNumber@4..5
+                      IntNumber@4..5 "2"
+                    Comma@5..6 ","
+                    RParen@6..7 ")""#]],
         );
     }
 

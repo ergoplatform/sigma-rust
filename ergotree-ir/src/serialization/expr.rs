@@ -66,6 +66,7 @@ use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
+use crate::mir::sigma_prop_is_proven::SigmaPropIsProven;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::tuple::Tuple;
@@ -73,6 +74,7 @@ use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::mir::xor::Xor;
+use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
@@ -148,6 +150,11 @@ impl Expr {
                 OpCode::BIT_OR => Ok(bin_op_sigma_parse(BitOp::BitOr.into(), r)?),
                 OpCode::BIT_AND => Ok(bin_op_sigma_parse(BitOp::BitAnd.into(), r)?),
                 OpCode::BIT_XOR => Ok(bin_op_sigma_parse(BitOp::BitXor.into(), r)?),
+                OpCode::BIT_SHIFT_LEFT => Ok(bin_op_sigma_parse(BitOp::BitShiftLeft.into(), r)?),
+                OpCode::BIT_SHIFT_RIGHT => Ok(bin_op_sigma_parse(BitOp::BitShiftRight.into(), r)?),
+                OpCode::BIT_SHIFT_RIGHT_ZEROED => {
+                    Ok(bin_op_sigma_parse(BitOp::BitShiftRightZeroed.into(), r)?)
+                }
                 OpCode::BLOCK_VALUE => Ok(Expr::BlockValue(BlockValue::sigma_parse(r)?.into())),
                 OpCode::FUNC_VALUE => Ok(Expr::FuncValue(FuncValue::sigma_parse(r)?)),
                 OpCode::APPLY => Ok(Expr::Apply(Apply::sigma_parse(r)?)),
@@ -177,6 +184,7 @@ impl Expr {
                 CreateProveDlog::OP_CODE => Ok(CreateProveDlog::sigma_parse(r)?.into()),
                 CreateProveDhTuple::OP_CODE => Ok(CreateProveDhTuple::sigma_parse(r)?.into()),
                 SigmaPropBytes::OP_CODE => Ok(SigmaPropBytes::sigma_parse(r)?.into()),
+                SigmaPropIsProven::OP_CODE => Ok(SigmaPropIsProven::sigma_parse(r)?.into()),
                 Tuple::OP_CODE => Ok(Tuple::sigma_parse(r)?.into()),
                 DecodePoint::OP_CODE => Ok(DecodePoint::sigma_parse(r)?.into()),
                 SubstConstants::OP_CODE => Ok(SubstConstants::sigma_parse(r)?.into()),
@@ -295,6 +303,14 @@ impl SigmaSerializable for Expr {
             Expr::Exists(op) => op.sigma_serialize_w_opcode(w),
             Expr::ExtractId(op) => op.sigma_serialize_w_opcode(w),
             Expr::SigmaPropBytes(op) => op.sigma_serialize_w_opcode(w),
+            Expr::SigmaPropIsProven(op) => op.sigma_serialize_w_opcode(w),
+            // ZkProofBlock has no canonical op-code (Scala's `OpCodes.Undefined` =
+            // byte 0 is the constant-code in Rust). Mirrors Scala's
+            // `testMissingCostingWOSerialization`: the AST node round-trips the
+            // typer but the serializer rejects it.
+            Expr::ZkProofBlock(_) => Err(SigmaSerializationError::NotSupported(
+                "ZKProof block (matches Scala OpCodes.Undefined; no serialization)".into(),
+            )),
             Expr::OptionIsDefined(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::OptionGetOrElse(op) => op.expr().sigma_serialize_w_opcode(w),
             Expr::Negation(op) => op.expr().sigma_serialize_w_opcode(w),

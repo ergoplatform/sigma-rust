@@ -1,11 +1,37 @@
 // Initial version is copied from https://github.com/arzg/eldiro
 // Checkout https://arzg.github.io/lang/ for description
-use logos::Logos;
+use logos::{Lexer, Logos};
 use std::fmt;
+
+/// Consume a Scala-style nested block comment after the leading `/*` is matched.
+/// Returns true if a matching `*/` is found; false on EOF.
+fn lex_block_comment(lex: &mut Lexer<TokenKind>) -> bool {
+    let remainder = lex.remainder().as_bytes();
+    let mut depth: usize = 1;
+    let mut i: usize = 0;
+    while i < remainder.len() {
+        if i + 1 < remainder.len() && remainder[i] == b'/' && remainder[i + 1] == b'*' {
+            depth += 1;
+            i += 2;
+        } else if i + 1 < remainder.len() && remainder[i] == b'*' && remainder[i + 1] == b'/' {
+            depth -= 1;
+            i += 2;
+            if depth == 0 {
+                lex.bump(i);
+                return true;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    // Unterminated — consume to EOF.
+    lex.bump(remainder.len());
+    false
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Logos)]
 pub enum TokenKind {
-    #[regex("[ \n]+")]
+    #[regex("[ \t\r\n]+")]
     Whitespace,
 
     #[token("def")]
@@ -29,14 +55,24 @@ pub enum TokenKind {
     #[regex("[A-Za-z_][A-Za-z0-9_]*")]
     Ident,
 
+    #[regex("0[xX][0-9a-fA-F]+L", priority = 3)]
+    HexLongNumber,
+
+    #[regex("0[xX][0-9a-fA-F]+", priority = 3)]
+    HexIntNumber,
+
     #[regex("[0-9]+L")]
     LongNumber,
 
     #[regex("[0-9]+")]
     IntNumber,
 
-    #[regex(r#""[^"]*""#)]
+    // String literal: "..." with Scala-style backslash escapes (\\, \", \n, \t, \u{XXXX}, etc.).
+    #[regex(r#""([^"\\]|\\.)*""#)]
     StringLiteral,
+
+    #[token("++")]
+    PlusPlus,
 
     #[token("+")]
     Plus,
@@ -59,6 +95,18 @@ pub enum TokenKind {
     #[token("||")]
     Or,
 
+    #[token("&")]
+    Amp,
+
+    #[token("|")]
+    Pipe,
+
+    #[token("^")]
+    Caret,
+
+    #[token("~")]
+    Tilde,
+
     #[token("!")]
     Bang,
 
@@ -79,6 +127,15 @@ pub enum TokenKind {
 
     #[token("<")]
     Lt,
+
+    #[token("<<")]
+    LShift,
+
+    #[token(">>")]
+    RShift,
+
+    #[token(">>>")]
+    URShift,
 
     #[token("=")]
     Equals,
@@ -116,8 +173,11 @@ pub enum TokenKind {
     #[token("]")]
     RBracket,
 
-    #[regex("//.*")]
+    #[regex("//[^\n]*")]
     Comment,
+
+    #[token("/*", |lex| { lex_block_comment(lex); })]
+    BlockComment,
 
     #[error]
     Error,
@@ -125,7 +185,7 @@ pub enum TokenKind {
 
 impl TokenKind {
     pub fn is_trivia(self) -> bool {
-        matches!(self, Self::Whitespace | Self::Comment)
+        matches!(self, Self::Whitespace | Self::Comment | Self::BlockComment)
     }
 }
 
@@ -142,14 +202,21 @@ impl fmt::Display for TokenKind {
             Self::Ident => "identifier",
             Self::IntNumber => "number",
             Self::LongNumber => "number",
+            Self::HexIntNumber => "number",
+            Self::HexLongNumber => "number",
             Self::StringLiteral => "string",
             Self::Plus => "'+'",
+            Self::PlusPlus => "'++'",
             Self::Minus => "'-'",
             Self::Star => "'*'",
             Self::Slash => "'/'",
             Self::Percent => "'%'",
             Self::And => "'&&'",
             Self::Or => "'||'",
+            Self::Amp => "'&'",
+            Self::Pipe => "'|'",
+            Self::Caret => "'^'",
+            Self::Tilde => "'~'",
             Self::Bang => "'!'",
             Self::EqEq => "'=='",
             Self::NotEq => "'!='",
@@ -157,6 +224,9 @@ impl fmt::Display for TokenKind {
             Self::LtEq => "'<='",
             Self::Gt => "'>'",
             Self::Lt => "'<'",
+            Self::LShift => "'<<'",
+            Self::RShift => "'>>'",
+            Self::URShift => "'>>>'",
             Self::Equals => "'='",
             Self::Dot => "'.'",
             Self::Arrow => "'=>'",
@@ -170,6 +240,7 @@ impl fmt::Display for TokenKind {
             Self::LBracket => "'['",
             Self::RBracket => "']'",
             Self::Comment => "comment",
+            Self::BlockComment => "block comment",
             Self::Error => "an unrecognized token",
         })
     }
@@ -259,6 +330,16 @@ mod tests {
     }
 
     #[test]
+    fn lex_string_literal_with_escapes() {
+        check(r#""a\"b\\c\nd""#, TokenKind::StringLiteral);
+    }
+
+    #[test]
+    fn lex_string_literal_empty() {
+        check(r#""""#, TokenKind::StringLiteral);
+    }
+
+    #[test]
     fn lex_plus() {
         check("+", TokenKind::Plus);
     }
@@ -294,6 +375,37 @@ mod tests {
     }
 
     #[test]
+    fn lex_amp() {
+        check("&", TokenKind::Amp);
+    }
+
+    #[test]
+    fn lex_pipe() {
+        check("|", TokenKind::Pipe);
+    }
+
+    #[test]
+    fn lex_caret() {
+        check("^", TokenKind::Caret);
+    }
+
+    #[test]
+    fn lex_tilde() {
+        check("~", TokenKind::Tilde);
+    }
+
+    #[test]
+    fn lex_amp_amp_beats_amp() {
+        // Logos longest-match: && is one token, not two &.
+        check("&&", TokenKind::And);
+    }
+
+    #[test]
+    fn lex_pipe_pipe_beats_pipe() {
+        check("||", TokenKind::Or);
+    }
+
+    #[test]
     fn lex_eq_eq() {
         check("==", TokenKind::EqEq);
     }
@@ -321,6 +433,27 @@ mod tests {
     #[test]
     fn lex_lt() {
         check("<", TokenKind::Lt);
+    }
+
+    #[test]
+    fn lex_lshift() {
+        check("<<", TokenKind::LShift);
+    }
+
+    #[test]
+    fn lex_rshift() {
+        check(">>", TokenKind::RShift);
+    }
+
+    #[test]
+    fn lex_urshift() {
+        check(">>>", TokenKind::URShift);
+    }
+
+    #[test]
+    fn lex_urshift_beats_rshift() {
+        // Logos longest-match: ">>>" is one URShift, not RShift+Gt.
+        check(">>>", TokenKind::URShift);
     }
 
     #[test]
@@ -376,5 +509,28 @@ mod tests {
     #[test]
     fn lex_comment() {
         check("// foo", TokenKind::Comment);
+    }
+
+    #[test]
+    fn lex_block_comment_single_line() {
+        check("/* hello */", TokenKind::BlockComment);
+    }
+
+    #[test]
+    fn lex_block_comment_multi_line() {
+        check("/* foo\n   bar\n   baz */", TokenKind::BlockComment);
+    }
+
+    #[test]
+    fn lex_block_comment_nested() {
+        check(
+            "/* outer /* inner */ still outer */",
+            TokenKind::BlockComment,
+        );
+    }
+
+    #[test]
+    fn lex_block_comment_with_stars() {
+        check("/** doc-style comment **/", TokenKind::BlockComment);
     }
 }

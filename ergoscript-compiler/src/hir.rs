@@ -204,6 +204,11 @@ impl Expr {
                         span: ast.span(),
                         tpe: None,
                     }),
+                    SyntaxKind::Tilde => Ok(Expr {
+                        kind: ExprKind::BitInversion(Box::new(operand)),
+                        span: ast.span(),
+                        tpe: None,
+                    }),
                     _ => Err(HirLoweringError::new(
                         format!("Unknown prefix operator: {:?}", op),
                         ast.span(),
@@ -297,12 +302,19 @@ impl Binary {
         let syntax_token = ast.op()?;
         let op = match syntax_token.kind() {
             SyntaxKind::Plus => BinaryOp::Plus,
+            SyntaxKind::PlusPlus => BinaryOp::ConcatColl,
             SyntaxKind::Minus => BinaryOp::Minus,
             SyntaxKind::Star => BinaryOp::Multiply,
             SyntaxKind::Slash => BinaryOp::Divide,
             SyntaxKind::Percent => BinaryOp::Modulo,
             SyntaxKind::And => BinaryOp::And,
             SyntaxKind::Or => BinaryOp::Or,
+            SyntaxKind::Amp => BinaryOp::BitAnd,
+            SyntaxKind::Pipe => BinaryOp::BitOr,
+            SyntaxKind::Caret => BinaryOp::BitXor,
+            SyntaxKind::LShift => BinaryOp::Shl,
+            SyntaxKind::RShift => BinaryOp::Shr,
+            SyntaxKind::URShift => BinaryOp::UShr,
             SyntaxKind::EqEq => BinaryOp::Eq,
             SyntaxKind::NotEq => BinaryOp::Neq,
             SyntaxKind::Gt => BinaryOp::Gt,
@@ -348,6 +360,7 @@ pub enum ExprKind {
     Tuple(Vec<Expr>),
     Negation(Box<Expr>),
     LogicalNot(Box<Expr>),
+    BitInversion(Box<Expr>),
 }
 
 impl From<Binary> for ExprKind {
@@ -375,12 +388,19 @@ pub enum BinaryOp {
     Modulo,
     And,
     Or,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Shl,
+    Shr,
+    UShr,
     Eq,
     Neq,
     Gt,
     Lt,
     Ge,
     Le,
+    ConcatColl,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -389,6 +409,8 @@ pub enum GlobalVars {
     SelfBox,
     Inputs,
     Outputs,
+    GroupGenerator,
+    MinerPubKey,
 }
 
 impl GlobalVars {
@@ -399,6 +421,8 @@ impl GlobalVars {
             GlobalVars::SelfBox => SType::SBox,
             GlobalVars::Inputs => SType::SColl(SType::SBox.into()),
             GlobalVars::Outputs => SType::SColl(SType::SBox.into()),
+            GlobalVars::GroupGenerator => SType::SGroupElement,
+            GlobalVars::MinerPubKey => SType::SColl(SType::SByte.into()),
         }
     }
 }
@@ -464,6 +488,7 @@ pub fn parse_type_name(name: &str) -> Option<SType> {
         "Byte" => Some(SType::SByte),
         "Short" => Some(SType::SShort),
         "BigInt" => Some(SType::SBigInt),
+        "UnsignedBigInt" => Some(SType::SUnsignedBigInt),
         "SigmaProp" => Some(SType::SSigmaProp),
         "GroupElement" => Some(SType::SGroupElement),
         "Box" => Some(SType::SBox),

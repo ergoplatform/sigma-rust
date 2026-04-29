@@ -525,6 +525,170 @@ mod tests {
     }
 
     #[test]
+    fn test_from_base64() {
+        // fromBase64 is a compile-time constant fold — should produce the same
+        // Const(Coll[Byte]) as fromBase16 with equivalent hex.
+        // "AA==" in Base64 decodes to [0x00].
+        use ergotree_ir::serialization::SigmaSerializable;
+        let tree_b64 = compile(
+            r#"{ val x = fromBase64("AA=="); sigmaProp(x.size > 0) }"#,
+            ScriptEnv::new(),
+        )
+        .expect("fromBase64 compile failed");
+        let tree_b16 = compile(
+            r#"{ val x = fromBase16("00"); sigmaProp(x.size > 0) }"#,
+            ScriptEnv::new(),
+        )
+        .expect("fromBase16 compile failed");
+        let hex_b64: String = tree_b64
+            .sigma_serialize_bytes()
+            .unwrap()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
+        let hex_b16: String = tree_b16
+            .sigma_serialize_bytes()
+            .unwrap()
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
+        assert_eq!(
+            hex_b64, hex_b16,
+            "fromBase64(\"AA==\") must produce same ErgoTree as fromBase16(\"00\")"
+        );
+    }
+
+    #[test]
+    fn test_sha256_predef() {
+        // sha256(coll) must compile end-to-end and yield SColl(SByte) result.
+        let result = compile_expr(
+            r#"{ sigmaProp(sha256(SELF.propositionBytes).size > 0) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(result.is_ok(), "sha256 compile failed: {:?}", result.err());
+    }
+
+    #[test]
+    fn test_bigint_predef() {
+        // bigInt("12345") parses the decimal string at compile time and emits a
+        // Const(SBigInt). Must produce a fully-typed SBigInt expression.
+        let tree = compile(
+            r#"{ val n = bigInt("12345"); sigmaProp(n > 0.toBigInt) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(tree.is_ok(), "bigInt compile failed: {:?}", tree.err());
+    }
+
+    #[test]
+    fn test_unsigned_bigint_predef() {
+        // unsignedBigInt("123") parses decimal string at compile time and emits
+        // a Const(SUnsignedBigInt). Mirrors `bigInt(...)`.
+        let expr = compile_expr(r#"{ unsignedBigInt("12345") }"#, ScriptEnv::new())
+            .expect("unsignedBigInt compile failed");
+        assert_eq!(
+            expr.tpe(),
+            ergotree_ir::types::stype::SType::SUnsignedBigInt,
+            "unsignedBigInt result must be SUnsignedBigInt"
+        );
+    }
+
+    #[test]
+    fn test_serialize_predef() {
+        // serialize[T](value) — Global.serialize, T is inferred (no explicit type args).
+        // Returns Coll[Byte]. v6+ feature, so test via compile_expr.
+        let result = compile_expr(
+            r#"{ sigmaProp(serialize(SELF.value).size > 0) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "serialize compile failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_deserialize_to_predef() {
+        // deserializeTo[T](bytes) — Global.deserialize (v6.0+) with explicit type arg.
+        let result = compile_expr(
+            r#"{ sigmaProp(deserializeTo[Long](SELF.propositionBytes) > 0L) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "deserializeTo compile failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_encode_decode_nbits_predef() {
+        // encodeNbits(BigInt) → Long ; decodeNbits(Long) → BigInt. v6+.
+        let result = compile_expr(
+            r#"{ sigmaProp(decodeNbits(encodeNbits(bigInt("123456"))) > 0.toBigInt) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "encode/decodeNbits compile failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_get_var_from_input_predef() {
+        // getVarFromInput[T](inputIdx, varId) — Context method (v6.0+).
+        // Lowers to MethodCall on Expr::Context with explicit type arg.
+        // Requires v6 (V3) for serialization, so test the raw expr build.
+        let result = compile_expr(
+            r#"{ sigmaProp(getVarFromInput[Long](0, 1).isDefined) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "getVarFromInput compile failed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_from_big_endian_bytes_predef() {
+        // fromBigEndianBytes[Long](bytes) — Global.fromBigEndianBytes method call.
+        // Lowers to a MethodCall with explicit type arg substituting STypeVar::t().
+        // Requires v6.0 (ErgoTree V3); test the raw expr build (compile_expr) so
+        // we don't need to thread V3 through ErgoTree::new.
+        let result = compile_expr(
+            r#"{ sigmaProp(fromBigEndianBytes[Long](SELF.propositionBytes) > 0L) }"#,
+            ScriptEnv::new(),
+        );
+        assert!(
+            result.is_ok(),
+            "fromBigEndianBytes compile failed: {:?}",
+            result.err()
+        );
+        let expr = result.unwrap();
+        assert!(
+            format!("{:?}", expr).contains("fromBigEndianBytes")
+                || format!("{:?}", expr).contains("FromBigEndianBytes")
+                || format!("{:?}", expr).contains("MethodCall"),
+            "fromBigEndianBytes should lower to a MethodCall: {:?}",
+            expr
+        );
+    }
+
+    #[test]
+    fn test_pk_predef() {
+        // PK("addr") must compile-time parse the Ergo P2PK address and emit a
+        // Const(SSigmaProp). The result is a SigmaProp value usable directly
+        // as the script proposition.
+        let tree = compile(
+            r#"{ PK("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV") }"#,
+            ScriptEnv::new(),
+        );
+        assert!(tree.is_ok(), "PK compile failed: {:?}", tree.err());
+    }
+
+    #[test]
     fn test_session6_from_base16() {
         let _result = compile_expr(
             r#"{ val x: Coll[Byte] = fromBase16("deadbeef"); sigmaProp(x.size > 0) }"#,
@@ -3635,6 +3799,203 @@ fn test_debug_valdef_serialization() {
         result.is_ok(),
         "SaleLP serialize failed: {:?}",
         result.err()
+    );
+}
+
+/// Significant-15 fixture batch — load .es sources from
+/// `tests/fixtures/significant_15/` and run each through `compile_canonical`.
+/// See [tests/fixtures/significant_15/MANIFEST.md] for source provenance.
+///
+/// Run with:
+///   source ~/.secrets && cargo test -p ergoscript-compiler test_significant_15 -- --ignored --nocapture
+#[test]
+#[ignore] // requires running Ergo node
+fn test_significant_15() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    // (fixture, env_prelude). env_prelude = ErgoScript val-declarations injected at
+    // the top of the source's outer block to substitute free variables from the
+    // upstream Scala scope. Empty prelude = source is self-contained.
+    //
+    // Dummy values are chosen for byte-match reproducibility — they don't represent
+    // real protocol constants. See `tests/fixtures/significant_15/MANIFEST.md` for
+    // upstream substitution policy.
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+
+    let fixtures: &[(&str, String)] = &[
+        // Self-contained sources:
+        ("chaincash_reserve.es", String::new()),
+        ("dexy_bank_full.es", String::new()),
+        ("duckpools_child_interest.es", String::new()),
+        ("oracle_refresh.es", String::new()),
+        ("rosen_event_trigger.es", String::new()),
+        ("sigmao_option.es", String::new()),
+        ("skyharbor_v1_erg.es", String::new()),
+        ("spectrum_n2t_pool.es", String::new()),
+        // Env-bound sources (free idents prepended as vals):
+        (
+            "ergomixer_fullmix.es",
+            format!(
+                "val tokenId: Coll[Byte] = {dummy_token};\n\
+             val feeEmissionScriptHash: Coll[Byte] = {dummy_token2};\n",
+            ),
+        ),
+        (
+            "ergoraffle_active.es",
+            format!(
+                // Only truly-free vars; ticketScript/charityAddress/serviceAddress are
+                // recovered from SELF registers in the script body.
+                "val ticketScriptHash: Coll[Byte] = {dummy_token};\n\
+             val winnerScriptHash: Coll[Byte] = {dummy_token2};\n\
+             val redeemScriptHash: Coll[Byte] = {dummy_token3};\n\
+             val randomBoxToken: Coll[Byte] = {dummy_token};\n\
+             val fee: Long = 1000000L;\n",
+            ),
+        ),
+        (
+            "gluon_box_guard.es",
+            format!(
+                "val _MinFee: Long = 1000000L;\n\
+             val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+             val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+             val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+             val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+             val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+             val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+             val _BOX: Coll[Byte] = {dummy_token};\n\
+             val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+             val _MULTISIG: SigmaProp = {dummy_pk};\n\
+             val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+             val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+             val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+             val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+             val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+             val _DEV_FEE_REPAID: Long = 0L;\n\
+             val _FEE_REPAID: Long = 0L;\n\
+             val _Per_volume_bucket: Long = 720L;\n\
+             val _PER_VOLUME_BUCKET: Long = 720L;\n",
+            ),
+        ),
+        (
+            "phoenix_hodlerg_bank_full.es",
+            format!("val phoenixFeeContractBytesHash: Coll[Byte] = {dummy_token};\n",),
+        ),
+        (
+            "paideia_stake_state.es",
+            format!(
+                "val _stakedTokenID: Coll[Byte] = {dummy_token};\n\
+             val _stakePoolNFT: Coll[Byte] = {dummy_token2};\n\
+             val _emissionNFT: Coll[Byte] = {dummy_token3};\n\
+             val _stakeContractHash: Coll[Byte] = {dummy_addr};\n",
+            ),
+        ),
+        (
+            "sigmausd_bank.es",
+            format!(
+                "val oraclePoolNFT: Coll[Byte] = {dummy_token};\n\
+             val updateNFT: Coll[Byte] = {dummy_token2};\n\
+             val minReserveRatioPercent: Long = 400L;\n\
+             val defaultMaxReserveRatioPercent: Long = 800L;\n",
+            ),
+        ),
+        (
+            "spectrum_t2t_pool.es",
+            String::from("val InitiallyLockedLP: Long = 9223372036854775807L;\n"),
+        ),
+    ];
+
+    let _ = dummy_pk; // reserved for SigmaProp env vars surfaced later
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+
+    eprintln!("\n=== Significant-15 Fixture Batch ===");
+    let filter = std::env::var("SIG15_FILTER").ok();
+    let mut matched = 0usize;
+    let mut node_fallback = 0usize;
+    let mut compile_errors = 0usize;
+    let skipped = 0usize;
+
+    for (fixture, prelude) in fixtures {
+        if let Some(ref f) = filter {
+            if !fixture.contains(f.as_str()) {
+                continue;
+            }
+        }
+
+        let path = fixtures_dir.join(fixture);
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("  {}: READ ERROR {}", fixture, e);
+                compile_errors += 1;
+                continue;
+            }
+        };
+
+        // Inject `prelude` as val-declarations at the start of the outer
+        // BlockExpr (right after the first `{`), so they sit in scope of every
+        // expression in the original source. Empty prelude = source unchanged.
+        let source = if prelude.is_empty() {
+            raw.clone()
+        } else if let Some(idx) = raw.find('{') {
+            let mut s = String::with_capacity(raw.len() + prelude.len());
+            s.push_str(&raw[..=idx]);
+            s.push('\n');
+            s.push_str(prelude);
+            s.push_str(&raw[idx + 1..]);
+            s
+        } else {
+            raw.clone()
+        };
+
+        match compile_canonical(&source, ScriptEnv::new(), node_url, &api_key) {
+            Ok(result) => {
+                let bytes = result.tree.sigma_serialize_bytes().unwrap();
+                match result.matched {
+                    Some(true) => {
+                        eprintln!("  {} ({} bytes): LOCAL MATCH", fixture, bytes.len());
+                        matched += 1;
+                    }
+                    Some(false) => {
+                        let local_tree = compile(&source, ScriptEnv::new()).unwrap();
+                        let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+                        eprintln!(
+                            "  {} ({} bytes): USED NODE (local {} bytes)",
+                            fixture,
+                            bytes.len(),
+                            local_bytes.len()
+                        );
+                        node_fallback += 1;
+                    }
+                    None => {
+                        eprintln!("  {}: NODE UNREACHABLE (used local)", fixture);
+                        compile_errors += 1;
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("  {}: COMPILE ERROR {:?}", fixture, e);
+                compile_errors += 1;
+            }
+        }
+    }
+
+    eprintln!(
+        "\n=== sig-15 summary: {} match / {} fallback / {} skip / {} error ===",
+        matched, node_fallback, skipped, compile_errors
     );
 }
 

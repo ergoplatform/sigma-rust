@@ -1,13 +1,16 @@
 use ergotree_ir::mir::bin_op::ArithOp;
 use ergotree_ir::mir::bin_op::BinOp;
 use ergotree_ir::mir::bin_op::BinOpKind;
+use ergotree_ir::mir::bin_op::BitOp;
 use ergotree_ir::mir::bin_op::LogicalOp;
 use ergotree_ir::mir::bin_op::RelationOp;
+use ergotree_ir::mir::bit_inversion::BitInversion;
 use ergotree_ir::mir::block::BlockValue;
 use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
 use ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt;
 use ergotree_ir::mir::byte_array_to_long::ByteArrayToLong;
 use ergotree_ir::mir::calc_blake2b256::CalcBlake2b256;
+use ergotree_ir::mir::calc_sha256::CalcSha256;
 use ergotree_ir::mir::coll_append::Append;
 use ergotree_ir::mir::coll_by_index::ByIndex;
 use ergotree_ir::mir::coll_exists::Exists;
@@ -19,9 +22,11 @@ use ergotree_ir::mir::coll_size::SizeOf;
 use ergotree_ir::mir::coll_slice::Slice;
 use ergotree_ir::mir::collection::Collection;
 use ergotree_ir::mir::constant::Constant;
+use ergotree_ir::mir::create_prove_dh_tuple::CreateProveDhTuple;
 use ergotree_ir::mir::create_provedlog::CreateProveDlog;
 use ergotree_ir::mir::decode_point::DecodePoint;
 use ergotree_ir::mir::downcast::Downcast;
+use ergotree_ir::mir::exponentiate::Exponentiate;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::extract_amount::ExtractAmount;
 use ergotree_ir::mir::extract_bytes::ExtractBytes;
@@ -46,6 +51,7 @@ use ergotree_ir::mir::select_field::TupleFieldIndex;
 use ergotree_ir::mir::sigma_and::SigmaAnd;
 use ergotree_ir::mir::sigma_or::SigmaOr;
 use ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes;
+use ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven;
 use ergotree_ir::mir::subst_const::SubstConstants;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
 use ergotree_ir::mir::tuple::Tuple;
@@ -99,6 +105,19 @@ fn numeric_rank(tpe: &SType) -> Option<u8> {
 /// to promote it to the wider type. This matches the Scala ErgoScript compiler's
 /// implicit numeric promotion (e.g., Int * Long → Upcast(Int, SLong) * Long,
 /// Long * BigInt → Upcast(Long, SBigInt) * BigInt).
+/// `ByIndex` requires an `SInt` index expression. If the source has a narrower
+/// integer type (e.g. `SByte` or `SShort` from `getVar[Byte]` arithmetic), Sigma's
+/// Scala compiler implicitly upcasts; mirror that here.
+fn upcast_index_to_int(idx: Expr) -> Expr {
+    if idx.tpe() == SType::SInt {
+        idx
+    } else if matches!(idx.tpe(), SType::SByte | SType::SShort) {
+        numeric_upcast(idx, SType::SInt)
+    } else {
+        idx
+    }
+}
+
 fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
     let lt = l.tpe();
     let rt = r.tpe();
@@ -131,6 +150,42 @@ fn numeric_upcast(expr: Expr, target: SType) -> Expr {
     Upcast::new(expr, target).expect("numeric upcast").into()
 }
 
+/// Look up a V6 numeric SMethod by name on the given numeric receiver type.
+/// Each per-type METHODS Vec already contains methods specialized for that
+/// receiver (the `STypeVar::t()` substitution is done at lazy_static time),
+/// so the returned SMethod can be passed straight into MethodCall::new /
+/// PropertyCall::new without further specialize_for.
+fn lookup_numeric_method(
+    receiver: &SType,
+    name: &str,
+) -> Option<ergotree_ir::types::smethod::SMethod> {
+    use ergotree_ir::types::snumeric;
+    let methods: &[ergotree_ir::types::smethod::SMethod] = match receiver {
+        SType::SByte => &snumeric::sbyte::METHODS,
+        SType::SShort => &snumeric::sshort::METHODS,
+        SType::SInt => &snumeric::sint::METHODS,
+        SType::SLong => &snumeric::slong::METHODS,
+        SType::SBigInt => &snumeric::sbigint::METHODS,
+        SType::SUnsignedBigInt => &snumeric::sunsignedbigint::METHODS,
+        _ => return None,
+    };
+    methods.iter().find(|m| m.name() == name).cloned()
+}
+
+fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
+    matches!(
+        tpe,
+        Some(
+            SType::SByte
+                | SType::SShort
+                | SType::SInt
+                | SType::SLong
+                | SType::SBigInt
+                | SType::SUnsignedBigInt
+        )
+    )
+}
+
 pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     let mir: Expr = match &hir_expr.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
@@ -138,6 +193,8 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             hir::GlobalVars::SelfBox => GlobalVars::SelfBox.into(),
             hir::GlobalVars::Inputs => GlobalVars::Inputs.into(),
             hir::GlobalVars::Outputs => GlobalVars::Outputs.into(),
+            hir::GlobalVars::GroupGenerator => GlobalVars::GroupGenerator.into(),
+            hir::GlobalVars::MinerPubKey => GlobalVars::MinerPubKey.into(),
         },
         hir::ExprKind::Ident(_) => {
             return Err(MirLoweringError::new(
@@ -148,6 +205,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
         hir::ExprKind::Binary(hir) => {
             let l = lower(*hir.lhs.clone())?;
             let r = lower(*hir.rhs.clone())?;
+            // Coll concatenation `xs ++ ys` → Append(xs, ys)
+            if matches!(hir.op.node, BinaryOp::ConcatColl) {
+                return Ok(Append::new(l, r)
+                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                    .into());
+            }
             // SigmaProp-level && / || → SigmaAnd / SigmaOr
             // If either side is SigmaProp, auto-promote the Bool side via BoolToSigmaProp
             if matches!(hir.op.node, BinaryOp::And | BinaryOp::Or) {
@@ -235,6 +298,182 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     })?;
                     return Ok(Constant::from(bytes).into());
                 }
+                // Special handling for bigInt("...") — parse decimal string to BigInt256.
+                if name == "bigInt" {
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "bigInt requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let dec_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "bigInt argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    use num_traits::Num as _;
+                    let v = ergotree_ir::bigint256::BigInt256::from_str_radix(dec_str.trim(), 10)
+                        .map_err(|e| {
+                        MirLoweringError::new(
+                            format!("Invalid decimal in bigInt({:?}): {}", dec_str, e),
+                            hir_expr.span,
+                        )
+                    })?;
+                    return Ok(Constant::from(v).into());
+                }
+                // Special handling for unsignedBigInt("...") — parse decimal string to UnsignedBigInt256.
+                if name == "unsignedBigInt" {
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "unsignedBigInt requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let dec_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "unsignedBigInt argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    use num_traits::Num as _;
+                    let v = ergotree_ir::unsignedbigint256::UnsignedBigInt::from_str_radix(
+                        dec_str.trim(),
+                        10,
+                    )
+                    .map_err(|e| {
+                        MirLoweringError::new(
+                            format!("Invalid decimal in unsignedBigInt({:?}): {}", dec_str, e),
+                            hir_expr.span,
+                        )
+                    })?;
+                    return Ok(Constant::from(v).into());
+                }
+                // Special handling for fromBase64 — decode Base64 string at compile time
+                if name == "fromBase64" {
+                    use base64::Engine as _;
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "fromBase64 requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let b64_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "fromBase64 argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    let bytes = base64::engine::general_purpose::STANDARD
+                        .decode(b64_str.as_bytes())
+                        .map_err(|e| {
+                            MirLoweringError::new(
+                                format!("Invalid Base64 in fromBase64: {:?}", e),
+                                hir_expr.span,
+                            )
+                        })?;
+                    return Ok(Constant::from(bytes).into());
+                }
+                // Special handling for PK("addr") — parse Ergo P2PK address at compile
+                // time and emit a Const(SSigmaProp) carrying the embedded ProveDlog.
+                // Mirrors Scala's `PK` predef: a P2PK address's content bytes are the
+                // serialized GroupElement of the public key, wrapped as a SigmaProp.
+                if name == "PK" {
+                    use ergotree_ir::chain::address::{Address, AddressEncoder};
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "PK requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let addr_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "PK argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    let address = AddressEncoder::unchecked_parse_address_from_str(addr_str.trim())
+                        .map_err(|e| {
+                            MirLoweringError::new(
+                                format!("Invalid address in PK({:?}): {}", addr_str, e),
+                                hir_expr.span,
+                            )
+                        })?;
+                    let prove_dlog = match address {
+                        Address::P2Pk(pd) => pd,
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                format!("PK requires a P2PK address; {:?} is not P2PK", addr_str),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    return Ok(Constant::from(prove_dlog).into());
+                }
+                // Special handling for deserialize[T]("base58") — compile-time
+                // base58 decode + sigma_parse + type-check, producing the
+                // resulting Expr inline. Mirrors Scala's `DeserializeFunc`
+                // (SigmaPredef.scala:169).
+                if name == "deserialize" {
+                    let target = apply.type_arg.clone().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "deserialize requires a type argument like deserialize[Long](\"...\")"
+                                .to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let str_arg = apply.args.first().ok_or_else(|| {
+                        MirLoweringError::new(
+                            "deserialize requires a string argument".to_string(),
+                            hir_expr.span,
+                        )
+                    })?;
+                    let b58_str = match &str_arg.kind {
+                        hir::ExprKind::Literal(hir::Literal::String(s)) => s.clone(),
+                        _ => {
+                            return Err(MirLoweringError::new(
+                                "deserialize argument must be a string literal".to_string(),
+                                hir_expr.span,
+                            ))
+                        }
+                    };
+                    let bytes = bs58::decode(&b58_str).into_vec().map_err(|e| {
+                        MirLoweringError::new(
+                            format!("Invalid Base58 in deserialize: {:?}", e),
+                            hir_expr.span,
+                        )
+                    })?;
+                    use ergotree_ir::serialization::SigmaSerializable;
+                    let parsed = Expr::sigma_parse_bytes(&bytes).map_err(|e| {
+                        MirLoweringError::new(
+                            format!("deserialize: sigma_parse failed: {:?}", e),
+                            hir_expr.span,
+                        )
+                    })?;
+                    if parsed.tpe() != target {
+                        return Err(MirLoweringError::new(
+                            format!(
+                                "deserialize: deserialized type {:?} does not match expected {:?}",
+                                parsed.tpe(),
+                                target
+                            ),
+                            hir_expr.span,
+                        ));
+                    }
+                    return Ok(parsed);
+                }
                 // Special handling for fromBase58 — decode Base58 string at compile time
                 if name == "fromBase58" {
                     let str_arg = apply.args.first().ok_or_else(|| {
@@ -283,6 +522,26 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .into()
                         }
                     }
+                    "ZKProof" => {
+                        // ZKProof { sigmaPropExpr } → ZkProofBlock { input: SigmaProp }: SBoolean.
+                        // Mirrors Scala's SigmaPredef.ZKProofFunc (irBuilder calls
+                        // mkZKProofBlock(block.body)). The Rust parser handles the
+                        // `name { ... }` syntax as a FuncCall with the block expr as
+                        // a single arg, so the existing predef dispatch is the right
+                        // home for it. Frontend-only — serialization and eval both
+                        // error to match Scala parity (Scala `OpCodes.Undefined` +
+                        // `testMissingCostingWOSerialization`).
+                        use ergotree_ir::mir::zk_proof::ZkProofBlock;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "ZKProof requires a single block argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        ZkProofBlock::try_build(input)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
                     "blake2b256" => {
                         let input = args.into_iter().next().ok_or_else(|| {
                             MirLoweringError::new(
@@ -295,6 +554,17 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         }
                         .into()
                     }
+                    "sha256" => {
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "sha256 requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        CalcSha256::try_build(input)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
                     "proveDlog" => {
                         let input = args.into_iter().next().ok_or_else(|| {
                             MirLoweringError::new(
@@ -306,6 +576,25 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             input: input.into(),
                         }
                         .into()
+                    }
+                    "proveDHTuple" => {
+                        let mut it = args.into_iter();
+                        let g = it.next();
+                        let h = it.next();
+                        let u = it.next();
+                        let v = it.next();
+                        let (g, h, u, v) = match (g, h, u, v) {
+                            (Some(g), Some(h), Some(u), Some(v)) => (g, h, u, v),
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "proveDHTuple requires four arguments (g, h, u, v)".to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
+                        };
+                        CreateProveDhTuple::new(g, h, u, v)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
                     }
                     "atLeast" => {
                         let mut it = args.into_iter();
@@ -348,6 +637,69 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             input: input.into(),
                         }
                         .into()
+                    }
+                    "allZK" | "anyZK" => {
+                        // Coll-of-SigmaProp version of allOf/anyOf. Scala marks
+                        // the irBuilder as `undefined`; the actual lowering happens
+                        // in graph-IR via the AllZk/AnyZk extractors which only
+                        // match literal Collection.fromItems shapes. Mirror that:
+                        // require a literal Coll(...) of SigmaProp items, unfold
+                        // to SigmaAnd/SigmaOr (≥2 items required by IR).
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                format!("{} requires one argument", name),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let items = match input {
+                            Expr::Collection(coll) => match coll {
+                                ergotree_ir::mir::collection::Collection::Exprs {
+                                    elem_tpe: _,
+                                    items,
+                                } => items,
+                                ergotree_ir::mir::collection::Collection::BoolConstants(_) => {
+                                    return Err(MirLoweringError::new(
+                                        format!(
+                                            "{}: argument must be Coll[SigmaProp], got Coll[Boolean]",
+                                            name
+                                        ),
+                                        hir_expr.span,
+                                    ));
+                                }
+                            },
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    format!(
+                                        "{} requires a literal Coll(...) of SigmaProp items — runtime collections are not supported (matches Scala's `undefined` irBuilder)",
+                                        name
+                                    ),
+                                    hir_expr.span,
+                                ));
+                            }
+                        };
+                        if items.len() < 2 {
+                            return Err(MirLoweringError::new(
+                                format!(
+                                    "{} requires at least 2 SigmaProp items, got {}",
+                                    name,
+                                    items.len()
+                                ),
+                                hir_expr.span,
+                            ));
+                        }
+                        if name == "allZK" {
+                            ergotree_ir::mir::sigma_and::SigmaAnd::new(items)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        } else {
+                            ergotree_ir::mir::sigma_or::SigmaOr::new(items)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                     }
                     "longToByteArray" => {
                         let input = args.into_iter().next().ok_or_else(|| {
@@ -436,6 +788,440 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
+                    "getVarFromInput" => {
+                        // getVarFromInput[T](inputIdx, varId) — Context method (v6.0+).
+                        // Lowers to MethodCall on Expr::Context with explicit type
+                        // arg substituting STypeVar::t(). The IR signature requires
+                        // (SShort, SByte); we accept SInt literals from the user
+                        // source and Downcast them.
+                        use ergotree_ir::types::scontext::GET_VAR_FROM_INPUT_METHOD;
+                        use ergotree_ir::types::stype_param::STypeVar;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "getVarFromInput requires a type argument like getVarFromInput[Long](0, 1)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let mut it = args.into_iter();
+                        let input_idx = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "getVarFromInput requires (inputIdx, varId) arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let var_id = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "getVarFromInput requires (inputIdx, varId) arguments".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let coerce_to =
+                            |e: Expr, target: SType| -> Result<Expr, MirLoweringError> {
+                                if e.tpe() == target {
+                                    return Ok(e);
+                                }
+                                Downcast::new(e, target.clone())
+                                    .map(Into::into)
+                                    .map_err(|err| {
+                                        MirLoweringError::new(
+                                            format!(
+                                                "getVarFromInput coercion to {:?}: {:?}",
+                                                target, err
+                                            ),
+                                            hir_expr.span,
+                                        )
+                                    })
+                            };
+                        let input_idx = coerce_to(input_idx, SType::SShort)?;
+                        let var_id = coerce_to(var_id, SType::SByte)?;
+                        let mut type_args: hashbrown::HashMap<STypeVar, SType> =
+                            hashbrown::HashMap::new();
+                        type_args.insert(STypeVar::t(), target);
+                        MethodCall::with_type_args(
+                            Expr::Context,
+                            GET_VAR_FROM_INPUT_METHOD.clone(),
+                            vec![input_idx, var_id],
+                            type_args,
+                        )
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                    }
+                    "placeholder" => {
+                        // placeholder[T](id: Int) → T.
+                        // Lowers to ConstantPlaceholder { id, tpe: T }. Internal
+                        // ErgoTree primitive used for constant segregation; user
+                        // code calling it produces the bare placeholder node and
+                        // is responsible for providing a constants array at
+                        // serialization time. Scala's `placeholder` predef
+                        // (SigmaPredef.scala:730) ships an `undefined` irBuilder
+                        // and is parser-only there; the Rust IR has the node, so
+                        // we surface a wiring for completeness.
+                        use ergotree_ir::mir::constant::ConstantPlaceholder;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "placeholder requires a type argument like placeholder[Long](0)"
+                                    .to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let id_expr = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "placeholder requires an id argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let id: u32 = match &id_expr {
+                            Expr::Const(c) => {
+                                use ergotree_ir::mir::constant::Literal;
+                                match &c.v {
+                                    Literal::Int(v) if *v >= 0 => *v as u32,
+                                    Literal::Byte(v) if *v >= 0 => *v as u32,
+                                    _ => return Err(MirLoweringError::new(
+                                        "placeholder id must be a non-negative integer constant"
+                                            .to_string(),
+                                        hir_expr.span,
+                                    )),
+                                }
+                            }
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "placeholder id must be a constant".to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
+                        };
+                        Expr::ConstPlaceholder(ConstantPlaceholder { id, tpe: target })
+                    }
+                    "executeFromVar" => {
+                        // executeFromVar[T](id: Byte) → T.
+                        // Lowers to DeserializeContext { tpe: T, id: u8 }.
+                        // Mirrors Scala's mkDeserializeContext.
+                        use ergotree_ir::mir::deserialize_context::DeserializeContext;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromVar requires a type argument like executeFromVar[Long](0)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let id_expr = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromVar requires an id argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let id = match &id_expr {
+                            Expr::Const(c) => {
+                                use ergotree_ir::mir::constant::Literal;
+                                match &c.v {
+                                    Literal::Int(v) => *v as u8,
+                                    Literal::Byte(v) => *v as u8,
+                                    _ => {
+                                        return Err(MirLoweringError::new(
+                                            "executeFromVar id must be an integer constant"
+                                                .to_string(),
+                                            hir_expr.span,
+                                        ))
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "executeFromVar id must be a constant".to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
+                        };
+                        DeserializeContext { tpe: target, id }.into()
+                    }
+                    "executeFromSelfReg" => {
+                        // executeFromSelfReg[T](id: Int) → T.
+                        // Lowers to DeserializeRegister { reg, tpe: T, default: None }.
+                        // Mirrors Scala's mkDeserializeRegister(r, rtpe, None).
+                        use ergotree_ir::chain::ergo_box::RegisterId;
+                        use ergotree_ir::mir::deserialize_register::DeserializeRegister;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromSelfReg requires a type argument like executeFromSelfReg[Long](4)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let id_expr = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromSelfReg requires an id argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let idx: i32 = match &id_expr {
+                            Expr::Const(c) => {
+                                use ergotree_ir::mir::constant::Literal;
+                                match &c.v {
+                                    Literal::Int(v) => *v,
+                                    Literal::Byte(v) => *v as i32,
+                                    _ => {
+                                        return Err(MirLoweringError::new(
+                                            "executeFromSelfReg id must be an integer constant"
+                                                .to_string(),
+                                            hir_expr.span,
+                                        ))
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "executeFromSelfReg id must be a constant".to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
+                        };
+                        let reg = i8::try_from(idx)
+                            .ok()
+                            .and_then(|v| RegisterId::try_from(v).ok())
+                            .ok_or_else(|| {
+                                MirLoweringError::new(
+                                    format!(
+                                        "executeFromSelfReg id {} is out of bounds (0..=9)",
+                                        idx
+                                    ),
+                                    hir_expr.span,
+                                )
+                            })?;
+                        DeserializeRegister::new(reg, target, None)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "executeFromSelfRegWithDefault" => {
+                        // executeFromSelfRegWithDefault[T](id: Int, default: T) → T.
+                        // Lowers to DeserializeRegister { reg, tpe: T, default: Some(default) }.
+                        // Mirrors Scala's mkDeserializeRegister(r, rtpe, Some(default)).
+                        use ergotree_ir::chain::ergo_box::RegisterId;
+                        use ergotree_ir::mir::deserialize_register::DeserializeRegister;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromSelfRegWithDefault requires a type argument"
+                                    .to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let mut it = args.into_iter();
+                        let id_expr = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromSelfRegWithDefault requires (id, default) arguments"
+                                    .to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let default_expr = it.next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "executeFromSelfRegWithDefault requires (id, default) arguments"
+                                    .to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let idx: i32 = match &id_expr {
+                            Expr::Const(c) => {
+                                use ergotree_ir::mir::constant::Literal;
+                                match &c.v {
+                                    Literal::Int(v) => *v,
+                                    Literal::Byte(v) => *v as i32,
+                                    _ => {
+                                        return Err(MirLoweringError::new(
+                                            "executeFromSelfRegWithDefault id must be an integer constant".to_string(),
+                                            hir_expr.span,
+                                        ))
+                                    }
+                                }
+                            }
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "executeFromSelfRegWithDefault id must be a constant"
+                                        .to_string(),
+                                    hir_expr.span,
+                                ))
+                            }
+                        };
+                        let reg = i8::try_from(idx)
+                            .ok()
+                            .and_then(|v| RegisterId::try_from(v).ok())
+                            .ok_or_else(|| {
+                                MirLoweringError::new(
+                                    format!("executeFromSelfRegWithDefault id {} is out of bounds (0..=9)", idx),
+                                    hir_expr.span,
+                                )
+                            })?;
+                        DeserializeRegister::new(reg, target, Some(Box::new(default_expr)))
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "some" => {
+                        // some(value) — Global.some(value): Option[T].
+                        // T is inferred from the argument's type via specialize_for.
+                        // V3+ method.
+                        use ergotree_ir::types::sglobal::SOME_METHOD;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "some requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let specialized = SOME_METHOD
+                            .clone()
+                            .specialize_for(SType::SGlobal, vec![input.tpe()])
+                            .map_err(|e| {
+                                MirLoweringError::new(
+                                    format!("some specialize: {:?}", e),
+                                    hir_expr.span,
+                                )
+                            })?;
+                        MethodCall::new(Expr::Global, specialized, vec![input])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "none" => {
+                        // none[T]() — Global.none[T]: Option[T].
+                        // Requires explicit type arg; explicit_type_args = [STypeVar::t()].
+                        // V3+ method.
+                        use ergotree_ir::types::sglobal::NONE_METHOD;
+                        use ergotree_ir::types::stype_param::STypeVar;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "none requires a type argument like none[Long]()".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let mut type_args: hashbrown::HashMap<STypeVar, SType> =
+                            hashbrown::HashMap::new();
+                        type_args.insert(STypeVar::t(), target);
+                        MethodCall::with_type_args(
+                            Expr::Global,
+                            NONE_METHOD.clone(),
+                            vec![],
+                            type_args,
+                        )
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                    }
+                    "serialize" => {
+                        // serialize[T](value) — Global.serialize, T is inferred
+                        // from the argument type via SMethod::specialize_for.
+                        use ergotree_ir::types::sglobal::SERIALIZE_METHOD;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "serialize requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let specialized = SERIALIZE_METHOD
+                            .clone()
+                            .specialize_for(SType::SGlobal, vec![input.tpe()])
+                            .map_err(|e| {
+                                MirLoweringError::new(
+                                    format!("serialize specialize: {:?}", e),
+                                    hir_expr.span,
+                                )
+                            })?;
+                        MethodCall::new(Expr::Global, specialized, vec![input])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "deserializeTo" => {
+                        // deserializeTo[T](bytes) — Global.deserialize (v6.0+).
+                        // The user-facing name is `deserializeTo` per the EKB
+                        // built-ins ref; the underlying IR method is named
+                        // `deserialize` with an explicit type arg.
+                        use ergotree_ir::types::sglobal::DESERIALIZE_METHOD;
+                        use ergotree_ir::types::stype_param::STypeVar;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "deserializeTo requires a type argument like deserializeTo[Long](bytes)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "deserializeTo requires a Coll[Byte] argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let mut type_args: hashbrown::HashMap<STypeVar, SType> =
+                            hashbrown::HashMap::new();
+                        type_args.insert(STypeVar::t(), target);
+                        MethodCall::with_type_args(
+                            Expr::Global,
+                            DESERIALIZE_METHOD.clone(),
+                            vec![input],
+                            type_args,
+                        )
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                    }
+                    "encodeNbits" => {
+                        use ergotree_ir::types::sglobal::ENCODE_NBITS_METHOD;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "encodeNbits requires one BigInt argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        MethodCall::new(Expr::Global, ENCODE_NBITS_METHOD.clone(), vec![input])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "decodeNbits" => {
+                        use ergotree_ir::types::sglobal::DECODE_NBITS_METHOD;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "decodeNbits requires one Long argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        MethodCall::new(Expr::Global, DECODE_NBITS_METHOD.clone(), vec![input])
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "powHit" => {
+                        // powHit(k, msg, nonce, h, N) → Boolean. Global method (v6.0+).
+                        use ergotree_ir::types::sglobal::POW_HIT_METHOD;
+                        if args.len() != 5 {
+                            return Err(MirLoweringError::new(
+                                format!("powHit requires 5 arguments, got {}", args.len()),
+                                hir_expr.span,
+                            ));
+                        }
+                        MethodCall::new(Expr::Global, POW_HIT_METHOD.clone(), args)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "fromBigEndianBytes" => {
+                        // fromBigEndianBytes[T](bytes) — Global method call (v6.0+).
+                        // The user-facing form omits the `Global.` receiver; we
+                        // re-attach it here. The explicit type arg substitutes
+                        // STypeVar::t() in the method's t_range.
+                        use ergotree_ir::types::sglobal::FROM_BIGENDIAN_BYTES_METHOD;
+                        use ergotree_ir::types::stype_param::STypeVar;
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "fromBigEndianBytes requires a type argument like fromBigEndianBytes[Long](bytes)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "fromBigEndianBytes requires a Coll[Byte] argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let mut type_args: hashbrown::HashMap<STypeVar, SType> =
+                            hashbrown::HashMap::new();
+                        type_args.insert(STypeVar::t(), target);
+                        MethodCall::with_type_args(
+                            Expr::Global,
+                            FROM_BIGENDIAN_BYTES_METHOD.clone(),
+                            vec![input],
+                            type_args,
+                        )
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                    }
                     "max" => {
                         let mut it = args.into_iter();
                         let left = it.next().ok_or_else(|| {
@@ -521,6 +1307,114 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
+                    "avlTree" => {
+                        // avlTree(operationFlags: Byte, digest: Coll[Byte], keyLength: Int,
+                        //         valueLengthOpt: Option[Int]) → AvlTree
+                        //
+                        // NOTE: Scala IR's CreateAvlTree takes a runtime Option-typed Expr
+                        // for valueLengthOpt; Rust's `CreateAvlTree::value_length` is a
+                        // compile-time `Option<Box<Expr>>` of the inner Int Expr. To bridge
+                        // this, we pattern-match on the 4th arg's lowered MIR shape:
+                        //   `none[Int]()` → Rust None
+                        //   `some(intExpr)` → Rust Some(intExpr)
+                        // Other shapes (runtime Option-typed values) would need an IR fix
+                        // first and are rejected with an explanatory error. Byte-match
+                        // against Scala for this predef is a known IR-level discrepancy;
+                        // none of the 14/14 ecosystem fixtures exercise this path.
+                        use ergotree_ir::mir::create_avl_tree::CreateAvlTree;
+                        if args.len() != 4 {
+                            return Err(MirLoweringError::new(
+                                format!(
+                                    "avlTree requires (flags, digest, keyLength, valueLengthOpt) — got {} args",
+                                    args.len()
+                                ),
+                                hir_expr.span,
+                            ));
+                        }
+                        let mut it = args.into_iter();
+                        let flags = it.next().unwrap();
+                        let digest = it.next().unwrap();
+                        let key_length = it.next().unwrap();
+                        let raw_vlen = it.next().unwrap();
+                        let value_length: Option<Box<Expr>> = match raw_vlen {
+                            Expr::MethodCall(ref mc) if mc.expr.method.name() == "none" => None,
+                            Expr::MethodCall(mc) if mc.expr.method.name() == "some" => {
+                                let inner = mc.expr.args.into_iter().next().ok_or_else(|| {
+                                    MirLoweringError::new(
+                                        "avlTree: malformed some(_) for valueLengthOpt".to_string(),
+                                        hir_expr.span,
+                                    )
+                                })?;
+                                Some(Box::new(inner))
+                            }
+                            _ => {
+                                return Err(MirLoweringError::new(
+                                    "avlTree's valueLengthOpt must be a literal `some(n)` or `none[Int]()` — runtime Option-typed expressions are not supported"
+                                        .to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                        };
+                        CreateAvlTree::new(flags, digest, key_length, value_length)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "treeLookup" => {
+                        // treeLookup(tree, key, proof) → Option[Coll[Byte]]
+                        if args.len() != 3 {
+                            return Err(MirLoweringError::new(
+                                format!(
+                                    "treeLookup requires (tree, key, proof) — got {} args",
+                                    args.len()
+                                ),
+                                hir_expr.span,
+                            ));
+                        }
+                        let mut it = args.into_iter();
+                        let tree = it.next().unwrap();
+                        let key = it.next().unwrap();
+                        let proof = it.next().unwrap();
+                        TreeLookup::new(tree, key, proof)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "upcast" => {
+                        // upcast[T](x) — explicit numeric widening cast.
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "upcast requires a type argument like upcast[Long](x)".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "upcast requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        Upcast::new(input, target)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                    "downcast" => {
+                        // downcast[T](x) — explicit numeric narrowing cast.
+                        let target = apply.type_arg.clone().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "downcast requires a type argument like downcast[Byte](x)"
+                                    .to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        let input = args.into_iter().next().ok_or_else(|| {
+                            MirLoweringError::new(
+                                "downcast requires one argument".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                        Downcast::new(input, target)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
                     "xorOf" => {
                         let input = args.into_iter().next().ok_or_else(|| {
                             MirLoweringError::new(
@@ -568,7 +1462,32 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         | "contains"
                         | "updateDigest"
                         | "updateOperations"
-                ) && !(method == "get" && matches!(fa.object.tpe, Some(SType::SAvlTree)))
+                        | "exp"
+                        | "expUnsigned"
+                        | "multiply"
+                        | "zip"
+                        | "patch"
+                        | "updated"
+                        | "updateMany"
+                        | "indexOf"
+                        | "startsWith"
+                        | "endsWith"
+                        // SNumericTypeMethods V6 (with args)
+                        | "bitwiseOr"
+                        | "bitwiseAnd"
+                        | "bitwiseXor"
+                        | "shiftLeft"
+                        | "shiftRight"
+                        | "toUnsignedMod"
+                        | "modInverse"
+                        | "plusMod"
+                        | "subtractMod"
+                        | "multiplyMod"
+                        | "mod"
+                        // SAvlTreeMethods (V6)
+                        | "insertOrUpdate"
+                ) && !(method == "get"
+                    && matches!(fa.object.tpe, Some(SType::SAvlTree | SType::SColl(_))))
                 {
                     // Lower the FieldAccess as a property first, then apply indexing
                     let prop = lower(*apply.func.clone())?;
@@ -583,7 +1502,7 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                     hir_expr.span,
                                 )
                             })?;
-                            ByIndex::new(prop, index, None)
+                            ByIndex::new(prop, upcast_index_to_int(index), None)
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?
@@ -598,6 +1517,27 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                 } else {
                     match method {
+                        "filter" if matches!(obj.tpe(), SType::SOption(_)) => {
+                            // Option[T].filter((T) → Bool) → Option[T]
+                            use ergotree_ir::types::soption::FILTER_METHOD;
+                            let cond = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "Option.filter requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let specialized = FILTER_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), vec![cond.tpe()])
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, vec![cond])
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                         "filter" => {
                             let cond = args.into_iter().next().ok_or_else(|| {
                                 MirLoweringError::new(
@@ -653,6 +1593,27 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             })?;
                             let fold_op = transform_fold_lambda(fold_op, hir_expr.span)?;
                             Fold::new(obj, zero, fold_op)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "map" if matches!(obj.tpe(), SType::SOption(_)) => {
+                            // Option[T].map((T) → U) → Option[U]
+                            use ergotree_ir::types::soption::MAP_METHOD;
+                            let mapper = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "Option.map requires a lambda".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let specialized = MAP_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), vec![mapper.tpe()])
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, vec![mapper])
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?
@@ -726,6 +1687,38 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 })?
                                 .into()
                         }
+                        "exp" => {
+                            // SGroupElement.exp(scalar) → Exponentiate
+                            let scalar = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "exp requires one scalar argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            Exponentiate::new(obj, scalar)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "multiply" => {
+                            // SGroupElement.multiply(other) → MethodCall
+                            use ergotree_ir::types::sgroup_elem::MULTIPLY_METHOD;
+                            MethodCall::new(obj, MULTIPLY_METHOD.clone(), args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "expUnsigned" if matches!(fa.object.tpe, Some(SType::SGroupElement)) => {
+                            // SGroupElement.expUnsigned(UnsignedBigInt) → MethodCall (V3+)
+                            use ergotree_ir::types::sgroup_elem::EXPONENTIATE_UNSIGNED_METHOD;
+                            MethodCall::new(obj, EXPONENTIATE_UNSIGNED_METHOD.clone(), args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                         "insert" | "update" | "remove" | "getMany" | "contains"
                         | "updateDigest" | "updateOperations" => {
                             use ergotree_ir::types::savltree;
@@ -745,6 +1738,15 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 })?
                                 .into()
                         }
+                        "insertOrUpdate" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                            // V6 method: (Coll[(Coll[Byte], Coll[Byte])], Coll[Byte]) → Option[AvlTree]
+                            use ergotree_ir::types::savltree::INSERT_OR_UPDATE_METHOD;
+                            MethodCall::new(obj, INSERT_OR_UPDATE_METHOD.clone(), args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                         "getOrElse" => {
                             let mut it = args.into_iter();
                             let index = it.next().ok_or_else(|| {
@@ -759,7 +1761,7 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                     hir_expr.span,
                                 )
                             })?;
-                            ByIndex::new(obj, index, Some(default.into()))
+                            ByIndex::new(obj, upcast_index_to_int(index), Some(default.into()))
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?
@@ -780,6 +1782,230 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 )
                             })?;
                             Slice::new(obj, from, until)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        // SCollection methods (V0)
+                        "zip" => {
+                            use ergotree_ir::types::scoll::ZIP_METHOD;
+                            let other = args.first().cloned().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "zip requires a collection argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            let specialized = ZIP_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), vec![other.tpe()])
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "patch" => {
+                            use ergotree_ir::types::scoll::PATCH_METHOD;
+                            if args.len() != 3 {
+                                return Err(MirLoweringError::new(
+                                    "patch requires 3 arguments (from, patch, replaced)"
+                                        .to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = PATCH_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "updated" => {
+                            use ergotree_ir::types::scoll::UPDATED_METHOD;
+                            if args.len() != 2 {
+                                return Err(MirLoweringError::new(
+                                    "updated requires 2 arguments (index, elem)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = UPDATED_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "updateMany" => {
+                            use ergotree_ir::types::scoll::UPDATE_MANY_METHOD;
+                            if args.len() != 2 {
+                                return Err(MirLoweringError::new(
+                                    "updateMany requires 2 arguments (indices, values)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = UPDATE_MANY_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "indexOf" => {
+                            use ergotree_ir::types::scoll::INDEX_OF_METHOD;
+                            if args.len() != 2 {
+                                return Err(MirLoweringError::new(
+                                    "indexOf requires 2 arguments (elem, from)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = INDEX_OF_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        // SCollection methods (V6)
+                        "startsWith" => {
+                            use ergotree_ir::types::scoll::STARTS_WITH_METHOD;
+                            if args.len() != 1 {
+                                return Err(MirLoweringError::new(
+                                    "startsWith requires 1 argument (prefix)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = STARTS_WITH_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "endsWith" => {
+                            use ergotree_ir::types::scoll::ENDS_WITH_METHOD;
+                            if args.len() != 1 {
+                                return Err(MirLoweringError::new(
+                                    "endsWith requires 1 argument (suffix)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = ENDS_WITH_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "get" if matches!(fa.object.tpe, Some(SType::SColl(_))) => {
+                            // Coll[T].get(idx: Int): Option[T] — V6 method, distinct from
+                            // V0 `apply` which throws on out-of-bounds. AvlTree.get is
+                            // handled by the prior arm above.
+                            use ergotree_ir::types::scoll::GET_METHOD;
+                            if args.len() != 1 {
+                                return Err(MirLoweringError::new(
+                                    "Coll.get requires 1 argument (index)".to_string(),
+                                    hir_expr.span,
+                                ));
+                            }
+                            let arg_tpes: Vec<SType> = args.iter().map(|a| a.tpe()).collect();
+                            let specialized = GET_METHOD
+                                .clone()
+                                .specialize_for(obj.tpe(), arg_tpes)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?;
+                            MethodCall::new(obj, specialized, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        // SNumericTypeMethods V6 — argful methods. All V3+.
+                        // bitwiseOr/And/Xor: (T) → T. shiftLeft/Right: (Int) → T.
+                        // BigInt only: toUnsignedMod (UnsignedBigInt) → UnsignedBigInt.
+                        // UnsignedBigInt only: modInverse / mod (1 arg) and
+                        // plusMod/subtractMod/multiplyMod (2 args), all → UnsignedBigInt.
+                        "bitwiseOr" | "bitwiseAnd" | "bitwiseXor" | "shiftLeft" | "shiftRight"
+                            if is_numeric_tpe(&fa.object.tpe) =>
+                        {
+                            let smethod =
+                                lookup_numeric_method(&obj.tpe(), method).ok_or_else(|| {
+                                    MirLoweringError::new(
+                                        format!("MIR error: numeric method not found: {}", method),
+                                        hir_expr.span,
+                                    )
+                                })?;
+                            MethodCall::new(obj, smethod, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "toUnsignedMod" if matches!(fa.object.tpe, Some(SType::SBigInt)) => {
+                            let smethod = lookup_numeric_method(&obj.tpe(), "toUnsignedMod")
+                                .ok_or_else(|| {
+                                    MirLoweringError::new(
+                                        "MIR error: BigInt.toUnsignedMod not found".to_string(),
+                                        hir_expr.span,
+                                    )
+                                })?;
+                            MethodCall::new(obj, smethod, args)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
+                        "modInverse" | "plusMod" | "subtractMod" | "multiplyMod" | "mod"
+                            if matches!(fa.object.tpe, Some(SType::SUnsignedBigInt)) =>
+                        {
+                            let smethod =
+                                lookup_numeric_method(&obj.tpe(), method).ok_or_else(|| {
+                                    MirLoweringError::new(
+                                        format!("MIR error: UnsignedBigInt.{} not found", method),
+                                        hir_expr.span,
+                                    )
+                                })?;
+                            MethodCall::new(obj, smethod, args)
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?
@@ -807,7 +2033,7 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        ByIndex::new(func, index, None)
+                        ByIndex::new(func, upcast_index_to_int(index), None)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
@@ -890,6 +2116,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                 .into());
         }
+        hir::ExprKind::BitInversion(inner) => {
+            let mir_inner = lower(*inner.clone())?;
+            return Ok(BitInversion::try_build(mir_inner)
+                .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                .into());
+        }
         hir::ExprKind::If(if_expr) => {
             let condition = lower(*if_expr.condition.clone())?;
             let true_branch = lower(*if_expr.then_branch.clone())?;
@@ -920,10 +2152,39 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             match fa.field.as_str() {
                 "value" => ExtractAmount { input: obj.into() }.into(),
                 "propositionBytes" => ExtractScriptBytes { input: obj.into() }.into(),
-                "id" => ExtractId { input: obj.into() }.into(),
+                "id" if matches!(fa.object.tpe, Some(SType::SBox)) => {
+                    ExtractId { input: obj.into() }.into()
+                }
                 "creationInfo" => ExtractCreationInfo { input: obj.into() }.into(),
                 "bytes" => ExtractBytes { input: obj.into() }.into(),
+                "bytesWithoutRef" if matches!(fa.object.tpe, Some(SType::SBox)) => {
+                    use ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef;
+                    use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
+                    ExtractBytesWithNoRef::try_build(obj)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
                 "size" => SizeOf { input: obj.into() }.into(),
+                "indices" if matches!(fa.object.tpe, Some(SType::SColl(_))) => {
+                    use ergotree_ir::types::scoll::INDICES_METHOD;
+                    let specialized = INDICES_METHOD
+                        .clone()
+                        .specialize_for(obj.tpe(), vec![])
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?;
+                    PropertyCall::new(obj, specialized)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "reverse" if matches!(fa.object.tpe, Some(SType::SColl(_))) => {
+                    use ergotree_ir::types::scoll::REVERSE_METHOD;
+                    let specialized = REVERSE_METHOD
+                        .clone()
+                        .specialize_for(obj.tpe(), vec![])
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?;
+                    PropertyCall::new(obj, specialized)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
                 "tokens" => {
                     use ergotree_ir::types::sbox::TOKENS_METHOD;
                     PropertyCall::new(obj, TOKENS_METHOD.clone())
@@ -960,6 +2221,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
+                "HEIGHT" if matches!(fa.object.tpe, Some(SType::SContext)) => {
+                    // CONTEXT.HEIGHT — same as bare HEIGHT global
+                    GlobalVars::Height.into()
+                }
                 "get" => OptionGet::try_build(obj)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
@@ -969,6 +2234,11 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 "propBytes" => SigmaPropBytes::try_build(obj)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
+                "isProven" if matches!(fa.object.tpe, Some(SType::SSigmaProp)) => {
+                    SigmaPropIsProven::try_build(obj)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
                 "toLong" => Upcast::new(obj, SType::SLong)
                     .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                     .into(),
@@ -1008,15 +2278,180 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             .into()
                     }
                 }
+                // SNumericTypeMethods V6 — property-style (no args). All V3+.
+                "toBytes" | "toBits" | "bitwiseInverse" if is_numeric_tpe(&fa.object.tpe) => {
+                    let method =
+                        lookup_numeric_method(&obj.tpe(), fa.field.as_str()).ok_or_else(|| {
+                            MirLoweringError::new(
+                                format!("MIR error: numeric method not found: {}", fa.field),
+                                hir_expr.span,
+                            )
+                        })?;
+                    PropertyCall::new(obj, method)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "toUnsigned" if matches!(fa.object.tpe, Some(SType::SBigInt)) => {
+                    let method =
+                        lookup_numeric_method(&obj.tpe(), "toUnsigned").ok_or_else(|| {
+                            MirLoweringError::new(
+                                "MIR error: BigInt.toUnsigned not found".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                    PropertyCall::new(obj, method)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "toSigned" if matches!(fa.object.tpe, Some(SType::SUnsignedBigInt)) => {
+                    let method =
+                        lookup_numeric_method(&obj.tpe(), "toSigned").ok_or_else(|| {
+                            MirLoweringError::new(
+                                "MIR error: UnsignedBigInt.toSigned not found".to_string(),
+                                hir_expr.span,
+                            )
+                        })?;
+                    PropertyCall::new(obj, method)
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
                 "preHeader" => {
                     use ergotree_ir::types::scontext::PRE_HEADER_PROPERTY;
                     PropertyCall::new(obj, PRE_HEADER_PROPERTY.clone())
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "timestamp" => {
+                "headers" if matches!(fa.object.tpe, Some(SType::SContext)) => {
+                    use ergotree_ir::types::scontext::HEADERS_PROPERTY;
+                    PropertyCall::new(obj, HEADERS_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "getEncoded" if matches!(fa.object.tpe, Some(SType::SGroupElement)) => {
+                    use ergotree_ir::types::sgroup_elem::GET_ENCODED_METHOD;
+                    PropertyCall::new(obj, GET_ENCODED_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                // SHeader properties (15) — V0
+                "id" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::ID_PROPERTY;
+                    PropertyCall::new(obj, ID_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "version" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::VERSION_PROPERTY;
+                    PropertyCall::new(obj, VERSION_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "parentId" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::PARENT_ID_PROPERTY;
+                    PropertyCall::new(obj, PARENT_ID_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "ADProofsRoot" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::AD_PROOFS_ROOT_PROPERTY;
+                    PropertyCall::new(obj, AD_PROOFS_ROOT_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "stateRoot" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::STATE_ROOT_PROPERTY;
+                    PropertyCall::new(obj, STATE_ROOT_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "transactionsRoot" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::TRANSACTIONS_ROOT_PROPERTY;
+                    PropertyCall::new(obj, TRANSACTIONS_ROOT_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "timestamp" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::TIMESTAMP_PROPERTY;
+                    PropertyCall::new(obj, TIMESTAMP_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "nBits" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::N_BITS_PROPERTY;
+                    PropertyCall::new(obj, N_BITS_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "height" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::HEIGHT_PROPERTY;
+                    PropertyCall::new(obj, HEIGHT_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "extensionRoot" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::EXTENSION_ROOT_PROPERTY;
+                    PropertyCall::new(obj, EXTENSION_ROOT_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "minerPk" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::MINER_PK_PROPERTY;
+                    PropertyCall::new(obj, MINER_PK_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "powOnetimePk" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::POW_ONETIME_PK_PROPERTY;
+                    PropertyCall::new(obj, POW_ONETIME_PK_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "powNonce" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::POW_NONCE_PROPERTY;
+                    PropertyCall::new(obj, POW_NONCE_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "powDistance" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::POW_DISTANCE_PROPERTY;
+                    PropertyCall::new(obj, POW_DISTANCE_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "votes" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::VOTES_PROPERTY;
+                    PropertyCall::new(obj, VOTES_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "checkPow" if matches!(fa.object.tpe, Some(SType::SHeader)) => {
+                    use ergotree_ir::types::sheader::CHECK_POW_METHOD;
+                    PropertyCall::new(obj, CHECK_POW_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                // SPreHeader properties (7) — V0
+                "version" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
+                    use ergotree_ir::types::spreheader::VERSION_PROPERTY;
+                    PropertyCall::new(obj, VERSION_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "parentId" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
+                    use ergotree_ir::types::spreheader::PARENT_ID_PROPERTY;
+                    PropertyCall::new(obj, PARENT_ID_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "timestamp" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
                     use ergotree_ir::types::spreheader::TIMESTAMP_PROPERTY;
                     PropertyCall::new(obj, TIMESTAMP_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "nBits" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
+                    use ergotree_ir::types::spreheader::N_BITS_PROPERTY;
+                    PropertyCall::new(obj, N_BITS_PROPERTY.clone())
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
@@ -1026,9 +2461,15 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "minerPk" => {
+                "minerPk" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
                     use ergotree_ir::types::spreheader::MINER_PK_PROPERTY;
                     PropertyCall::new(obj, MINER_PK_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "votes" if matches!(fa.object.tpe, Some(SType::SPreHeader)) => {
+                    use ergotree_ir::types::spreheader::VOTES_PROPERTY;
+                    PropertyCall::new(obj, VOTES_PROPERTY.clone())
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
@@ -1038,17 +2479,57 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "enabledOperations" => {
+                "enabledOperations" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
                     use ergotree_ir::types::savltree::ENABLED_OPERATIONS_METHOD;
                     PropertyCall::new(obj, ENABLED_OPERATIONS_METHOD.clone())
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "keyLength" => {
+                "keyLength" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
                     use ergotree_ir::types::savltree::KEY_LENGTH_METHOD;
                     PropertyCall::new(obj, KEY_LENGTH_METHOD.clone())
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
+                }
+                "valueLengthOpt" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                    use ergotree_ir::types::savltree::VALUE_LENGTH_OPT_METHOD;
+                    PropertyCall::new(obj, VALUE_LENGTH_OPT_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "isInsertAllowed" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                    use ergotree_ir::types::savltree::IS_INSERT_ALLOWED_METHOD;
+                    PropertyCall::new(obj, IS_INSERT_ALLOWED_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "isUpdateAllowed" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                    use ergotree_ir::types::savltree::IS_UPDATE_ALLOWED_METHOD;
+                    PropertyCall::new(obj, IS_UPDATE_ALLOWED_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "isRemoveAllowed" if matches!(fa.object.tpe, Some(SType::SAvlTree)) => {
+                    use ergotree_ir::types::savltree::IS_REMOVE_ALLOWED_METHOD;
+                    PropertyCall::new(obj, IS_REMOVE_ALLOWED_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "negate" if matches!(fa.object.tpe, Some(SType::SGroupElement)) => {
+                    use ergotree_ir::types::sgroup_elem::NEGATE_METHOD;
+                    PropertyCall::new(obj, NEGATE_METHOD.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "LastBlockUtxoRootHash" if matches!(fa.object.tpe, Some(SType::SContext)) => {
+                    use ergotree_ir::types::scontext::LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY;
+                    PropertyCall::new(obj, LAST_BLOCK_UTXO_ROOT_HASH_PROPERTY.clone())
+                        .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                        .into()
+                }
+                "minerPubKey" if matches!(fa.object.tpe, Some(SType::SContext)) => {
+                    // CONTEXT.minerPubKey — same as bare `minerPubKey` global
+                    GlobalVars::MinerPubKey.into()
                 }
                 field
                     if field.len() >= 2
@@ -1576,7 +3057,13 @@ fn propagate_inner(expr: Expr, type_map: &mut HashMap<ValId, SType>) -> Expr {
                 .collect();
             Expr::MethodCall(Spanned {
                 source_span: s.source_span,
-                expr: MethodCall::new(obj, s.expr.method, args).expect("MethodCall in propagate"),
+                expr: MethodCall::with_type_args(
+                    obj,
+                    s.expr.method,
+                    args,
+                    s.expr.explicit_type_args,
+                )
+                .expect("MethodCall in propagate"),
             })
         }
         Expr::ByIndex(s) => {
@@ -1752,6 +3239,18 @@ impl From<hir::BinaryOp> for BinOpKind {
             BinaryOp::Le => RelationOp::Le.into(),
             BinaryOp::And => LogicalOp::And.into(),
             BinaryOp::Or => LogicalOp::Or.into(),
+            BinaryOp::BitAnd => BitOp::BitAnd.into(),
+            BinaryOp::BitOr => BitOp::BitOr.into(),
+            BinaryOp::BitXor => BitOp::BitXor.into(),
+            BinaryOp::Shl => BitOp::BitShiftLeft.into(),
+            BinaryOp::Shr => BitOp::BitShiftRight.into(),
+            BinaryOp::UShr => BitOp::BitShiftRightZeroed.into(),
+            // ConcatColl is desugared into Append before reaching this conversion;
+            // see the Binary lowering arm above. Reaching here means the desugar
+            // was skipped — that's a bug, not a real BinOpKind.
+            BinaryOp::ConcatColl => {
+                unreachable!("BinaryOp::ConcatColl should be lowered to Append, not BinOpKind")
+            }
         }
     }
 }

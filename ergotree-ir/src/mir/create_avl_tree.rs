@@ -21,7 +21,10 @@ pub struct CreateAvlTree {
     pub digest: Box<Expr>,
     /// Value of type Int
     pub key_length: Box<Expr>,
-    /// Optional value of type Int
+    /// Optional value of type Int.
+    // SHAPE MISMATCH with Scala (`valueLengthOpt: Value[SOption[SInt]]`).
+    // Closing this gap is on the path for Lithos/Etcha/Machina Finance —
+    // see WORKSTREAM-STATUS.md §12a for the full plan.
     pub value_length: Option<Box<Expr>>,
 }
 

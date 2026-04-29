@@ -75,6 +75,7 @@ use super::select_field::SelectField;
 use super::sigma_and::SigmaAnd;
 use super::sigma_or::SigmaOr;
 use super::sigma_prop_bytes::SigmaPropBytes;
+use super::sigma_prop_is_proven::SigmaPropIsProven;
 use super::subst_const::SubstConstants;
 use super::tree_lookup::TreeLookup;
 use super::tuple::Tuple;
@@ -82,6 +83,7 @@ use super::upcast::Upcast;
 use super::val_def::ValDef;
 use super::val_use::ValUse;
 use super::xor::Xor;
+use super::zk_proof::ZkProofBlock;
 
 extern crate derive_more;
 use crate::mir::atleast::Atleast;
@@ -212,6 +214,13 @@ pub enum Expr {
     CreateProveDhTuple(CreateProveDhTuple),
     /// Extract serialized bytes of a SigmaProp value
     SigmaPropBytes(SigmaPropBytes),
+    /// Sigma protocol validation of a SigmaProp value (returns Boolean)
+    SigmaPropIsProven(SigmaPropIsProven),
+    /// Explicit Zero Knowledge scope (frontend-only, mirrors Scala's `ZKProofBlock`).
+    /// Wraps a SigmaProp body and has type SBoolean. Has no canonical op-code
+    /// (Scala uses `OpCodes.Undefined`); serialization fails with `NotSupported`
+    /// and evaluation fails with `EvalError::Misc` to match Scala parity.
+    ZkProofBlock(ZkProofBlock),
     /// Decode byte array to EC point
     DecodePoint(DecodePoint),
     /// AND conjunction for sigma propositions
@@ -291,6 +300,8 @@ impl Expr {
             Expr::Exists(v) => v.expr().tpe(),
             Expr::ExtractId(v) => v.tpe(),
             Expr::SigmaPropBytes(v) => v.tpe(),
+            Expr::SigmaPropIsProven(v) => v.tpe(),
+            Expr::ZkProofBlock(v) => v.tpe(),
             Expr::OptionIsDefined(v) => v.expr().tpe(),
             Expr::OptionGetOrElse(v) => v.expr().tpe(),
             Expr::Negation(v) => v.expr().tpe(),
@@ -546,6 +557,8 @@ impl Traversable for Expr {
             Expr::Exists(op) => op.children(),
             Expr::ExtractId(op) => op.children(),
             Expr::SigmaPropBytes(op) => op.children(),
+            Expr::SigmaPropIsProven(op) => op.children(),
+            Expr::ZkProofBlock(op) => op.children(),
             Expr::OptionIsDefined(op) => op.children(),
             Expr::OptionGetOrElse(op) => op.children(),
             Expr::Negation(op) => op.children(),
@@ -616,6 +629,8 @@ impl Traversable for Expr {
             Expr::Exists(op) => op.children_mut(),
             Expr::ExtractId(op) => op.children_mut(),
             Expr::SigmaPropBytes(op) => op.children_mut(),
+            Expr::SigmaPropIsProven(op) => op.children_mut(),
+            Expr::ZkProofBlock(op) => op.children_mut(),
             Expr::OptionIsDefined(op) => op.children_mut(),
             Expr::OptionGetOrElse(op) => op.children_mut(),
             Expr::Negation(op) => op.children_mut(),

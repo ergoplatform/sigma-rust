@@ -148,6 +148,12 @@ pub enum BitOp {
     BitAnd,
     /// Bitwise Xor
     BitXor,
+    /// Bit shift left (`<<`)
+    BitShiftLeft,
+    /// Bit shift right, arithmetic / sign-preserving (`>>`)
+    BitShiftRight,
+    /// Bit shift right, zero-fill / logical (`>>>`)
+    BitShiftRightZeroed,
 }
 
 impl From<BitOp> for OpCode {
@@ -156,6 +162,9 @@ impl From<BitOp> for OpCode {
             BitOp::BitOr => OpCode::BIT_OR,
             BitOp::BitAnd => OpCode::BIT_AND,
             BitOp::BitXor => OpCode::BIT_XOR,
+            BitOp::BitShiftRight => OpCode::BIT_SHIFT_RIGHT,
+            BitOp::BitShiftLeft => OpCode::BIT_SHIFT_LEFT,
+            BitOp::BitShiftRightZeroed => OpCode::BIT_SHIFT_RIGHT_ZEROED,
         }
     }
 }
@@ -166,6 +175,9 @@ impl Display for BitOp {
             BitOp::BitOr => write!(f, "|"),
             BitOp::BitAnd => write!(f, "&"),
             BitOp::BitXor => write!(f, "^"),
+            BitOp::BitShiftLeft => write!(f, "<<"),
+            BitOp::BitShiftRight => write!(f, ">>"),
+            BitOp::BitShiftRightZeroed => write!(f, ">>>"),
         }
     }
 }

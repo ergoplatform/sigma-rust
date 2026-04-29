@@ -137,18 +137,25 @@ impl BinaryExpr {
                 matches!(
                     token.kind(),
                     SyntaxKind::Plus
+                        | SyntaxKind::PlusPlus
                         | SyntaxKind::Minus
                         | SyntaxKind::Star
                         | SyntaxKind::Slash
                         | SyntaxKind::Percent
                         | SyntaxKind::And
                         | SyntaxKind::Or
+                        | SyntaxKind::Amp
+                        | SyntaxKind::Pipe
+                        | SyntaxKind::Caret
                         | SyntaxKind::EqEq
                         | SyntaxKind::NotEq
                         | SyntaxKind::Gt
                         | SyntaxKind::Lt
                         | SyntaxKind::GtEq
-                        | SyntaxKind::LtEq,
+                        | SyntaxKind::LtEq
+                        | SyntaxKind::LShift
+                        | SyntaxKind::RShift
+                        | SyntaxKind::URShift,
                 )
             })
             .ok_or_else(|| {
@@ -176,16 +183,30 @@ pub struct Literal(SyntaxNode);
 impl Literal {
     pub fn parse(&self) -> Result<LiteralValue, AstError> {
         let text = self.0.first_token().unwrap().text().to_string();
-        if text.ends_with('L') {
-            text.strip_suffix('L')
-                .unwrap()
-                .parse()
-                .ok()
-                .map(LiteralValue::Long)
+        let (body, is_long) = if let Some(b) = text.strip_suffix('L') {
+            (b, true)
         } else {
-            text.parse().ok().map(LiteralValue::Int)
-        }
-        .ok_or_else(|| {
+            (text.as_str(), false)
+        };
+        let parsed = if let Some(hex) = body.strip_prefix("0x").or_else(|| body.strip_prefix("0X"))
+        {
+            // Hex literal — Scala/Sigma allows the high bit to be set without two's-complement
+            // wrap-around being an overflow, so parse as u64 and reinterpret if it overflows i64.
+            if is_long {
+                u64::from_str_radix(hex, 16)
+                    .ok()
+                    .map(|u| LiteralValue::Long(u as i64))
+            } else {
+                u32::from_str_radix(hex, 16)
+                    .ok()
+                    .map(|u| LiteralValue::Int(u as i32))
+            }
+        } else if is_long {
+            body.parse().ok().map(LiteralValue::Long)
+        } else {
+            body.parse().ok().map(LiteralValue::Int)
+        };
+        parsed.ok_or_else(|| {
             AstError::new(
                 format!("Failed to parse Literal from: {:?}", self.0),
                 self.span(),
@@ -612,7 +633,12 @@ impl PrefixExpr {
         self.0
             .children_with_tokens()
             .filter_map(SyntaxElement::into_token)
-            .find(|token| matches!(token.kind(), SyntaxKind::Minus | SyntaxKind::Bang))
+            .find(|token| {
+                matches!(
+                    token.kind(),
+                    SyntaxKind::Minus | SyntaxKind::Bang | SyntaxKind::Tilde
+                )
+            })
             .ok_or_else(|| {
                 AstError::new(
                     format!("Cannot find op in PrefixExpr: {:?}", self.0),

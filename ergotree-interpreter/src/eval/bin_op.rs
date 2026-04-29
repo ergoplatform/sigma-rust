@@ -339,6 +339,18 @@ impl Evaluable for BinOp {
                         lv
                     ))),
                 },
+                // Bit shift opcodes (134/135/136) are reserved in the IR for
+                // byte-match parity with Scala sigmastate, but Scala itself
+                // doesn't ship a graph-builder rule for them — its compiler
+                // tests use `testMissingCosting` for `1 << 2`. Shipping shifts
+                // through the v6 method calls (`x.shiftLeft(y)` etc.) is the
+                // supported runtime path on both sides.
+                BitOp::BitShiftLeft | BitOp::BitShiftRight | BitOp::BitShiftRightZeroed => {
+                    Err(EvalError::Misc(format!(
+                        "BitOp {:?} has no interpreter eval (use the SNumericTypeMethods.shiftLeft/Right method instead)",
+                        op
+                    )))
+                }
             },
         }
     }

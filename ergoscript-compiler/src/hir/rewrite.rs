@@ -148,6 +148,16 @@ pub fn rewrite<E, F: Fn(&Expr) -> Result<Option<Expr>, E>>(e: Expr, f: F) -> Res
                 None => e,
             }
         }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = f(inner)?;
+            match new_inner {
+                Some(new_inner) => Expr {
+                    kind: ExprKind::BitInversion(Box::new(new_inner)),
+                    ..e
+                },
+                None => e,
+            }
+        }
         ExprKind::Context => e,
         ExprKind::Tuple(items) => {
             let new_items: Result<Vec<Expr>, E> = items

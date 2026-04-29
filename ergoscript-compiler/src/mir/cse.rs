@@ -1985,6 +1985,8 @@ fn collect_and_assign_ids(
         Expr::LogicalNot(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
         Expr::Negation(s) => collect_and_assign_ids(&s.expr.input, id_map, next_id, def_id),
         Expr::SigmaPropBytes(spb) => collect_and_assign_ids(&spb.input, id_map, next_id, def_id),
+        Expr::SigmaPropIsProven(sip) => collect_and_assign_ids(&sip.input, id_map, next_id, def_id),
+        Expr::ZkProofBlock(zk) => collect_and_assign_ids(&zk.input, id_map, next_id, def_id),
         Expr::Upcast(uc) => collect_and_assign_ids(&uc.input, id_map, next_id, def_id),
         Expr::Downcast(dc) => collect_and_assign_ids(&dc.input, id_map, next_id, def_id),
         Expr::CalcBlake2b256(cb) => collect_and_assign_ids(&cb.input, id_map, next_id, def_id),
@@ -2778,14 +2780,19 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
         Expr::MethodCall(s) => {
             let obj = f(*s.expr.obj);
             let args: Vec<Expr> = s.expr.args.into_iter().map(f).collect();
-            ergotree_ir::mir::method_call::MethodCall::new(obj, s.expr.method, args)
-                .map(|mc| {
-                    Expr::MethodCall(Spanned {
-                        source_span: s.source_span,
-                        expr: mc,
-                    })
+            ergotree_ir::mir::method_call::MethodCall::with_type_args(
+                obj,
+                s.expr.method,
+                args,
+                s.expr.explicit_type_args,
+            )
+            .map(|mc| {
+                Expr::MethodCall(Spanned {
+                    source_span: s.source_span,
+                    expr: mc,
                 })
-                .expect("MethodCall::new in map_children")
+            })
+            .expect("MethodCall::with_type_args in map_children")
         }
         Expr::SigmaAnd(sa) => {
             let items: Vec<Expr> = sa.items.into_iter().map(f).collect();
@@ -5184,14 +5191,19 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .iter()
                 .map(|a| replace_all(a, target, replacement))
                 .collect();
-            ergotree_ir::mir::method_call::MethodCall::new(new_obj, s.expr.method.clone(), new_args)
-                .map(|mc| {
-                    Expr::MethodCall(Spanned {
-                        source_span: s.source_span,
-                        expr: mc,
-                    })
+            ergotree_ir::mir::method_call::MethodCall::with_type_args(
+                new_obj,
+                s.expr.method.clone(),
+                new_args,
+                s.expr.explicit_type_args.clone(),
+            )
+            .map(|mc| {
+                Expr::MethodCall(Spanned {
+                    source_span: s.source_span,
+                    expr: mc,
                 })
-                .unwrap_or_else(|_| Expr::MethodCall(s.clone()))
+            })
+            .unwrap_or_else(|_| Expr::MethodCall(s.clone()))
         }
         Expr::ExtractAmount(ea) => {
             let new_input = replace_all(&ea.input, target, replacement);
@@ -5952,14 +5964,19 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 .into_iter()
                 .map(|a| rewrite_ids(a, id_map))
                 .collect();
-            ergotree_ir::mir::method_call::MethodCall::new(obj, s.expr.method, args)
-                .map(|mc| {
-                    Expr::MethodCall(Spanned {
-                        source_span: s.source_span,
-                        expr: mc,
-                    })
+            ergotree_ir::mir::method_call::MethodCall::with_type_args(
+                obj,
+                s.expr.method,
+                args,
+                s.expr.explicit_type_args,
+            )
+            .map(|mc| {
+                Expr::MethodCall(Spanned {
+                    source_span: s.source_span,
+                    expr: mc,
                 })
-                .expect("MethodCall::new in rewrite_ids")
+            })
+            .expect("MethodCall::new in rewrite_ids")
         }
         Expr::ExtractAmount(ea) => {
             Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
@@ -6078,6 +6095,14 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
                 input: rewrite_ids(*spb.input, id_map).into(),
             })
         }
+        Expr::SigmaPropIsProven(sip) => {
+            Expr::SigmaPropIsProven(ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven {
+                input: rewrite_ids(*sip.input, id_map).into(),
+            })
+        }
+        Expr::ZkProofBlock(zk) => Expr::ZkProofBlock(ergotree_ir::mir::zk_proof::ZkProofBlock {
+            input: rewrite_ids(*zk.input, id_map).into(),
+        }),
         Expr::Upcast(uc) => Expr::Upcast(ergotree_ir::mir::upcast::Upcast {
             input: rewrite_ids(*uc.input, id_map).into(),
             tpe: uc.tpe,

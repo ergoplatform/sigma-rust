@@ -128,6 +128,10 @@ fn widen_numeric_literals(expr: Expr) -> Expr {
             kind: ExprKind::Negation(Box::new(widen_numeric_literals(*inner))),
             ..expr
         },
+        ExprKind::BitInversion(inner) => Expr {
+            kind: ExprKind::BitInversion(Box::new(widen_numeric_literals(*inner))),
+            ..expr
+        },
         ExprKind::Tuple(items) => Expr {
             kind: ExprKind::Tuple(items.into_iter().map(widen_numeric_literals).collect()),
             ..expr
@@ -307,6 +311,13 @@ fn constant_fold(expr: Expr, scope: &mut HashMap<u32, Literal>) -> Expr {
                     kind: ExprKind::Negation(Box::new(new_inner)),
                     ..expr
                 },
+            }
+        }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = constant_fold(*inner, scope);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(new_inner)),
+                ..expr
             }
         }
         ExprKind::Apply(app) => {
@@ -496,7 +507,7 @@ fn count_val_uses(expr: &Expr, counts: &mut HashMap<u32, usize>) {
         ExprKind::Lambda(lam) => {
             count_val_uses(&lam.body, counts);
         }
-        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => {
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
             count_val_uses(inner, counts);
         }
         ExprKind::Tuple(items) => {
@@ -629,6 +640,13 @@ fn rewrite_map_size(expr: Expr, map_colls: &HashMap<u32, Expr>) -> Expr {
                 ..expr
             }
         }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = rewrite_map_size(*inner, map_colls);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(new_inner)),
+                ..expr
+            }
+        }
         ExprKind::Tuple(items) => {
             let new_items: Vec<Expr> = items
                 .into_iter()
@@ -746,6 +764,10 @@ fn substitute_duplicate_rhs(expr: Expr, val_rhs: &[(u32, Expr)]) -> Expr {
         },
         ExprKind::Negation(inner) => Expr {
             kind: ExprKind::Negation(Box::new(substitute_duplicate_rhs(*inner, val_rhs))),
+            ..expr
+        },
+        ExprKind::BitInversion(inner) => Expr {
+            kind: ExprKind::BitInversion(Box::new(substitute_duplicate_rhs(*inner, val_rhs))),
             ..expr
         },
         ExprKind::Tuple(items) => Expr {
@@ -873,6 +895,13 @@ fn substitute_val_uses(expr: Expr, subs: &HashMap<u32, Expr>) -> Expr {
                 ..expr
             }
         }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = substitute_val_uses(*inner, subs);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(new_inner)),
+                ..expr
+            }
+        }
         ExprKind::Tuple(items) => {
             let new_items: Vec<Expr> = items
                 .into_iter()
@@ -933,6 +962,7 @@ fn hir_kind_eq(a: &ExprKind, b: &ExprKind) -> bool {
         }
         (ExprKind::LogicalNot(a), ExprKind::LogicalNot(b)) => hir_expr_eq(a, b),
         (ExprKind::Negation(a), ExprKind::Negation(b)) => hir_expr_eq(a, b),
+        (ExprKind::BitInversion(a), ExprKind::BitInversion(b)) => hir_expr_eq(a, b),
         _ => false,
     }
 }
@@ -960,7 +990,9 @@ fn hir_expr_contains(haystack: &Expr, needle: &Expr) -> bool {
                 || hir_expr_contains(&if_expr.else_branch, needle)
         }
         ExprKind::Lambda(lam) => hir_expr_contains(&lam.body, needle),
-        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => hir_expr_contains(inner, needle),
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
+            hir_expr_contains(inner, needle)
+        }
         ExprKind::Tuple(items) => items.iter().any(|i| hir_expr_contains(i, needle)),
         ExprKind::Literal(_)
         | ExprKind::Ident(_)
@@ -1018,7 +1050,7 @@ fn hir_in_clean_scope_inner(expr: &Expr, target: &Expr, in_thunk: bool) -> bool 
             .any(|i| hir_in_clean_scope_inner(i, target, in_thunk)),
         ExprKind::ValDef(vd) => hir_in_clean_scope_inner(&vd.rhs, target, in_thunk),
         ExprKind::Lambda(lam) => hir_in_clean_scope_inner(&lam.body, target, in_thunk),
-        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => {
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
             hir_in_clean_scope_inner(inner, target, in_thunk)
         }
         ExprKind::Tuple(items) => items
@@ -1067,7 +1099,7 @@ fn collect_field_accesses<'a>(expr: &'a Expr, result: &mut Vec<&'a Expr>) {
             collect_field_accesses(&if_expr.else_branch, result);
         }
         ExprKind::Lambda(lam) => collect_field_accesses(&lam.body, result),
-        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) => {
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
             collect_field_accesses(inner, result);
         }
         ExprKind::Tuple(items) => {
@@ -1376,6 +1408,13 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 ..expr
             }
         }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = inline_single_use_vals(*inner);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(new_inner)),
+                ..expr
+            }
+        }
         ExprKind::Tuple(items) => {
             let new_items: Vec<Expr> = items.into_iter().map(inline_single_use_vals).collect();
             Expr {
@@ -1512,6 +1551,13 @@ fn eliminate_negation(expr: Expr) -> Expr {
             let new_inner = eliminate_negation(*inner);
             Expr {
                 kind: ExprKind::Negation(Box::new(new_inner)),
+                ..expr
+            }
+        }
+        ExprKind::BitInversion(inner) => {
+            let new_inner = eliminate_negation(*inner);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(new_inner)),
                 ..expr
             }
         }

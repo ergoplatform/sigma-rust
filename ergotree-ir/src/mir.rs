@@ -96,6 +96,8 @@ pub mod sigma_and;
 pub mod sigma_or;
 /// Extract serialized bytes of a SigmaProp value
 pub mod sigma_prop_bytes;
+/// Sigma protocol validation of a SigmaProp value (returns Boolean)
+pub mod sigma_prop_is_proven;
 pub mod subst_const;
 /// Perform a lookup of key in a tree
 pub mod tree_lookup;
@@ -113,3 +115,5 @@ pub mod value;
 pub mod xor;
 /// XOR for collection of booleans
 pub mod xor_of;
+/// Explicit Zero Knowledge scope wrapping a SigmaProp body
+pub mod zk_proof;

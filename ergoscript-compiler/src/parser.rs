@@ -150,6 +150,36 @@ mod tests {
     }
 
     #[test]
+    fn parse_block_comment() {
+        check(
+            "/* hello */",
+            expect![[r#"
+            Root@0..11
+              BlockComment@0..11 "/* hello */""#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_comment_inside_expr() {
+        // Block comments are trivia and must not interrupt parsing.
+        check(
+            "1 /* skip */ + 2",
+            expect![[r#"
+                Root@0..16
+                  InfixExpr@0..16
+                    IntNumber@0..13
+                      IntNumber@0..1 "1"
+                      Whitespace@1..2 " "
+                      BlockComment@2..12 "/* skip */"
+                      Whitespace@12..13 " "
+                    Plus@13..14 "+"
+                    Whitespace@14..15 " "
+                    IntNumber@15..16
+                      IntNumber@15..16 "2""#]],
+        );
+    }
+
+    #[test]
     fn parse_int_literal() {
         check(
             "42",

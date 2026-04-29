@@ -92,6 +92,8 @@ fn bind_expr(expr: Expr, env: &ScriptEnv, scope: &mut Scope) -> Result<Expr, Bin
                 "SELF" => Some(GlobalVars::SelfBox),
                 "INPUTS" => Some(GlobalVars::Inputs),
                 "OUTPUTS" => Some(GlobalVars::Outputs),
+                "groupGenerator" => Some(GlobalVars::GroupGenerator),
+                "minerPubKey" => Some(GlobalVars::MinerPubKey),
                 "CONTEXT" => {
                     return Ok(Expr {
                         kind: ExprKind::Context,
@@ -250,6 +252,14 @@ fn bind_expr(expr: Expr, env: &ScriptEnv, scope: &mut Scope) -> Result<Expr, Bin
             let bound = bind_expr(*inner.clone(), env, scope)?;
             Ok(Expr {
                 kind: ExprKind::LogicalNot(Box::new(bound)),
+                span: expr.span,
+                tpe: expr.tpe.clone(),
+            })
+        }
+        ExprKind::BitInversion(inner) => {
+            let bound = bind_expr(*inner.clone(), env, scope)?;
+            Ok(Expr {
+                kind: ExprKind::BitInversion(Box::new(bound)),
                 span: expr.span,
                 tpe: expr.tpe.clone(),
             })

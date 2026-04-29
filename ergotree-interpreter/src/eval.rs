@@ -84,6 +84,7 @@ pub(crate) mod sheader;
 pub(crate) mod sigma_and;
 pub(crate) mod sigma_or;
 pub(crate) mod sigma_prop_bytes;
+pub(crate) mod sigma_prop_is_proven;
 pub(crate) mod snumeric;
 pub(crate) mod soption;
 pub(crate) mod spreheader;
@@ -94,6 +95,7 @@ pub(crate) mod upcast;
 pub(crate) mod val_use;
 pub(crate) mod xor;
 pub(crate) mod xor_of;
+pub(crate) mod zk_proof;
 
 pub use error::EvalError;
 

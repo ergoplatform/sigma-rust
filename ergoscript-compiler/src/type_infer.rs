@@ -49,13 +49,20 @@ fn assign_type_with_scope(
                 | hir::BinaryOp::Minus
                 | hir::BinaryOp::Multiply
                 | hir::BinaryOp::Divide
-                | hir::BinaryOp::Modulo => l.tpe.clone(),
+                | hir::BinaryOp::Modulo
+                | hir::BinaryOp::BitAnd
+                | hir::BinaryOp::BitOr
+                | hir::BinaryOp::BitXor
+                | hir::BinaryOp::Shl
+                | hir::BinaryOp::Shr
+                | hir::BinaryOp::UShr => l.tpe.clone(),
                 hir::BinaryOp::Eq
                 | hir::BinaryOp::Neq
                 | hir::BinaryOp::Gt
                 | hir::BinaryOp::Lt
                 | hir::BinaryOp::Ge
                 | hir::BinaryOp::Le => Some(SType::SBoolean),
+                hir::BinaryOp::ConcatColl => l.tpe.clone(),
                 hir::BinaryOp::And | hir::BinaryOp::Or => {
                     // SigmaProp-level: if both operands are SSigmaProp, result is SSigmaProp
                     if l.tpe.as_ref() == Some(&SType::SSigmaProp)
@@ -89,9 +96,15 @@ fn assign_type_with_scope(
             let tpe = match &typed_func.kind {
                 ExprKind::Ident(name) => match name.as_str() {
                     "sigmaProp" => Some(SType::SSigmaProp),
-                    "fromBase16" | "fromBase58" => Some(SType::SColl(SType::SByte.into())),
-                    "blake2b256" => Some(SType::SColl(SType::SByte.into())),
+                    "fromBase16" | "fromBase58" | "fromBase64" => {
+                        Some(SType::SColl(SType::SByte.into()))
+                    }
+                    "blake2b256" | "sha256" => Some(SType::SColl(SType::SByte.into())),
+                    "bigInt" => Some(SType::SBigInt),
+                    "unsignedBigInt" => Some(SType::SUnsignedBigInt),
                     "proveDlog" => Some(SType::SSigmaProp),
+                    "PK" => Some(SType::SSigmaProp),
+                    "proveDHTuple" => Some(SType::SSigmaProp),
                     "atLeast" => Some(SType::SSigmaProp),
                     "longToByteArray" => Some(SType::SColl(SType::SByte.into())),
                     "min" | "max" => typed_args.first().and_then(|a| a.tpe.clone()),
@@ -102,6 +115,7 @@ fn assign_type_with_scope(
                     "xorOf" => Some(SType::SBoolean),
                     "allOf" => Some(SType::SBoolean),
                     "anyOf" => Some(SType::SBoolean),
+                    "allZK" | "anyZK" => Some(SType::SSigmaProp),
                     "decodePoint" => Some(SType::SGroupElement),
                     "getVar" => {
                         // getVar[T](n) → SOption(T)
@@ -110,6 +124,39 @@ fn assign_type_with_scope(
                             .as_ref()
                             .map(|t| SType::SOption(t.clone().into()))
                     }
+                    "fromBigEndianBytes" => {
+                        // fromBigEndianBytes[T](bytes) → T
+                        apply.type_arg.clone()
+                    }
+                    "getVarFromInput" => {
+                        // getVarFromInput[T](inputIdx, varId) → SOption(T)
+                        apply
+                            .type_arg
+                            .as_ref()
+                            .map(|t| SType::SOption(t.clone().into()))
+                    }
+                    "serialize" => Some(SType::SColl(SType::SByte.into())),
+                    "deserializeTo" => apply.type_arg.clone(),
+                    "some" => typed_args
+                        .first()
+                        .and_then(|a| a.tpe.clone())
+                        .map(|t| SType::SOption(t.into())),
+                    "none" => apply.type_arg.clone().map(|t| SType::SOption(t.into())),
+                    "encodeNbits" => Some(SType::SLong),
+                    "decodeNbits" => Some(SType::SBigInt),
+                    "powHit" => Some(SType::SBoolean),
+                    "avlTree" => Some(SType::SAvlTree),
+                    "treeLookup" => Some(SType::SOption(SType::SColl(SType::SByte.into()).into())),
+                    "upcast" | "downcast" => apply.type_arg.clone(),
+                    "executeFromVar"
+                    | "executeFromSelfReg"
+                    | "executeFromSelfRegWithDefault"
+                    | "deserialize"
+                    | "placeholder" => apply.type_arg.clone(),
+                    // ZKProof { sigmaPropExpr } → SBoolean. The block body must be SigmaProp;
+                    // the lower-level `try_build` enforces that. Mirrors Scala's
+                    // `ZKProofFunc` Lambda(SigmaProp -> Boolean).
+                    "ZKProof" => Some(SType::SBoolean),
                     "Coll" => {
                         // Coll[Type](items) or Coll(items)
                         apply
@@ -134,7 +181,7 @@ fn assign_type_with_scope(
                         // Method call on collection object
                         match fa.object.tpe.as_ref() {
                             Some(SType::SAvlTree) => match fa.field.as_str() {
-                                "insert" | "update" | "remove" => {
+                                "insert" | "update" | "remove" | "insertOrUpdate" => {
                                     Some(SType::SOption(SType::SAvlTree.into()))
                                 }
                                 "get" => {
@@ -147,12 +194,73 @@ fn assign_type_with_scope(
                                 "updateDigest" | "updateOperations" => Some(SType::SAvlTree),
                                 _ => None,
                             },
-                            Some(SType::SColl(elem_tpe)) => match fa.field.as_str() {
-                                "filter" | "slice" | "append" => {
-                                    Some(SType::SColl(elem_tpe.clone()))
+                            Some(SType::SOption(inner)) => match fa.field.as_str() {
+                                // Option[T].filter(p): Option[T] (preserves T)
+                                "filter" => Some(SType::SOption(inner.clone())),
+                                // Option[T].map(f: T → U): Option[U]
+                                "map" => typed_args.first().and_then(|arg| {
+                                    arg.tpe.as_ref().and_then(|t| {
+                                        if let SType::SFunc(sf) = t {
+                                            Some(SType::SOption(Arc::from(
+                                                sf.t_range.as_ref().clone(),
+                                            )))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                }),
+                                _ => None,
+                            },
+                            Some(SType::SGroupElement) => match fa.field.as_str() {
+                                "exp" | "expUnsigned" | "multiply" => Some(SType::SGroupElement),
+                                _ => None,
+                            },
+                            // V6 numeric methods with args. Receiver type is preserved
+                            // for bitwise/shift; modular methods on BigInt/UnsignedBigInt
+                            // have specific return types.
+                            Some(
+                                t @ (SType::SByte
+                                | SType::SShort
+                                | SType::SInt
+                                | SType::SLong
+                                | SType::SBigInt
+                                | SType::SUnsignedBigInt),
+                            ) => match fa.field.as_str() {
+                                "bitwiseOr" | "bitwiseAnd" | "bitwiseXor" | "shiftLeft"
+                                | "shiftRight" => Some(t.clone()),
+                                "toUnsignedMod" if matches!(t, SType::SBigInt) => {
+                                    Some(SType::SUnsignedBigInt)
                                 }
-                                "exists" | "forall" => Some(SType::SBoolean),
+                                "modInverse" | "plusMod" | "subtractMod" | "multiplyMod"
+                                | "mod"
+                                    if matches!(t, SType::SUnsignedBigInt) =>
+                                {
+                                    Some(SType::SUnsignedBigInt)
+                                }
+                                _ => None,
+                            },
+                            Some(SType::SColl(elem_tpe)) => match fa.field.as_str() {
+                                "filter" | "slice" | "append" | "patch" | "updated"
+                                | "updateMany" | "reverse" => Some(SType::SColl(elem_tpe.clone())),
+                                "exists" | "forall" | "startsWith" | "endsWith" => {
+                                    Some(SType::SBoolean)
+                                }
                                 "getOrElse" => Some(elem_tpe.as_ref().clone()),
+                                "indexOf" => Some(SType::SInt),
+                                "indices" => Some(SType::SColl(SType::SInt.into())),
+                                "get" => Some(SType::SOption(elem_tpe.clone())),
+                                "zip" => typed_args.first().and_then(|arg| {
+                                    // zip: Coll[T].zip(Coll[U]) → Coll[(T, U)]
+                                    if let Some(SType::SColl(other_elem)) = arg.tpe.as_ref() {
+                                        let pair = STuple::pair(
+                                            elem_tpe.as_ref().clone(),
+                                            other_elem.as_ref().clone(),
+                                        );
+                                        Some(SType::SColl(SType::STuple(pair).into()))
+                                    } else {
+                                        None
+                                    }
+                                }),
                                 "fold" => {
                                     // Fold: result type = zero (first arg) type
                                     typed_args.first().and_then(|a| a.tpe.clone())
@@ -242,7 +350,7 @@ fn assign_type_with_scope(
             let tpe = match typed_obj.tpe.as_ref() {
                 Some(SType::SBox) => match fa.field.as_str() {
                     "value" => Some(SType::SLong),
-                    "propositionBytes" | "id" | "bytes" | "bytesWithNoRef" | "scriptBytes" => {
+                    "propositionBytes" | "id" | "bytes" | "bytesWithoutRef" => {
                         Some(SType::SColl(SType::SByte.into()))
                     }
                     "creationInfo" => {
@@ -267,8 +375,10 @@ fn assign_type_with_scope(
                     }
                     _ => None,
                 },
-                Some(SType::SColl(_)) => match fa.field.as_str() {
+                Some(SType::SColl(elem_tpe)) => match fa.field.as_str() {
                     "size" => Some(SType::SInt),
+                    "indices" => Some(SType::SColl(SType::SInt.into())),
+                    "reverse" => Some(SType::SColl(elem_tpe.clone())),
                     _ => None,
                 },
                 Some(SType::STuple(stuple)) => {
@@ -293,36 +403,72 @@ fn assign_type_with_scope(
                 },
                 Some(SType::SSigmaProp) => match fa.field.as_str() {
                     "propBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "isProven" => Some(SType::SBoolean),
+                    _ => None,
+                },
+                Some(SType::SGroupElement) => match fa.field.as_str() {
+                    "getEncoded" => Some(SType::SColl(SType::SByte.into())),
+                    "negate" => Some(SType::SGroupElement),
                     _ => None,
                 },
                 Some(SType::SContext) => match fa.field.as_str() {
                     "dataInputs" => Some(SType::SColl(SType::SBox.into())),
                     "preHeader" => Some(SType::SPreHeader),
+                    "headers" => Some(SType::SColl(SType::SHeader.into())),
                     "selfBoxIndex" => Some(SType::SInt),
+                    "HEIGHT" => Some(SType::SInt),
+                    "LastBlockUtxoRootHash" => Some(SType::SAvlTree),
+                    "minerPubKey" => Some(SType::SColl(SType::SByte.into())),
                     _ => None,
                 },
                 Some(SType::SAvlTree) => match fa.field.as_str() {
                     "digest" => Some(SType::SColl(SType::SByte.into())),
                     "enabledOperations" => Some(SType::SByte),
                     "keyLength" => Some(SType::SInt),
+                    "valueLengthOpt" => Some(SType::SOption(SType::SInt.into())),
                     "isInsertAllowed" | "isUpdateAllowed" | "isRemoveAllowed" => {
                         Some(SType::SBoolean)
                     }
                     _ => None,
                 },
                 Some(SType::SPreHeader) => match fa.field.as_str() {
-                    "timestamp" => Some(SType::SLong),
-                    "height" => Some(SType::SInt),
                     "version" => Some(SType::SByte),
+                    "parentId" => Some(SType::SColl(SType::SByte.into())),
+                    "timestamp" => Some(SType::SLong),
+                    "nBits" => Some(SType::SLong),
+                    "height" => Some(SType::SInt),
                     "minerPk" => Some(SType::SGroupElement),
+                    "votes" => Some(SType::SColl(SType::SByte.into())),
                     _ => None,
                 },
-                // Numeric .toLong / .toInt
+                Some(SType::SHeader) => match fa.field.as_str() {
+                    "id" => Some(SType::SColl(SType::SByte.into())),
+                    "version" => Some(SType::SByte),
+                    "parentId" => Some(SType::SColl(SType::SByte.into())),
+                    "ADProofsRoot" => Some(SType::SColl(SType::SByte.into())),
+                    "stateRoot" => Some(SType::SAvlTree),
+                    "transactionsRoot" => Some(SType::SColl(SType::SByte.into())),
+                    "timestamp" => Some(SType::SLong),
+                    "nBits" => Some(SType::SLong),
+                    "height" => Some(SType::SInt),
+                    "extensionRoot" => Some(SType::SColl(SType::SByte.into())),
+                    "minerPk" => Some(SType::SGroupElement),
+                    "powOnetimePk" => Some(SType::SGroupElement),
+                    "powNonce" => Some(SType::SColl(SType::SByte.into())),
+                    "powDistance" => Some(SType::SBigInt),
+                    "votes" => Some(SType::SColl(SType::SByte.into())),
+                    "checkPow" => Some(SType::SBoolean),
+                    _ => None,
+                },
+                // Numeric .toLong / .toInt + V6 no-arg methods (toBytes/toBits/bitwiseInverse)
                 Some(SType::SInt) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
                     "toBigInt" => Some(SType::SBigInt),
                     "toByte" => Some(SType::SByte),
                     "toShort" => Some(SType::SShort),
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SInt),
                     _ => None,
                 },
                 Some(SType::SLong) => match fa.field.as_str() {
@@ -330,22 +476,42 @@ fn assign_type_with_scope(
                     "toBigInt" => Some(SType::SBigInt),
                     "toByte" => Some(SType::SByte),
                     "toShort" => Some(SType::SShort),
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SLong),
                     _ => None,
                 },
                 Some(SType::SByte) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
                     "toInt" => Some(SType::SInt),
                     "toBigInt" => Some(SType::SBigInt),
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SByte),
                     _ => None,
                 },
                 Some(SType::SShort) => match fa.field.as_str() {
                     "toLong" => Some(SType::SLong),
                     "toInt" => Some(SType::SInt),
                     "toBigInt" => Some(SType::SBigInt),
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SShort),
                     _ => None,
                 },
                 Some(SType::SBigInt) => match fa.field.as_str() {
                     "toBigInt" => Some(SType::SBigInt), // no-op identity
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SBigInt),
+                    "toUnsigned" => Some(SType::SUnsignedBigInt),
+                    _ => None,
+                },
+                Some(SType::SUnsignedBigInt) => match fa.field.as_str() {
+                    "toBytes" => Some(SType::SColl(SType::SByte.into())),
+                    "toBits" => Some(SType::SColl(SType::SBoolean.into())),
+                    "bitwiseInverse" => Some(SType::SUnsignedBigInt),
+                    "toSigned" => Some(SType::SBigInt),
                     _ => None,
                 },
                 _ => None,
@@ -453,6 +619,15 @@ fn assign_type_with_scope(
                 kind: ExprKind::LogicalNot(Box::new(typed)),
                 span: expr.span,
                 tpe: Some(SType::SBoolean),
+            })
+        }
+        ExprKind::BitInversion(inner) => {
+            let typed = assign_type_with_scope(*inner.clone(), val_types)?;
+            let tpe = typed.tpe.clone();
+            Ok(Expr {
+                kind: ExprKind::BitInversion(Box::new(typed)),
+                span: expr.span,
+                tpe,
             })
         }
         // Leaf nodes — pass through
