@@ -63,13 +63,13 @@ shifted via shared CSE/Upcast code paths.
 | `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE | unchanged |
 | `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
 | `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE | unchanged |
-| `gluon_box_guard.es`             | 2283 | 2193 | -90  | USED NODE | unchanged |
-| `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | **was +2 → now -53** (regressed off small-diff list) |
+| `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
+| `oracle_refresh.es`              | 572  | 574  | +2   | USED NODE | **was -53 → now +2** (sign flipped, joined small-diff list) |
 | `paideia_stake_state.es`         | 1468 | 1565 | +97  | USED NODE | **was -67 → now +97** (sign flipped) |
 | `phoenix_hodlerg_bank_full.es`   | 394  | 396  | +2   | USED NODE | unchanged |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
 | `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE | unchanged |
-| `sigmausd_bank.es`               | 741  | 664  | -77  | USED NODE | **was +17 → now -77** (sign flipped) |
+| `sigmausd_bank.es`               | 741  | 613  | -128 | USED NODE | **was -77 → now -128** (widened 51B post-skyharbor) |
 | `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | was -1 |
 | `spectrum_n2t_pool.es`           | 409  | 411  | +2   | USED NODE | unchanged |
 | `spectrum_t2t_pool.es`           | 421  | 423  | +2   | USED NODE | unchanged |
@@ -78,14 +78,50 @@ shifted via shared CSE/Upcast code paths.
 expected leverage):
 - `dexy_bank_full` (0 — ✅ matched)
 - `skyharbor_v1_erg` (0 — ✅ matched 2026-04-30)
-- `phoenix_hodlerg_bank_full` (+2), `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2)
+- `phoenix_hodlerg_bank_full` (+2), `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2),
+  `oracle_refresh` (+2 — newly joined this list 2026-05-01)
 - `ergoraffle_active` (+7)
 - `ergomixer_fullmix` (-23)
+- `gluon_box_guard` (-51 — closed 39B post-skyharbor)
 
-**Investigate-before-targeting**: `oracle_refresh`, `paideia_stake_state`, `sigmausd_bank`
-shifted post-WS-A–D. Since two flipped sign, the WS-A–D fixes likely changed which
-sub-expressions get CSE-extracted — diff against the Apr-27 local bytes (git history)
-to identify *what* changed before treating these as fresh root-causes.
+**Investigate-before-targeting**: `paideia_stake_state`, `sigmausd_bank`
+have sign-flipped or widened. The post-WS-A–D and post-skyharbor shifts indicate
+which sub-expressions get CSE-extracted is highly sensitive to the
+`apply_cse_within_branches`/S40 contract — diff against the Apr-27/Apr-30 local
+bytes (git history) to identify *what* changed before treating these as fresh
+root-causes.
+
+### Sigmausd_bank widening hypothesis (2026-05-01)
+
+Post-skyharbor delta: -77 → -128 (lost 51B of extractions). The change responsible
+is the S40 global bump switching from `count_occurrences` to
+`count_occurrences_no_inner_if`. Plausible mechanism:
+
+- Sigmausd's bank script has multiple deeply-nested `if` blocks (mint/redeem/cooling
+  branches) with arithmetic on shared sub-expressions like `oraclePoolNFT box value`,
+  `reserveIn / circulationIn ratios`, and `BigInt / Long upcasts`.
+- Many of these shared sub-exprs likely appear in BOTH the outer scope AND inside
+  nested `if` branches that have been inlined by `inline_single_use_vals`. Pre-fix
+  S40 (`count_occurrences`) saw the global count ≥ 2 and extracted them at the
+  outer scope. Post-fix S40 (`count_occurrences_no_inner_if`) stops at the nested
+  `if` branches → counts only the outer-scope occurrence (1) → no extraction.
+- Scala *does* perform these extractions because Scala's `hasManyUsagesGlobal` runs
+  on the hash-consed graph, which sees the nested-If occurrences as separate Sym
+  parents — same behavior as full `count_occurrences`, but Scala doesn't have
+  the SaleLP-style "inlined-If duplicates the inner refs" pathology because Scala
+  doesn't aggressively inline single-use ValDefs across ThunkDef boundaries.
+
+**Likely real fix**: tighten `inline_single_use_vals` to NOT inline a ValDef whose
+RHS contains an `Expr::If` across a ThunkDef boundary. That removes the pathological
+inlining that motivated the S40 restriction, letting us revert S40 to full
+`count_occurrences` and recovering sigmausd_bank's 51B without breaking SaleLP.
+Worth confirming the inliner's current scope-awareness before assuming this is the
+root cause — the inline pass may already gate on something we're not seeing here.
+
+Lower-leverage alternative: special-case the S40 bump to recurse into nested If
+branches *only when* the candidate also appears outside them at the current scope
+(i.e. discount the nested-If occurrence when it's the *only* extra reference past
+a scope-level baseline of 1). Less principled but more surgical.
 
 ### What landed in the compile-all push
 
