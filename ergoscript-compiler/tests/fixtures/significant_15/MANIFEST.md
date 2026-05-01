@@ -22,7 +22,7 @@ The 15 keystone contracts split into two buckets:
 | 4 | Rosen Bridge | `EventTrigger.es` | **NEW** — `rosen_event_trigger.es` |
 | 5 | Dexy / USE | `bank.es` | ✅ **`dexy_bank_full.es` LOCAL MATCH @ 309B** (full upstream keystone). 46-corpus #8 "Dexy Bank" (291B) is a simplified variant — kept for regression coverage. |
 | 6 | ErgoMixer | `FullMix.es` | **NEW** — `ergomixer_fullmix.es` |
-| 7 | SkyHarbor | `V1_ErgEditsAndOffersV1.es` | **`skyharbor_v1_erg.es`** (411 node / 410 local — USED NODE, 1-byte diff). 46-corpus #37 "SigUSDV1" tests the wrong sibling (SigUSD variant); kept for regression coverage. |
+| 7 | SkyHarbor | `V1_ErgEditsAndOffersV1.es` | ✅ **`skyharbor_v1_erg.es` LOCAL MATCH @ 411B**. 46-corpus #37 "SigUSDV1" tests the wrong sibling (SigUSD variant); kept for regression coverage. |
 | 8 | Phoenix HodlERG | `phoenix_v1_hodlerg_bank.es` | **`phoenix_hodlerg_bank_full.es`** (394 node / 396 local — USED NODE, 2-byte diff). 46-corpus #25 "Phoenix HodlERG Bank" (314B) is the simplified variant; kept for regression coverage. |
 | 9 | Paideia DAO | `stakeState.es` | **NEW** — `paideia_stake_state.es` |
 | 10 | Gluon Gold | `GluonWBoxGuardScript.es` | **NEW** — `gluon_box_guard.es` |
@@ -32,7 +32,7 @@ The 15 keystone contracts split into two buckets:
 | 14 | ErgoRaffle | `raffle.es` | **NEW** — `ergoraffle_active.es` |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified).
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **2/15 LOCAL MATCH** as of 2026-04-30: `dexy_bank_full.es` and `skyharbor_v1_erg.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -45,36 +45,47 @@ should still be cross-checked against current upstream sources to confirm we're 
 - **NEEDED** — source not yet acquired; lookup TODO
 - **PARTIAL** — source on disk but uses ScriptEnv placeholders or template variables; substitution required
 
-## Empirical compile status (2026-04-27, against node v6.1.2)
+## Empirical compile status (2026-04-30, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 1/15 LOCAL MATCH** (`dexy_bank_full.es`).
+**15/15 fixtures compile end-to-end. 2/15 LOCAL MATCH** (`dexy_bank_full.es`, `skyharbor_v1_erg.es`).
 The other 14 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
-| Fixture                          | Node bytes | Local bytes | Δ | Status |
-|---|---|---|---|---|
-| `chaincash_reserve.es`           | 611  | 546  | -65  | USED NODE |
-| `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** |
-| `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE |
-| `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE |
-| `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE |
-| `gluon_box_guard.es`             | 2283 | 2193 | -90  | USED NODE |
-| `oracle_refresh.es`              | 572  | 574  | +2   | USED NODE |
-| `paideia_stake_state.es`         | 1468 | 1401 | -67  | USED NODE |
-| `phoenix_hodlerg_bank_full.es`   | 394  | 396  | +2   | USED NODE |
-| `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE |
-| `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE |
-| `sigmausd_bank.es`               | 741  | 758  | +17  | USED NODE |
-| `skyharbor_v1_erg.es`            | 411  | 410  | -1   | USED NODE |
-| `spectrum_n2t_pool.es`           | 409  | 411  | +2   | USED NODE |
-| `spectrum_t2t_pool.es`           | 421  | 423  | +2   | USED NODE |
+Re-baselined post-Workstream-A–D close (commits `1a2034a2`, `1f6025bb`, `ab10a30e`,
+`e9212e83`). The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
+LOCAL MATCH on this same branch; sig-15 untouched directly but several fixtures
+shifted via shared CSE/Upcast code paths.
+
+| Fixture                          | Node bytes | Local bytes | Δ | Status | Δ vs Apr-27 |
+|---|---|---|---|---|---|
+| `chaincash_reserve.es`           | 611  | 546  | -65  | USED NODE | unchanged |
+| `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
+| `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE | unchanged |
+| `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
+| `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE | unchanged |
+| `gluon_box_guard.es`             | 2283 | 2193 | -90  | USED NODE | unchanged |
+| `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | **was +2 → now -53** (regressed off small-diff list) |
+| `paideia_stake_state.es`         | 1468 | 1565 | +97  | USED NODE | **was -67 → now +97** (sign flipped) |
+| `phoenix_hodlerg_bank_full.es`   | 394  | 396  | +2   | USED NODE | unchanged |
+| `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
+| `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE | unchanged |
+| `sigmausd_bank.es`               | 741  | 664  | -77  | USED NODE | **was +17 → now -77** (sign flipped) |
+| `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | was -1 |
+| `spectrum_n2t_pool.es`           | 409  | 411  | +2   | USED NODE | unchanged |
+| `spectrum_t2t_pool.es`           | 421  | 423  | +2   | USED NODE | unchanged |
 
 **Smallest diffs** (best targets for first byte-match parity sessions, in order of
 expected leverage):
-- `dexy_bank_full` (0 — already matched ✅)
-- `skyharbor_v1_erg` (-1)
-- `oracle_refresh` (+2), `phoenix_hodlerg_bank_full` (+2), `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2)
+- `dexy_bank_full` (0 — ✅ matched)
+- `skyharbor_v1_erg` (0 — ✅ matched 2026-04-30)
+- `phoenix_hodlerg_bank_full` (+2), `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2)
 - `ergoraffle_active` (+7)
+- `ergomixer_fullmix` (-23)
+
+**Investigate-before-targeting**: `oracle_refresh`, `paideia_stake_state`, `sigmausd_bank`
+shifted post-WS-A–D. Since two flipped sign, the WS-A–D fixes likely changed which
+sub-expressions get CSE-extracted — diff against the Apr-27 local bytes (git history)
+to identify *what* changed before treating these as fresh root-causes.
 
 ### What landed in the compile-all push
 

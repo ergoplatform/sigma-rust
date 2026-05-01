@@ -2554,7 +2554,32 @@ fn map_children_with_id(expr: Expr, gid: u32, f: fn(Expr, u32) -> Expr) -> Expr 
                 items: items.try_into().expect("SigmaOr >= 2"),
             })
         }
-        // Other types: pass through (lambda bodies can't be nested deeper in these)
+        // And/Or wrap a Collection of Boolean expressions; Collection holds
+        // individual items. Both can contain nested If nodes that
+        // `apply_cse_within_branches` must reach to process their branches.
+        Expr::And(a) => Expr::And(ergotree_ir::source_span::Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: f(*a.expr.input, gid).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(ergotree_ir::source_span::Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: f(*o.expr.input, gid).into(),
+            },
+        }),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items.into_iter().map(|i| f(i, gid)).collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
+        // Other types: pass through (no child Expr fields containing nested Ifs)
         other => other,
     }
 }
@@ -4377,7 +4402,15 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         if matches!(cand, Expr::BinOp(_)) {
             continue;
         }
-        let global_occ = count_occurrences(&expr, cand);
+        // Use count_occurrences_no_inner_if so that:
+        // - Occurrences inside &&/|| right arms ARE counted (skyharbor OUTPUTS(2)
+        //   appears in both arms of the royalty && — Scala counts this globally).
+        // - Occurrences inside nested If true/false branches are NOT counted.
+        //   Those branches are child ThunkDef scopes that get their own
+        //   process_ast_graph_branch pass; counting into them here inflates the
+        //   count for the surrounding scope (e.g. SaleLP OUTPUTS(4) appearing
+        //   inside an inlined If(isLastSale,...) nested in the false branch).
+        let global_occ = count_occurrences_no_inner_if(&expr, cand);
         if global_occ >= 2 && global_occ > *count {
             *count = global_occ;
         }
@@ -5108,6 +5141,143 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
         Expr::FuncValue(_) => {
             // Don't count inside lambda bodies — they're handled separately
         }
+        _ => {}
+    }
+    count
+}
+
+/// Like `count_occurrences` but stops at `Expr::If` branches — only recurses
+/// into the If condition (which is evaluated at the enclosing ThunkDef scope).
+///
+/// Used for the S40 global bump in `process_ast_graph_branch`: expressions
+/// inside `&&`/`||` right arms should be counted (Scala's global graph sees
+/// them as part of the same surrounding scope), but expressions inside nested
+/// `If` true/false branches must NOT be counted because they belong to child
+/// ThunkDef scopes that get their own `process_ast_graph_branch` pass.
+///
+/// Without this restriction, an inlined expression like
+/// `ExtractAmount(If(isLastSale, OUTPUTS(4), OUTPUTS(5)))` inside the
+/// isLastSale false branch would inflate the global count of `OUTPUTS(4)`,
+/// causing spurious extraction that Scala never performs.
+fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
+    let mut count = if expr == target { 1 } else { 0 };
+    match expr {
+        Expr::BinOp(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.left, target);
+            count += count_occurrences_no_inner_if(&s.expr.right, target);
+        }
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                count += count_occurrences_no_inner_if(item, target);
+            }
+            count += count_occurrences_no_inner_if(&s.expr.result, target);
+        }
+        Expr::ValDef(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.rhs, target);
+        }
+        Expr::BoolToSigmaProp(bts) => {
+            count += count_occurrences_no_inner_if(&bts.input, target);
+        }
+        Expr::If(if_op) => {
+            // Recurse only into condition — true/false branches are child ThunkDefs.
+            count += count_occurrences_no_inner_if(&if_op.condition, target);
+        }
+        Expr::PropertyCall(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.obj, target);
+        }
+        Expr::MethodCall(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.obj, target);
+            for arg in &s.expr.args {
+                count += count_occurrences_no_inner_if(arg, target);
+            }
+        }
+        Expr::ExtractAmount(ea) => count += count_occurrences_no_inner_if(&ea.input, target),
+        Expr::ExtractRegisterAs(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::ExtractScriptBytes(esb) => count += count_occurrences_no_inner_if(&esb.input, target),
+        Expr::ExtractBytes(eb) => count += count_occurrences_no_inner_if(&eb.input, target),
+        Expr::ExtractId(ei) => count += count_occurrences_no_inner_if(&ei.input, target),
+        Expr::ExtractCreationInfo(eci) => count += count_occurrences_no_inner_if(&eci.input, target),
+        Expr::SizeOf(so) => count += count_occurrences_no_inner_if(&so.input, target),
+        Expr::ByIndex(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.index, target);
+            if let Some(ref d) = s.expr.default {
+                count += count_occurrences_no_inner_if(d, target);
+            }
+        }
+        Expr::SelectField(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::OptionGet(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::OptionIsDefined(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::OptionGetOrElse(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.default, target);
+        }
+        Expr::Filter(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.condition, target);
+        }
+        Expr::Exists(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.condition, target);
+        }
+        Expr::ForAll(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.condition, target);
+        }
+        Expr::Map(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.mapper, target);
+        }
+        Expr::Fold(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.zero, target);
+            count += count_occurrences_no_inner_if(&s.expr.fold_op, target);
+        }
+        Expr::Slice(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target);
+            count += count_occurrences_no_inner_if(&s.expr.from, target);
+            count += count_occurrences_no_inner_if(&s.expr.until, target);
+        }
+        Expr::LogicalNot(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::Negation(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
+        Expr::SigmaPropBytes(spb) => count += count_occurrences_no_inner_if(&spb.input, target),
+        Expr::Upcast(uc) => count += count_occurrences_no_inner_if(&uc.input, target),
+        Expr::Downcast(dc) => count += count_occurrences_no_inner_if(&dc.input, target),
+        Expr::CalcBlake2b256(cb) => count += count_occurrences_no_inner_if(&cb.input, target),
+        Expr::SigmaAnd(sa) => {
+            for item in sa.items.iter() {
+                count += count_occurrences_no_inner_if(item, target);
+            }
+        }
+        Expr::SigmaOr(so) => {
+            for item in so.items.iter() {
+                count += count_occurrences_no_inner_if(item, target);
+            }
+        }
+        Expr::Tuple(t) => {
+            for item in t.items.iter() {
+                count += count_occurrences_no_inner_if(item, target);
+            }
+        }
+        Expr::TreeLookup(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.tree, target);
+            count += count_occurrences_no_inner_if(&s.expr.key, target);
+            count += count_occurrences_no_inner_if(&s.expr.proof, target);
+        }
+        Expr::Apply(app) => {
+            count += count_occurrences_no_inner_if(&app.func, target);
+            for arg in &app.args {
+                count += count_occurrences_no_inner_if(arg, target);
+            }
+        }
+        Expr::And(a) => count += count_occurrences_no_inner_if(&a.expr.input, target),
+        Expr::Or(o) => count += count_occurrences_no_inner_if(&o.expr.input, target),
+        Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
+            for item in items {
+                count += count_occurrences_no_inner_if(item, target);
+            }
+        }
+        Expr::FuncValue(_) => {}
         _ => {}
     }
     count
