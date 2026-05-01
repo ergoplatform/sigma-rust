@@ -18,6 +18,21 @@ pub fn apply_cse(expr: Expr) -> Expr {
     std::thread::Builder::new()
         .stack_size(16 * 1024 * 1024)
         .spawn(move || {
+            // S62 / direction #2: snapshot the outer BlockValue's user-declared
+            // ValDef IDs in source order (items[] index) BEFORE strip_source_spans
+            // and CSE-extraction pollute the picture. Used by `dfs_reassign_val_ids`
+            // to schedule outer-block symbols by source-creation order — matches
+            // Scala's TreeBuilding, which assigns symbol IDs in source-lowering
+            // order, not result-DFS-encounter order. Closes Phoenix HodlERG Bank.
+            let mut user_val_source_pos: HashMap<u32, usize> = HashMap::new();
+            if let Expr::BlockValue(s) = &expr {
+                for (idx, item) in s.expr.items.iter().enumerate() {
+                    if let Expr::ValDef(vd) = item {
+                        user_val_source_pos.insert(vd.expr.id.0, idx);
+                    }
+                }
+            }
+
             // Normalize all source spans to empty so CSE hash-consing
             // treats structurally identical nodes as equal regardless
             // of source position. Without this, two identical expressions
@@ -34,6 +49,26 @@ pub fn apply_cse(expr: Expr) -> Expr {
             let inlined = inline_single_use_vals(pre_extracted);
             let deduped = deduplicate_inner_consts(inlined);
             let flattened = flatten_nested_blocks(deduped);
+
+            // Capture outer items[] IDs pre-disambig in items-order — paired with
+            // post-disambig IDs (items[] order is preserved by disambig) gives us
+            // the per-instance rename so we can re-key user_val_source_pos.
+            let pre_disambig_outer_ids: Vec<u32> = if let Expr::BlockValue(s) = &flattened {
+                s.expr
+                    .items
+                    .iter()
+                    .filter_map(|i| {
+                        if let Expr::ValDef(vd) = i {
+                            Some(vd.expr.id.0)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
             // S60: disambiguate FIRST so outer/inner ValDef ids don't collide.
             // Both `dfs_reassign_val_ids` and `reorder_valdefs.emit_deps`
             // build outer val_rhs/val_map from items[].id and then walk the
@@ -44,7 +79,40 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // from items[3] to items[8]. Disambig is order-independent on
             // tree shape; it only renames ids to be globally unique.
             let disambiguated = disambiguate_val_ids(flattened);
-            let reassigned = dfs_reassign_val_ids(disambiguated);
+
+            let post_disambig_outer_ids: Vec<u32> = if let Expr::BlockValue(s) = &disambiguated {
+                s.expr
+                    .items
+                    .iter()
+                    .filter_map(|i| {
+                        if let Expr::ValDef(vd) = i {
+                            Some(vd.expr.id.0)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            // Re-key user_val_source_pos by post-disambig IDs. Items[] positions
+            // are preserved by disambig (it only renames ValDef.id), so zipping
+            // by index gives the correct per-instance pre→post mapping.
+            let mut source_positions_post_disambig: HashMap<u32, usize> = HashMap::new();
+            if pre_disambig_outer_ids.len() == post_disambig_outer_ids.len() {
+                for (pre_id, post_id) in pre_disambig_outer_ids
+                    .iter()
+                    .zip(post_disambig_outer_ids.iter())
+                {
+                    if let Some(pos) = user_val_source_pos.get(pre_id) {
+                        source_positions_post_disambig.insert(*post_id, *pos);
+                    }
+                }
+            }
+
+            let reassigned =
+                dfs_reassign_val_ids(disambiguated, &source_positions_post_disambig);
             let reordered = reorder_valdefs(reassigned);
             sequential_renumber(reordered)
         })
@@ -171,7 +239,7 @@ fn strip_source_spans(expr: Expr) -> Expr {
 /// than the source/binder order. This pass walks each BlockValue's result
 /// in DFS order, recording the encounter order of ValUse references, and
 /// reassigns IDs accordingly.
-fn dfs_reassign_val_ids(expr: Expr) -> Expr {
+fn dfs_reassign_val_ids(expr: Expr, source_positions: &HashMap<u32, usize>) -> Expr {
     // Only process the top-level BlockValue. Inner blocks are handled
     // by reorder_valdefs which recurses independently.
     match expr {
@@ -179,13 +247,26 @@ fn dfs_reassign_val_ids(expr: Expr) -> Expr {
             if s.expr.items.is_empty() {
                 return Expr::BlockValue(s);
             }
-            // DFS from result to determine encounter order of val IDs.
-            // When encountering a ValUse(id), first recurse into the ValDef's
-            // RHS to process its deps, then record the id.
-            // Per S50 unified rule: walk only the body root in syntactic child
-            // order; assign IDs at point-of-first-use. Do NOT fall back to
-            // items-order for unreachable vals — that produces wrong ordering
-            // (S48 A.i regressed 3 contracts).
+            // S62 / direction #2: schedule outer-block symbols in
+            // SOURCE-CREATION order, mirroring Scala's TreeBuilding.
+            //
+            // Pass 1a: visit surviving user-declared ValDefs in source order
+            //   (items[] index at HIR→MIR time, captured pre-strip in apply_cse
+            //    and re-keyed through disambig). For each user val, walk its
+            //   RHS deps-first so dep IDs land before the dependent.
+            // Pass 1b: walk the result expression for any vals not yet covered
+            //   (e.g. CSE-extracted vals reachable only from result, not from
+            //    any user val's RHS).
+            //
+            // Why source order matters: in Scala's graph IR, symbol IDs reflect
+            // the order their RHS was first lowered during source processing.
+            // Source-earlier vals get smaller IDs; the later sort-by-ID in
+            // emit_deps's If arm then preserves that order across both branches.
+            // Result-DFS-encounter order (the previous strategy) instead orders
+            // by which val is mentioned first in the result expr — fine for
+            // single-branch contracts, wrong for ifs whose branches both
+            // reference the same vals (Phoenix: validBankRecreation appears
+            // first in true_branch, displacing earlier `price` in the schedule).
             let mut ordered_ids: Vec<u32> = Vec::new();
             let mut visited: std::collections::HashSet<u32> = std::collections::HashSet::new();
             {
@@ -200,6 +281,63 @@ fn dfs_reassign_val_ids(expr: Expr) -> Expr {
                 if val_rhs.is_empty() {
                     return Expr::BlockValue(s);
                 }
+
+                // Pass 1a: only seed COMPOUND user vals (RHS that references at
+                // least one other outer val) in source order. Trivial vals
+                // (RHS = leaf register-read / const / lone field-extract) are
+                // left for the result-walk in Pass 1b — Scala places them at
+                // their first-use site in the body, not at their declaration
+                // site.  Phoenix FULL: seeding R-register reads here pushes
+                // them to the front of the schedule, but Scala emits them
+                // alongside their consumers (R5,R4 with `price`; R6,R7,R8 with
+                // `validBankRecreation`).
+                //
+                // Compound = RHS contains ValUse(id) for some id in val_rhs.
+                let rhs_has_user_val_use = |rhs: &Expr, val_rhs: &HashMap<u32, &Expr>| -> bool {
+                    let mut found = false;
+                    let mut work: Vec<&Expr> = vec![rhs];
+                    while let Some(e) = work.pop() {
+                        if let Expr::ValUse(vu) = e {
+                            if val_rhs.contains_key(&vu.val_id.0) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        for child in body_walk_children(e) {
+                            work.push(child);
+                        }
+                    }
+                    found
+                };
+                let mut user_vals_in_source_order: Vec<u32> = source_positions
+                    .keys()
+                    .filter(|id| {
+                        val_rhs
+                            .get(id)
+                            .map(|rhs| rhs_has_user_val_use(rhs, &val_rhs))
+                            .unwrap_or(false)
+                    })
+                    .copied()
+                    .collect();
+                user_vals_in_source_order.sort_by_key(|id| source_positions[id]);
+                for uv_id in user_vals_in_source_order {
+                    if !visited.contains(&uv_id) {
+                        visited.insert(uv_id);
+                        if let Some(rhs) = val_rhs.get(&uv_id) {
+                            dfs_collect_val_order_inner(
+                                rhs,
+                                &val_rhs,
+                                &mut ordered_ids,
+                                &mut visited,
+                            );
+                        }
+                        ordered_ids.push(uv_id);
+                    }
+                }
+
+                // Pass 1b: walk the result for any vals the user-val schedule
+                // didn't cover (e.g. an If's cond/branch that references a
+                // CSE-extracted val whose source position is unknown).
                 dfs_collect_val_order(&s.expr.result, &val_rhs, &mut ordered_ids, &mut visited);
             }
 
@@ -847,7 +985,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             let mut block = Expr::BlockValue(Spanned {
                 source_span: s.source_span,
                 expr: BlockValue {
-                    items: remaining_items,
+                    items: remaining_items.clone(),
                     result: result.into(),
                 },
             });
@@ -857,6 +995,14 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                     tpe: rhs.tpe(),
                 });
                 block = replace_all(&block, &val_use, rhs);
+            }
+            // If every item was inlined (no non-ValDef items remain), the
+            // BlockValue is just a wrapper over its result — collapse it to
+            // match Scala's graph IR, which never emits an items-less BlockValue.
+            if remaining_items.is_empty() {
+                if let Expr::BlockValue(s) = block {
+                    return *s.expr.result;
+                }
             }
             block
         }
@@ -1557,6 +1703,35 @@ fn emit_deps(
             let mut branch_val_ids: Vec<u32> = Vec::new();
             collect_all_val_uses(&if_op.true_branch, &mut branch_val_ids);
             collect_all_val_uses(&if_op.false_branch, &mut branch_val_ids);
+            // S62: expand transitively. A direct branch-VU like
+            // `validBankRecreation` may have an RHS referencing other outer
+            // vals (e.g. minBankValue/R6) that themselves are NOT directly
+            // referenced in the branches. Without expansion, the sort below
+            // doesn't see those transitive deps and they get emitted only as
+            // a side-effect of recursion when their parent is processed —
+            // which puts them AFTER siblings that happened to be referenced
+            // directly. Transitive collection ensures every reachable outer
+            // val is in the sort, producing Scala's schedule (deps before
+            // dependent in seq-id order).
+            let dense_post_reassign_pre = !val_map.is_empty()
+                && val_map.keys().copied().max().unwrap_or(0) == val_map.len() as u32
+                && val_map.keys().copied().min().unwrap_or(0) >= 1;
+            if dense_post_reassign_pre {
+                let mut transitive: HashSet<u32> = branch_val_ids.iter().copied().collect();
+                let mut work: Vec<u32> = branch_val_ids.clone();
+                while let Some(id) = work.pop() {
+                    if let Some(Expr::ValDef(vd)) = val_map.get(&id) {
+                        let mut deps: Vec<u32> = Vec::new();
+                        collect_all_val_uses(&vd.expr.rhs, &mut deps);
+                        for d in deps {
+                            if val_map.contains_key(&d) && transitive.insert(d) {
+                                work.push(d);
+                            }
+                        }
+                    }
+                }
+                branch_val_ids = transitive.into_iter().collect();
+            }
             branch_val_ids.sort();
             branch_val_ids.dedup();
             // Partition: non-Const(/CP)-RHS ValDefs first, then Const-RHS.

@@ -3999,6 +3999,115 @@ fn test_significant_15() {
     );
 }
 
+/// Dev-only: dump LOCAL/NODE hex + first-diff offset for both Phoenix variants.
+/// Run: source ~/.secrets && cargo test -p ergoscript-compiler debug_phoenix_full_vs_simplified -- --ignored --nocapture
+#[test]
+#[ignore]
+fn debug_phoenix_full_vs_simplified() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    // FULL variant — load fixture and prepend prelude (mirroring test_significant_15)
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let raw =
+        std::fs::read_to_string(fixtures_dir.join("phoenix_hodlerg_bank_full.es")).unwrap();
+    let prelude = "val phoenixFeeContractBytesHash: Coll[Byte] = fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\");\n";
+    let idx = raw.find('{').unwrap();
+    let mut full_src = String::with_capacity(raw.len() + prelude.len());
+    full_src.push_str(&raw[..=idx]);
+    full_src.push('\n');
+    full_src.push_str(prelude);
+    full_src.push_str(&raw[idx + 1..]);
+
+    // SIMPLIFIED variant — copied verbatim from test_canonical_compilation
+    let simp_src = r#"{
+  val phoenixFeeContractBytesHash = fromBase16("0000000000000000000000000000000000000000000000000000000000000001")
+  val totalTokenSupply: Long = SELF.R4[Long].get
+  val precisionFactor: Long = SELF.R5[Long].get
+  val minBankValue: Long = SELF.R6[Long].get
+  val devFeeNum: Long = SELF.R7[Long].get
+  val bankFeeNum: Long = SELF.R8[Long].get
+  val feeDenom: Long = 1000L
+  val reserveIn: Long = SELF.value
+  val hodlERGIn: Long = SELF.tokens(1)._2
+  val hodlERGCircIn: Long = totalTokenSupply - hodlERGIn
+  val bankBoxOUT: Box = OUTPUTS(0)
+  val reserveOut: Long = bankBoxOUT.value
+  val hodlERGOut: Long = bankBoxOUT.tokens(1)._2
+  val hodlERGCircDelta: Long = hodlERGIn - hodlERGOut
+  val price: BigInt = (reserveIn.toBigInt * precisionFactor) / hodlERGCircIn
+  val isMintTx: Boolean = (hodlERGCircDelta > 0L)
+  val validBankRecreation: Boolean = {
+    val validValue: Boolean = (bankBoxOUT.value >= minBankValue)
+    val validContract: Boolean = (bankBoxOUT.propositionBytes == SELF.propositionBytes)
+    val validBankSingleton: Boolean = (bankBoxOUT.tokens(0) == SELF.tokens(0))
+    val validHodlERGTokenId: Boolean = (bankBoxOUT.tokens(1)._1 == SELF.tokens(1)._1)
+    allOf(Coll[Boolean](validValue, validContract, validBankSingleton, validHodlERGTokenId))
+  }
+  if (isMintTx) {
+    val expectedAmountDeposited: Long = (hodlERGCircDelta * price) / precisionFactor
+    val validBankDeposit: Boolean = (reserveOut >= reserveIn + expectedAmountDeposited)
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankDeposit)))
+  } else {
+    val phoenixFeeBoxOUT: Box = OUTPUTS(2)
+    val hodlCoinsBurned: Long = hodlERGOut - hodlERGIn
+    val expectedAmountBeforeFees: Long = (hodlCoinsBurned * price) / precisionFactor
+    val bankFeeAmount: Long = (expectedAmountBeforeFees * bankFeeNum) / feeDenom
+    val devFeeAmount: Long = (expectedAmountBeforeFees * devFeeNum) / feeDenom
+    val validBankWithdraw: Boolean = (reserveOut == reserveIn - expectedAmountBeforeFees + bankFeeAmount)
+    val validPhoenixFee: Boolean = {
+      allOf(Coll[Boolean](
+        (phoenixFeeBoxOUT.value == devFeeAmount),
+        (blake2b256(phoenixFeeBoxOUT.propositionBytes) == phoenixFeeContractBytesHash)
+      ))
+    }
+    sigmaProp(allOf(Coll[Boolean](validBankRecreation, validBankWithdraw, validPhoenixFee)))
+  }
+}"#;
+
+    fn dump(label: &str, source: &str, node_url: &str, api_key: &str) {
+        let local_tree = compile(source, ScriptEnv::new()).unwrap();
+        let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+        let local_hex: String = local_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        let canon = compile_canonical(source, ScriptEnv::new(), node_url, api_key).unwrap();
+        let node_bytes = canon.tree.sigma_serialize_bytes().unwrap();
+        let node_hex: String = node_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        let first_diff = local_bytes
+            .iter()
+            .zip(node_bytes.iter())
+            .position(|(a, b)| a != b);
+        eprintln!("\n=== {} ===", label);
+        eprintln!("LOCAL ({}B): {}", local_bytes.len(), local_hex);
+        eprintln!("NODE  ({}B): {}", node_bytes.len(), node_hex);
+        match first_diff {
+            Some(off) => eprintln!(
+                "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
+                off,
+                off * 2,
+                local_bytes[off],
+                node_bytes[off]
+            ),
+            None => eprintln!("MATCH"),
+        }
+        eprintln!(
+            "matched={:?}  bytes(canon)={}  bytes(local)={}",
+            canon.matched,
+            node_bytes.len(),
+            local_bytes.len()
+        );
+        eprintln!("LOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
+        eprintln!("NODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    }
+
+    dump("phoenix FULL", &full_src, node_url, &api_key);
+    dump("phoenix SIMPLIFIED", simp_src, node_url, &api_key);
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 /// Run with: cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
 #[test]

@@ -23,7 +23,7 @@ The 15 keystone contracts split into two buckets:
 | 5 | Dexy / USE | `bank.es` | ✅ **`dexy_bank_full.es` LOCAL MATCH @ 309B** (full upstream keystone). 46-corpus #8 "Dexy Bank" (291B) is a simplified variant — kept for regression coverage. |
 | 6 | ErgoMixer | `FullMix.es` | **NEW** — `ergomixer_fullmix.es` |
 | 7 | SkyHarbor | `V1_ErgEditsAndOffersV1.es` | ✅ **`skyharbor_v1_erg.es` LOCAL MATCH @ 411B**. 46-corpus #37 "SigUSDV1" tests the wrong sibling (SigUSD variant); kept for regression coverage. |
-| 8 | Phoenix HodlERG | `phoenix_v1_hodlerg_bank.es` | **`phoenix_hodlerg_bank_full.es`** (394 node / 396 local — USED NODE, 2-byte diff). 46-corpus #25 "Phoenix HodlERG Bank" (314B) is the simplified variant; kept for regression coverage. |
+| 8 | Phoenix HodlERG | `phoenix_v1_hodlerg_bank.es` | ✅ **`phoenix_hodlerg_bank_full.es` LOCAL MATCH @ 394B** (closed by S62 source-order val schedule). 46-corpus #25 "Phoenix HodlERG Bank" (314B) is the simplified variant — also LOCAL MATCH; kept for regression coverage. |
 | 9 | Paideia DAO | `stakeState.es` | **NEW** — `paideia_stake_state.es` |
 | 10 | Gluon Gold | `GluonWBoxGuardScript.es` | **NEW** — `gluon_box_guard.es` |
 | 11 | DuckPools | `childInterest.es` | **NEW** — `duckpools_child_interest.es` |
@@ -64,12 +64,12 @@ shifted via shared CSE/Upcast code paths.
 | `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
 | `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE | unchanged |
 | `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
-| `oracle_refresh.es`              | 572  | 574  | +2   | USED NODE | **was -53 → now +2** (sign flipped, joined small-diff list) |
-| `paideia_stake_state.es`         | 1468 | 1565 | +97  | USED NODE | **was -67 → now +97** (sign flipped) |
-| `phoenix_hodlerg_bank_full.es`   | 394  | 396  | +2   | USED NODE | unchanged |
+| `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | was +2 → now -53 (S62 schedule shift) |
+| `paideia_stake_state.es`         | 1468 | 1396 | -72  | USED NODE | was +97 → now -72 (S62 schedule shift) |
+| `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | was +2 → now matched (S62 source-order val schedule) |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
 | `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE | unchanged |
-| `sigmausd_bank.es`               | 741  | 613  | -128 | USED NODE | **was -77 → now -128** (widened 51B post-skyharbor) |
+| `sigmausd_bank.es`               | 741  | 613  | -128 | USED NODE | was -77 → now -128 (widened 51B post-skyharbor; S62 unchanged) |
 | `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | was -1 |
 | `spectrum_n2t_pool.es`           | 409  | 411  | +2   | USED NODE | unchanged |
 | `spectrum_t2t_pool.es`           | 421  | 423  | +2   | USED NODE | unchanged |
