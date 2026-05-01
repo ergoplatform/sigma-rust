@@ -320,18 +320,60 @@ fn dfs_reassign_val_ids(expr: Expr, source_positions: &HashMap<u32, usize>) -> E
                     .copied()
                     .collect();
                 user_vals_in_source_order.sort_by_key(|id| source_positions[id]);
-                for uv_id in user_vals_in_source_order {
-                    if !visited.contains(&uv_id) {
-                        visited.insert(uv_id);
-                        if let Some(rhs) = val_rhs.get(&uv_id) {
-                            dfs_collect_val_order_inner(
-                                rhs,
-                                &val_rhs,
-                                &mut ordered_ids,
-                                &mut visited,
-                            );
+
+                // S65 — Pass 1a applicability gate: skip Pass 1a iff the outer
+                // result expression is NOT an If (after stripping
+                // sigmaProp/BoolToSigmaProp wrappers).
+                //
+                // Background: Pass 1a seeds compound user vals in source-order
+                // with deps-first walks, giving each user val a low ID
+                // reflecting its source declaration. This is correct when the
+                // result is `if (cond) <true> else <false>`: reorder_valdefs's
+                // cond walk emits cond's ValDef chain first, then the
+                // If-branch sort-by-ID emits the remaining vals in NODE's
+                // schedule order (Phoenix HodlERG Bank: validBankRecreation's
+                // And needs the highest ID among branch deps so it emits last;
+                // src_pos seeding gives it that since And's source position is
+                // last among compound candidates).
+                //
+                // But when the result is a logical AND chain wrapping a nested
+                // If (e.g. `sigmaProp(a && b && validAction && c)` in
+                // Spectrum's pool fixtures), src_pos seeding gives nested-If-
+                // branch-only vals (Spectrum's reservesY0 SelectField,
+                // deltaReservesY BinOp) low IDs that put them BEFORE the
+                // CSE-extracted Upcast wrappers in the inner If's sort. NODE
+                // wants them ordered by hash-cons creation (≈first-use in the
+                // result-walk), not by source declaration. Skipping Pass 1a
+                // lets Pass 1b's plain DFS over the result assign IDs in
+                // result-walk encounter order, which matches Scala's emission.
+                //
+                // The discriminator is purely the result-expression shape.
+                // Outer-If contracts (BondContract*, Phoenix, OpenOrder, ...)
+                // need Pass 1a; outer-AND contracts (spectrum n2t/t2t pools,
+                // and any other AND-chain-wrapped contracts) skip it.
+                let outer_is_if = {
+                    fn strip_to_if_test(e: &Expr) -> &Expr {
+                        match e {
+                            Expr::BoolToSigmaProp(s) => strip_to_if_test(&s.input),
+                            _ => e,
                         }
-                        ordered_ids.push(uv_id);
+                    }
+                    matches!(strip_to_if_test(&s.expr.result), Expr::If(_))
+                };
+                if outer_is_if {
+                    for uv_id in user_vals_in_source_order {
+                        if !visited.contains(&uv_id) {
+                            visited.insert(uv_id);
+                            if let Some(rhs) = val_rhs.get(&uv_id) {
+                                dfs_collect_val_order_inner(
+                                    rhs,
+                                    &val_rhs,
+                                    &mut ordered_ids,
+                                    &mut visited,
+                                );
+                            }
+                            ordered_ids.push(uv_id);
+                        }
                     }
                 }
 
@@ -947,14 +989,49 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             count_val_uses_in(&result, &mut use_counts);
 
             // Build map of single-use val_id -> RHS for inlining
+            //
+            // S63: when a single-use val's RHS is itself a BlockValue (the user
+            // wrote `val outer = { val inner = ...; body }`), substituting the
+            // whole BlockValue at the use site traps `inner` inside whatever
+            // scope the use site lives in (e.g. an inner If branch). Scala's
+            // TreeBuilding instead lifts the inner ValDefs to the surrounding
+            // block — `inner`'s sym is owned by the outer Lambda scope, and
+            // only the BlockValue's RESULT lands at the use site. Mirror that:
+            // hoist the inner items[] to the surrounding `items` list and
+            // inline only the result expression. Closes spectrum_n2t/t2t pool
+            // byte-match (the +2 was the trapped `_deltaSupplyLP` block
+            // wrapper inside validRedemption's branch).
             let mut inline_map: std::collections::HashMap<u32, Expr> =
                 std::collections::HashMap::new();
+            let mut hoisted_items: Vec<Expr> = Vec::new();
+            // S64: track ids of hoisted ValDefs so a post-hoist dedup pass
+            // can fold structurally-identical inline expressions in the
+            // surrounding scope into ValUses of the hoisted ValDef. Mirrors
+            // Scala's graph-IR hash-cons: an inline `Upcast(deltaSupplyLP,
+            // BigInt)` in `validDepositing`'s body collapses to the same
+            // symbol as the hoisted `_deltaSupplyLP = deltaSupplyLP.toBigInt`
+            // from `validRedemption`'s body, so the inline 4-byte
+            // `Upcast(ValUse(N), BigInt)` becomes a 2-byte `ValUse(_dLP)`
+            // reference. Closes spectrum_n2t/t2t's remaining +2-byte gap.
+            let mut hoisted_ids: Vec<u32> = Vec::new();
             for item in &items {
                 if let Expr::ValDef(vd) = item {
                     let id = vd.expr.id.0;
                     let count = use_counts.get(&id).copied().unwrap_or(0);
                     if count == 1 {
-                        inline_map.insert(id, (*vd.expr.rhs).clone());
+                        if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
+                            // Hoist inner items to surrounding scope; inline
+                            // only the BlockValue's result at the use site.
+                            for inner in inner_bv.expr.items.iter() {
+                                if let Expr::ValDef(inner_vd) = inner {
+                                    hoisted_ids.push(inner_vd.expr.id.0);
+                                }
+                                hoisted_items.push(inner.clone());
+                            }
+                            inline_map.insert(id, (*inner_bv.expr.result).clone());
+                        } else {
+                            inline_map.insert(id, (*vd.expr.rhs).clone());
+                        }
                     }
                 }
             }
@@ -969,17 +1046,25 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 });
             }
 
-            // Remove inlined ValDefs from items
-            let remaining_items: Vec<Expr> = items
-                .into_iter()
-                .filter(|item| {
-                    if let Expr::ValDef(vd) = item {
-                        !inline_map.contains_key(&vd.expr.id.0)
-                    } else {
-                        true
+            // Remove inlined ValDefs from items, splicing hoisted ValDefs
+            // (from inlined BlockValue-RHS vals) into the surrounding `items`
+            // at the inlined val's position. This preserves source-order so
+            // dfs_reassign_val_ids can schedule the hoisted vals correctly.
+            let mut remaining_items: Vec<Expr> = Vec::with_capacity(items.len() + hoisted_items.len());
+            for item in items.into_iter() {
+                if let Expr::ValDef(vd) = &item {
+                    if inline_map.contains_key(&vd.expr.id.0) {
+                        if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
+                            let n = inner_bv.expr.items.len();
+                            let take: Vec<Expr> = hoisted_items.drain(..n).collect();
+                            remaining_items.extend(take);
+                        }
+                        // Skip the val itself (it is being inlined)
+                        continue;
                     }
-                })
-                .collect();
+                }
+                remaining_items.push(item);
+            }
 
             // Substitute all inlined vals using replace_all
             let mut block = Expr::BlockValue(Spanned {
@@ -996,10 +1081,66 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 });
                 block = replace_all(&block, &val_use, rhs);
             }
+            // S64 post-hoist dedup: for each hoisted ValDef whose RHS is a
+            // small wrapper (Upcast/Negation of a ValUse), find any inline
+            // occurrence of that exact RHS *elsewhere* in the surrounding
+            // block and replace it with a ValUse to the hoisted ValDef.
+            // Skip the hoisted ValDef's own item to avoid self-reference.
+            //
+            // Example: validRedemption's body declares
+            //   `val _dLP = deltaSupplyLP.toBigInt` (=Upcast(ValUse(N), SBigInt))
+            // and validDepositing's body has the same Upcast inline (auto-
+            // upcast of `deltaSupplyLP <= sharesUnlocked`). After hoist,
+            // the ValDef sits in outer items[]; this dedup folds the inline
+            // copy into a ValUse so both sites share the hoisted symbol —
+            // matching Scala's graph-IR hash-cons.
+            if !hoisted_ids.is_empty() {
+                if let Expr::BlockValue(bv) = block {
+                    let mut new_items: Vec<Expr> = bv.expr.items.iter().cloned().collect();
+                    let mut new_result: Expr = (*bv.expr.result).clone();
+                    for hid in &hoisted_ids {
+                        let mut target_rhs: Option<Expr> = None;
+                        for it in new_items.iter() {
+                            if let Expr::ValDef(vd) = it {
+                                if vd.expr.id.0 == *hid && is_dedupable_wrapper(&vd.expr.rhs) {
+                                    target_rhs = Some((*vd.expr.rhs).clone());
+                                    break;
+                                }
+                            }
+                        }
+                        let target_rhs = match target_rhs {
+                            Some(t) => t,
+                            None => continue,
+                        };
+                        let target_use = Expr::ValUse(ValUse {
+                            val_id: ValId(*hid),
+                            tpe: target_rhs.tpe(),
+                        });
+                        // Rewrite every item except the hoisted ValDef itself.
+                        for it in new_items.iter_mut() {
+                            if let Expr::ValDef(vd) = it {
+                                if vd.expr.id.0 == *hid {
+                                    continue;
+                                }
+                            }
+                            *it = replace_all(it, &target_rhs, &target_use);
+                        }
+                        new_result = replace_all(&new_result, &target_rhs, &target_use);
+                    }
+                    block = Expr::BlockValue(Spanned {
+                        source_span: bv.source_span,
+                        expr: BlockValue {
+                            items: new_items,
+                            result: new_result.into(),
+                        },
+                    });
+                }
+            }
+
             // If every item was inlined (no non-ValDef items remain), the
             // BlockValue is just a wrapper over its result — collapse it to
             // match Scala's graph IR, which never emits an items-less BlockValue.
-            if remaining_items.is_empty() {
+            if remaining_items.is_empty() && hoisted_ids.is_empty() {
                 if let Expr::BlockValue(s) = block {
                     return *s.expr.result;
                 }
@@ -1007,6 +1148,18 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             block
         }
         other => map_children(other, inline_single_use_vals),
+    }
+}
+
+/// True if RHS is a small wrapper whose dedup is byte-shrinking when the
+/// wrapped expression repeats inline. Restrict to single-arg numeric wrappers
+/// where the inner is a ValUse so the dedup target is uniquely structurally
+/// identifiable.
+fn is_dedupable_wrapper(rhs: &Expr) -> bool {
+    match rhs {
+        Expr::Upcast(uc) => matches!(&*uc.input, Expr::ValUse(_)),
+        Expr::Negation(s) => matches!(&*s.expr.input, Expr::ValUse(_)),
+        _ => false,
     }
 }
 /// Count ValUse references in an expression, incrementing counts in the map.

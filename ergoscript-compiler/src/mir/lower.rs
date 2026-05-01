@@ -134,19 +134,18 @@ fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
 }
 
 /// Insert Upcast to promote a narrower numeric type to a wider one.
-/// Folds `Upcast(Const(N: SInt), SBigInt)` to `Const(BigInt256(N))` to match
-/// Scala's behavior where bare integer literals in BigInt context are typed
-/// directly as BigInt. Explicit Long literals (with L suffix) are NOT folded
-/// because Scala preserves `500L.toBigInt` as `Upcast(500L, SBigInt)` at runtime.
+///
+/// We deliberately do NOT fold `Upcast(Const(N: SInt), SBigInt)` to
+/// `Const(BigInt256(N))`. Scala's TransformingSigmaBuilder keeps the
+/// `Upcast(intConst, BigInt)` wrapper at use sites; serialization Site 1
+/// (`expr_serializer::write_expr`) strips the wrapper for pre-v3 trees so the
+/// constant lands in the pool with its source-level `SInt` type, and parser
+/// Site 2 (`bin_op::parse_bin_op`) re-inserts the wrapper at use sites when
+/// operand types differ. Folding it here drops the wrapper before serialization
+/// so the constant is segregated as `SBigInt` instead of `SInt`, which makes
+/// our pool encoding diverge from NODE on every fixture mixing bare int
+/// literals with BigInt arithmetic (e.g. spectrum N2T/T2T pool's `FeeDenom`).
 fn numeric_upcast(expr: Expr, target: SType) -> Expr {
-    if target == SType::SBigInt {
-        if let Expr::Const(c) = &expr {
-            if let ergotree_ir::mir::constant::Literal::Int(v) = &c.v {
-                use ergotree_ir::bigint256::BigInt256;
-                return Constant::from(BigInt256::from(*v as i64)).into();
-            }
-        }
-    }
     Upcast::new(expr, target).expect("numeric upcast").into()
 }
 
