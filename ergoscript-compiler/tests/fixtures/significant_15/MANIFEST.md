@@ -32,7 +32,7 @@ The 15 keystone contracts split into two buckets:
 | 14 | ErgoRaffle | `raffle.es` | **NEW** — `ergoraffle_active.es` |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **2/15 LOCAL MATCH** as of 2026-04-30: `dexy_bank_full.es` and `skyharbor_v1_erg.es`.
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **3/15 LOCAL MATCH** as of 2026-05-01 (post-S62): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -45,16 +45,18 @@ should still be cross-checked against current upstream sources to confirm we're 
 - **NEEDED** — source not yet acquired; lookup TODO
 - **PARTIAL** — source on disk but uses ScriptEnv placeholders or template variables; substitution required
 
-## Empirical compile status (2026-04-30, against node v6.1.2)
+## Empirical compile status (2026-05-01, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 2/15 LOCAL MATCH** (`dexy_bank_full.es`, `skyharbor_v1_erg.es`).
-The other 14 produce different bytes than the node — those diffs are the canonical
+**15/15 fixtures compile end-to-end. 3/15 LOCAL MATCH** (`dexy_bank_full.es`,
+`skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`).
+The other 12 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
 Re-baselined post-Workstream-A–D close (commits `1a2034a2`, `1f6025bb`, `ab10a30e`,
-`e9212e83`). The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
-LOCAL MATCH on this same branch; sig-15 untouched directly but several fixtures
-shifted via shared CSE/Upcast code paths.
+`e9212e83`), with `c7112a1e` (skyharbor) and `ea04228c` (S62 / phoenix) layered on.
+The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
+LOCAL MATCH on this same branch; sig-15 directly closed phoenix in S62, and
+several other fixtures shifted via shared CSE/schedule code paths (see table below).
 
 | Fixture                          | Node bytes | Local bytes | Δ | Status | Δ vs Apr-27 |
 |---|---|---|---|---|---|
@@ -65,11 +67,11 @@ shifted via shared CSE/Upcast code paths.
 | `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE | unchanged |
 | `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | was +2 → now -53 (S62 schedule shift) |
-| `paideia_stake_state.es`         | 1468 | 1396 | -72  | USED NODE | was +97 → now -72 (S62 schedule shift) |
+| `paideia_stake_state.es`         | 1468 | 1399 | -69  | USED NODE | was +97 → now -69 (S62 schedule shift) |
 | `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | was +2 → now matched (S62 source-order val schedule) |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
 | `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE | unchanged |
-| `sigmausd_bank.es`               | 741  | 613  | -128 | USED NODE | was -77 → now -128 (widened 51B post-skyharbor; S62 unchanged) |
+| `sigmausd_bank.es`               | 741  | 620  | -121 | USED NODE | was -77 → now -121 (widened post-skyharbor; S62 closed 7B) |
 | `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | was -1 |
 | `spectrum_n2t_pool.es`           | 409  | 411  | +2   | USED NODE | unchanged |
 | `spectrum_t2t_pool.es`           | 421  | 423  | +2   | USED NODE | unchanged |
@@ -78,18 +80,23 @@ shifted via shared CSE/Upcast code paths.
 expected leverage):
 - `dexy_bank_full` (0 — ✅ matched)
 - `skyharbor_v1_erg` (0 — ✅ matched 2026-04-30)
-- `phoenix_hodlerg_bank_full` (+2), `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2),
-  `oracle_refresh` (+2 — newly joined this list 2026-05-01)
+- `phoenix_hodlerg_bank_full` (0 — ✅ matched 2026-05-01 via S62 source-order val schedule)
+- `spectrum_n2t_pool` (+2), `spectrum_t2t_pool` (+2)
 - `ergoraffle_active` (+7)
 - `ergomixer_fullmix` (-23)
-- `gluon_box_guard` (-51 — closed 39B post-skyharbor)
+- `rosen_event_trigger` (-38), `gluon_box_guard` (-51), `oracle_refresh` (-53)
 
-**Investigate-before-targeting**: `paideia_stake_state`, `sigmausd_bank`
-have sign-flipped or widened. The post-WS-A–D and post-skyharbor shifts indicate
-which sub-expressions get CSE-extracted is highly sensitive to the
-`apply_cse_within_branches`/S40 contract — diff against the Apr-27/Apr-30 local
-bytes (git history) to identify *what* changed before treating these as fresh
-root-causes.
+**Investigate-before-targeting**: `paideia_stake_state`, `sigmausd_bank`,
+`oracle_refresh` shifted under S62 (Phoenix fix). Pre-S62 oracle_refresh was
+Δ +2 (a small-diff target); post-S62 it's Δ -53. sigmausd_bank widened −44B
+under S62 but is still on the post-skyharbor widening trajectory — the
+hypothesis section below pre-dates S62 and may need revisiting. The shifts
+confirm that `dfs_reassign_val_ids` ordering is load-bearing for any fixture
+with multi-branch shared-val patterns; S62's transitive `branch_val_ids`
+expansion changes which sub-expressions land at outer scope vs branch scope.
+
+**Sig-15 progress**: 3/15 LOCAL MATCH (2026-05-01 post-S62) — was 1/15 at
+plan start, 2/15 post-skyharbor.
 
 ### Sigmausd_bank widening hypothesis (2026-05-01)
 
