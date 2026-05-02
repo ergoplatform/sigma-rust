@@ -17,8 +17,8 @@ The 15 keystone contracts split into two buckets:
 |---|---|---|---|
 | 1 | Oracle Pool v2 | `refresh.es` | **NEW (this dir)** — currently NEEDED, no source in cannonQ Rust oracle-core |
 | 2 | SigmaUSD / AgeUSD | `bank.es` (full State Box) | **NEW** — `sigmausd_bank.es` |
-| 3a | Spectrum DEX | `n2t_pool.es` | **NEW** — `spectrum_n2t_pool.es` |
-| 3b | Spectrum DEX | `t2t_pool.es` | **NEW** — `spectrum_t2t_pool.es` |
+| 3a | Spectrum DEX | `n2t_pool.es` | ✅ **`spectrum_n2t_pool.es` LOCAL MATCH @ 409B** (closed by S65 outer-AND skip-Pass-1a + S63 hoist + S64a/b fold-drop & post-hoist dedup). |
+| 3b | Spectrum DEX | `t2t_pool.es` | ✅ **`spectrum_t2t_pool.es` LOCAL MATCH @ 421B** (same root-cause fix as n2t). |
 | 4 | Rosen Bridge | `EventTrigger.es` | **NEW** — `rosen_event_trigger.es` |
 | 5 | Dexy / USE | `bank.es` | ✅ **`dexy_bank_full.es` LOCAL MATCH @ 309B** (full upstream keystone). 46-corpus #8 "Dexy Bank" (291B) is a simplified variant — kept for regression coverage. |
 | 6 | ErgoMixer | `FullMix.es` | **NEW** — `ergomixer_fullmix.es` |
