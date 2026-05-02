@@ -1306,9 +1306,23 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                 if val_rhs.is_empty() {
                     current_items
                 } else {
+                    // Dedup by RHS equality: keep only the FIRST val per
+                    // unique RHS shape. Without this, two sibling vals with
+                    // identical RHS rewrite each other into mutual aliases
+                    // (val A's RHS → ValUse(B); val B's RHS → ValUse(A)),
+                    // producing a structurally-broken cycle that survives
+                    // every CSE pass. Direction-by-first-occurrence breaks
+                    // the cycle: only the second val gets rewritten to a
+                    // ValUse of the first.
+                    let mut deduped: Vec<(u32, Expr)> = Vec::new();
+                    for (id, rhs) in val_rhs.into_iter() {
+                        if !deduped.iter().any(|(_, r)| hir_expr_eq(&rhs, r)) {
+                            deduped.push((id, rhs));
+                        }
+                    }
                     current_items
                         .into_iter()
-                        .map(|item| substitute_duplicate_rhs(item, &val_rhs))
+                        .map(|item| substitute_duplicate_rhs(item, &deduped))
                         .collect()
                 }
             };

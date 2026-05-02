@@ -65,7 +65,7 @@ several other fixtures shifted via shared CSE/schedule code paths (see table bel
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
 | `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE | unchanged |
 | `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
-| `ergoraffle_active.es`           | 931  | 938  | +7   | USED NODE | unchanged |
+| `ergoraffle_active.es`           | 931  | 939  | +8   | USED NODE | was +7 (broken IR) → now +8 (S66 correct IR + body-schedule outer; inner d809 reorder still pending) |
 | `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | was +2 → now -53 (S62 schedule shift) |
 | `paideia_stake_state.es`         | 1468 | 1563 | +95  | USED NODE | was -72 → now +95 (S65 outer-AND skip-Pass-1a shift) |

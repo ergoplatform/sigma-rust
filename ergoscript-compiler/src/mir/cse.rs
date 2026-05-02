@@ -361,20 +361,26 @@ fn dfs_reassign_val_ids(expr: Expr, source_positions: &HashMap<u32, usize>) -> E
                     matches!(strip_to_if_test(&s.expr.result), Expr::If(_))
                 };
                 if outer_is_if {
-                    for uv_id in user_vals_in_source_order {
-                        if !visited.contains(&uv_id) {
-                            visited.insert(uv_id);
-                            if let Some(rhs) = val_rhs.get(&uv_id) {
-                                dfs_collect_val_order_inner(
-                                    rhs,
-                                    &val_rhs,
-                                    &mut ordered_ids,
-                                    &mut visited,
-                                );
-                            }
-                            ordered_ids.push(uv_id);
-                        }
-                    }
+                    // S66: body-schedule simulation. Walk the result with
+                    // non-leaf children processed before leaves, mirroring
+                    // Scala's `AstGraph.freeVars` collection semantics. This
+                    // replaces the earlier source-order seeding (which was
+                    // correct for Phoenix HodlERG Bank but wrong for ergoraffle
+                    // — see 06b §"Why even the structurally-correct tree is
+                    // +37B off NODE"). Body-schedule walk gives Phoenix the
+                    // same ordering source-order did (validBankRecreation last
+                    // because it's a leaf-VU sibling of the non-leaf
+                    // validBankDeposit chain), and gives ergoraffle NODE's
+                    // ordering (deadline → OUTPUTS → addresses → outR4 →
+                    // ByIndex chain → totalSold/outTotalSold → Const →
+                    // totalRaised/BI).
+                    let _ = user_vals_in_source_order; // unused under S66
+                    body_schedule_walk_collect(
+                        &s.expr.result,
+                        &val_rhs,
+                        &mut ordered_ids,
+                        &mut visited,
+                    );
                 }
 
                 // Pass 1b: walk the result for any vals the user-val schedule
@@ -462,6 +468,63 @@ fn dfs_collect_val_order(
                 // ValUses belong to the inner scope's schedule, not the outer's.
                 let children = body_walk_children(expr);
                 for child in children.into_iter().rev() {
+                    work.push(child);
+                }
+            }
+        }
+    }
+}
+
+/// Body-schedule simulation walk: non-leaf children processed BEFORE leaves.
+///
+/// Mirrors Scala's `AstGraph.freeVars` semantics — body schedule is DFS
+/// post-order over body-internal nodes; freeVars are collected by iterating
+/// body schedule and recording each body sym's external (out-of-body) deps.
+/// Non-leaf children are body syms that appear in body schedule BEFORE the
+/// parent, so their external deps are recorded BEFORE the parent's external
+/// (leaf-ValUse) deps. We approximate this by partitioning each node's
+/// children into leaves (direct `ValUse`s) and non-leaves, and pushing
+/// leaves onto the work stack first so non-leaves get popped (and their
+/// externals recorded) ahead of the leaves.
+///
+/// Used only when the outer result is an `If`. AND-chain contracts (outer
+/// `sigmaProp(allOf(...))` such as Spectrum n2t/t2t pools) need the simpler
+/// left-to-right pre-order — this body-schedule walk over-reorders their
+/// CSE-extracted vals.
+///
+/// Sig-15 #6 (ergoraffle) line 36 `outTotalSold == totalSold + currentSold`:
+/// `BinOp(+)` (non-leaf) processed first → `totalSold` recorded before
+/// `outTotalSold` (matches NODE's `totalSold` ID < `outTotalSold` ID).
+fn body_schedule_walk_collect(
+    root: &Expr,
+    val_rhs: &HashMap<u32, &Expr>,
+    ordered: &mut Vec<u32>,
+    visited: &mut std::collections::HashSet<u32>,
+) {
+    let mut work: Vec<&Expr> = vec![root];
+    while let Some(expr) = work.pop() {
+        match expr {
+            Expr::ValUse(vu) => {
+                let id = vu.val_id.0;
+                if val_rhs.contains_key(&id) && !visited.contains(&id) {
+                    visited.insert(id);
+                    if let Some(rhs) = val_rhs.get(&id) {
+                        dfs_collect_val_order_inner(rhs, val_rhs, ordered, visited);
+                    }
+                    ordered.push(id);
+                }
+            }
+            _ => {
+                let children = body_walk_children(expr);
+                let (leaves, nonleaves): (Vec<&Expr>, Vec<&Expr>) = children
+                    .into_iter()
+                    .partition(|c| matches!(c, Expr::ValUse(_)));
+                // Push leaves first (deeper in stack — popped LATER); then
+                // non-leaves (top of stack — popped FIRST).
+                for child in leaves.into_iter().rev() {
+                    work.push(child);
+                }
+                for child in nonleaves.into_iter().rev() {
                     work.push(child);
                 }
             }
@@ -2106,15 +2169,44 @@ fn disambig_walk(expr: &mut Expr, st: &mut DisambigState) {
     use ergotree_ir::traversable::Traversable;
     match expr {
         Expr::BlockValue(s) => {
+            // Pre-bind all top-level ValDef siblings so that ValUse
+            // references between siblings (e.g. val B = ValUse(A) where A
+            // appears later in source order, or mutual sibling refs that
+            // survived HIR dedup) resolve in their RHS walks. Without
+            // pre-binding, the first sibling's RHS sees an empty frame and
+            // any forward ValUse falls through unrenamed, leaving a dangling
+            // reference downstream.
             st.scopes.push(HashMap::new());
-            for item in &mut s.expr.items {
-                disambig_walk(item, st);
+            let mut prebound: Vec<Option<u32>> = Vec::with_capacity(s.expr.items.len());
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    let old = vd.expr.id.0;
+                    let new_id = st.next;
+                    st.next += 1;
+                    st.scopes
+                        .last_mut()
+                        .expect("at least one scope frame")
+                        .insert(old, new_id);
+                    prebound.push(Some(new_id));
+                } else {
+                    prebound.push(None);
+                }
+            }
+            for (item, pre) in s.expr.items.iter_mut().zip(prebound.iter()) {
+                if let (Expr::ValDef(vd), Some(new_id)) = (&mut *item, pre) {
+                    // Walk RHS in the (now fully pre-bound) surrounding scope.
+                    disambig_walk(&mut vd.expr.rhs, st);
+                    vd.expr.id = ValId(*new_id);
+                } else {
+                    disambig_walk(item, st);
+                }
             }
             disambig_walk(&mut s.expr.result, st);
             st.scopes.pop();
         }
         Expr::ValDef(s) => {
-            // RHS evaluated in the surrounding scope (no self-binding).
+            // ValDef encountered outside a BlockValue (rare). RHS evaluated
+            // in the surrounding scope (no self-binding).
             disambig_walk(&mut s.expr.rhs, st);
             let old = s.expr.id.0;
             let new_id = st.next;
@@ -3620,9 +3712,13 @@ fn is_graph_shared(expr: &Expr) -> bool {
         // (global, PropertyCall chain on global, or referencing a val-bound collection).
         // In Scala's graph, MethodCall(coll, apply, [idx]) is extractable when usages >= 2.
         Expr::ByIndex(s) => is_input_stable(&s.expr.input),
-        // OptionGet: separate per call site in Scala graph (rewriteDef
-        // produces different syms per call site).
-        Expr::OptionGet(_) => false,
+        // OptionGet: shared when the input is itself a shared graph node
+        // (e.g. ExtractRegisterAs on a stable receiver). Empirically NODE
+        // does hoist `box.Rn[T].get` patterns (single ValDef + ValUses) even
+        // though the historic note here claimed otherwise — see ergoraffle
+        // (Sig-15 #6) where SELF.R4[Coll[Long]].get is bound once and reused
+        // across 6 ByIndex sites.
+        Expr::OptionGet(s) => is_graph_shared(&s.expr.input),
         // OptionIsDefined: shared when input is a stable graph node.
         // In Scala's graph IR, `MethodCall(stable_sym, OptionIsDefined)`
         // hash-conses to one Def via findOrCreateDefinition. With the S45
@@ -3652,6 +3748,15 @@ fn is_input_stable(expr: &Expr) -> bool {
         Expr::GlobalVars(_) | Expr::Context => true,
         Expr::PropertyCall(s) => is_input_stable(&s.expr.obj),
         Expr::ValUse(_) => true,
+        // ByIndex on a stable collection (e.g. `OUTPUTS(0)`) is itself
+        // a stable graph node in Scala's IR — `findOrCreateDefinition`
+        // hash-conses identical `coll.apply(idx)` calls. Treating it as
+        // stable here lets `box.Rn[T].get` chains rooted at OUTPUTS(0) be
+        // recognized as shared candidates (mirrors NODE's outer ValDef for
+        // `OUTPUTS(0).R4[Coll[Long]].get`). Sig-15 #6 (ergoraffle) needs
+        // this; without it, the inner ExtractR4 chain's is_graph_shared
+        // gate trips on ByIndex's "non-stable" classification.
+        Expr::ByIndex(s) => is_input_stable(&s.expr.input),
         _ => false,
     }
 }
