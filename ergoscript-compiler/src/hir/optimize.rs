@@ -1315,15 +1315,66 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                     // the cycle: only the second val gets rewritten to a
                     // ValUse of the first.
                     let mut deduped: Vec<(u32, Expr)> = Vec::new();
+                    let mut alias_map: HashMap<u32, u32> = HashMap::new();
                     for (id, rhs) in val_rhs.into_iter() {
-                        if !deduped.iter().any(|(_, r)| hir_expr_eq(&rhs, r)) {
+                        if let Some((kept_id, _)) =
+                            deduped.iter().find(|(_, r)| hir_expr_eq(&rhs, r))
+                        {
+                            alias_map.insert(id, *kept_id);
+                        } else {
                             deduped.push((id, rhs));
                         }
                     }
-                    current_items
+                    let after_subst: Vec<Expr> = current_items
                         .into_iter()
                         .map(|item| substitute_duplicate_rhs(item, &deduped))
-                        .collect()
+                        .collect();
+                    if alias_map.is_empty() {
+                        after_subst
+                    } else {
+                        // Drop alias ValDefs (those whose RHS got rewritten to
+                        // ValUse(kept_id)) and rewrite ValUse(dup_id) → ValUse(kept_id)
+                        // in the remaining items. Without this, the dedup pass leaves
+                        // trivial alias ValDefs in the schedule that NODE never emits,
+                        // producing extra bytes and shifted val IDs downstream.
+                        let valuse_subs: HashMap<u32, Expr> = after_subst
+                            .iter()
+                            .filter_map(|item| {
+                                if let ExprKind::ValDef(vd) = &item.kind {
+                                    let id = vd.id?;
+                                    if alias_map.contains_key(&id) {
+                                        if let ExprKind::ValUse(vu) = &vd.rhs.kind {
+                                            return Some((
+                                                id,
+                                                Expr {
+                                                    kind: ExprKind::ValUse(super::ValUse {
+                                                        id: vu.id,
+                                                        tpe: vu.tpe.clone(),
+                                                    }),
+                                                    tpe: Some(vu.tpe.clone()),
+                                                    span: item.span,
+                                                },
+                                            ));
+                                        }
+                                    }
+                                }
+                                None
+                            })
+                            .collect();
+                        after_subst
+                            .into_iter()
+                            .filter_map(|item| {
+                                if let ExprKind::ValDef(vd) = &item.kind {
+                                    if let Some(id) = vd.id {
+                                        if valuse_subs.contains_key(&id) {
+                                            return None;
+                                        }
+                                    }
+                                }
+                                Some(substitute_val_uses(item, &valuse_subs))
+                            })
+                            .collect()
+                    }
                 }
             };
 

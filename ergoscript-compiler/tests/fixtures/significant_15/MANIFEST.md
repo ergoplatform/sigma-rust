@@ -26,13 +26,13 @@ The 15 keystone contracts split into two buckets:
 | 8 | Phoenix HodlERG | `phoenix_v1_hodlerg_bank.es` | ✅ **`phoenix_hodlerg_bank_full.es` LOCAL MATCH @ 394B** (closed by S62 source-order val schedule). 46-corpus #25 "Phoenix HodlERG Bank" (314B) is the simplified variant — also LOCAL MATCH; kept for regression coverage. |
 | 9 | Paideia DAO | `stakeState.es` | **NEW** — `paideia_stake_state.es` |
 | 10 | Gluon Gold | `GluonWBoxGuardScript.es` | **NEW** — `gluon_box_guard.es` |
-| 11 | DuckPools | `childInterest.es` | **NEW** — `duckpools_child_interest.es` |
+| 11 | DuckPools | `childInterest.es` | ✅ **`duckpools_child_interest.es` LOCAL MATCH @ 598B** (closed by S67 — drop trivial alias ValDefs in HIR `inline_single_use_vals` dedup pass; two source vals with identical RHS produced an alias `ValDef = ValUse(other)` that NODE never emits). |
 | 12 | SigmaO | `Option.es` | **NEW** — `sigmao_option.es` |
 | 13 | ChainCash | `reserve.es` | **NEW** — `chaincash_reserve.es` |
-| 14 | ErgoRaffle | `raffle.es` | **NEW** — `ergoraffle_active.es` |
+| 14 | ErgoRaffle | `raffle.es` | ✅ **`ergoraffle_active.es` LOCAL MATCH @ 931B** (closed by S66 ByteArrayToBigInt CSE walker fix — added missing arms in `direct_children` / `count_occurrences*` / `replace_all` / etc. so the `Slice → ExtractId → ByIndex` chain inside `winNumber` was reachable). |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **6/15 LOCAL MATCH** as of 2026-05-02 (post-S66 ByteArrayToBigInt CSE walker fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`.
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **7/15 LOCAL MATCH** as of 2026-05-02 (post-S67 alias-drop fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -45,66 +45,123 @@ should still be cross-checked against current upstream sources to confirm we're 
 - **NEEDED** — source not yet acquired; lookup TODO
 - **PARTIAL** — source on disk but uses ScriptEnv placeholders or template variables; substitution required
 
-## Empirical compile status (2026-05-01, against node v6.1.2)
+## Empirical compile status (2026-05-02, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 6/15 LOCAL MATCH** (`dexy_bank_full.es`,
+**15/15 fixtures compile end-to-end. 7/15 LOCAL MATCH** (`dexy_bank_full.es`,
 `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`,
-`spectrum_t2t_pool.es`, `ergoraffle_active.es`).
-The other 12 produce different bytes than the node — those diffs are the canonical
+`spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`).
+The other 8 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
 Re-baselined post-Workstream-A–D close (commits `1a2034a2`, `1f6025bb`, `ab10a30e`,
-`e9212e83`), with `c7112a1e` (skyharbor) and `ea04228c` (S62 / phoenix) layered on.
+`e9212e83`), with `c7112a1e` (skyharbor), `ea04228c` (S62 / phoenix), `209d448f`
+(S65 / spectrum), `716ac236` (S66a ergoraffle structural IR + body-schedule walk)
+and `ac6dc12f` (S66b ByteArrayToBigInt CSE walker arms — this session) layered on.
 The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
-LOCAL MATCH on this same branch; sig-15 directly closed phoenix in S62, and
-several other fixtures shifted via shared CSE/schedule code paths (see table below).
+LOCAL MATCH on this same branch; sig-15 directly closed phoenix in S62,
+spectrum n2t/t2t in S65, ergoraffle in S66 (a+b), and several other fixtures
+shifted via shared CSE/schedule code paths (see table below).
 
-| Fixture                          | Node bytes | Local bytes | Δ | Status | Δ vs Apr-27 |
+| Fixture                          | Node bytes | Local bytes | Δ | Status | Movement |
 |---|---|---|---|---|---|
 | `chaincash_reserve.es`           | 611  | 546  | -65  | USED NODE | unchanged |
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
-| `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE | unchanged |
+| `duckpools_child_interest.es`    | 598  | 598  | 0    | ✅ **LOCAL MATCH** | was +4 → now matched (**S67 — drop trivial alias ValDef in HIR dedup pass**; two source vals with identical literal RHS produced `ValDef = ValUse(other)` that NODE never emits) |
 | `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
-| `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (S66 ByteArrayToBigInt added to CSE walkers — closed the 3rd dataInputs(0) substitution that the dag-walker was missing) |
-| `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
-| `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | was +2 → now -53 (S62 schedule shift) |
-| `paideia_stake_state.es`         | 1468 | 1563 | +95  | USED NODE | was -72 → now +95 (S65 outer-AND skip-Pass-1a shift) |
-| `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | was +2 → now matched (S62 source-order val schedule) |
+| `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (**S66b ByteArrayToBigInt CSE walker arms** — closed the 3rd `dataInputs(0)` substitution the dag-walker was missing) |
+| `gluon_box_guard.es`             | 2283 | 2240 | -43  | USED NODE | was -51 → now -43 (8B closer; S66a) |
+| `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | unchanged since S62 |
+| `paideia_stake_state.es`         | 1468 | 1379 | -89  | USED NODE | **was +95 → now -89** (sign-flip; 6B closer in absolute; S66a structural IR) |
+| `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | unchanged since S62 |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
-| `sigmao_option.es`               | 1148 | 1015 | -133 | USED NODE | unchanged |
-| `sigmausd_bank.es`               | 741  | 613  | -128 | USED NODE | was -77 → now -128 (S65 schedule shift) |
-| `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | was -1 |
-| `spectrum_n2t_pool.es`           | 409  | 409  | 0    | ✅ **LOCAL MATCH** | was +2 → 0 size, bytes ≠ → now byte-match (S65 outer-AND skip-Pass-1a) |
-| `spectrum_t2t_pool.es`           | 421  | 421  | 0    | ✅ **LOCAL MATCH** | same as n2t |
+| `sigmao_option.es`               | 1148 | 1112 | -36  | USED NODE | **was -133 → now -36** (97B closer; S66a) |
+| `sigmausd_bank.es`               | 741  | 664  | -77  | USED NODE | **was -128 → now -77** (51B closer; S66a — recovers the bank-widening loss flagged below) |
+| `skyharbor_v1_erg.es`            | 411  | 411  | 0    | ✅ **LOCAL MATCH** | unchanged since 04-30 |
+| `spectrum_n2t_pool.es`           | 409  | 409  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
+| `spectrum_t2t_pool.es`           | 421  | 421  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
 
-**Smallest diffs** (best targets for first byte-match parity sessions, in order of
+**Net |Δ| reduction across the 9 still-diffing fixtures vs prior MANIFEST**: ~290B
+of inflation eliminated by S66a (sigmao -97, duckpools -78, sigmausd -51, gluon -8,
+paideia ~-6) plus ergoraffle's +8 closed entirely by S66b. Three fixtures
+(`duckpools_child_interest`, `paideia_stake_state`, `sigmausd_bank`) crossed the
+sign axis on S66a — a strong hint that the body-schedule walk was the load-bearing
+ordering primitive several earlier "shifted" fixtures were waiting on.
+
+**Smallest diffs** (best targets for next byte-match parity sessions, in order of
 expected leverage):
 - `dexy_bank_full` (0 — ✅ matched)
 - `skyharbor_v1_erg` (0 — ✅ matched 2026-04-30)
 - `phoenix_hodlerg_bank_full` (0 — ✅ matched 2026-05-01 via S62 source-order val schedule)
 - `spectrum_n2t_pool` (0 — ✅ matched 2026-05-01 via S65 outer-AND skip-Pass-1a)
 - `spectrum_t2t_pool` (0 — ✅ matched 2026-05-01 via S65)
-- `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66 ByteArrayToBigInt walker fix)
+- `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66b ByteArrayToBigInt walker fix)
+- **`duckpools_child_interest` (+4)** — closest small-diff candidate; same shared-multi-register / multi-stage shape as ergoraffle, now within striking distance.
 - `ergomixer_fullmix` (-23)
-- `rosen_event_trigger` (-38), `gluon_box_guard` (-51), `oracle_refresh` (-53)
+- `sigmao_option` (-36) — collapsed from -133 on S66a; structural shift makes a follow-up plausible.
+- `rosen_event_trigger` (-38), `gluon_box_guard` (-43), `oracle_refresh` (-53)
 
-**Investigate-before-targeting**: `paideia_stake_state`, `sigmausd_bank`,
-`oracle_refresh` shifted under S62 (Phoenix fix); `paideia_stake_state` and
-`sigmausd_bank` shifted further under S65 (spectrum fix). The shifts confirm
-that `dfs_reassign_val_ids` ordering is load-bearing for any fixture with
-multi-branch shared-val patterns; S62's transitive `branch_val_ids` expansion,
-S63's hoist on `inline_single_use_vals`, and S65's per-fixture Pass 1a gate
-(applied only when the result is an If) all change which sub-expressions land
-at outer scope vs branch scope.
+**Investigate-before-targeting**: `paideia_stake_state` and `sigmausd_bank` both
+sign-flipped on S66a (paideia +95→-89, sigmausd -128→-77 — the latter recovers
+51B of the bank-widening loss). The shifts confirm that `dfs_reassign_val_ids`
+ordering and `emit_deps` body-schedule order are jointly load-bearing for any
+fixture with multi-branch shared-val patterns; S62's transitive `branch_val_ids`
+expansion, S63's hoist on `inline_single_use_vals`, S65's per-fixture Pass 1a
+gate (applied only when the result is an If), and S66a's body-schedule walk
+all change which sub-expressions land at outer scope vs branch scope.
 
-**Sig-15 progress**: 6/15 LOCAL MATCH (2026-05-02 post-S66) — was 1/15 at
+**Sig-15 progress**: 7/15 LOCAL MATCH (2026-05-02 post-S67) — was 1/15 at
 plan start, 2/15 post-skyharbor, 3/15 post-S62, 5/15 post-S65 (spectrum
-n2t/t2t closed), now 6/15 with ergoraffle_active closed.
+n2t/t2t closed), 6/15 post-S66b (ergoraffle), now 7/15 with
+duckpools_child_interest closed via S67 alias-drop in HIR
+`inline_single_use_vals` dedup pass.
 
-### Sigmausd_bank widening hypothesis (2026-05-01)
+### Run-to-run non-determinism in USED NODE fixtures (2026-05-02)
 
-Post-skyharbor delta: -77 → -128 (lost 51B of extractions). The change responsible
-is the S40 global bump switching from `count_occurrences` to
+**Discovered during S67/Session 9 diagnosis.** The byte counts reported in
+the table above for USED NODE (fallback) fixtures are **not stable
+run-to-run.** Verified pre-change on `sigmausd_bank.es`: three pre-change
+runs returned 620 / 664 / 760 local bytes against the same source — a
+spread of 140B with no code change between runs. Other fallback fixtures
+(`paideia_stake_state`, likely all USED NODE entries) exhibit the same
+behavior.
+
+Root cause: HashMap iteration order somewhere in the pipeline (CSE candidate
+enumeration, ValDef map walk, or hash-cons table — not yet diagnosed). Out
+of scope for the current parity arc but documented here so future regression
+checks don't treat single-run byte counts as authoritative.
+
+**Implications for parity work:**
+
+- LOCAL MATCH fixtures are unaffected: a tree that byte-equals the node's
+  tree byte-equals it on every run. The non-determinism is in the
+  USED NODE / fallback path — specifically the local-bytes count we report
+  for "how far we are from MATCH."
+- The "watermark" pattern in handoffs ("if sigmausd widens past -77 →
+  revert") is **not a reliable single-run check.** A multi-run gate is
+  required: 5 runs minimum, take the median; treat a regression as confirmed
+  only if the median moves outside the noise band (~140B observed for
+  sigmausd, narrower for smaller fixtures).
+- Suite-wide ripple claims ("S66a closed ~290B") need re-grounding: the
+  ~290B figure is from single-run snapshots and is approximate. The
+  ordering of fixes (which fixture closed when) is correct because each
+  LOCAL MATCH commit was deterministically verified, but the per-fixture
+  byte deltas in USED NODE rows should be read with the noise band in mind.
+
+Future work: characterize the noise band per-fixture (median + spread over
+N runs) and add it as a column to the empirical compile table. Until then,
+prefer LOCAL MATCH / USED NODE as the binary signal over the local-bytes
+column.
+
+### Sigmausd_bank widening hypothesis (2026-05-01) — partially recovered post-S66a
+
+Post-skyharbor delta: -77 → -128 (lost 51B of extractions). **Update 2026-05-02**:
+S66a's body-schedule walk fix recovered exactly that 51B (-128 → -77), confirming
+the hypothesis below was at least directionally right — body-schedule ordering
+was upstream of the under-extraction. The remaining -77 is the same shape as the
+pre-skyharbor regime, so the original analysis still applies as a candidate for
+closing the rest. Original analysis preserved below.
+
+The change responsible is the S40 global bump switching from `count_occurrences` to
 `count_occurrences_no_inner_if`. Plausible mechanism:
 
 - Sigmausd's bank script has multiple deeply-nested `if` blocks (mint/redeem/cooling
@@ -172,10 +229,10 @@ a scope-level baseline of 1). Less principled but more surgical.
 - **Refresh.es source** — still NEEDED. cannonQ's Rust `oracle-core` carries precompiled bytes,
   not Scala source. Upstream `ergoplatform/oracle-core-v2-pool-publish` or EIP-23 spec are
   candidates; not yet cloned.
-- **Byte-match parity for the 11 USED NODE diffs** — this is the canonical S43–S60 work cycle.
-  Local bytes are 8/11 *shorter* than node (typically signaling under-extraction in CSE) and
-  3/11 *longer* (likely a different ValDef ordering or extra wrapper). Each is one focused
-  session per contract, in the existing cadence.
+- **Byte-match parity for the 9 USED NODE diffs** — this is the canonical S43–S60 work cycle.
+  Local bytes are 8/9 *shorter* than node (typically signaling under-extraction in CSE) and
+  1/9 *longer* (`duckpools_child_interest` at +4, the closest small-diff candidate).
+  Each is one focused session per contract, in the existing cadence.
 
 ## Contracts
 
