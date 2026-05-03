@@ -1125,24 +1125,140 @@ fn collect_field_accesses<'a>(expr: &'a Expr, result: &mut Vec<&'a Expr>) {
 fn has_shared_field_in_clean_scope(rhs: &Expr, items: &[Expr], current_idx: usize) -> bool {
     let mut field_accesses = Vec::new();
     collect_field_accesses(rhs, &mut field_accesses);
+
+    // S73 anchor narrowing: precompute ValUse counts across items[] vs counts
+    // inside this val's RHS. Used to detect when the FA's object ValDef has
+    // uses outside this val (so its ValDef survives at MIR level as an
+    // anchor for the chain).
+    let mut counts_all: HashMap<u32, usize> = HashMap::new();
+    for item in items {
+        count_val_uses(item, &mut counts_all);
+    }
+    let mut counts_in_mine: HashMap<u32, usize> = HashMap::new();
+    count_val_uses(rhs, &mut counts_in_mine);
+
     for fa in &field_accesses {
         // FA must be in clean scope within this val's RHS
         if !hir_in_clean_scope(rhs, fa) {
             continue;
         }
         // Check if this FA appears in another val's RHS, also in clean scope
+        let mut shared = false;
         for (j, other) in items.iter().enumerate() {
             if j == current_idx {
                 continue;
             }
             if let ExprKind::ValDef(vd) = &other.kind {
                 if hir_expr_contains(&vd.rhs, fa) && hir_in_clean_scope(&vd.rhs, fa) {
-                    return true;
+                    shared = true;
+                    break;
                 }
             }
         }
+        if !shared {
+            continue;
+        }
+
+        // S73 anchor narrowing: drop the anchor only when the FA is doubly
+        // anchored at MIR level — both:
+        //   (a) the FA's object ValDef is multi-use (has at least one user
+        //       outside this val), so it survives as a graph-IR sym, AND
+        //   (b) the FA's smallest extractable wrapper (an Apply or wrapping
+        //       FieldAccess) appears in at least one other ValDef's RHS in
+        //       clean scope, so MIR CSE will extract that wrapper as its
+        //       own ValDef.
+        // Both conditions together mean MIR has two redundant anchors for
+        // the FA chain; this single-use val is not load-bearing. If only one
+        // condition holds, we keep the val to avoid orphaning ValUses.
+        let object_anchored = match &fa.kind {
+            ExprKind::FieldAccess(fa_inner) => match &fa_inner.object.kind {
+                ExprKind::ValUse(vu) => {
+                    let total = counts_all.get(&vu.id).copied().unwrap_or(0);
+                    let in_mine = counts_in_mine.get(&vu.id).copied().unwrap_or(0);
+                    total > in_mine
+                }
+                _ => false,
+            },
+            _ => false,
+        };
+
+        let wrapper_shared = smallest_extractable_wrapper(rhs, fa)
+            .map(|wrapper| {
+                items.iter().enumerate().any(|(j, other)| {
+                    if j == current_idx {
+                        return false;
+                    }
+                    if let ExprKind::ValDef(vd) = &other.kind {
+                        hir_expr_contains(&vd.rhs, &wrapper)
+                            && hir_in_clean_scope(&vd.rhs, &wrapper)
+                    } else {
+                        false
+                    }
+                })
+            })
+            .unwrap_or(false);
+
+        if object_anchored && wrapper_shared {
+            continue;
+        }
+
+        return true;
     }
     false
+}
+
+/// Walk up from `target` (a FieldAccess sub-expression of `rhs`) to find the
+/// smallest enclosing expression that MIR CSE will extract as a ValDef when
+/// duplicated. Currently this is the immediate parent expression if the
+/// parent is an Apply (function/method call) or a wrapping FieldAccess
+/// (e.g. `noteInput.tokens` is the func of `noteInput.tokens(0)`). Returns
+/// None if no such parent exists in `rhs`.
+fn smallest_extractable_wrapper(rhs: &Expr, target: &Expr) -> Option<Expr> {
+    fn find_parent<'a>(e: &'a Expr, target: &Expr) -> Option<&'a Expr> {
+        match &e.kind {
+            ExprKind::FieldAccess(fa) => {
+                if std::ptr::eq(fa.object.as_ref(), target)
+                    || hir_expr_eq(&fa.object, target)
+                {
+                    return Some(e);
+                }
+                find_parent(&fa.object, target)
+            }
+            ExprKind::Apply(app) => {
+                if std::ptr::eq(app.func.as_ref(), target) || hir_expr_eq(&app.func, target) {
+                    return Some(e);
+                }
+                if let Some(p) = find_parent(&app.func, target) {
+                    return Some(p);
+                }
+                for a in &app.args {
+                    if let Some(p) = find_parent(a, target) {
+                        return Some(p);
+                    }
+                }
+                None
+            }
+            ExprKind::Binary(bin) => {
+                find_parent(&bin.lhs, target).or_else(|| find_parent(&bin.rhs, target))
+            }
+            ExprKind::Block(items) => items.iter().find_map(|i| find_parent(i, target)),
+            ExprKind::ValDef(vd) => find_parent(&vd.rhs, target),
+            ExprKind::If(if_expr) => find_parent(&if_expr.condition, target)
+                .or_else(|| find_parent(&if_expr.then_branch, target))
+                .or_else(|| find_parent(&if_expr.else_branch, target)),
+            ExprKind::Lambda(lam) => find_parent(&lam.body, target),
+            ExprKind::LogicalNot(inner)
+            | ExprKind::Negation(inner)
+            | ExprKind::BitInversion(inner) => find_parent(inner, target),
+            ExprKind::Tuple(items) => items.iter().find_map(|i| find_parent(i, target)),
+            ExprKind::Literal(_)
+            | ExprKind::Ident(_)
+            | ExprKind::GlobalVars(_)
+            | ExprKind::ValUse(_)
+            | ExprKind::Context => None,
+        }
+    }
+    find_parent(rhs, target).cloned()
 }
 
 /// Inline single-use vals, remove dead vals, unwrap trivial blocks.
