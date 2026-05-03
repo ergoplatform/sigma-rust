@@ -32,7 +32,7 @@ The 15 keystone contracts split into two buckets:
 | 14 | ErgoRaffle | `raffle.es` | **NEW** — `ergoraffle_active.es` |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **5/15 LOCAL MATCH** as of 2026-05-01 (post-S65): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`.
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **6/15 LOCAL MATCH** as of 2026-05-02 (post-S66 ByteArrayToBigInt CSE walker fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -47,9 +47,9 @@ should still be cross-checked against current upstream sources to confirm we're 
 
 ## Empirical compile status (2026-05-01, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 5/15 LOCAL MATCH** (`dexy_bank_full.es`,
+**15/15 fixtures compile end-to-end. 6/15 LOCAL MATCH** (`dexy_bank_full.es`,
 `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`,
-`spectrum_t2t_pool.es`).
+`spectrum_t2t_pool.es`, `ergoraffle_active.es`).
 The other 12 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
@@ -65,7 +65,7 @@ several other fixtures shifted via shared CSE/schedule code paths (see table bel
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
 | `duckpools_child_interest.es`    | 598  | 516  | -82  | USED NODE | unchanged |
 | `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
-| `ergoraffle_active.es`           | 931  | 939  | +8   | USED NODE | was +7 (broken IR) → now +8 (S66 correct IR + body-schedule outer; inner d809 reorder still pending) |
+| `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (S66 ByteArrayToBigInt added to CSE walkers — closed the 3rd dataInputs(0) substitution that the dag-walker was missing) |
 | `gluon_box_guard.es`             | 2283 | 2232 | -51  | USED NODE | **was -90 → now -51** (closed 39B post-skyharbor) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | was +2 → now -53 (S62 schedule shift) |
 | `paideia_stake_state.es`         | 1468 | 1563 | +95  | USED NODE | was -72 → now +95 (S65 outer-AND skip-Pass-1a shift) |
@@ -84,7 +84,7 @@ expected leverage):
 - `phoenix_hodlerg_bank_full` (0 — ✅ matched 2026-05-01 via S62 source-order val schedule)
 - `spectrum_n2t_pool` (0 — ✅ matched 2026-05-01 via S65 outer-AND skip-Pass-1a)
 - `spectrum_t2t_pool` (0 — ✅ matched 2026-05-01 via S65)
-- `ergoraffle_active` (+7)
+- `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66 ByteArrayToBigInt walker fix)
 - `ergomixer_fullmix` (-23)
 - `rosen_event_trigger` (-38), `gluon_box_guard` (-51), `oracle_refresh` (-53)
 
@@ -97,9 +97,9 @@ S63's hoist on `inline_single_use_vals`, and S65's per-fixture Pass 1a gate
 (applied only when the result is an If) all change which sub-expressions land
 at outer scope vs branch scope.
 
-**Sig-15 progress**: 5/15 LOCAL MATCH (2026-05-01 post-S65) — was 1/15 at
-plan start, 2/15 post-skyharbor, 3/15 post-S62, now 5/15 with spectrum
-n2t/t2t closed.
+**Sig-15 progress**: 6/15 LOCAL MATCH (2026-05-02 post-S66) — was 1/15 at
+plan start, 2/15 post-skyharbor, 3/15 post-S62, 5/15 post-S65 (spectrum
+n2t/t2t closed), now 6/15 with ergoraffle_active closed.
 
 ### Sigmausd_bank widening hypothesis (2026-05-01)
 

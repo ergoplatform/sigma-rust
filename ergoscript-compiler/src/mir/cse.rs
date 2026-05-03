@@ -2028,6 +2028,9 @@ fn emit_deps(
                 emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
             }
         }
+        Expr::ByteArrayToBigInt(s) => {
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+        }
         Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk),
         Expr::ExtractRegisterAs(s) => {
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
@@ -3464,6 +3467,9 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
                 collect_subexprs(arg, out);
             }
         }
+        Expr::ByteArrayToBigInt(s) => {
+            collect_subexprs(&s.expr.input, out);
+        }
         Expr::ExtractAmount(ea) => {
             collect_subexprs(&ea.input, out);
         }
@@ -3788,6 +3794,7 @@ fn contains_val_use(expr: &Expr) -> bool {
         Expr::LogicalNot(s) => contains_val_use(&s.expr.input),
         Expr::Negation(s) => contains_val_use(&s.expr.input),
         Expr::Upcast(uc) => contains_val_use(&uc.input),
+        Expr::ByteArrayToBigInt(s) => contains_val_use(&s.expr.input),
         Expr::CalcBlake2b256(cb) => contains_val_use(&cb.input),
         Expr::SigmaPropBytes(spb) => contains_val_use(&spb.input),
         _ => false,
@@ -3854,6 +3861,7 @@ fn contains_func_value(expr: &Expr) -> bool {
         }
         Expr::CreateProveDlog(cpd) => contains_func_value(&cpd.input),
         Expr::Upcast(uc) => contains_func_value(&uc.input),
+        Expr::ByteArrayToBigInt(s) => contains_func_value(&s.expr.input),
         Expr::CalcBlake2b256(cb) => contains_func_value(&cb.input),
         Expr::SigmaPropBytes(spb) => contains_func_value(&spb.input),
         _ => false,
@@ -3900,6 +3908,7 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Downcast(dc) => vec![&dc.input],
         Expr::CalcBlake2b256(cb) => vec![&cb.input],
         Expr::SigmaPropBytes(spb) => vec![&spb.input],
+        Expr::ByteArrayToBigInt(s) => vec![&s.expr.input],
         Expr::CreateProveDlog(cpd) => vec![&cpd.input],
         Expr::If(ite) => vec![&ite.condition, &ite.true_branch, &ite.false_branch],
         Expr::BlockValue(bv) => {
@@ -4130,6 +4139,7 @@ fn collect_subexprs_scope(expr: &Expr, out: &mut Vec<Expr>) {
         Expr::Upcast(uc) => collect_subexprs_scope(&uc.input, out),
         Expr::Downcast(dc) => collect_subexprs_scope(&dc.input, out),
         Expr::CalcBlake2b256(cb) => collect_subexprs_scope(&cb.input, out),
+        Expr::ByteArrayToBigInt(s) => collect_subexprs_scope(&s.expr.input, out),
         Expr::SigmaAnd(sa) => {
             for item in sa.items.iter() {
                 collect_subexprs_scope(item, out);
@@ -5538,6 +5548,7 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
         Expr::Upcast(uc) => count += count_occurrences(&uc.input, target),
         Expr::Downcast(dc) => count += count_occurrences(&dc.input, target),
         Expr::CalcBlake2b256(cb) => count += count_occurrences(&cb.input, target),
+        Expr::ByteArrayToBigInt(s) => count += count_occurrences(&s.expr.input, target),
         Expr::SigmaAnd(sa) => {
             for item in sa.items.iter() {
                 count += count_occurrences(item, target);
@@ -5677,6 +5688,9 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
         Expr::Upcast(uc) => count += count_occurrences_no_inner_if(&uc.input, target),
         Expr::Downcast(dc) => count += count_occurrences_no_inner_if(&dc.input, target),
         Expr::CalcBlake2b256(cb) => count += count_occurrences_no_inner_if(&cb.input, target),
+        Expr::ByteArrayToBigInt(s) => {
+            count += count_occurrences_no_inner_if(&s.expr.input, target)
+        }
         Expr::SigmaAnd(sa) => {
             for item in sa.items.iter() {
                 count += count_occurrences_no_inner_if(item, target);
@@ -6036,6 +6050,17 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             Expr::CalcBlake2b256(ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 {
                 input: new_input.into(),
             })
+        }
+        Expr::ByteArrayToBigInt(s) => {
+            let new_input = replace_all(&s.expr.input, target, replacement);
+            ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt::try_build(new_input)
+                .map(|bb| {
+                    Expr::ByteArrayToBigInt(Spanned {
+                        source_span: s.source_span,
+                        expr: bb,
+                    })
+                })
+                .unwrap_or_else(|_| Expr::ByteArrayToBigInt(s.clone()))
         }
         Expr::SigmaAnd(sa) => {
             let new_items: Vec<Expr> = sa
