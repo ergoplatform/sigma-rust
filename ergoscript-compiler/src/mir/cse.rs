@@ -6008,6 +6008,18 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 },
             })
         }
+        Expr::Append(s) => {
+            let new_input = replace_all(&s.expr.input, target, replacement);
+            let new_col_2 = replace_all(&s.expr.col_2, target, replacement);
+            ergotree_ir::mir::coll_append::Append::new(new_input, new_col_2)
+                .map(|a| {
+                    Expr::Append(Spanned {
+                        source_span: s.source_span,
+                        expr: a,
+                    })
+                })
+                .unwrap_or_else(|_| Expr::Append(s.clone()))
+        }
         Expr::LogicalNot(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::LogicalNot(Spanned {

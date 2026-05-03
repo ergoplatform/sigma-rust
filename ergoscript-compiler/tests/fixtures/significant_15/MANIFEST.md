@@ -45,7 +45,7 @@ should still be cross-checked against current upstream sources to confirm we're 
 - **NEEDED** — source not yet acquired; lookup TODO
 - **PARTIAL** — source on disk but uses ScriptEnv placeholders or template variables; substitution required
 
-## Empirical compile status (2026-05-02, against node v6.1.2)
+## Empirical compile status (2026-05-03, against node v6.1.2)
 
 **15/15 fixtures compile end-to-end. 8/15 LOCAL MATCH** (`dexy_bank_full.es`,
 `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`,
@@ -66,14 +66,14 @@ shifted via shared CSE/schedule code paths (see table below).
 
 | Fixture                          | Node bytes | Local bytes | Δ | Status | Movement |
 |---|---|---|---|---|---|
-| `chaincash_reserve.es`           | 611  | 546  | -65  | USED NODE | unchanged |
+| `chaincash_reserve.es`           | 611  | 550  | -61  | USED NODE | was -65 → -62 (S68) → -61 (**S69 partial — `replace_all` Append arm**; closed type-collision class but chaincash still on no-seg fallback with new error `ValDefIdNotFound(26)`, deferred to S70) |
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
 | `duckpools_child_interest.es`    | 598  | 598  | 0    | ✅ **LOCAL MATCH** | was +4 → now matched (**S67 — drop trivial alias ValDef in HIR dedup pass**; two source vals with identical literal RHS produced `ValDef = ValUse(other)` that NODE never emits) |
 | `ergomixer_fullmix.es`           | 198  | 198  | 0    | ✅ **LOCAL MATCH** | was -23 → now matched (**S68** — `direct_children` missing `CreateProveDhTuple` arm hid the second `c2` ValUse from `count_val_uses_in`, so c2 was wrongly inlined; +`groupGenerator` lowered as `Global.groupGenerator` PropertyCall to match NODE v6.1.x) |
 | `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (**S66b ByteArrayToBigInt CSE walker arms** — closed the 3rd `dataInputs(0)` substitution the dag-walker was missing) |
 | `gluon_box_guard.es`             | 2283 | 2240 | -43  | USED NODE | was -51 → now -43 (8B closer; S66a) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | unchanged since S62 |
-| `paideia_stake_state.es`         | 1468 | 1379 | -89  | USED NODE | **was +95 → now -89** (sign-flip; 6B closer in absolute; S66a structural IR) |
+| `paideia_stake_state.es`         | 1468 | ~1376/1543 | volatile | USED NODE | **non-deterministic** — 3 post-S68 runs returned 1376 (Δ=-92), 1543 (Δ=+75), 1543 again. HashMap-iteration noise (see §Run-to-run non-determinism); single-sample Δ here is not authoritative. Take median of ≥5 runs before treating as a target. |
 | `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | unchanged since S62 |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
 | `sigmao_option.es`               | 1148 | 1112 | -36  | USED NODE | **was -133 → now -36** (97B closer; S66a) |
@@ -82,25 +82,36 @@ shifted via shared CSE/schedule code paths (see table below).
 | `spectrum_n2t_pool.es`           | 409  | 409  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
 | `spectrum_t2t_pool.es`           | 421  | 421  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
 
-**Net |Δ| reduction across the 9 still-diffing fixtures vs prior MANIFEST**: ~290B
+**Net |Δ| reduction across the 7 still-diffing fixtures vs prior MANIFEST**: ~290B
 of inflation eliminated by S66a (sigmao -97, duckpools -78, sigmausd -51, gluon -8,
-paideia ~-6) plus ergoraffle's +8 closed entirely by S66b. Three fixtures
-(`duckpools_child_interest`, `paideia_stake_state`, `sigmausd_bank`) crossed the
-sign axis on S66a — a strong hint that the body-schedule walk was the load-bearing
-ordering primitive several earlier "shifted" fixtures were waiting on.
+paideia ~-6) plus ergoraffle's +8 closed entirely by S66b, duckpools' +4 closed by
+S67, ergomixer's -23 closed by S68, and chaincash collected -3B as an S68
+side-effect. Three fixtures (`duckpools_child_interest`, `paideia_stake_state`,
+`sigmausd_bank`) crossed the sign axis on S66a — a strong hint that the
+body-schedule walk was the load-bearing ordering primitive several earlier
+"shifted" fixtures were waiting on. Note: the per-fixture deltas in the USED NODE
+rows are single-run snapshots and should be read with the documented HashMap
+non-determinism band in mind (see §Run-to-run non-determinism); paideia in
+particular has been observed swinging ±~85B run-to-run on the same source.
 
 **Smallest diffs** (best targets for next byte-match parity sessions, in order of
-expected leverage):
+expected leverage). LOCAL MATCH fixtures listed first (chronological), then
+USED NODE in ascending |Δ|:
 - `dexy_bank_full` (0 — ✅ matched)
 - `skyharbor_v1_erg` (0 — ✅ matched 2026-04-30)
 - `phoenix_hodlerg_bank_full` (0 — ✅ matched 2026-05-01 via S62 source-order val schedule)
 - `spectrum_n2t_pool` (0 — ✅ matched 2026-05-01 via S65 outer-AND skip-Pass-1a)
 - `spectrum_t2t_pool` (0 — ✅ matched 2026-05-01 via S65)
 - `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66b ByteArrayToBigInt walker fix)
-- **`duckpools_child_interest` (+4)** — closest small-diff candidate; same shared-multi-register / multi-stage shape as ergoraffle, now within striking distance.
+- `duckpools_child_interest` (0 — ✅ matched 2026-05-02 via S67 alias-drop in HIR `inline_single_use_vals` dedup)
 - `ergomixer_fullmix` (0 — ✅ matched 2026-05-02 via S68: `direct_children` CreateProveDhTuple arm + `groupGenerator` Global.PropertyCall lowering)
-- `sigmao_option` (-36) — collapsed from -133 on S66a; structural shift makes a follow-up plausible.
-- `rosen_event_trigger` (-38), `gluon_box_guard` (-43), `oracle_refresh` (-53)
+- **`sigmao_option` (-36)** — natural next target. Collapsed from -133 on S66a; the structural shift makes a follow-up plausible. Smallest reliable single-run diff.
+- `rosen_event_trigger` (-38) — schedule-insensitive across the entire arc (WS-A–D, S62, S65, S66, S67, S68 all left it unchanged). Good "control" fixture for any fix that lands sigmausd or oracle.
+- `gluon_box_guard` (-43) — closed 47B over the arc (-90 → -43); S66a was the last incremental gain.
+- `oracle_refresh` (-53) — schedule-insensitive at the current scope; remaining gap is fixture-specific.
+- `chaincash_reserve` (-61) — root cause is **constant-segregation roundtrip fallback**, not under-extraction. S69 added Append arm to `replace_all` (closed type-collision class — was `ValUse(13, Coll[Byte])` colliding with `history: SAvlTree`); roundtrip now fails on a different missing arm (`ValDefIdNotFound(26)`, dangling positionBytes ValUse buried in another not-yet-covered walker variant). S70 needs the next concrete failure trace. Known-future-arms in `replace_all`: LongToByteArray, ByteArrayToLong, Exponentiate, MultiplyGroup, DecodePoint, GetVar, CreateProveDhTuple, Atleast, BitInversion, CalcSha256, CreateAvlTree, DeserializeContext, DeserializeRegister, ExtractBytesWithNoRef, FuncValue, SubstConstants, Xor, XorOf, ZkProofBlock — each requires its own concrete failure trace per WS-E methodology before addition.
+- `sigmausd_bank` (-77) — same shape as the pre-skyharbor regime; original bank-widening hypothesis below still applies as a candidate.
+- `paideia_stake_state` — non-deterministic, not directly targetable until the noise is fixed or characterized.
 
 **Investigate-before-targeting**: `paideia_stake_state` and `sigmausd_bank` both
 sign-flipped on S66a (paideia +95→-89, sigmausd -128→-77 — the latter recovers
@@ -110,6 +121,13 @@ fixture with multi-branch shared-val patterns; S62's transitive `branch_val_ids`
 expansion, S63's hoist on `inline_single_use_vals`, S65's per-fixture Pass 1a
 gate (applied only when the result is an If), and S66a's body-schedule walk
 all change which sub-expressions land at outer scope vs branch scope.
+
+**Update post-S68 (2026-05-03)**: paideia is now confirmed non-deterministic
+(1376B / 1543B / 1543B across three S68 runs of identical source — a 167B
+spread). Until the HashMap-iteration noise is diagnosed, paideia cannot be
+attacked by single-shot watermark patterns; it needs multi-run median gating
+or a noise fix first. sigmausd remains stable at -77 across runs and is the
+better "investigate" candidate of the two.
 
 **Sig-15 progress**: 8/15 LOCAL MATCH (2026-05-02 post-S68) — was 1/15 at
 plan start, 2/15 post-skyharbor, 3/15 post-S62, 5/15 post-S65 (spectrum
