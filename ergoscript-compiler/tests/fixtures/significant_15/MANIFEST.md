@@ -66,7 +66,7 @@ shifted via shared CSE/schedule code paths (see table below).
 
 | Fixture                          | Node bytes | Local bytes | Δ | Status | Movement |
 |---|---|---|---|---|---|
-| `chaincash_reserve.es`           | 611  | 608  | -3   | USED NODE | was -65 → -62 (S68) → -61 (S69) → -60 (S70) → +2 (S71) → -2 (S73) → -3 (S74) → **-3 (S75** — `dedup_consts_in_block` thunk-only-discount: in rescue mode, suppress extraction when the candidate appears only inside `&&`/`||` right-arm thunks, mirroring Scala's per-Thunk sym creation). The R6 over-extraction is closed (LOCAL inner-block items dropped 13 → 12, matching NODE's count). Total bytes unchanged (-3B) because the saved ValDef header is offset by the two newly-inlined `e4c6720c0604` R6 expressions — net byte-neutral but structurally aligned with NODE on this anchor. **Residual -3B**: receiptOut still extracted as user ValDef (5+ uses), and constants-pool ordering differs (LOCAL byte 12 = 05, NODE = 04) because LOCAL schedules receiptOut early (item #6) while NODE schedules it late (item #12). Closing the residual requires either Thunk-aware multi-use HIR inlining (Approach 2 — broke SigUSDV1 by 400+B in S75 trial; reverted) OR a schedule-order change to push thunk-only multi-use vals to schedule end. Defer to S76. |
+| `chaincash_reserve.es`           | 611  | 611  | 0    | ✅ **LOCAL MATCH** | was -65 → -3 (S75) → **0 (S76)** — two fixes: (a) `emit_deps` missing recursion arms for `Exponentiate`, `MultiplyGroup`, `DecodePoint`, `LongToByteArray`, `ByteArrayToLong` — `c4 = properSignature` body never got walked, so `value`/`aBytes`/`positionBytes`/`maxValueBytes` ValUses were missed and tail-appended out of order, displacing `receiptOut` to item #6 (NODE schedules it last); (b) `AvlTree.get` lowering switched from dedicated `TreeLookup` opcode (`0xb7`, 1B header) to `MethodCall(GET_METHOD)` (`0xdc 0x64 0x0a`, 3B header) to match Scala's `TreeBuilding` emission. Inner schedule and constants pool now byte-byte match NODE. |
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
 | `duckpools_child_interest.es`    | 598  | 598  | 0    | ✅ **LOCAL MATCH** | was +4 → now matched (**S67 — drop trivial alias ValDef in HIR dedup pass**; two source vals with identical literal RHS produced `ValDef = ValUse(other)` that NODE never emits) |
 | `ergomixer_fullmix.es`           | 198  | 198  | 0    | ✅ **LOCAL MATCH** | was -23 → now matched (**S68** — `direct_children` missing `CreateProveDhTuple` arm hid the second `c2` ValUse from `count_val_uses_in`, so c2 was wrongly inlined; +`groupGenerator` lowered as `Global.groupGenerator` PropertyCall to match NODE v6.1.x) |
@@ -109,7 +109,7 @@ USED NODE in ascending |Δ|:
 - `rosen_event_trigger` (-38) — schedule-insensitive across the entire arc (WS-A–D, S62, S65, S66, S67, S68 all left it unchanged). Good "control" fixture for any fix that lands sigmausd or oracle.
 - `gluon_box_guard` (-43) — closed 47B over the arc (-90 → -43); S66a was the last incremental gain.
 - `oracle_refresh` (-53) — schedule-insensitive at the current scope; remaining gap is fixture-specific.
-- `chaincash_reserve` (-3) — was -61 → +2 (S71) → -2 (S73) → -3 (S74) → **-3 (S75** — `dedup_consts_in_block` thunk-only-discount in MIR). S75 closed the receiptOut.R6 over-extraction by suppressing rescue-mode extraction when the candidate appears only inside `&&`/`||` right-arm thunks (Scala creates per-Thunk syms there, so the outer scope sym never accumulates uses). Inner-block items now match NODE's count (12 each). Total bytes still 608 — saved ValDef header offset by inlined R6 expression cost. **Residual -3B**: (a) receiptOut still extracted as user ValDef (5+ uses, all in thunks) — Approach 2 (HIR multi-use thunk-only inline) was tried and reverted (broke SigUSDV1 by 400+B because constants pool doubled when complex RHS got inlined into multiple thunks); (b) constants pool ordering differs at byte 12 because LOCAL schedules receiptOut early (item #6) vs NODE late (item #12). Defer to S76 — needs schedule-order change, not inlining. SigUSDV1 +2B (525 → 527, USED NODE → USED NODE; no functional change). Known-future-arms in `replace_all` (unchanged, separate from `direct_children`): GetVar, CreateProveDhTuple, Atleast, BitInversion, CalcSha256, CreateAvlTree, DeserializeContext, DeserializeRegister, ExtractBytesWithNoRef, FuncValue, SubstConstants, Xor, XorOf, ZkProofBlock — each requires its own concrete failure trace per WS-E methodology before addition.
+- `chaincash_reserve` (0 — ✅ matched 2026-05-03 via S76) — was -61 → -3 (S75) → **0 (S76** — two minimal fixes). The handoff hypothesized Approach C (defer thunk-only-used ValDefs to schedule end). Diagnosis via `CSE_DEBUG_REORDER` instrumentation showed a more direct cause: `emit_deps` had no match arms for `Exponentiate`, `MultiplyGroup`, `DecodePoint`, `LongToByteArray`, `ByteArrayToLong`, so when DFS-walking `c4 = properSignature` (`(g.exp(z) == a.multiply(...)) && (noteValue <= maxValue)`), the entire `g.exp(z) == a.multiply(...)` sub-tree fell through `_ => {}` and emitted nothing. ValUses to `value`, `aBytes`, `positionBytes`, `maxValueBytes` were never seen, so emit_deps reached `c5 = properReceipt` first and emitted `receiptOut` at items[5] (with the missing four trailing as "not transitively reachable"). Adding the five arms made emit_deps walk the full c4 body, which emits `value→history,positionBytes→position` (post-order via deps) before `c5` is reached, putting `receiptOut` last — exactly NODE's schedule. Closed the constants-pool ordering. Residual 3B (b7 vs dc 64 0a) was the dedicated `TreeLookup` opcode vs Scala's `MethodCall(GET_METHOD)` encoding for `avlTree.get(key, proof)` — switched the HIR→MIR lowering at `mir/lower.rs:1696` to emit `MethodCall(GET_METHOD)` instead. Only chaincash uses `AvlTree.get`, so the lowering change is fixture-isolated. Both fixes are net-positive across the suite (no regressions to the 8 prior sig-15 + 11 prior ecosystem MATCH baselines).
 - `sigmausd_bank` (-77) — same shape as the pre-skyharbor regime; original bank-widening hypothesis below still applies as a candidate.
 - `paideia_stake_state` — non-deterministic, not directly targetable until the noise is fixed or characterized.
 
@@ -129,16 +129,17 @@ attacked by single-shot watermark patterns; it needs multi-run median gating
 or a noise fix first. sigmausd remains stable at -77 across runs and is the
 better "investigate" candidate of the two.
 
-**Sig-15 progress**: 8/15 LOCAL MATCH (2026-05-02 post-S68) — was 1/15 at
+**Sig-15 progress**: 9/15 LOCAL MATCH (2026-05-03 post-S76) — was 1/15 at
 plan start, 2/15 post-skyharbor, 3/15 post-S62, 5/15 post-S65 (spectrum
 n2t/t2t closed), 6/15 post-S66b (ergoraffle), 7/15 post-S67 (duckpools),
-now 8/15 with `ergomixer_fullmix` closed via S68: missing `CreateProveDhTuple`
-arm in `mir/cse.rs::direct_children` (caused `c2` ValUse inside
-`proveDHTuple(g, c1, gX, c2)` to be invisible to `count_val_uses_in`, so
-`inline_single_use_vals` saw c2 as count=1 and dropped its ValDef while
-leaving stale ValUse references); plus `groupGenerator` lowered as
-`Global.groupGenerator` PropertyCall (NODE v6.1.x emits the MethodCall form,
-not the standalone `GlobalVars::GroupGenerator` opcode).
+8/15 post-S68 (ergomixer_fullmix), now **9/15 with `chaincash_reserve` closed
+via S76**: two surgical fixes to `mir/cse.rs::emit_deps` (added missing arms
+for `Exponentiate`/`MultiplyGroup`/`DecodePoint`/`LongToByteArray`/
+`ByteArrayToLong` so DFS walks into the `c4 = properSignature` body) and
+`mir/lower.rs::AvlTree.get` lowering (switched from dedicated `TreeLookup`
+opcode `0xb7` to `MethodCall(GET_METHOD)` opcode `0xdc 0x64 0x0a` to match
+Scala's `TreeBuilding` byte encoding). Inner schedule and constants pool
+now byte-byte match NODE.
 
 ### Run-to-run non-determinism in USED NODE fixtures (2026-05-02)
 

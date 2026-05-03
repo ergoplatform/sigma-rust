@@ -1693,7 +1693,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                     hir_expr.span,
                                 )
                             })?;
-                            TreeLookup::new(obj, key, proof)
+                            // Lower to MethodCall(get) — Scala's TreeBuilding emits
+                            // this as MethodCall (opcode 0xdc) rather than the
+                            // dedicated TreeLookup opcode (0xb7). Matches NODE
+                            // byte encoding for chaincash AvlTree.get.
+                            use ergotree_ir::types::savltree::GET_METHOD;
+                            MethodCall::new(obj, GET_METHOD.clone(), vec![key, proof])
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?

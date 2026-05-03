@@ -2130,6 +2130,23 @@ fn emit_deps(
             emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
             emit_deps(&s.expr.col_2, val_map, emitted, emitted_ids, in_thunk);
         }
+        Expr::Exponentiate(s) => {
+            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk);
+        }
+        Expr::MultiplyGroup(s) => {
+            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk);
+        }
+        Expr::DecodePoint(s) => {
+            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk);
+        }
+        Expr::LongToByteArray(s) => {
+            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk);
+        }
+        Expr::ByteArrayToLong(s) => {
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+        }
         _ => {}
     }
 }
