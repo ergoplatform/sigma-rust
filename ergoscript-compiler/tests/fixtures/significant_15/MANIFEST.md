@@ -28,11 +28,11 @@ The 15 keystone contracts split into two buckets:
 | 10 | Gluon Gold | `GluonWBoxGuardScript.es` | **NEW** — `gluon_box_guard.es` |
 | 11 | DuckPools | `childInterest.es` | ✅ **`duckpools_child_interest.es` LOCAL MATCH @ 598B** (closed by S67 — drop trivial alias ValDefs in HIR `inline_single_use_vals` dedup pass; two source vals with identical RHS produced an alias `ValDef = ValUse(other)` that NODE never emits). |
 | 12 | SigmaO | `Option.es` | **NEW** — `sigmao_option.es` |
-| 13 | ChainCash | `reserve.es` | **NEW** — `chaincash_reserve.es` |
+| 13 | ChainCash | `reserve.es` | ✅ **`chaincash_reserve.es` LOCAL MATCH @ 611B** (closed by S76 — two surgical fixes: (a) `emit_deps` missing recursion arms for `Exponentiate`/`MultiplyGroup`/`DecodePoint`/`LongToByteArray`/`ByteArrayToLong` so DFS walks the full `properSignature` body; (b) `AvlTree.get` lowering switched from dedicated `TreeLookup` opcode to `MethodCall(GET_METHOD)` to match Scala's `TreeBuilding`). |
 | 14 | ErgoRaffle | `raffle.es` | ✅ **`ergoraffle_active.es` LOCAL MATCH @ 931B** (closed by S66 ByteArrayToBigInt CSE walker fix — added missing arms in `direct_children` / `count_occurrences*` / `replace_all` / etc. so the `Slice → ExtractId → ByIndex` chain inside `winNumber` was reachable). |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **8/15 LOCAL MATCH** as of 2026-05-02 (post-S68 ergomixer fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`, `ergomixer_fullmix.es`.
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **9/15 LOCAL MATCH** as of 2026-05-03 (post-S76 chaincash fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`, `ergomixer_fullmix.es`, `chaincash_reserve.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -47,18 +47,20 @@ should still be cross-checked against current upstream sources to confirm we're 
 
 ## Empirical compile status (2026-05-03, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 8/15 LOCAL MATCH** (`dexy_bank_full.es`,
+**15/15 fixtures compile end-to-end. 9/15 LOCAL MATCH** (`dexy_bank_full.es`,
 `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`,
 `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`,
-`ergomixer_fullmix.es`).
-The other 7 produce different bytes than the node — those diffs are the canonical
+`ergomixer_fullmix.es`, **`chaincash_reserve.es` (S76)**).
+The other 6 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
 Re-baselined post-Workstream-A–D close (commits `1a2034a2`, `1f6025bb`, `ab10a30e`,
 `e9212e83`), with `c7112a1e` (skyharbor), `ea04228c` (S62 / phoenix), `209d448f`
 (S65 / spectrum), `716ac236` (S66a ergoraffle structural IR + body-schedule walk),
 `ac6dc12f` (S66b ByteArrayToBigInt CSE walker arms), `9d338e60` (S67 duckpools
-alias-drop) and S68 (ergomixer — this session) layered on.
+alias-drop), S68 (ergomixer), `7cc0ee5c`/`8751d96b`/`652b5332`/`825ee6de`/`4faae84c`
+(S69–S75 chaincash diagnostic + structural arc), and **`f157eefb` (S76 — chaincash
+LOCAL MATCH)** layered on.
 The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
 LOCAL MATCH on this same branch; sig-15 directly closed phoenix in S62,
 spectrum n2t/t2t in S65, ergoraffle in S66 (a+b), and several other fixtures
@@ -82,17 +84,91 @@ shifted via shared CSE/schedule code paths (see table below).
 | `spectrum_n2t_pool.es`           | 409  | 409  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
 | `spectrum_t2t_pool.es`           | 421  | 421  | 0    | ✅ **LOCAL MATCH** | unchanged since S65 |
 
-**Net |Δ| reduction across the 7 still-diffing fixtures vs prior MANIFEST**: ~290B
+**Net |Δ| reduction across the 6 still-diffing fixtures vs prior MANIFEST**: ~290B
 of inflation eliminated by S66a (sigmao -97, duckpools -78, sigmausd -51, gluon -8,
 paideia ~-6) plus ergoraffle's +8 closed entirely by S66b, duckpools' +4 closed by
-S67, ergomixer's -23 closed by S68, and chaincash collected -3B as an S68
-side-effect. Three fixtures (`duckpools_child_interest`, `paideia_stake_state`,
+S67, ergomixer's -23 closed by S68, **chaincash's full -3B closed by S76**.
+Three fixtures (`duckpools_child_interest`, `paideia_stake_state`,
 `sigmausd_bank`) crossed the sign axis on S66a — a strong hint that the
 body-schedule walk was the load-bearing ordering primitive several earlier
 "shifted" fixtures were waiting on. Note: the per-fixture deltas in the USED NODE
 rows are single-run snapshots and should be read with the documented HashMap
 non-determinism band in mind (see §Run-to-run non-determinism); paideia in
 particular has been observed swinging ±~85B run-to-run on the same source.
+
+### S76 — chaincash closed (2026-05-03)
+
+S76 closed `chaincash_reserve.es` byte-byte (608B → 611B = NODE) via two
+minimal, fixture-isolated changes. The diagnostic arc spanned S69–S75
+(re-segregation, MultiplyGroup lowering, has_shared_field_in_clean_scope
+narrowing, missing direct_children arms, dedup_consts_in_block thunk-only
+discount) — all shaped the IR closer to NODE but left a residual -3B that
+the S75 handoff attributed to constants-pool ordering driven by inner-block
+schedule (LOCAL placed `receiptOut` at item #6 vs NODE's item #12).
+
+The S76 handoff hypothesized a post-pass that defers thunk-only-used vals
+to schedule end (Approach C). Diagnosis via `CSE_DEBUG_REORDER`
+instrumentation showed that hypothesis was **slightly off-target**: the
+real cause was simpler. `emit_deps` at `mir/cse.rs` had no match arms for
+`Exponentiate`, `MultiplyGroup`, `DecodePoint`, `LongToByteArray`,
+`ByteArrayToLong`. So when DFS reached `c4 = properSignature`'s body
+(`(g.exp(z) == a.multiply(...)) && (noteValue <= maxValue)`), the entire
+left half — `g.exp(z) == a.multiply(...)` — fell through `_ => {}` and
+emitted nothing. ValUses to `value` / `aBytes` / `positionBytes` /
+`maxValueBytes` were never seen. emit_deps reached `c5 = properReceipt`
+with only 8 of 12 inner items emitted; the 4 missing were tail-appended,
+displacing `receiptOut` into the items[5] slot.
+
+Adding the five missing arms (a 16-line patch) made emit_deps walk the
+full c4 body. With `value`'s deps emitted post-order (history → noteInput;
+positionBytes → position; etc), `c5` then encounters `receiptOut` last —
+exactly NODE's `depthFirstOrderFrom(rootIds, neighbours)` schedule. The
+constants pool then matches byte-for-byte (32 entries, same multiset, same
+order).
+
+That left a 3B body residual at offset `d60f`: `e4 b7 720c ...` (LOCAL,
+TreeLookup) vs `e4 dc 64 0a 720c 02 ...` (NODE, MethodCall on AvlTree.get).
+Scala's `TreeBuilding` emits `avlTree.get(key, proof)` as
+`MethodCall(GET_METHOD)` (opcode `0xdc`, type-code `0x64`, method-id `0x0a`)
+rather than the dedicated `TreeLookup` opcode (`0xb7`). Switching the
+HIR→MIR lowering at `mir/lower.rs:1696` from `TreeLookup::new(obj, key,
+proof)` to `MethodCall::new(obj, GET_METHOD.clone(), vec![key, proof])`
+adds the 3 bytes and matches NODE exactly. Only chaincash uses
+`AvlTree.get`, so the lowering change is fixture-isolated.
+
+Both fixes are net-positive across the suite: 8 prior sig-15 LOCAL MATCH
+preserved, 11 prior ecosystem LOCAL MATCH preserved, 233 lib + 154
+conformance + 10 ignored + 1 batch_node_byte_match all green.
+
+### Sig-15 progress chart (rebuild from raw history)
+
+```
+                                        9/15 ──┐ S76 (chaincash)
+                                  8/15 ────────┘ S68 (ergomixer)
+                            7/15 ──────────────┘ S67 (duckpools)
+                      6/15 ────────────────────┘ S66b (ergoraffle)
+              5/15 ────────────────────────────┘ S65 (spectrum n2t/t2t — both)
+            4/15 ──────────────────────────────┘ (Phoenix simplified — pre-arc)
+          3/15 ────────────────────────────────┘ S62 (phoenix full)
+        2/15 ──────────────────────────────────┘ skyharbor (2026-04-30)
+      1/15 ────────────────────────────────────┘ dexy_bank_full (initial)
+    0/15 ──────────────────────────────────────┘ plan start
+
+Cumulative byte-byte LOCAL MATCH count over ~7 days of focused work:
+  1 → 2 → 3 → 5 → 6 → 7 → 8 → 9
+```
+
+| Fixture                          | Closed by | Days from plan start | Root cause class |
+|---|---|---|---|
+| `dexy_bank_full`                 | (initial) | 0 | (already byte-matched) |
+| `skyharbor_v1_erg`               | (2026-04-30) | ~1 | full-keystone fixture verified |
+| `phoenix_hodlerg_bank_full`      | S62 `ea04228c` | ~3 | source-order val schedule (dfs_reassign Pass 1a) |
+| `spectrum_n2t_pool`              | S65 `209d448f` | ~5 | outer-AND skip-Pass-1a gate |
+| `spectrum_t2t_pool`              | S65 `209d448f` | ~5 | (same root cause as n2t) |
+| `ergoraffle_active`              | S66b `ac6dc12f` | ~6 | ByteArrayToBigInt CSE walker arms |
+| `duckpools_child_interest`       | S67 `9d338e60` | ~6 | HIR `inline_single_use_vals` alias-drop |
+| `ergomixer_fullmix`              | S68 (this arc) | ~6 | `direct_children` CreateProveDhTuple arm + groupGenerator lowering |
+| `chaincash_reserve`              | **S76 `f157eefb`** | **~7** | `emit_deps` missing arms (Exp/Mul/Dec/L2BA/BA2L) + AvlTree.get → MethodCall lowering |
 
 **Smallest diffs** (best targets for next byte-match parity sessions, in order of
 expected leverage). LOCAL MATCH fixtures listed first (chronological), then
@@ -105,11 +181,11 @@ USED NODE in ascending |Δ|:
 - `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66b ByteArrayToBigInt walker fix)
 - `duckpools_child_interest` (0 — ✅ matched 2026-05-02 via S67 alias-drop in HIR `inline_single_use_vals` dedup)
 - `ergomixer_fullmix` (0 — ✅ matched 2026-05-02 via S68: `direct_children` CreateProveDhTuple arm + `groupGenerator` Global.PropertyCall lowering)
-- **`sigmao_option` (-36)** — natural next target. Collapsed from -133 on S66a; the structural shift makes a follow-up plausible. Smallest reliable single-run diff.
-- `rosen_event_trigger` (-38) — schedule-insensitive across the entire arc (WS-A–D, S62, S65, S66, S67, S68 all left it unchanged). Good "control" fixture for any fix that lands sigmausd or oracle.
+- `chaincash_reserve` (0 — ✅ matched 2026-05-03 via S76: `emit_deps` missing arms for Exponentiate/MultiplyGroup/DecodePoint/LongToByteArray/ByteArrayToLong + AvlTree.get → MethodCall(GET_METHOD) lowering — see "S76 — chaincash closed" narrative above for full diagnostic chain)
+- **`sigmao_option` (-36)** — **natural next target**. Collapsed from -133 on S66a; the structural shift makes a follow-up plausible. Smallest reliable single-run diff.
+- `rosen_event_trigger` (-38) — schedule-insensitive across the entire arc (WS-A–D, S62, S65, S66, S67, S68, S76 all left it unchanged). Good "control" fixture for any fix that lands sigmausd or oracle.
 - `gluon_box_guard` (-43) — closed 47B over the arc (-90 → -43); S66a was the last incremental gain.
 - `oracle_refresh` (-53) — schedule-insensitive at the current scope; remaining gap is fixture-specific.
-- `chaincash_reserve` (0 — ✅ matched 2026-05-03 via S76) — was -61 → -3 (S75) → **0 (S76** — two minimal fixes). The handoff hypothesized Approach C (defer thunk-only-used ValDefs to schedule end). Diagnosis via `CSE_DEBUG_REORDER` instrumentation showed a more direct cause: `emit_deps` had no match arms for `Exponentiate`, `MultiplyGroup`, `DecodePoint`, `LongToByteArray`, `ByteArrayToLong`, so when DFS-walking `c4 = properSignature` (`(g.exp(z) == a.multiply(...)) && (noteValue <= maxValue)`), the entire `g.exp(z) == a.multiply(...)` sub-tree fell through `_ => {}` and emitted nothing. ValUses to `value`, `aBytes`, `positionBytes`, `maxValueBytes` were never seen, so emit_deps reached `c5 = properReceipt` first and emitted `receiptOut` at items[5] (with the missing four trailing as "not transitively reachable"). Adding the five arms made emit_deps walk the full c4 body, which emits `value→history,positionBytes→position` (post-order via deps) before `c5` is reached, putting `receiptOut` last — exactly NODE's schedule. Closed the constants-pool ordering. Residual 3B (b7 vs dc 64 0a) was the dedicated `TreeLookup` opcode vs Scala's `MethodCall(GET_METHOD)` encoding for `avlTree.get(key, proof)` — switched the HIR→MIR lowering at `mir/lower.rs:1696` to emit `MethodCall(GET_METHOD)` instead. Only chaincash uses `AvlTree.get`, so the lowering change is fixture-isolated. Both fixes are net-positive across the suite (no regressions to the 8 prior sig-15 + 11 prior ecosystem MATCH baselines).
 - `sigmausd_bank` (-77) — same shape as the pre-skyharbor regime; original bank-widening hypothesis below still applies as a candidate.
 - `paideia_stake_state` — non-deterministic, not directly targetable until the noise is fixed or characterized.
 
