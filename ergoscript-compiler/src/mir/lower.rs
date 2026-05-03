@@ -1714,9 +1714,17 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 .into()
                         }
                         "multiply" => {
-                            // SGroupElement.multiply(other) → MethodCall
-                            use ergotree_ir::types::sgroup_elem::MULTIPLY_METHOD;
-                            MethodCall::new(obj, MULTIPLY_METHOD.clone(), args)
+                            // SGroupElement.multiply(other) → MultiplyGroup (dedicated opcode,
+                            // mirrors `exp` → Exponentiate above). MethodCall path is rejected
+                            // by the deserializer because GroupElement.multiply (MethodId 4) is
+                            // not registered in METHOD_DESC at sgroup_elem.rs.
+                            let other = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "multiply requires one GroupElement argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            ergotree_ir::mir::multiply_group::MultiplyGroup::new(obj, other)
                                 .map_err(|e| {
                                     MirLoweringError::new(format!("{:?}", e), hir_expr.span)
                                 })?

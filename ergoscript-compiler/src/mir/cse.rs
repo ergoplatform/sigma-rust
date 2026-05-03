@@ -6027,6 +6027,13 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .map(Expr::Exponentiate)
                 .unwrap_or_else(|_| Expr::Exponentiate(e.clone()))
         }
+        Expr::MultiplyGroup(m) => {
+            let new_left = replace_all(&m.left, target, replacement);
+            let new_right = replace_all(&m.right, target, replacement);
+            ergotree_ir::mir::multiply_group::MultiplyGroup::new(new_left, new_right)
+                .map(Expr::MultiplyGroup)
+                .unwrap_or_else(|_| Expr::MultiplyGroup(m.clone()))
+        }
         Expr::LogicalNot(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::LogicalNot(Spanned {
