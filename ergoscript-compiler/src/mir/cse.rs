@@ -6020,6 +6020,13 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 })
                 .unwrap_or_else(|_| Expr::Append(s.clone()))
         }
+        Expr::Exponentiate(e) => {
+            let new_left = replace_all(&e.left, target, replacement);
+            let new_right = replace_all(&e.right, target, replacement);
+            ergotree_ir::mir::exponentiate::Exponentiate::new(new_left, new_right)
+                .map(Expr::Exponentiate)
+                .unwrap_or_else(|_| Expr::Exponentiate(e.clone()))
+        }
         Expr::LogicalNot(s) => {
             let new_input = replace_all(&s.expr.input, target, replacement);
             Expr::LogicalNot(Spanned {
