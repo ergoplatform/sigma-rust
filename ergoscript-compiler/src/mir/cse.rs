@@ -1409,6 +1409,25 @@ fn dedup_consts_in_block(expr: Expr) -> Expr {
         let rescue =
             !scope_local_ids.is_empty() && expr_references_any_local(target, &scope_local_ids);
         if rescue {
+            // S75 thunk-only-discount: even when target references a local
+            // ValDef, suppress extraction if EVERY occurrence sits inside
+            // a sibling &&/|| right-arm Thunk (or If branch) of this scope.
+            // In Scala's graph IR, those uses each build their own
+            // per-Thunk sym via findOrCreateDefinition — the outer scope
+            // sym never sees them, so hasManyUsagesGlobal returns false
+            // and no ValDef is created here.
+            //
+            // Closes chaincash receiptOut.R6[Int].get over-extraction:
+            // both uses are deep right arms of the properReceipt && chain,
+            // never reaching main scope.
+            //
+            // Safety: candidates with at least one main-scope occurrence
+            // (e.g. ProxyBorrow's PropertyCall(VU(N), tokens) where the
+            // ValDef RHS lives in the else-branch BlockValue main items)
+            // pass the check and still extract.
+            if !appears_in_main_scope(tree, target) {
+                return 0;
+            }
             count_occurrences(tree, target)
         } else {
             count_occurrences_scope(tree, target)
