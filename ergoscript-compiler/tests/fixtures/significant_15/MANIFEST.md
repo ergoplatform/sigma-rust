@@ -21,7 +21,7 @@ The 15 keystone contracts split into two buckets:
 | 3b | Spectrum DEX | `t2t_pool.es` | ✅ **`spectrum_t2t_pool.es` LOCAL MATCH @ 421B** (same root-cause fix as n2t). |
 | 4 | Rosen Bridge | `EventTrigger.es` | **NEW** — `rosen_event_trigger.es` |
 | 5 | Dexy / USE | `bank.es` | ✅ **`dexy_bank_full.es` LOCAL MATCH @ 309B** (full upstream keystone). 46-corpus #8 "Dexy Bank" (291B) is a simplified variant — kept for regression coverage. |
-| 6 | ErgoMixer | `FullMix.es` | **NEW** — `ergomixer_fullmix.es` |
+| 6 | ErgoMixer | `FullMix.es` | ✅ **`ergomixer_fullmix.es` LOCAL MATCH @ 198B** (closed by S68 — added missing `CreateProveDhTuple` arm to `direct_children` in `mir/cse.rs` so the `c2` ValUse inside `proveDHTuple(g, c1, gX, c2)` is visible to `count_val_uses_in`; also lower `groupGenerator` as `Global.groupGenerator` PropertyCall to match NODE v6.1.x). |
 | 7 | SkyHarbor | `V1_ErgEditsAndOffersV1.es` | ✅ **`skyharbor_v1_erg.es` LOCAL MATCH @ 411B**. 46-corpus #37 "SigUSDV1" tests the wrong sibling (SigUSD variant); kept for regression coverage. |
 | 8 | Phoenix HodlERG | `phoenix_v1_hodlerg_bank.es` | ✅ **`phoenix_hodlerg_bank_full.es` LOCAL MATCH @ 394B** (closed by S62 source-order val schedule). 46-corpus #25 "Phoenix HodlERG Bank" (314B) is the simplified variant — also LOCAL MATCH; kept for regression coverage. |
 | 9 | Paideia DAO | `stakeState.es` | **NEW** — `paideia_stake_state.es` |
@@ -32,7 +32,7 @@ The 15 keystone contracts split into two buckets:
 | 14 | ErgoRaffle | `raffle.es` | ✅ **`ergoraffle_active.es` LOCAL MATCH @ 931B** (closed by S66 ByteArrayToBigInt CSE walker fix — added missing arms in `direct_children` / `count_occurrences*` / `replace_all` / etc. so the `Slice → ExtractId → ByIndex` chain inside `winNumber` was reachable). |
 | 15 | SigmaFi | `BondContractERG.ergo` | ✅ Existing 46-corpus #32 "SigmaFi BondContractERG" (146B native match) — **VERIFIED** identical to upstream. |
 
-**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **7/15 LOCAL MATCH** as of 2026-05-02 (post-S67 alias-drop fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`.
+**Totals: 15 fixtures in this directory** (12 from initial round + 3 added 2026-04-27 to fix simplified/wrong-sibling coverage gaps surfaced by the keystone audit). Plus `SigmaFi BondContractERG #32` already verified-keystone in the 46-corpus, brings total keystone coverage to 16 fixtures testing 15 keystones (Dexy is double-covered: full + simplified). **8/15 LOCAL MATCH** as of 2026-05-02 (post-S68 ergomixer fix): `dexy_bank_full.es`, `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`, `spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`, `ergomixer_fullmix.es`.
 
 The 4 "already covered" rows are *not* duplicated as fixtures here — they are tested by
 [`test_batch_node_byte_match`](../../../src/compiler.rs) and the existing
@@ -47,16 +47,18 @@ should still be cross-checked against current upstream sources to confirm we're 
 
 ## Empirical compile status (2026-05-02, against node v6.1.2)
 
-**15/15 fixtures compile end-to-end. 7/15 LOCAL MATCH** (`dexy_bank_full.es`,
+**15/15 fixtures compile end-to-end. 8/15 LOCAL MATCH** (`dexy_bank_full.es`,
 `skyharbor_v1_erg.es`, `phoenix_hodlerg_bank_full.es`, `spectrum_n2t_pool.es`,
-`spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`).
-The other 8 produce different bytes than the node — those diffs are the canonical
+`spectrum_t2t_pool.es`, `ergoraffle_active.es`, `duckpools_child_interest.es`,
+`ergomixer_fullmix.es`).
+The other 7 produce different bytes than the node — those diffs are the canonical
 S43–S60-style CSE/lowering parity work, one root-cause per contract.
 
 Re-baselined post-Workstream-A–D close (commits `1a2034a2`, `1f6025bb`, `ab10a30e`,
 `e9212e83`), with `c7112a1e` (skyharbor), `ea04228c` (S62 / phoenix), `209d448f`
-(S65 / spectrum), `716ac236` (S66a ergoraffle structural IR + body-schedule walk)
-and `ac6dc12f` (S66b ByteArrayToBigInt CSE walker arms — this session) layered on.
+(S65 / spectrum), `716ac236` (S66a ergoraffle structural IR + body-schedule walk),
+`ac6dc12f` (S66b ByteArrayToBigInt CSE walker arms), `9d338e60` (S67 duckpools
+alias-drop) and S68 (ergomixer — this session) layered on.
 The earlier 46-corpus and 14-ecosystem batches are at 45/46 + 14/14
 LOCAL MATCH on this same branch; sig-15 directly closed phoenix in S62,
 spectrum n2t/t2t in S65, ergoraffle in S66 (a+b), and several other fixtures
@@ -67,7 +69,7 @@ shifted via shared CSE/schedule code paths (see table below).
 | `chaincash_reserve.es`           | 611  | 546  | -65  | USED NODE | unchanged |
 | `dexy_bank_full.es`              | 309  | 309  | 0    | ✅ **LOCAL MATCH** | unchanged |
 | `duckpools_child_interest.es`    | 598  | 598  | 0    | ✅ **LOCAL MATCH** | was +4 → now matched (**S67 — drop trivial alias ValDef in HIR dedup pass**; two source vals with identical literal RHS produced `ValDef = ValUse(other)` that NODE never emits) |
-| `ergomixer_fullmix.es`           | 198  | 175  | -23  | USED NODE | unchanged |
+| `ergomixer_fullmix.es`           | 198  | 198  | 0    | ✅ **LOCAL MATCH** | was -23 → now matched (**S68** — `direct_children` missing `CreateProveDhTuple` arm hid the second `c2` ValUse from `count_val_uses_in`, so c2 was wrongly inlined; +`groupGenerator` lowered as `Global.groupGenerator` PropertyCall to match NODE v6.1.x) |
 | `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (**S66b ByteArrayToBigInt CSE walker arms** — closed the 3rd `dataInputs(0)` substitution the dag-walker was missing) |
 | `gluon_box_guard.es`             | 2283 | 2240 | -43  | USED NODE | was -51 → now -43 (8B closer; S66a) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | unchanged since S62 |
@@ -96,7 +98,7 @@ expected leverage):
 - `spectrum_t2t_pool` (0 — ✅ matched 2026-05-01 via S65)
 - `ergoraffle_active` (0 — ✅ matched 2026-05-02 via S66b ByteArrayToBigInt walker fix)
 - **`duckpools_child_interest` (+4)** — closest small-diff candidate; same shared-multi-register / multi-stage shape as ergoraffle, now within striking distance.
-- `ergomixer_fullmix` (-23)
+- `ergomixer_fullmix` (0 — ✅ matched 2026-05-02 via S68: `direct_children` CreateProveDhTuple arm + `groupGenerator` Global.PropertyCall lowering)
 - `sigmao_option` (-36) — collapsed from -133 on S66a; structural shift makes a follow-up plausible.
 - `rosen_event_trigger` (-38), `gluon_box_guard` (-43), `oracle_refresh` (-53)
 
@@ -109,11 +111,16 @@ expansion, S63's hoist on `inline_single_use_vals`, S65's per-fixture Pass 1a
 gate (applied only when the result is an If), and S66a's body-schedule walk
 all change which sub-expressions land at outer scope vs branch scope.
 
-**Sig-15 progress**: 7/15 LOCAL MATCH (2026-05-02 post-S67) — was 1/15 at
+**Sig-15 progress**: 8/15 LOCAL MATCH (2026-05-02 post-S68) — was 1/15 at
 plan start, 2/15 post-skyharbor, 3/15 post-S62, 5/15 post-S65 (spectrum
-n2t/t2t closed), 6/15 post-S66b (ergoraffle), now 7/15 with
-duckpools_child_interest closed via S67 alias-drop in HIR
-`inline_single_use_vals` dedup pass.
+n2t/t2t closed), 6/15 post-S66b (ergoraffle), 7/15 post-S67 (duckpools),
+now 8/15 with `ergomixer_fullmix` closed via S68: missing `CreateProveDhTuple`
+arm in `mir/cse.rs::direct_children` (caused `c2` ValUse inside
+`proveDHTuple(g, c1, gX, c2)` to be invisible to `count_val_uses_in`, so
+`inline_single_use_vals` saw c2 as count=1 and dropped its ValDef while
+leaving stale ValUse references); plus `groupGenerator` lowered as
+`Global.groupGenerator` PropertyCall (NODE v6.1.x emits the MethodCall form,
+not the standalone `GlobalVars::GroupGenerator` opcode).
 
 ### Run-to-run non-determinism in USED NODE fixtures (2026-05-02)
 

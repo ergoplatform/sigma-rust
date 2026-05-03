@@ -192,7 +192,20 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
             hir::GlobalVars::SelfBox => GlobalVars::SelfBox.into(),
             hir::GlobalVars::Inputs => GlobalVars::Inputs.into(),
             hir::GlobalVars::Outputs => GlobalVars::Outputs.into(),
-            hir::GlobalVars::GroupGenerator => GlobalVars::GroupGenerator.into(),
+            hir::GlobalVars::GroupGenerator => {
+                // NODE v6.1.x lowers `groupGenerator` as `Global.groupGenerator`
+                // PropertyCall, not the standalone `GlobalVars::GroupGenerator`
+                // opcode. Match that to keep byte parity (saves -3B per use).
+                PropertyCall::new(
+                    Expr::Global,
+                    ergotree_ir::types::sglobal::GROUP_GENERATOR_METHOD.clone(),
+                )
+                .map(|pc| Expr::PropertyCall(Spanned {
+                    source_span: ergotree_ir::source_span::SourceSpan::empty(),
+                    expr: pc,
+                }))
+                .map_err(|e| MirLoweringError::new(format!("groupGenerator lower: {e:?}"), hir_expr.span))?
+            }
             hir::GlobalVars::MinerPubKey => GlobalVars::MinerPubKey.into(),
         },
         hir::ExprKind::Ident(_) => {

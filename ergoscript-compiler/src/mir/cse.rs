@@ -3910,6 +3910,7 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::SigmaPropBytes(spb) => vec![&spb.input],
         Expr::ByteArrayToBigInt(s) => vec![&s.expr.input],
         Expr::CreateProveDlog(cpd) => vec![&cpd.input],
+        Expr::CreateProveDhTuple(cpd) => vec![&cpd.g, &cpd.h, &cpd.u, &cpd.v],
         Expr::If(ite) => vec![&ite.condition, &ite.true_branch, &ite.false_branch],
         Expr::BlockValue(bv) => {
             let mut v: Vec<&Expr> = bv.expr.items.iter().collect();

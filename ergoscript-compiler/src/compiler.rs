@@ -4342,6 +4342,83 @@ fn debug_duckpools() {
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
 
+/// Dev-only: dump LOCAL/NODE hex + IR for ergomixer_fullmix.
+/// Run: source ~/.secrets && cargo test -p ergoscript-compiler debug_ergomixer -- --ignored --nocapture
+#[test]
+#[ignore]
+fn debug_ergomixer() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let prelude = format!(
+        "val tokenId: Coll[Byte] = {dummy_token};\n\
+         val feeEmissionScriptHash: Coll[Byte] = {dummy_token2};\n",
+    );
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let raw = std::fs::read_to_string(fixtures_dir.join("ergomixer_fullmix.es")).unwrap();
+    let idx = raw.find('{').unwrap();
+    let mut source = String::with_capacity(raw.len() + prelude.len());
+    source.push_str(&raw[..=idx]);
+    source.push('\n');
+    source.push_str(&prelude);
+    source.push_str(&raw[idx + 1..]);
+
+    let local_tree = compile(&source, ScriptEnv::new()).unwrap();
+    let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+    let local_hex: String = local_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let canon = compile_canonical(&source, ScriptEnv::new(), node_url, &api_key).unwrap();
+    let node_bytes = canon.tree.sigma_serialize_bytes().unwrap();
+    let node_hex: String = node_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let first_diff = local_bytes
+        .iter()
+        .zip(node_bytes.iter())
+        .position(|(a, b)| a != b);
+    eprintln!("\n=== ergomixer_fullmix ===");
+    eprintln!("LOCAL ({}B): {}", local_bytes.len(), local_hex);
+    eprintln!("NODE  ({}B): {}", node_bytes.len(), node_hex);
+    match first_diff {
+        Some(off) => eprintln!(
+            "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
+        ),
+        None => eprintln!("MATCH"),
+    }
+    eprintln!(
+        "matched={:?}  bytes(canon)={}  bytes(local)={}",
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
+    );
+    eprintln!("\n=== CONSTANTS ===");
+    eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
+    eprintln!("NODE  constants_len: {:?}", canon.tree.constants_len());
+    if let Ok(consts) = local_tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  LOCAL[{}] {:?}", i, local_tree.get_constant(i));
+        }
+    }
+    if let Ok(consts) = canon.tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
+        }
+    }
+    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
+    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 /// Run with: cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
 #[test]
