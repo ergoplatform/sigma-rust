@@ -49,6 +49,51 @@ fn to_bytes_unsigned_bigint() {
     assert_eq!(expr.tpe(), SType::SColl(SType::SByte.into()));
 }
 
+// ---- Numeric cast coverage (toByte/toShort/toInt/toLong/toBigInt) ----
+// SNumericTypeMethods exposes these uniformly on every numeric type, including
+// identity casts. Coverage gaps in type_infer.rs left chained casts (e.g.
+// `(x.toByte).toShort`) with tpe=None, which crashed MIR lowering.
+
+#[test]
+fn byte_to_short_chain() {
+    let expr = compile_ok(
+        r#"{ val r: Short = ((25.toByte).toShort) + (755.toShort); sigmaProp(r >= 0.toShort) }"#,
+    );
+    assert_eq!(expr.tpe(), SType::SSigmaProp);
+}
+
+#[test]
+fn short_to_byte_chain() {
+    let expr = compile_ok(
+        r#"{ val r: Byte = ((100.toShort).toByte) + (1.toByte); sigmaProp(r >= 0.toByte) }"#,
+    );
+    assert_eq!(expr.tpe(), SType::SSigmaProp);
+}
+
+#[test]
+fn int_to_int_identity() {
+    let expr = compile_ok(r#"{ (25.toInt) + 1 }"#);
+    assert_eq!(expr.tpe(), SType::SInt);
+}
+
+#[test]
+fn long_to_long_identity() {
+    let expr = compile_ok(r#"{ (25L.toLong) + 1L }"#);
+    assert_eq!(expr.tpe(), SType::SLong);
+}
+
+#[test]
+fn byte_to_byte_identity() {
+    let expr = compile_ok(r#"{ ((25.toByte).toByte) }"#);
+    assert_eq!(expr.tpe(), SType::SByte);
+}
+
+#[test]
+fn short_to_short_identity() {
+    let expr = compile_ok(r#"{ ((25.toShort).toShort) }"#);
+    assert_eq!(expr.tpe(), SType::SShort);
+}
+
 // ---- toBits (T → Coll[Boolean]) ----
 
 #[test]
