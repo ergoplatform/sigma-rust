@@ -1217,9 +1217,7 @@ fn smallest_extractable_wrapper(rhs: &Expr, target: &Expr) -> Option<Expr> {
     fn find_parent<'a>(e: &'a Expr, target: &Expr) -> Option<&'a Expr> {
         match &e.kind {
             ExprKind::FieldAccess(fa) => {
-                if std::ptr::eq(fa.object.as_ref(), target)
-                    || hir_expr_eq(&fa.object, target)
-                {
+                if std::ptr::eq(fa.object.as_ref(), target) || hir_expr_eq(&fa.object, target) {
                     return Some(e);
                 }
                 find_parent(&fa.object, target)

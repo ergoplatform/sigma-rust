@@ -200,11 +200,15 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     Expr::Global,
                     ergotree_ir::types::sglobal::GROUP_GENERATOR_METHOD.clone(),
                 )
-                .map(|pc| Expr::PropertyCall(Spanned {
-                    source_span: ergotree_ir::source_span::SourceSpan::empty(),
-                    expr: pc,
-                }))
-                .map_err(|e| MirLoweringError::new(format!("groupGenerator lower: {e:?}"), hir_expr.span))?
+                .map(|pc| {
+                    Expr::PropertyCall(Spanned {
+                        source_span: ergotree_ir::source_span::SourceSpan::empty(),
+                        expr: pc,
+                    })
+                })
+                .map_err(|e| {
+                    MirLoweringError::new(format!("groupGenerator lower: {e:?}"), hir_expr.span)
+                })?
             }
             hir::GlobalVars::MinerPubKey => GlobalVars::MinerPubKey.into(),
         },

@@ -4014,8 +4014,7 @@ fn debug_phoenix_full_vs_simplified() {
         .join("tests")
         .join("fixtures")
         .join("significant_15");
-    let raw =
-        std::fs::read_to_string(fixtures_dir.join("phoenix_hodlerg_bank_full.es")).unwrap();
+    let raw = std::fs::read_to_string(fixtures_dir.join("phoenix_hodlerg_bank_full.es")).unwrap();
     let prelude = "val phoenixFeeContractBytesHash: Coll[Byte] = fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\");\n";
     let idx = raw.find('{').unwrap();
     let mut full_src = String::with_capacity(raw.len() + prelude.len());
@@ -4180,11 +4179,7 @@ fn debug_spectrum_pools() {
         eprintln!("NODE  constants: {:?}", canon.tree.constants_len());
         if let Ok(consts) = local_tree.constants_len() {
             for i in 0..consts {
-                eprintln!(
-                    "  LOCAL[{}] {:?}",
-                    i,
-                    local_tree.get_constant(i)
-                );
+                eprintln!("  LOCAL[{}] {:?}", i, local_tree.get_constant(i));
             }
         }
         if let Ok(consts) = canon.tree.constants_len() {
@@ -4293,8 +4288,7 @@ fn debug_duckpools() {
         .join("tests")
         .join("fixtures")
         .join("significant_15");
-    let source =
-        std::fs::read_to_string(fixtures_dir.join("duckpools_child_interest.es")).unwrap();
+    let source = std::fs::read_to_string(fixtures_dir.join("duckpools_child_interest.es")).unwrap();
 
     let local_tree = compile(&source, ScriptEnv::new()).unwrap();
     let local_bytes = local_tree.sigma_serialize_bytes().unwrap();

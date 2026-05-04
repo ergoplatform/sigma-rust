@@ -111,8 +111,7 @@ pub fn apply_cse(expr: Expr) -> Expr {
                 }
             }
 
-            let reassigned =
-                dfs_reassign_val_ids(disambiguated, &source_positions_post_disambig);
+            let reassigned = dfs_reassign_val_ids(disambiguated, &source_positions_post_disambig);
             let reordered = reorder_valdefs(reassigned);
             sequential_renumber(reordered)
         })
@@ -1113,7 +1112,8 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             // (from inlined BlockValue-RHS vals) into the surrounding `items`
             // at the inlined val's position. This preserves source-order so
             // dfs_reassign_val_ids can schedule the hoisted vals correctly.
-            let mut remaining_items: Vec<Expr> = Vec::with_capacity(items.len() + hoisted_items.len());
+            let mut remaining_items: Vec<Expr> =
+                Vec::with_capacity(items.len() + hoisted_items.len());
             for item in items.into_iter() {
                 if let Expr::ValDef(vd) = &item {
                     if inline_map.contains_key(&vd.expr.id.0) {
@@ -1159,7 +1159,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             // matching Scala's graph-IR hash-cons.
             if !hoisted_ids.is_empty() {
                 if let Expr::BlockValue(bv) = block {
-                    let mut new_items: Vec<Expr> = bv.expr.items.iter().cloned().collect();
+                    let mut new_items: Vec<Expr> = bv.expr.items.to_vec();
                     let mut new_result: Expr = (*bv.expr.result).clone();
                     for hid in &hoisted_ids {
                         let mut target_rhs: Option<Expr> = None;
@@ -5682,7 +5682,9 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
         Expr::ExtractScriptBytes(esb) => count += count_occurrences_no_inner_if(&esb.input, target),
         Expr::ExtractBytes(eb) => count += count_occurrences_no_inner_if(&eb.input, target),
         Expr::ExtractId(ei) => count += count_occurrences_no_inner_if(&ei.input, target),
-        Expr::ExtractCreationInfo(eci) => count += count_occurrences_no_inner_if(&eci.input, target),
+        Expr::ExtractCreationInfo(eci) => {
+            count += count_occurrences_no_inner_if(&eci.input, target)
+        }
         Expr::SizeOf(so) => count += count_occurrences_no_inner_if(&so.input, target),
         Expr::ByIndex(s) => {
             count += count_occurrences_no_inner_if(&s.expr.input, target);
@@ -5730,9 +5732,7 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
         Expr::Upcast(uc) => count += count_occurrences_no_inner_if(&uc.input, target),
         Expr::Downcast(dc) => count += count_occurrences_no_inner_if(&dc.input, target),
         Expr::CalcBlake2b256(cb) => count += count_occurrences_no_inner_if(&cb.input, target),
-        Expr::ByteArrayToBigInt(s) => {
-            count += count_occurrences_no_inner_if(&s.expr.input, target)
-        }
+        Expr::ByteArrayToBigInt(s) => count += count_occurrences_no_inner_if(&s.expr.input, target),
         Expr::SigmaAnd(sa) => {
             for item in sa.items.iter() {
                 count += count_occurrences_no_inner_if(item, target);
