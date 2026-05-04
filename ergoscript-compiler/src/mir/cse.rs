@@ -3921,6 +3921,16 @@ fn contains_func_value(expr: &Expr) -> bool {
 /// Return the immediate sub-expressions of a node (not recursive).
 /// This corresponds to the "syms" of a graph node in the Scala compiler —
 /// the direct references a node makes to other expressions.
+///
+/// COVERAGE: this is a **counting walker** in WS-E.1's classification.
+/// Adding a missing arm changes how downstream CSE counts occurrences
+/// and can regress fixtures (chaincash 2026-05-03: speculative addition
+/// of `Exponentiate`/`MultiplyGroup`/`DecodePoint`/`LongToByteArray`/
+/// `ByteArrayToLong` regressed -62 → -77). Do NOT speculatively add
+/// arms — every addition needs Metals confirmation against Scala's
+/// `processAstGraph` traversal AND a concrete failure trace from a
+/// specific fixture. Full coverage matrix:
+/// [`tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md`](../../tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md)
 fn direct_children(expr: &Expr) -> Vec<&Expr> {
     match expr {
         Expr::PropertyCall(s) => vec![&s.expr.obj],
@@ -5513,6 +5523,13 @@ fn find_max_val_id(expr: &Expr) -> u32 {
 }
 
 /// Count how many times `target` appears in `expr`.
+///
+/// COVERAGE: counting walker (WS-E.1). Same speculative-addition risk as
+/// `direct_children` — see WS-E.1 matrix at
+/// [`IR-PASS-COVERAGE-MATRIX.md`](../../tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md).
+/// Currently missing arms: Append, ByteArrayToLong, CreateProveDhTuple,
+/// CreateProveDlog, DecodePoint, Exponentiate, LongToByteArray,
+/// MultiplyGroup. Each addition requires per-fixture Metals + trace.
 fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
     let mut count = if expr == target { 1 } else { 0 };
     // Recurse into children
@@ -5655,6 +5672,10 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
 /// `ExtractAmount(If(isLastSale, OUTPUTS(4), OUTPUTS(5)))` inside the
 /// isLastSale false branch would inflate the global count of `OUTPUTS(4)`,
 /// causing spurious extraction that Scala never performs.
+///
+/// COVERAGE: counting walker (WS-E.1). Arms mirror `count_occurrences`
+/// minus the inner-If recursion. Same gaps; same speculative-addition
+/// rule. See [`IR-PASS-COVERAGE-MATRIX.md`](../../tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md).
 fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
     let mut count = if expr == target { 1 } else { 0 };
     match expr {
@@ -5783,6 +5804,14 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
 }
 
 /// Replace all occurrences of `target` with `replacement` in the expression tree.
+///
+/// COVERAGE: this is a **completeness walker** (WS-E.1). Adding a
+/// missed arm is monotonic-direction (cannot regress, only fix the
+/// silent-failure case where a substitution doesn't recurse and leaves
+/// a dangling target reference). Canonical fix: chaincash S76 added
+/// the `Append` arm — single trace, single arm, narrow fix. New
+/// additions still need a concrete fixture failure trace per arm.
+/// See [`IR-PASS-COVERAGE-MATRIX.md`](../../tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md).
 fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
     if expr == target {
         return replacement.clone();

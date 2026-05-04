@@ -2916,6 +2916,16 @@ pub fn propagate_val_types(expr: Expr) -> Expr {
     propagate_inner(expr, &mut type_map)
 }
 
+/// Propagate ValDef SType information through the IR tree. ValDef
+/// records its declared type in `type_map`; ValUse looks it up and
+/// overrides its own `tpe` to match. Other arms recurse to keep the
+/// propagation reaching every ValUse.
+///
+/// COVERAGE: completeness walker (WS-E.1). Same monotonic-direction
+/// reasoning as `cse.rs::replace_all` — a missing arm leaves a ValUse's
+/// type un-corrected if it sits inside that node. Adding requires a
+/// concrete fixture trace. See
+/// [`IR-PASS-COVERAGE-MATRIX.md`](../../tests/fixtures/significant_15/parity-handoffs/IR-PASS-COVERAGE-MATRIX.md).
 fn propagate_inner(expr: Expr, type_map: &mut HashMap<ValId, SType>) -> Expr {
     match expr {
         Expr::BlockValue(s) => {
