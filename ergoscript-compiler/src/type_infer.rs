@@ -209,6 +209,8 @@ fn assign_type_with_scope(
                                         }
                                     })
                                 }),
+                                // Option[T].getOrElse(default: T): T
+                                "getOrElse" => Some(inner.as_ref().clone()),
                                 _ => None,
                             },
                             Some(SType::SGroupElement) => match fa.field.as_str() {

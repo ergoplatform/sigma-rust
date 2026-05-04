@@ -1776,7 +1776,23 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 })?
                                 .into()
                         }
+                        "getOrElse" if matches!(obj.tpe(), SType::SOption(_)) => {
+                            // Option[T].getOrElse(default: T) -> T
+                            use ergotree_ir::mir::option_get_or_else::OptionGetOrElse;
+                            let default = args.into_iter().next().ok_or_else(|| {
+                                MirLoweringError::new(
+                                    "Option.getOrElse requires default argument".to_string(),
+                                    hir_expr.span,
+                                )
+                            })?;
+                            OptionGetOrElse::new(obj, default)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                         "getOrElse" => {
+                            // Coll[T].getOrElse(index: Int, default: T) -> T
                             let mut it = args.into_iter();
                             let index = it.next().ok_or_else(|| {
                                 MirLoweringError::new(
