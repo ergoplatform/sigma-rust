@@ -15,10 +15,11 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 | `ergoscript-compiler --test conformance` | 154/154 |
 | `test_batch_node_byte_match` | 1/1 |
 | `test_ecosystem_batch` (auth-gated, vs `localhost:9053`) | 14/14 LOCAL MATCH |
+| `test_significant_15` (auth-gated, vs `localhost:9053`) | 9/15 LOCAL MATCH |
 | `ergotree-ir --features arbitrary --lib` | 255/255 |
 | `ergotree-interpreter --features arbitrary --lib` | 336/336 |
 
-**Byte-match parity with the Scala node**: 45/46 legacy contract fixtures (1 skipped — CSE stack overflow on a deeply nested BigInt polynomial; see Known issues) **plus** the 14 ecosystem contracts in the auth-gated batch (SigmaFi, SkyHarbor, DuckPools, Lilium).
+**Byte-match parity with the Scala node**: 45/46 legacy contract fixtures (1 skipped — CSE stack overflow on a deeply nested BigInt polynomial; see Known issues), the 14 ecosystem contracts in the auth-gated batch (SigmaFi, SkyHarbor, DuckPools, Lilium), **and 9/15 keystone contracts from the "15 Significant Ergo Contracts" initiative** (skyharbor V1, phoenix HodlERG bank, spectrum n2t/t2t pools, dexy bank, ergoraffle, duckpools child interest, ergomixer fullmix, chaincash reserve). Per-fixture provenance and remaining-backlog status in [`ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md`](ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md).
 
 ### Two compilation modes
 
