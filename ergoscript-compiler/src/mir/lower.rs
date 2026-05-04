@@ -171,6 +171,40 @@ fn lookup_numeric_method(
     methods.iter().find(|m| m.name() == name).cloned()
 }
 
+/// Constant-fold a numeric Downcast on a literal: `Const(intLit).toSmaller`
+/// becomes a `Const` of the smaller type when the value fits the target range.
+/// Mirrors Scala's graph-IR behavior, where `Downcast(Const, T)` folds to
+/// `Const_T` at compile time (see `sigma.compiler.ir.TreeBuilding` /
+/// `GraphBuilding`). Out-of-range values fall through to runtime Downcast,
+/// which preserves the existing Rust behavior.
+///
+/// Only applied to narrowing casts. Upcasts on literals are left as runtime
+/// `Upcast` nodes to match Scala (the only Upcast fold Scala performs is for
+/// `toBigInt`, handled separately at the toBigInt arm).
+fn fold_numeric_downcast_on_const(obj: &Expr, target: SType) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    use num_traits::ToPrimitive;
+    let c = match obj {
+        Expr::Const(c) => c,
+        _ => return None,
+    };
+    let as_i64: i64 = match &c.v {
+        Literal::Byte(v) => *v as i64,
+        Literal::Short(v) => *v as i64,
+        Literal::Int(v) => *v as i64,
+        Literal::Long(v) => *v,
+        Literal::BigInt(bi) => bi.to_i64()?,
+        _ => return None,
+    };
+    match target {
+        SType::SByte => i8::try_from(as_i64).ok().map(|v| Constant::from(v).into()),
+        SType::SShort => i16::try_from(as_i64).ok().map(|v| Constant::from(v).into()),
+        SType::SInt => i32::try_from(as_i64).ok().map(|v| Constant::from(v).into()),
+        SType::SLong => Some(Constant::from(as_i64).into()),
+        _ => None,
+    }
+}
+
 fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
     matches!(
         tpe,
@@ -2298,25 +2332,49 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                 }
                 "toInt" => {
-                    // Upcast for smaller→Int, Downcast for larger→Int
+                    // Upcast for smaller→Int, Downcast for larger→Int.
+                    // Scala folds Downcast on a literal to a Const of the target
+                    // type at graph-build time (see TreeBuilding / graph IR);
+                    // mirror that to avoid a residual Downcast wrapper on
+                    // constants. Scala does NOT fold Upcast on a literal
+                    // (except the existing toBigInt special case), so the
+                    // Upcast branch stays unfolded.
                     if matches!(obj.tpe(), SType::SLong | SType::SBigInt) {
-                        Downcast::new(obj, SType::SInt)
-                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                            .into()
+                        if let Some(folded) = fold_numeric_downcast_on_const(&obj, SType::SInt) {
+                            folded
+                        } else {
+                            Downcast::new(obj, SType::SInt)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                     } else {
                         Upcast::new(obj, SType::SInt)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
                     }
                 }
-                "toByte" => Downcast::new(obj, SType::SByte)
-                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                    .into(),
-                "toShort" => {
-                    if matches!(obj.tpe(), SType::SInt | SType::SLong | SType::SBigInt) {
-                        Downcast::new(obj, SType::SShort)
+                "toByte" => {
+                    if let Some(folded) = fold_numeric_downcast_on_const(&obj, SType::SByte) {
+                        folded
+                    } else {
+                        Downcast::new(obj, SType::SByte)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()
+                    }
+                }
+                "toShort" => {
+                    if matches!(obj.tpe(), SType::SInt | SType::SLong | SType::SBigInt) {
+                        if let Some(folded) = fold_numeric_downcast_on_const(&obj, SType::SShort) {
+                            folded
+                        } else {
+                            Downcast::new(obj, SType::SShort)
+                                .map_err(|e| {
+                                    MirLoweringError::new(format!("{:?}", e), hir_expr.span)
+                                })?
+                                .into()
+                        }
                     } else {
                         Upcast::new(obj, SType::SShort)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
