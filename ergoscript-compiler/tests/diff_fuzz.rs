@@ -602,3 +602,873 @@ fn test_diff_fuzz() {
     eprintln!("\n{}", summary);
     let _ = fs::write(out_root.join("summary.txt"), &summary);
 }
+
+// ===========================================================================
+// WS-F.3 — triage clustering
+// ---------------------------------------------------------------------------
+// Reads `target/diff_fuzz/{diff,fail}/*.txt` (populated by `test_diff_fuzz`)
+// and groups failing programs into actionable per-cluster fix candidates.
+//
+// Cluster keying — deterministic, no randomness:
+//   - DIFF       → agreement-prefix hex (rust[..first_diff_offset]) capped
+//                  at 8 bytes / 16 hex chars. Same prefix ⇒ same divergence
+//                  point in the lowering pipeline.
+//   - RUST_FAIL  → normalized error fingerprint (strip `span: N..M`, drop
+//                  trailing path, take ≤100 chars). Identical errors ⇒ same
+//                  bug.
+//   - SCALA_FAIL → same shape as RUST_FAIL on the Scala-side error body.
+//   - BOTH_FAIL  → not expected (F.2 surface had 0); supported for safety.
+//
+// Calibration target (must reproduce within ±10% before trusting the rest):
+//   - No-segregation fallback DIFF — ~209 programs, prefix "10".
+//   - getOrElse-needs-default RUST_FAIL — 20 programs.
+//   - MIR missing-tpe RUST_FAIL — 6 programs.
+//
+// Output: `target/diff_fuzz/clusters/<NNN>_<slug>.md` per cluster, plus
+// `clusters/INDEX.md` ordered by priority (new bug surface first, known
+// CSE-segregation issue last).
+// ===========================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ClusterOutcome {
+    Diff,
+    RustFail,
+    ScalaFail,
+    BothFail,
+}
+
+impl ClusterOutcome {
+    fn label(self) -> &'static str {
+        match self {
+            ClusterOutcome::Diff => "DIFF",
+            ClusterOutcome::RustFail => "RUST_FAIL",
+            ClusterOutcome::ScalaFail => "SCALA_FAIL",
+            ClusterOutcome::BothFail => "BOTH_FAIL",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ClusterMember {
+    name: String,
+    source: String,
+    outcome: ClusterOutcome,
+    /// rust hex (DIFF only)
+    rust_hex: String,
+    /// scala hex (DIFF only)
+    scala_hex: String,
+    /// agreement prefix length in BYTES (DIFF only)
+    first_diff_offset: usize,
+    /// first ≤16-byte rust hex prefix where rust == scala (DIFF only)
+    agreement_prefix_hex: String,
+    /// raw error message (FAIL only)
+    error: String,
+    /// normalized error fingerprint (FAIL only)
+    error_fingerprint: String,
+    /// sorted multi-set of constructs extracted from source
+    constructs: Vec<String>,
+    /// number of non-empty source lines
+    line_count: usize,
+}
+
+/// Tag for INDEX.md priority ordering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ClusterTag {
+    NewSurface,
+    ParserBinder,
+    KnownIssue,
+}
+
+impl ClusterTag {
+    fn label(self) -> &'static str {
+        match self {
+            ClusterTag::NewSurface => "new-surface",
+            ClusterTag::ParserBinder => "parser-binder",
+            ClusterTag::KnownIssue => "known-issue",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Cluster {
+    key: String,
+    outcome: ClusterOutcome,
+    tag: ClusterTag,
+    members: Vec<ClusterMember>,
+}
+
+/// Parse a DIFF artifact written by `write_diff_artifact`.
+fn parse_diff_artifact(path: &Path) -> Option<ClusterMember> {
+    let body = fs::read_to_string(path).ok()?;
+    let name = extract_section(&body, "=== name ===")?
+        .trim()
+        .lines()
+        .next()?
+        .to_string();
+    let stats_line = body.lines().find(|l| l.contains("first_diff_offset="))?;
+    let first_diff_offset = stats_line
+        .split_whitespace()
+        .find_map(|t| t.strip_prefix("first_diff_offset="))
+        .and_then(|s| s.parse::<usize>().ok())?;
+    let source = extract_section(&body, "=== source ===")?
+        .trim_end()
+        .to_string();
+    let rust_hex = extract_section(&body, "=== rust hex ===")?
+        .trim()
+        .to_string();
+    let scala_hex = extract_section(&body, "=== scala hex ===")?
+        .trim()
+        .to_string();
+    let cap_bytes = first_diff_offset.min(8);
+    let agreement_prefix_hex = rust_hex.chars().take(cap_bytes * 2).collect::<String>();
+    let constructs = construct_fingerprint(&source);
+    let line_count = source.lines().filter(|l| !l.trim().is_empty()).count();
+    Some(ClusterMember {
+        name,
+        source,
+        outcome: ClusterOutcome::Diff,
+        rust_hex,
+        scala_hex,
+        first_diff_offset,
+        agreement_prefix_hex,
+        error: String::new(),
+        error_fingerprint: String::new(),
+        constructs,
+        line_count,
+    })
+}
+
+/// Parse a FAIL artifact written by `write_fail_artifact`.
+fn parse_fail_artifact(path: &Path) -> Option<ClusterMember> {
+    let fname = path.file_stem()?.to_string_lossy().to_string();
+    let (outcome, label_marker) = if fname.ends_with("_rust_fail") {
+        (ClusterOutcome::RustFail, "=== rust_fail ===")
+    } else if fname.ends_with("_scala_fail") {
+        (ClusterOutcome::ScalaFail, "=== scala_fail ===")
+    } else if fname.ends_with("_both_fail") {
+        (ClusterOutcome::BothFail, "=== both_fail ===")
+    } else {
+        return None;
+    };
+    let body = fs::read_to_string(path).ok()?;
+    let name = extract_section(&body, "=== name ===")?
+        .trim()
+        .lines()
+        .next()?
+        .to_string();
+    let source = extract_section(&body, "=== source ===")?
+        .trim_end()
+        .to_string();
+    let error = extract_section(&body, label_marker)?.trim().to_string();
+    let error_fingerprint = normalize_error(&error);
+    let constructs = construct_fingerprint(&source);
+    let line_count = source.lines().filter(|l| !l.trim().is_empty()).count();
+    Some(ClusterMember {
+        name,
+        source,
+        outcome,
+        rust_hex: String::new(),
+        scala_hex: String::new(),
+        first_diff_offset: 0,
+        agreement_prefix_hex: String::new(),
+        error,
+        error_fingerprint,
+        constructs,
+        line_count,
+    })
+}
+
+/// Pull the body between `header` and the next `=== ` line (or EOF).
+fn extract_section(body: &str, header: &str) -> Option<String> {
+    let start = body.find(header)?;
+    let after = &body[start + header.len()..];
+    let after = after.strip_prefix('\n').unwrap_or(after);
+    let end = after.find("\n=== ").unwrap_or(after.len());
+    Some(after[..end].to_string())
+}
+
+/// Normalize an error message into a fingerprint suitable for clustering.
+///
+/// Steps:
+///   1. Take the first line.
+///   2. Replace `span: N..M` with `span: _`.
+///   3. Strip absolute file paths (`/...`) up to a whitespace.
+///   4. Truncate to 100 chars.
+fn normalize_error(err: &str) -> String {
+    let first = err.lines().next().unwrap_or("").trim();
+    // Strip span numbers
+    let mut out = String::with_capacity(first.len());
+    let bytes = first.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if first[i..].starts_with("span: ") {
+            out.push_str("span: _");
+            i += "span: ".len();
+            // skip digits, dots, digits
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+        } else {
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    out.chars().take(100).collect()
+}
+
+/// Lex-extract a sorted multi-set of constructs from an ErgoScript source.
+///
+/// Captures: predef names, `.method` calls, operators, special forms.
+/// The output is intentionally coarse — used both as a per-cluster summary
+/// and as a hypothesis-text seed.
+fn construct_fingerprint(source: &str) -> Vec<String> {
+    let mut tokens: Vec<String> = Vec::new();
+    let known_predefs: &[&str] = &[
+        "sigmaProp", "anyOf", "allOf", "atLeast", "blake2b256", "sha256",
+        "byteArrayToBigInt", "byteArrayToLong", "longToByteArray",
+        "decodePoint", "groupGenerator", "fromBase16", "fromBase58",
+        "proveDlog", "proveDHTuple", "getVar", "OUTPUTS", "INPUTS",
+        "SELF", "CONTEXT", "HEIGHT", "MIN_VALUE", "MAX_VALUE",
+        "Coll", "Some", "None", "Option", "min", "max", "abs",
+        "executeFromVar", "substConstants", "xorOf", "logicalNot",
+        "outerJoin", "place_holder",
+    ];
+    let known_methods: &[&str] = &[
+        "exp", "multiply", "negate", "getEncoded", "get", "getOrElse",
+        "isDefined", "isEmpty", "size", "filter", "map", "fold", "forall",
+        "exists", "indices", "indexOf", "slice", "append", "flatMap",
+        "patch", "updated", "updateMany", "zip", "toBigInt", "toByte",
+        "toShort", "toInt", "toLong", "toBytes", "toBits", "value",
+        "propositionBytes", "id", "bytes", "bytesWithoutRef",
+        "tokens", "creationInfo", "register", "R0", "R1", "R2", "R3",
+        "R4", "R5", "R6", "R7", "R8", "R9",
+    ];
+    let known_forms: &[&str] = &[
+        "if", "else", "val", "fun", "true", "false",
+    ];
+
+    // Identifier scan
+    let bytes = source.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c.is_ascii_alphabetic() || c == b'_' {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            let ident = &source[start..i];
+            if known_predefs.contains(&ident) {
+                tokens.push(ident.to_string());
+            } else if known_forms.contains(&ident) {
+                tokens.push(ident.to_string());
+            }
+        } else if c == b'.' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_alphabetic() {
+            let start = i + 1;
+            i += 1;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            let ident = &source[start..i];
+            if known_methods.contains(&ident) {
+                tokens.push(format!(".{}", ident));
+            } else if ident.starts_with('R') && ident.len() == 2 {
+                // Treat any `.R0`..`.R9` (and others matching pattern) as register
+                tokens.push(format!(".{}", ident));
+            }
+        } else {
+            // Operator scan
+            let two = if i + 1 < bytes.len() {
+                std::str::from_utf8(&bytes[i..i + 2]).unwrap_or("")
+            } else {
+                ""
+            };
+            let op2 = matches!(two, "==" | "!=" | "<=" | ">=" | "&&" | "||");
+            if op2 {
+                tokens.push(two.to_string());
+                i += 2;
+                continue;
+            }
+            i += 1;
+        }
+    }
+    tokens.sort();
+    tokens
+}
+
+/// Determine cluster key + tag for a member.
+fn cluster_key_and_tag(m: &ClusterMember) -> (String, ClusterTag) {
+    match m.outcome {
+        ClusterOutcome::Diff => {
+            // No-seg fallback: agreement prefix is exactly "10" (1 byte).
+            let tag = if m.agreement_prefix_hex == "10" {
+                ClusterTag::KnownIssue
+            } else {
+                ClusterTag::NewSurface
+            };
+            (format!("D:{}", m.agreement_prefix_hex), tag)
+        }
+        ClusterOutcome::RustFail => (
+            format!("RF:{}", m.error_fingerprint),
+            ClusterTag::NewSurface,
+        ),
+        ClusterOutcome::ScalaFail => (
+            format!("SF:{}", m.error_fingerprint),
+            ClusterTag::ParserBinder,
+        ),
+        ClusterOutcome::BothFail => (
+            format!("BF:{}", m.error_fingerprint),
+            ClusterTag::NewSurface,
+        ),
+    }
+}
+
+/// Priority rank — lower comes first in INDEX.md.
+///
+/// Order (per F.3 handoff §"Handoff to per-cluster fix sessions"):
+///   0. RUST_FAIL with "missing tpe" (smallest, tightest)
+///   1. RUST_FAIL with "getOrElse"
+///   2. Other RUST_FAIL
+///   3. DIFF (new-surface, i.e. not no-seg-fallback)
+///   4. SCALA_FAIL (parser-binder)
+///   5. DIFF no-seg-fallback (known-issue)
+///   6. BOTH_FAIL
+fn priority_rank(c: &Cluster) -> u8 {
+    match (c.outcome, c.tag) {
+        (ClusterOutcome::RustFail, _) => {
+            let any = c.members.first();
+            let fp = any.map(|m| m.error_fingerprint.as_str()).unwrap_or("");
+            if fp.contains("missing tpe") {
+                0
+            } else if fp.contains("getOrElse") {
+                1
+            } else {
+                2
+            }
+        }
+        (ClusterOutcome::Diff, ClusterTag::NewSurface) => 3,
+        (ClusterOutcome::ScalaFail, _) => 4,
+        (ClusterOutcome::Diff, ClusterTag::KnownIssue) => 5,
+        (ClusterOutcome::BothFail, _) => 6,
+        _ => 7,
+    }
+}
+
+/// Short summary string for a cluster (used in filename + INDEX.md row).
+fn cluster_summary(c: &Cluster) -> String {
+    match c.outcome {
+        ClusterOutcome::Diff => {
+            if c.members.first().map(|m| m.agreement_prefix_hex.as_str()) == Some("10") {
+                "no-seg-fallback".to_string()
+            } else {
+                let prefix = c
+                    .members
+                    .first()
+                    .map(|m| m.agreement_prefix_hex.as_str())
+                    .unwrap_or("");
+                format!("DIFF agreement-prefix {}", prefix)
+            }
+        }
+        ClusterOutcome::RustFail => {
+            let fp = c
+                .members
+                .first()
+                .map(|m| m.error_fingerprint.as_str())
+                .unwrap_or("");
+            // Drop the wrapping `MirLoweringError(MirLoweringError { msg: "..."` if present
+            if let Some(idx) = fp.find("msg: \"") {
+                let after = &fp[idx + 6..];
+                let end = after.find('"').unwrap_or(after.len().min(60));
+                return after[..end].to_string();
+            }
+            fp.chars().take(60).collect()
+        }
+        ClusterOutcome::ScalaFail => {
+            let fp = c
+                .members
+                .first()
+                .map(|m| m.error_fingerprint.as_str())
+                .unwrap_or("");
+            fp.chars().take(60).collect()
+        }
+        ClusterOutcome::BothFail => "BOTH_FAIL".to_string(),
+    }
+}
+
+/// Slug for filenames — short, ascii-safe.
+fn cluster_slug(c: &Cluster) -> String {
+    let s = cluster_summary(c);
+    let mut out = String::new();
+    for ch in s.chars().take(40) {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+        } else if !out.is_empty() && !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    out.trim_matches('-').to_string()
+}
+
+/// Top-N most common constructs in a cluster, sorted by frequency desc then
+/// alphabetically.
+fn top_constructs(c: &Cluster, n: usize) -> Vec<(String, usize)> {
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for m in &c.members {
+        // Use a per-member set so a construct repeated N times in one source
+        // doesn't dominate the cluster summary.
+        let mut seen: std::collections::BTreeSet<&str> =
+            std::collections::BTreeSet::new();
+        for t in &m.constructs {
+            seen.insert(t.as_str());
+        }
+        for t in seen {
+            *counts.entry(t.to_string()).or_insert(0) += 1;
+        }
+    }
+    let mut v: Vec<(String, usize)> = counts.into_iter().collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    v.into_iter().take(n).collect()
+}
+
+/// Heuristic hypothesis text — a hint, not a diagnosis. Per the F.3 handoff,
+/// the per-cluster fix session still needs Metals confirmation before any
+/// code change.
+fn hypothesis(c: &Cluster) -> String {
+    match c.outcome {
+        ClusterOutcome::RustFail => {
+            let fp = c
+                .members
+                .first()
+                .map(|m| m.error_fingerprint.as_str())
+                .unwrap_or("");
+            if fp.contains("getOrElse requires default") {
+                "Generator emits `Option.getOrElse(default)` shapes that the \
+MIR lowering rejects with `getOrElse requires default argument`. Likely a \
+match-arm gap in the `getOrElse` lowering — the Rust pipeline probably loses \
+the default-arg slot at HIR→MIR for a specific Option-source variant (e.g. \
+`SELF.R4[Long].getOrElse(0L)`). Confirm Scala-side via Metals on \
+`MethodCall(Option.GetOrElseMethod)` in `sigmastate`, then locate the missing \
+arm in `mir_lowering` getOrElse handling."
+                    .to_string()
+            } else if fp.contains("missing tpe") {
+                "MIR lowering encountered an HIR Expr without a type annotation. \
+Likely a `propagate_val_types` coverage gap for the specific Expr variant the \
+generator surfaces. Inspect the representative source for the inner construct \
+that lacks a type — common candidates: numeric coercion, register access \
+without explicit `[T]`. Cross-check the WS-E.1 IR-PASS-COVERAGE-MATRIX for the \
+unproduced variants list."
+                    .to_string()
+            } else {
+                format!(
+                    "RUST_FAIL with normalized error `{}`. New surface: \
+representative source likely contains a construct the Rust pipeline rejects \
+where Scala accepts. Start from the smallest representative and grep the \
+error site in `compiler.rs` / `mir_lowering`.",
+                    fp.chars().take(80).collect::<String>()
+                )
+            }
+        }
+        ClusterOutcome::Diff => {
+            let constructs: Vec<String> =
+                top_constructs(c, 5).into_iter().map(|(s, _)| s).collect();
+            if c.members.first().map(|m| m.agreement_prefix_hex.as_str()) == Some("10") {
+                format!(
+                    "All members diverge at the ErgoTree header byte (offset 1) \
+— the Scala oracle emits a segregated tree with N constants while the Rust \
+pipeline falls back to a non-segregated emission. This is the documented \
+**CSE-segregation-roundtrip** known issue (ERGOSCRIPT-COMPILER-STATUS.md \
+§Known issues): CSE-extracted vals fail `ErgoTree::new` segregation, so \
+`schedule.rs` falls back to non-segregated output. Same family as SigmaFi \
+OpenOrderERG / OpenOrderToken / SkyHarbor SigUSDV1 and chaincash pre-S76. \
+**Not a quick categorical fix** — closing it is a structural rewrite of the \
+post-CSE schedule pipeline. Top constructs in this cluster: {}.",
+                    constructs.join(", ")
+                )
+            } else {
+                let prefix = c
+                    .members
+                    .first()
+                    .map(|m| m.agreement_prefix_hex.as_str())
+                    .unwrap_or("");
+                format!(
+                    "All members agree on tree-shape up to prefix `{}` then \
+diverge. Same divergence point ⇒ likely the same lowering arm. Top constructs: \
+{}. Per-cluster fix template: pick the smallest representative, run \
+`compile_via_node` to capture Scala's exact bytes, decode both trees with \
+`ergotree-ir` and Metals goto-definition on the first diverging op to confirm \
+the Scala-emitted shape, then narrow the Rust-side lowering arm.",
+                    prefix,
+                    constructs.join(", ")
+                )
+            }
+        }
+        ClusterOutcome::ScalaFail => format!(
+            "Scala parser/binder rejects what the Rust pipeline accepts. \
+Likely a generator-emitted construct that Scala's stricter typing or runtime \
+arithmetic check refuses (the F.2 surface includes `Byte` overflow on \
+literal addition, which Scala validates at compile time). Scope is \
+documentation / surface understanding rather than a code fix on the Rust \
+side. Top constructs: {}.",
+            top_constructs(c, 5)
+                .into_iter()
+                .map(|(s, _)| s)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        ClusterOutcome::BothFail => "Both compilers failed — likely an \
+ill-typed source. Should be 0 if F.2's typed-AST discipline is holding."
+            .to_string(),
+    }
+}
+
+fn write_cluster_file(
+    cluster_dir: &Path,
+    cluster_id: usize,
+    c: &Cluster,
+) -> String {
+    let slug = cluster_slug(c);
+    let filename = format!("{:03}_{}.md", cluster_id, slug);
+    let path = cluster_dir.join(&filename);
+
+    // Sort members by line_count asc, then name asc, for deterministic
+    // representative selection.
+    let mut sorted = c.members.clone();
+    sorted.sort_by(|a, b| a.line_count.cmp(&b.line_count).then(a.name.cmp(&b.name)));
+
+    let representative = &sorted[0];
+    let constructs_str: Vec<String> = top_constructs(c, 8)
+        .into_iter()
+        .map(|(s, n)| format!("{} ({}×)", s, n))
+        .collect();
+
+    let mut s = String::new();
+    s.push_str(&format!("# Cluster {:03} — {}\n\n", cluster_id, cluster_summary(c)));
+    s.push_str(&format!("**Outcome:** {}\n", c.outcome.label()));
+    s.push_str(&format!("**Tag:** {}\n", c.tag.label()));
+    s.push_str(&format!("**Programs in cluster:** {}\n", c.members.len()));
+    s.push_str(&format!(
+        "**Top constructs:** {}\n",
+        constructs_str.join(", ")
+    ));
+    if c.outcome == ClusterOutcome::Diff {
+        let m0 = &c.members[0];
+        s.push_str(&format!(
+            "**Agreement prefix:** {} ({} bytes agreed before divergence)\n",
+            m0.agreement_prefix_hex, m0.first_diff_offset
+        ));
+    }
+    if matches!(
+        c.outcome,
+        ClusterOutcome::RustFail | ClusterOutcome::ScalaFail | ClusterOutcome::BothFail
+    ) {
+        s.push_str(&format!(
+            "**Error fingerprint:** `{}`\n",
+            c.members
+                .first()
+                .map(|m| m.error_fingerprint.as_str())
+                .unwrap_or("")
+        ));
+    }
+    s.push_str(&format!("**Cluster key:** `{}`\n\n", c.key));
+
+    s.push_str("## Smallest representative\n\n");
+    s.push_str(&format!("Source: `{}` ({} non-empty lines)\n\n", representative.name, representative.line_count));
+    s.push_str("```ergoscript\n");
+    s.push_str(representative.source.trim_end());
+    s.push_str("\n```\n\n");
+    if c.outcome == ClusterOutcome::Diff {
+        s.push_str(&format!(
+            "Rust hex: `{}`  \nScala hex: `{}`  \nfirst_diff_offset: {}\n\n",
+            representative.rust_hex, representative.scala_hex, representative.first_diff_offset
+        ));
+    } else if !representative.error.is_empty() {
+        s.push_str("Error:\n```\n");
+        s.push_str(representative.error.trim_end());
+        s.push_str("\n```\n\n");
+    }
+
+    s.push_str("## Five smallest\n\n");
+    for m in sorted.iter().take(5) {
+        s.push_str(&format!(
+            "1. `{}` — {} lines\n",
+            m.name, m.line_count
+        ));
+    }
+    s.push('\n');
+
+    if c.members.len() > 5 {
+        s.push_str("## All member names\n\n");
+        for m in &sorted {
+            s.push_str(&format!("- `{}` ({} lines)\n", m.name, m.line_count));
+        }
+        s.push('\n');
+    }
+
+    s.push_str("## Hypothesis\n\n");
+    s.push_str(&hypothesis(c));
+    s.push_str("\n\n");
+
+    s.push_str("## Suggested next session\n\n");
+    s.push_str(
+        "Per-cluster fix using the S68/S71/S76 template:\n\n\
+1. Read the smallest representative above.\n\
+2. Use Metals MCP `goto-definition` on the relevant Scala primitive to \
+   confirm Scala's emitted shape (anchors in \
+   `06c-ergoraffle-inner-block-HANDOFF.md` §\"Reference: Scala-side semantics\").\n\
+3. Narrow the Rust-side fix to one arm.\n\
+4. Run full regression suite + re-run `diff_fuzz` + `cluster`; verify this \
+   cluster vanishes (or shrinks measurably for the no-seg known-issue).\n\
+5. Commit `fix(ergoscript-compiler): WS-F cluster ",
+    );
+    s.push_str(&format!("{:03}", cluster_id));
+    s.push_str(" — <root cause>`.\n");
+
+    let _ = fs::write(&path, s);
+    filename
+}
+
+#[test]
+#[ignore] // requires F.1/F.2 outputs in target/diff_fuzz/{diff,fail}/
+fn cluster() {
+    let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let out_root = crate_root.join("target").join("diff_fuzz");
+    let diff_dir = out_root.join("diff");
+    let fail_dir = out_root.join("fail");
+    let cluster_dir = out_root.join("clusters");
+
+    if !diff_dir.exists() && !fail_dir.exists() {
+        panic!(
+            "no diff_fuzz artifacts at {} — run `test_diff_fuzz` first",
+            out_root.display()
+        );
+    }
+
+    // Wipe + recreate clusters dir each run so removed clusters don't linger.
+    if cluster_dir.exists() {
+        if let Ok(entries) = fs::read_dir(&cluster_dir) {
+            for e in entries.flatten() {
+                let _ = fs::remove_file(e.path());
+            }
+        }
+    }
+    ensure_dir(&cluster_dir);
+
+    // Read all artifacts. Sort by file name for deterministic ingestion order.
+    let mut members: Vec<ClusterMember> = Vec::new();
+    let mut diff_paths: Vec<PathBuf> = Vec::new();
+    if let Ok(rd) = fs::read_dir(&diff_dir) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|s| s.to_str()) == Some("txt") {
+                diff_paths.push(p);
+            }
+        }
+    }
+    diff_paths.sort();
+    for p in &diff_paths {
+        if let Some(m) = parse_diff_artifact(p) {
+            members.push(m);
+        }
+    }
+
+    let mut fail_paths: Vec<PathBuf> = Vec::new();
+    if let Ok(rd) = fs::read_dir(&fail_dir) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|s| s.to_str()) == Some("txt") {
+                fail_paths.push(p);
+            }
+        }
+    }
+    fail_paths.sort();
+    for p in &fail_paths {
+        if let Some(m) = parse_fail_artifact(p) {
+            members.push(m);
+        }
+    }
+
+    let total = members.len();
+    eprintln!("=== cluster ===");
+    eprintln!("input artifacts: {}", total);
+
+    // Group by (outcome, key) — use a sorted map for determinism.
+    let mut buckets: BTreeMap<(ClusterOutcome, String), (ClusterTag, Vec<ClusterMember>)> =
+        BTreeMap::new();
+    for m in members {
+        let (key, tag) = cluster_key_and_tag(&m);
+        buckets
+            .entry((m.outcome, key))
+            .or_insert_with(|| (tag, Vec::new()))
+            .1
+            .push(m);
+    }
+
+    let mut clusters: Vec<Cluster> = buckets
+        .into_iter()
+        .map(|((outcome, key), (tag, mut members))| {
+            // Sort cluster members by name for stable per-file output.
+            members.sort_by(|a, b| a.name.cmp(&b.name));
+            Cluster {
+                key,
+                outcome,
+                tag,
+                members,
+            }
+        })
+        .collect();
+
+    // Sort by priority rank, then by size desc, then by key for determinism.
+    clusters.sort_by(|a, b| {
+        priority_rank(a)
+            .cmp(&priority_rank(b))
+            .then_with(|| b.members.len().cmp(&a.members.len()))
+            .then_with(|| a.key.cmp(&b.key))
+    });
+
+    eprintln!("distinct clusters: {}", clusters.len());
+
+    // ===== Calibration check =====
+    // Find the 3 pre-known clusters and emit a warning if any is off by >10%.
+    let mut calib: Vec<(String, usize, usize)> = Vec::new(); // (label, expected, actual)
+    let no_seg = clusters
+        .iter()
+        .find(|c| {
+            c.outcome == ClusterOutcome::Diff
+                && c.members.first().map(|m| m.agreement_prefix_hex.as_str()) == Some("10")
+        })
+        .map(|c| c.members.len())
+        .unwrap_or(0);
+    calib.push(("no-seg-fallback".to_string(), 209, no_seg));
+    let get_or_else = clusters
+        .iter()
+        .find(|c| {
+            c.outcome == ClusterOutcome::RustFail
+                && c.members
+                    .first()
+                    .map(|m| m.error_fingerprint.contains("getOrElse"))
+                    .unwrap_or(false)
+        })
+        .map(|c| c.members.len())
+        .unwrap_or(0);
+    calib.push(("getOrElse-needs-default".to_string(), 20, get_or_else));
+    let missing_tpe = clusters
+        .iter()
+        .find(|c| {
+            c.outcome == ClusterOutcome::RustFail
+                && c.members
+                    .first()
+                    .map(|m| m.error_fingerprint.contains("missing tpe"))
+                    .unwrap_or(false)
+        })
+        .map(|c| c.members.len())
+        .unwrap_or(0);
+    calib.push(("MIR-missing-tpe".to_string(), 6, missing_tpe));
+
+    eprintln!("calibration:");
+    for (label, expected, actual) in &calib {
+        let ratio = if *expected > 0 {
+            (*actual as f64 / *expected as f64 - 1.0).abs()
+        } else {
+            0.0
+        };
+        let status = if *actual == 0 {
+            "MISSING"
+        } else if ratio > 0.10 {
+            "OFF (>10%)"
+        } else {
+            "OK"
+        };
+        eprintln!(
+            "  {:<25} expected ~{:<4} actual {:<4} [{}]",
+            label, expected, actual, status
+        );
+    }
+
+    // Write per-cluster files.
+    let mut index_rows: Vec<(usize, String, String)> = Vec::new();
+    for (idx, c) in clusters.iter().enumerate() {
+        let cluster_id = idx + 1;
+        let filename = write_cluster_file(&cluster_dir, cluster_id, c);
+        let summary = cluster_summary(c);
+        index_rows.push((cluster_id, filename, summary));
+        eprintln!(
+            "  cluster {:03} [{}] [{}] {}: {} programs",
+            cluster_id,
+            c.outcome.label(),
+            c.tag.label(),
+            c.key,
+            c.members.len()
+        );
+    }
+
+    // Write INDEX.md
+    let mut index = String::new();
+    index.push_str("# Cluster index\n\n");
+    index.push_str("Generated by `cargo test -p ergoscript-compiler --test diff_fuzz cluster -- --ignored`.\n\n");
+    index.push_str(&format!("**Total programs analyzed:** {}\n", total));
+    index.push_str(&format!("**Distinct clusters:** {}\n\n", clusters.len()));
+    index.push_str("## Calibration vs pre-known cluster shapes\n\n");
+    index.push_str("| Pre-known cluster | Expected | Actual | Status |\n");
+    index.push_str("|---|---|---|---|\n");
+    for (label, expected, actual) in &calib {
+        let ratio = if *expected > 0 {
+            (*actual as f64 / *expected as f64 - 1.0).abs()
+        } else {
+            0.0
+        };
+        let status = if *actual == 0 {
+            "MISSING"
+        } else if ratio > 0.10 {
+            "OFF (>10%)"
+        } else {
+            "OK"
+        };
+        index.push_str(&format!(
+            "| {} | ~{} | {} | {} |\n",
+            label, expected, actual, status
+        ));
+    }
+    index.push('\n');
+
+    index.push_str("## Clusters by priority\n\n");
+    index.push_str(
+        "Order: new-surface RUST_FAIL (smallest/tightest first), new-surface DIFF, \
+parser-binder SCALA_FAIL, known-issue no-seg-fallback last.\n\n",
+    );
+    index.push_str("| # | Outcome | Tag | Programs | Smallest (lines) | Summary | File |\n");
+    index.push_str("|---|---|---|---|---|---|---|\n");
+    for (idx, c) in clusters.iter().enumerate() {
+        let cluster_id = idx + 1;
+        let smallest_lines = c.members.iter().map(|m| m.line_count).min().unwrap_or(0);
+        let filename = &index_rows[idx].1;
+        let summary = cluster_summary(c);
+        index.push_str(&format!(
+            "| {:03} | {} | {} | {} | {} | {} | [{}](./{}) |\n",
+            cluster_id,
+            c.outcome.label(),
+            c.tag.label(),
+            c.members.len(),
+            smallest_lines,
+            summary,
+            filename,
+            filename
+        ));
+    }
+    index.push('\n');
+    index.push_str("## Handoff notes\n\n");
+    index.push_str(
+        "Per the F.3 handoff, each cluster is its own downstream session. \
+Recommended priority follows the table above (top → bottom). For each cluster:\n\n\
+1. Read `clusters/<NNN>_<slug>.md` and the smallest representative.\n\
+2. Use Metals MCP to confirm Scala-side behavior for the constructs involved \
+(anchors in `06c-ergoraffle-inner-block-HANDOFF.md` §\"Reference: Scala-side semantics\").\n\
+3. Narrow Rust-side fix.\n\
+4. Run full regression suite + re-run `diff_fuzz` + `cluster`; verify the \
+cluster vanishes or shrinks measurably (no-seg-fallback only).\n\
+5. Commit with `fix(ergoscript-compiler): WS-F cluster <id> — <root cause>`.\n\n\
+Do NOT batch fixes — bisecting becomes impossible.\n",
+    );
+
+    let _ = fs::write(cluster_dir.join("INDEX.md"), &index);
+    eprintln!("wrote {} cluster files + INDEX.md", clusters.len());
+}
