@@ -31,3 +31,4 @@ indexmap = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 expect-test = "1.0.1"
+sha2 = { workspace = true }

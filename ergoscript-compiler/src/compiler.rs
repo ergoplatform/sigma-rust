@@ -170,7 +170,7 @@ pub fn compile_canonical(
 
 /// Compile source code via the Ergo node's REST API using curl.
 /// Returns the ErgoTree bytes or an error string.
-fn compile_via_node(source: &str, node_url: &str, api_key: &str) -> Result<Vec<u8>, String> {
+pub fn compile_via_node(source: &str, node_url: &str, api_key: &str) -> Result<Vec<u8>, String> {
     use std::process::Command;
 
     // Wrap source in braces if not already wrapped
@@ -4476,16 +4476,11 @@ fn debug_chaincash() {
 }
 
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
-/// Run with: cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
-#[test]
-#[ignore] // requires running Ergo node
-fn test_ecosystem_batch() {
-    use ergotree_ir::serialization::SigmaSerializable;
-
-    let api_key = std::env::var("API_KEY").unwrap_or_default();
-    let node_url = "http://localhost:9053";
-
-    let contracts: Vec<(&str, &str)> = vec![
+///
+/// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`
+/// and the `diff_fuzz` harness.
+pub fn ecosystem_corpus() -> Vec<(&'static str, &'static str)> {
+    vec![
         // ==================== SigmaFi ====================
         (
             "SigmaFi BondContractERG",
@@ -5327,7 +5322,20 @@ proveDlog(pubKey)
     }
 }"#,
         ),
-    ];
+    ]
+}
+
+/// Ecosystem contract batch test — see [`ecosystem_corpus`] for the source list.
+/// Run with: cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
+#[test]
+#[ignore] // requires running Ergo node
+fn test_ecosystem_batch() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    let contracts = ecosystem_corpus();
 
     eprintln!("\n=== Ecosystem Contract Batch ===");
     let mut matched = 0;
