@@ -1063,8 +1063,18 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
             // inline only the result expression. Closes spectrum_n2t/t2t pool
             // byte-match (the +2 was the trapped `_deltaSupplyLP` block
             // wrapper inside validRedemption's branch).
-            let mut inline_map: std::collections::HashMap<u32, Expr> =
-                std::collections::HashMap::new();
+            // IndexMap (insertion-order) instead of HashMap so that the
+            // sequential `replace_all` calls below run in source order.
+            // HashMap iteration order is non-deterministic, and the
+            // substitutions are not commutative when one inlined ValDef's
+            // RHS references another inlined ValDef — different visit orders
+            // produce different final trees. Source order (the order ValDefs
+            // appear in `items`) is the canonical order Scala's TreeBuilding
+            // would visit, so freezing iteration to insertion order both
+            // makes USED NODE byte counts deterministic and matches Scala
+            // parity. Closes the run-to-run non-determinism on the volatile
+            // USED NODE cluster (sigmausd, paideia) — WS-E.3.
+            let mut inline_map: indexmap::IndexMap<u32, Expr> = indexmap::IndexMap::new();
             let mut hoisted_items: Vec<Expr> = Vec::new();
             // S64: track ids of hoisted ValDefs so a post-hoist dedup pass
             // can fold structurally-identical inline expressions in the

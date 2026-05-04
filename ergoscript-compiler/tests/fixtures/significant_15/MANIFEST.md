@@ -75,7 +75,7 @@ shifted via shared CSE/schedule code paths (see table below).
 | `ergoraffle_active.es`           | 931  | 931  | 0    | ✅ **LOCAL MATCH** | was +8 → now matched (**S66b ByteArrayToBigInt CSE walker arms** — closed the 3rd `dataInputs(0)` substitution the dag-walker was missing) |
 | `gluon_box_guard.es`             | 2283 | 2240 | -43  | USED NODE | was -51 → now -43 (8B closer; S66a) |
 | `oracle_refresh.es`              | 572  | 519  | -53  | USED NODE | unchanged since S62 |
-| `paideia_stake_state.es`         | 1468 | ~1376/1543 | volatile | USED NODE | **non-deterministic** — 3 post-S68 runs returned 1376 (Δ=-92), 1543 (Δ=+75), 1543 again. HashMap-iteration noise (see §Run-to-run non-determinism); single-sample Δ here is not authoritative. Take median of ≥5 runs before treating as a target. |
+| `paideia_stake_state.es`         | 1468 | 1376 | -92  | USED NODE | **stabilised post-WS-E.3** (2026-05-03) — was {1376, 1379, 1543} across runs of identical source; now 1376 in 10/10 after switching `inline_single_use_vals`'s `inline_map` from `HashMap` to insertion-order `IndexMap`. Picked the lower mode of the previous spread, which is also the parity-correct outcome (more dedup-coalesce). |
 | `phoenix_hodlerg_bank_full.es`   | 394  | 394  | 0    | ✅ **LOCAL MATCH** | unchanged since S62 |
 | `rosen_event_trigger.es`         | 374  | 336  | -38  | USED NODE | unchanged |
 | `sigmao_option.es`               | 1148 | 1112 | -36  | USED NODE | **was -133 → now -36** (97B closer; S66a) |
@@ -91,10 +91,10 @@ S67, ergomixer's -23 closed by S68, **chaincash's full -3B closed by S76**.
 Three fixtures (`duckpools_child_interest`, `paideia_stake_state`,
 `sigmausd_bank`) crossed the sign axis on S66a — a strong hint that the
 body-schedule walk was the load-bearing ordering primitive several earlier
-"shifted" fixtures were waiting on. Note: the per-fixture deltas in the USED NODE
-rows are single-run snapshots and should be read with the documented HashMap
-non-determinism band in mind (see §Run-to-run non-determinism); paideia in
-particular has been observed swinging ±~85B run-to-run on the same source.
+"shifted" fixtures were waiting on. **Update post-WS-E.3 (2026-05-03):** USED NODE
+byte counts are now deterministic across 10/10 runs — the HashMap-iteration noise
+diagnosed below has been resolved. The per-fixture deltas in the USED NODE rows
+above are now single-run *and* canonical.
 
 ### S76 — chaincash closed (2026-05-03)
 
@@ -217,7 +217,26 @@ opcode `0xb7` to `MethodCall(GET_METHOD)` opcode `0xdc 0x64 0x0a` to match
 Scala's `TreeBuilding` byte encoding). Inner schedule and constants pool
 now byte-byte match NODE.
 
-### Run-to-run non-determinism in USED NODE fixtures (2026-05-02)
+### Run-to-run non-determinism in USED NODE fixtures (2026-05-02) — RESOLVED 2026-05-03 by WS-E.3
+
+**Resolution (2026-05-03, WS-E.3):** Root cause identified at
+[`mir/cse.rs::inline_single_use_vals`](../../../src/mir/cse.rs) — the
+`inline_map: HashMap<u32, Expr>` was iterated via `for (val_id, rhs) in &inline_map`
+and each entry triggered a sequential `replace_all` on the surrounding `block`.
+Sequential `replace_all` calls are not commutative when one inlined ValDef's
+RHS references another inlined ValDef (chained inlining), so HashMap iteration
+order produced different final trees on different runs. Switching `inline_map`
+to `indexmap::IndexMap` (insertion-order, populated in source order) restored
+determinism. Verified post-fix: sigmausd_bank produces 664B in 10/10 runs (was
+{620, 664, 760}); paideia_stake_state produces 1376B in 10/10 runs (was {1376,
+1379, 1543}); both fixtures collapsed to their respective lower-byte modes,
+which is also the parity-correct outcome.
+
+The historical analysis below is preserved for reference. The "single-run byte
+count is unreliable" caveat no longer applies.
+
+---
+
 
 **Discovered during S67/Session 9 diagnosis.** The byte counts reported in
 the table above for USED NODE (fallback) fixtures are **not stable
