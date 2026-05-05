@@ -297,6 +297,44 @@ fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     Some(Constant::from(result).into())
 }
 
+/// Mirror Scala graph-IR fold: `Coll.length` on a known-length receiver folds
+/// to `Const(Int(n))` at build time.
+///
+/// `IRContext.rewriteDef` (sc/.../IRContext.scala:105-119) handles two cases:
+///   - `CollConst(coll, _).length → coll.length`
+///   - `CBM.fromItems(_, items, _).length → items.length`
+///
+/// Both fold paths produce a `Const(Int)` regardless of element types or
+/// whether elements are themselves Const. The mkMethodCall flags on
+/// `CollConstMethods.length` (CollsImpl.scala:45-50) are
+/// `isAdapterCall=true, neverInvoke=false` and the body has no version-context
+/// branch, so tryInvoke would also fold via reflection — but the rewriteDef
+/// arm catches it earlier.
+///
+/// Without this Rust mirror, `Coll[Long](157734L).size` lowers to
+/// `SizeOf{ input: Collection::Exprs{...} }` while Scala emits `Const(1)`,
+/// diverging the tree bytes.
+///
+/// Conservative scope: only fold when receiver is one of
+///   - `Expr::Const(Constant{ v: Literal::Coll(_), .. })` — CollConst case.
+///   - `Expr::Collection(Collection::Exprs{ items, .. })` — `Coll(...)` form.
+///   - `Expr::Collection(Collection::BoolConstants(bools))` — bool literal form.
+/// Other receivers (`INPUTS`, `box.tokens`, `box.R4.get.coll`, ExtractRegisterAs,
+/// Map/Filter results, etc.) take the unchanged `SizeOf` path.
+fn fold_coll_size_on_known_length(obj: &Expr) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    let n: usize = match obj {
+        Expr::Const(Constant {
+            v: Literal::Coll(coll_kind),
+            ..
+        }) => coll_kind.len(),
+        Expr::Collection(Collection::Exprs { items, .. }) => items.len(),
+        Expr::Collection(Collection::BoolConstants(bools)) => bools.len(),
+        _ => return None,
+    };
+    Some(Constant::from(n as i32).into())
+}
+
 pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     let mir: Expr = match &hir_expr.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
@@ -2383,7 +2421,13 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "size" => SizeOf { input: obj.into() }.into(),
+                "size" => {
+                    if let Some(folded) = fold_coll_size_on_known_length(&obj) {
+                        folded
+                    } else {
+                        SizeOf { input: obj.into() }.into()
+                    }
+                }
                 "indices" if matches!(fa.object.tpe, Some(SType::SColl(_))) => {
                     use ergotree_ir::types::scoll::INDICES_METHOD;
                     let specialized = INDICES_METHOD
