@@ -698,10 +698,22 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        ergotree_ir::mir::and::And {
-                            input: input.into(),
+                        // Mirror Scala graph-IR fold: AND(BoolConstants[lit*]) collapses
+                        // to a single Const(all-true) at build time. Without this,
+                        // downstream serialization keeps the COLL_OF_BOOL_CONST + AND
+                        // opcodes while Scala emits a bare Const, diverging the bytes.
+                        if let Expr::Collection(
+                            ergotree_ir::mir::collection::Collection::BoolConstants(ref bools),
+                        ) = input
+                        {
+                            let folded: bool = bools.iter().all(|b| *b);
+                            Constant::from(folded).into()
+                        } else {
+                            ergotree_ir::mir::and::And {
+                                input: input.into(),
+                            }
+                            .into()
                         }
-                        .into()
                     }
                     "anyOf" => {
                         let input = args.into_iter().next().ok_or_else(|| {
@@ -710,10 +722,20 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        ergotree_ir::mir::or::Or {
-                            input: input.into(),
+                        // Mirror Scala graph-IR fold: OR(BoolConstants[lit*]) collapses
+                        // to a single Const(any-true) at build time.
+                        if let Expr::Collection(
+                            ergotree_ir::mir::collection::Collection::BoolConstants(ref bools),
+                        ) = input
+                        {
+                            let folded: bool = bools.iter().any(|b| *b);
+                            Constant::from(folded).into()
+                        } else {
+                            ergotree_ir::mir::or::Or {
+                                input: input.into(),
+                            }
+                            .into()
                         }
-                        .into()
                     }
                     "allZK" | "anyZK" => {
                         // Coll-of-SigmaProp version of allOf/anyOf. Scala marks
