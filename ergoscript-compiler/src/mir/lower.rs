@@ -826,12 +826,32 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        BinOp {
-                            kind: ArithOp::Min.into(),
-                            left: left.into(),
-                            right: right.into(),
+                        // Mirror Scala graph-IR fold: OrderingMin(Const, Const)
+                        // collapses to Const at build time via propagateBinOp
+                        // (DefRewriting.scala default arm). Without this, Rust
+                        // emits the unfolded Min opcode over two SLong consts
+                        // while Scala emits the single folded Const.
+                        use ergotree_ir::mir::constant::Literal;
+                        if let (
+                            Expr::Const(Constant {
+                                v: Literal::Long(a),
+                                ..
+                            }),
+                            Expr::Const(Constant {
+                                v: Literal::Long(b),
+                                ..
+                            }),
+                        ) = (&left, &right)
+                        {
+                            Constant::from(std::cmp::min(*a, *b)).into()
+                        } else {
+                            BinOp {
+                                kind: ArithOp::Min.into(),
+                                left: left.into(),
+                                right: right.into(),
+                            }
+                            .into()
                         }
-                        .into()
                     }
                     "Coll" => {
                         // Coll[Type]() or Coll(items...) — collection constructor
@@ -1335,12 +1355,28 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 hir_expr.span,
                             )
                         })?;
-                        BinOp {
-                            kind: ArithOp::Max.into(),
-                            left: left.into(),
-                            right: right.into(),
+                        // See "min" arm above for Scala graph-IR fold rationale.
+                        use ergotree_ir::mir::constant::Literal;
+                        if let (
+                            Expr::Const(Constant {
+                                v: Literal::Long(a),
+                                ..
+                            }),
+                            Expr::Const(Constant {
+                                v: Literal::Long(b),
+                                ..
+                            }),
+                        ) = (&left, &right)
+                        {
+                            Constant::from(std::cmp::max(*a, *b)).into()
+                        } else {
+                            BinOp {
+                                kind: ArithOp::Max.into(),
+                                left: left.into(),
+                                right: right.into(),
+                            }
+                            .into()
                         }
-                        .into()
                     }
                     "substConstants" => {
                         let mut it = args.into_iter();
