@@ -232,6 +232,42 @@ fn fold_to_bigint_on_const(obj: &Expr) -> Option<Expr> {
     Some(Constant::from(bi).into())
 }
 
+/// Fold an explicit `.toLong` on an Int `Const` to a `Const(SLong)`.
+///
+/// Mirrors Scala's graph-IR behavior: `NumericToLong[Int](Const(SInt N))` falls
+/// through `rewriteUnOp` (DefRewriting.scala:92) to the default `propagateUnOp`
+/// arm (DefRewriting.scala:173-185), which folds any Const arg via
+/// `op.applySeq(xVal)`. Empirically verified at the Ergo node:
+/// `{ val l = 18207.toLong; sigmaProp(l >= 0L) }` compiles to the
+/// `sigmaProp(true)` shape `10010101d17300` — only possible if Scala folded the
+/// `IntLit.toLong` to `Const(SLong)` so that the downstream `>=` Const-Const
+/// fold (628ddcab) and `BoolToSigmaProp(Const)` (left unfolded per
+/// `project_bool_to_sigmaprop_not_folded.md`) produce the final tree.
+///
+/// **Scope is narrow on purpose** — only `Int → Long` widening folds. Other
+/// widening arms (`Byte → Short/Int/Long`, `Short → Int/Long`) empirically do
+/// NOT fold in Scala (verified by p2sAddress probes on `((25).toByte).toLong`,
+/// `((25).toShort).toLong`, `((25).toShort).toInt`, `((25).toByte).toInt` — all
+/// produced distinct, non-`sigmaProp(true)` addresses). Likely Scala's
+/// parser/typer recognizes `intLit.toLong` as a numeric literal extension
+/// directly (analogous to writing `18207L`), while smaller-source Upcast on
+/// Const stays as a runtime `Upcast` node.
+///
+/// Implicit `numeric_upcast` BinOp-coercion path is unaffected (Spectrum's
+/// `val FeeDenom = 1000` use sites still flow through that helper, not this
+/// arm).
+fn fold_int_lit_to_long(obj: &Expr) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    let c = match obj {
+        Expr::Const(c) => c,
+        _ => return None,
+    };
+    match &c.v {
+        Literal::Int(v) => Some(Constant::from(*v as i64).into()),
+        _ => None,
+    }
+}
+
 fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
     matches!(
         tpe,
@@ -2502,9 +2538,15 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                         .into()
                 }
-                "toLong" => Upcast::new(obj, SType::SLong)
-                    .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
-                    .into(),
+                "toLong" => {
+                    if let Some(folded) = fold_int_lit_to_long(&obj) {
+                        folded
+                    } else {
+                        Upcast::new(obj, SType::SLong)
+                            .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
+                            .into()
+                    }
+                }
                 "toBigInt" => {
                     // No-op: already BigInt
                     if obj.tpe() == SType::SBigInt {
