@@ -37,6 +37,30 @@ fn predef_at_least() {
 }
 
 #[test]
+fn predef_at_least_dedup_provedlog_siblings() {
+    // WS-F cluster 001 (DIFF agreement-prefix 100204020400):
+    // `Coll(proveDlog(g), proveDlog(g))` inside `atLeast` has two
+    // structurally-identical siblings. Scala's graph IR hash-conses them
+    // into one ValDef + two ValUses; Rust must mirror that by walking
+    // Atleast's children in CSE and counting edge multiplicity inside a
+    // single Coll/SigmaAnd/etc. parent.
+    use ergoscript_compiler::compiler::compile;
+    use ergoscript_compiler::script_env::ScriptEnv;
+    use ergotree_ir::serialization::SigmaSerializable;
+    let src = r#"{
+  val sp = atLeast(1, Coll(proveDlog(groupGenerator), proveDlog(groupGenerator)))
+  sigmaProp(sp.propBytes.size > 0)
+}"#;
+    let tree = compile(src, ScriptEnv::new()).expect("compile");
+    let bytes = tree.sigma_serialize_bytes().expect("serialize");
+    let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    assert_eq!(
+        hex, "100204020400d801d601cddb6a01ddd191b1d0987300830208720172017301",
+        "WS-F cluster 001: must emit one ValDef for proveDlog(g) and ValUse it twice"
+    );
+}
+
+#[test]
 fn predef_pk() {
     // Mainnet P2PK address (real, from ergotree-ir test fixtures).
     compile_tree(r#"{ PK("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV") }"#);

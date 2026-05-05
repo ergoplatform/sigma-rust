@@ -3048,6 +3048,9 @@ fn map_children_with_id(expr: Expr, gid: u32, f: fn(Expr, u32) -> Expr) -> Expr 
             }
             other => Expr::Collection(other),
         },
+        Expr::Atleast(s) => ergotree_ir::mir::atleast::Atleast::new(f(*s.bound, gid), f(*s.input, gid))
+            .map(Expr::Atleast)
+            .expect("Atleast::new in map_children_with_id"),
         // Other types: pass through (no child Expr fields containing nested Ifs)
         other => other,
     }
@@ -3630,6 +3633,10 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
         Expr::CreateProveDlog(cpd) => {
             collect_subexprs(&cpd.input, out);
         }
+        Expr::Atleast(s) => {
+            collect_subexprs(&s.bound, out);
+            collect_subexprs(&s.input, out);
+        }
         Expr::And(a) => collect_subexprs(&a.expr.input, out),
         Expr::Or(o) => collect_subexprs(&o.expr.input, out),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
@@ -3972,6 +3979,7 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Exponentiate(s) => vec![&s.left, &s.right],
         Expr::CreateProveDlog(cpd) => vec![&cpd.input],
         Expr::CreateProveDhTuple(cpd) => vec![&cpd.g, &cpd.h, &cpd.u, &cpd.v],
+        Expr::Atleast(s) => vec![&s.bound, &s.input],
         Expr::If(ite) => vec![&ite.condition, &ite.true_branch, &ite.false_branch],
         Expr::BlockValue(bv) => {
             let mut v: Vec<&Expr> = bv.expr.items.iter().collect();
@@ -4038,29 +4046,31 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // (BlockValue items, If branches, etc.) to capture parent references
     // from the tree root that aren't themselves sub-expressions of other nodes.
 
-    // Step 2: For each unique expression, find its direct children and
-    // record which parent index references which child index.
-    // parent_sets[child_idx] = set of parent indices that reference this child
-    let mut parent_sets: Vec<std::collections::HashSet<usize>> =
-        vec![std::collections::HashSet::new(); unique.len()];
+    // Step 2: For each unique expression, count edge incidences from its
+    // parents (including the root). Mirrors Scala's `buildUsageMap` in
+    // `AstGraphs.AstGraph` which uses `node.usages: DBuffer[Int]` and
+    // appends `symId` per dep slot — `hasManyUsagesGlobal(s)` then checks
+    // `usages.length > 1`. So a parent like `Coll(x, x)` contributes 2 to
+    // x's usage count, NOT 1 (which a HashSet of distinct parents would
+    // give). Without edge multiplicity, structurally-identical siblings
+    // inside SigmaAnd/SigmaOr/Tuple/ConcreteCollection (e.g. cluster 001:
+    // `Coll(proveDlog(g), proveDlog(g))` inside `atLeast`) appear to have
+    // a single distinct parent and miss CSE extraction.
+    let mut parent_counts: Vec<usize> = vec![0; unique.len()];
 
     // Also process the root expression itself as a parent
     let root_children = direct_children(expr);
     for child in &root_children {
         if let Some(child_idx) = unique.iter().position(|u| u == *child) {
-            // Use a special "root" index (unique.len()) as parent
-            parent_sets[child_idx].insert(unique.len());
+            parent_counts[child_idx] += 1;
         }
     }
 
-    for (parent_idx, parent) in unique.iter().enumerate() {
+    for parent in unique.iter() {
         let children = direct_children(parent);
-        // In Scala's graph, OptionGet/OptionIsDefined create separate symbols
-        // per occurrence (not hash-consed). Count tree occurrences as separate
-        // parents so their children see the correct usage count.
         for child in children {
             if let Some(child_idx) = unique.iter().position(|u| u == child) {
-                parent_sets[child_idx].insert(parent_idx);
+                parent_counts[child_idx] += 1;
             }
         }
     }
@@ -4068,8 +4078,8 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 3: Return (expr, usage_count) pairs
     unique
         .into_iter()
-        .zip(parent_sets)
-        .map(|(expr, parents)| (expr, parents.len()))
+        .zip(parent_counts)
+        .map(|(expr, count)| (expr, count))
         .collect()
 }
 
@@ -4233,6 +4243,10 @@ fn collect_subexprs_scope(expr: &Expr, out: &mut Vec<Expr>) {
             collect_subexprs_scope(&s.expr.col_2, out);
         }
         Expr::CreateProveDlog(cpd) => collect_subexprs_scope(&cpd.input, out),
+        Expr::Atleast(s) => {
+            collect_subexprs_scope(&s.bound, out);
+            collect_subexprs_scope(&s.input, out);
+        }
         Expr::And(a) => collect_subexprs_scope(&a.expr.input, out),
         Expr::Or(o) => collect_subexprs_scope(&o.expr.input, out),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
@@ -5515,6 +5529,7 @@ fn find_max_val_id(expr: &Expr) -> u32 {
         }
         Expr::And(a) => find_max_val_id(&a.expr.input),
         Expr::Or(o) => find_max_val_id(&o.expr.input),
+        Expr::Atleast(s) => find_max_val_id(&s.bound).max(find_max_val_id(&s.input)),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             items.iter().map(find_max_val_id).max().unwrap_or(0)
         }
@@ -5646,6 +5661,10 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
         }
         Expr::And(a) => count += count_occurrences(&a.expr.input, target),
         Expr::Or(o) => count += count_occurrences(&o.expr.input, target),
+        Expr::Atleast(s) => {
+            count += count_occurrences(&s.bound, target);
+            count += count_occurrences(&s.input, target);
+        }
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
                 count += count_occurrences(item, target);
@@ -5792,6 +5811,10 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
         }
         Expr::And(a) => count += count_occurrences_no_inner_if(&a.expr.input, target),
         Expr::Or(o) => count += count_occurrences_no_inner_if(&o.expr.input, target),
+        Expr::Atleast(s) => {
+            count += count_occurrences_no_inner_if(&s.bound, target);
+            count += count_occurrences_no_inner_if(&s.input, target);
+        }
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
                 count += count_occurrences_no_inner_if(item, target);
@@ -6259,6 +6282,13 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             }
             other => Expr::Collection(other.clone()),
         },
+        Expr::Atleast(s) => {
+            let new_bound = replace_all(&s.bound, target, replacement);
+            let new_input = replace_all(&s.input, target, replacement);
+            ergotree_ir::mir::atleast::Atleast::new(new_bound, new_input)
+                .map(Expr::Atleast)
+                .unwrap_or_else(|_| Expr::Atleast(s.clone()))
+        }
         // Leaves and lambda bodies (not traversed for replacement at this level)
         other => other.clone(),
     }
