@@ -205,6 +205,33 @@ fn fold_numeric_downcast_on_const(obj: &Expr, target: SType) -> Option<Expr> {
     }
 }
 
+/// Fold an explicit `.toBigInt` on an Int `Const` to a `Const(SBigInt)`.
+/// Mirrors Scala's graph-IR behavior on `Upcast(Const(SInt), SBigInt)` for the
+/// **explicit `.toBigInt`** call path (Select-method lowering).
+///
+/// Only Int literals are folded — `LongLit.toBigInt` is left as
+/// `Upcast(Const(SLong), SBigInt)` so Site 1 can strip it and leave SLong in
+/// the pool (cf. DuckPools `InterestDenomination = 100000000L`, where the HIR
+/// constant_fold pass inlines the literal Long into the `.toBigInt` receiver
+/// and Scala still encodes the pool slot as SLong, not SBigInt).
+///
+/// The implicit `numeric_upcast` BinOp-coercion path is intentionally NOT
+/// folded either — see the `numeric_upcast` doc comment for the spectrum
+/// FeeDenom rationale (parser re-inserts wrapper at use sites, pool stays SInt).
+fn fold_to_bigint_on_const(obj: &Expr) -> Option<Expr> {
+    use ergotree_ir::bigint256::BigInt256;
+    use ergotree_ir::mir::constant::Literal;
+    let c = match obj {
+        Expr::Const(c) => c,
+        _ => return None,
+    };
+    let bi: BigInt256 = match &c.v {
+        Literal::Int(v) => BigInt256::from(*v as i64),
+        _ => return None,
+    };
+    Some(Constant::from(bi).into())
+}
+
 fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
     matches!(
         tpe,
@@ -2325,6 +2352,17 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     // No-op: already BigInt
                     if obj.tpe() == SType::SBigInt {
                         obj
+                    } else if let Some(folded) = fold_to_bigint_on_const(&obj) {
+                        // Explicit `intLit.toBigInt` — fold to `Const(SBigInt)` at
+                        // graph-build time, mirroring Scala. This is distinct from the
+                        // implicit `numeric_upcast` BinOp-coercion path (kept unfolded
+                        // so Site 1 can strip the Upcast wrapper and let the constant
+                        // segregate as its source-level numeric type, e.g. spectrum
+                        // FeeDenom). Scala's serializer keeps explicit-toBigInt folds
+                        // even for pre-v3 trees because the node is a bare Const by
+                        // serialization time, not an Upcast wrapper, so Site 1's
+                        // Upcast-on-Const strip never fires on this path.
+                        folded
                     } else {
                         Upcast::new(obj, SType::SBigInt)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
