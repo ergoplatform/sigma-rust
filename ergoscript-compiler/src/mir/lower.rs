@@ -246,6 +246,57 @@ fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
     )
 }
 
+/// Mirror Scala graph-IR fold: `OrderingLT/LTEQ/GT/GTEQ(Const, Const) → Const(Boolean)`.
+///
+/// Scala's `rewriteBinOp` falls through to the default `case _ => propagateBinOp`
+/// arm (DefRewriting.scala:166) for the four Ordering BinOps, which folds any
+/// two-Const application via `op.applySeq(xVal, yVal)`. Without this Rust-side
+/// mirror, Rust emits an unfolded `BinOp(Lt|Le|Gt|Ge, Const, Const)` while Scala
+/// emits a single `Const(true|false)` — diverging the encoded ErgoTree bytes.
+///
+/// EQ/NEQ are intentionally excluded — see `project_eq_neq_not_fold_sibling.md`:
+/// Scala's Equals/NotEquals arm does NOT delegate to `propagateBinOp` and only
+/// folds via Ref equality (which catches hash-consed equal-value Consts) and a
+/// Boolean-specialization sub-rule. For differing-value non-Bool Consts, Scala
+/// emits the unfolded EQ/NEQ node; mirroring requires a more nuanced fold than
+/// the Ordering ops, deferred to a separate change.
+///
+/// Conservative scope: only fold when both args are `Const` of the same numeric
+/// `Literal` variant. Mixed Const+ValUse / ValUse+ValUse take the unchanged
+/// runtime path. Type-mismatched Const pairs (e.g. Byte vs Long after some
+/// upstream divergence) also fall through.
+fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    use std::cmp::Ordering;
+    if !matches!(
+        op,
+        BinaryOp::Lt | BinaryOp::Le | BinaryOp::Gt | BinaryOp::Ge
+    ) {
+        return None;
+    }
+    let (lc, rc) = match (l, r) {
+        (Expr::Const(lc), Expr::Const(rc)) => (lc, rc),
+        _ => return None,
+    };
+    let ord = match (&lc.v, &rc.v) {
+        (Literal::Byte(a), Literal::Byte(b)) => a.cmp(b),
+        (Literal::Short(a), Literal::Short(b)) => a.cmp(b),
+        (Literal::Int(a), Literal::Int(b)) => a.cmp(b),
+        (Literal::Long(a), Literal::Long(b)) => a.cmp(b),
+        (Literal::BigInt(a), Literal::BigInt(b)) => a.cmp(b),
+        (Literal::UnsignedBigInt(a), Literal::UnsignedBigInt(b)) => a.cmp(b),
+        _ => return None,
+    };
+    let result = match op {
+        BinaryOp::Lt => ord == Ordering::Less,
+        BinaryOp::Le => ord != Ordering::Greater,
+        BinaryOp::Gt => ord == Ordering::Greater,
+        BinaryOp::Ge => ord != Ordering::Less,
+        _ => unreachable!(),
+    };
+    Some(Constant::from(result).into())
+}
+
 pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
     let mir: Expr = match &hir_expr.kind {
         hir::ExprKind::GlobalVars(hir) => match hir {
@@ -324,12 +375,16 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 // upcast the narrower operand to match the wider one.
                 // This matches the Scala ErgoScript compiler's implicit conversions.
                 let (l, r) = numeric_upcast_pair(l, r);
-                BinOp {
-                    kind: hir.op.node.clone().into(),
-                    left: l.into(),
-                    right: r.into(),
+                if let Some(folded) = fold_compare_const_const(&hir.op.node, &l, &r) {
+                    folded
+                } else {
+                    BinOp {
+                        kind: hir.op.node.clone().into(),
+                        left: l.into(),
+                        right: r.into(),
+                    }
+                    .into()
                 }
-                .into()
             }
         }
         hir::ExprKind::Literal(hir) => {
