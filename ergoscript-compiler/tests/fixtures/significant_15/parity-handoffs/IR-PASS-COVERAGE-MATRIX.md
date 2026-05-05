@@ -53,7 +53,7 @@ source-language feature we don't compile from).
 | ConstPlaceholder | L | L | L | L | L | lower (CSE) | leaf |
 | Context | L | L | L | L | L | lower | leaf |
 | CreateAvlTree | · | · | · | · | · | lower | **produced** but no walker arms — see project_avl_priority memo. Counting-walker arm needs Metals. Completeness-walker arm needs trace. |
-| CreateProveDhTuple | ✓ | · | · | · | · | lower | counting+completeness gaps; closed direct_children S68; co/conii/ra/pi pending traces |
+| CreateProveDhTuple | ✓ | ✓ | ✓ | ✓ | · | lower | direct_children S68; co/conii/ra closed by WS-F cluster 001 D:10010400d8 (groupGenerator hash-cons trace, also added collect_subexprs[_scope] + emit_deps arms); pi pending |
 | CreateProveDlog | ✓ | · | · | · | ✓ | lower | counting+completeness gaps |
 | DecodePoint | ✓ | · | · | · | · | lower | counting+completeness gaps |
 | DeserializeContext | · | · | · | · | · | – | runtime-only; never in a compiled tree |
@@ -128,7 +128,7 @@ concern, not an E.1 gap.
 | `ByteArrayToLong` | `co`, `conii` | `ra`, `pi` |
 | `ByteArrayToBigInt` | – | `pi` |
 | `CreateAvlTree` | `dc`, `co`, `conii` | `ra`, `pi` ← **AVL backlog driver** (Lithos/Etcha/Machina) |
-| `CreateProveDhTuple` | `co`, `conii` | `ra`, `pi` |
+| `CreateProveDhTuple` | – | `pi` |
 | `CreateProveDlog` | `co`, `conii` | `ra` |
 | `DecodePoint` | `co`, `conii` | `ra`, `pi` |
 | `Exponentiate` | `co`, `conii` | `pi` |

@@ -2103,6 +2103,12 @@ fn emit_deps(
         Expr::CreateProveDlog(cpd) => {
             emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk)
         }
+        Expr::CreateProveDhTuple(cpd) => {
+            emit_deps(&cpd.g, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&cpd.h, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&cpd.u, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&cpd.v, val_map, emitted, emitted_ids, in_thunk);
+        }
         Expr::SigmaAnd(sa) => {
             for i in sa.items.iter() {
                 emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
@@ -3633,6 +3639,12 @@ fn collect_subexprs(expr: &Expr, out: &mut Vec<Expr>) {
         Expr::CreateProveDlog(cpd) => {
             collect_subexprs(&cpd.input, out);
         }
+        Expr::CreateProveDhTuple(cpd) => {
+            collect_subexprs(&cpd.g, out);
+            collect_subexprs(&cpd.h, out);
+            collect_subexprs(&cpd.u, out);
+            collect_subexprs(&cpd.v, out);
+        }
         Expr::Atleast(s) => {
             collect_subexprs(&s.bound, out);
             collect_subexprs(&s.input, out);
@@ -4243,6 +4255,12 @@ fn collect_subexprs_scope(expr: &Expr, out: &mut Vec<Expr>) {
             collect_subexprs_scope(&s.expr.col_2, out);
         }
         Expr::CreateProveDlog(cpd) => collect_subexprs_scope(&cpd.input, out),
+        Expr::CreateProveDhTuple(cpd) => {
+            collect_subexprs_scope(&cpd.g, out);
+            collect_subexprs_scope(&cpd.h, out);
+            collect_subexprs_scope(&cpd.u, out);
+            collect_subexprs_scope(&cpd.v, out);
+        }
         Expr::Atleast(s) => {
             collect_subexprs_scope(&s.bound, out);
             collect_subexprs_scope(&s.input, out);
@@ -5665,6 +5683,12 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
             count += count_occurrences(&s.bound, target);
             count += count_occurrences(&s.input, target);
         }
+        Expr::CreateProveDhTuple(cpd) => {
+            count += count_occurrences(&cpd.g, target);
+            count += count_occurrences(&cpd.h, target);
+            count += count_occurrences(&cpd.u, target);
+            count += count_occurrences(&cpd.v, target);
+        }
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
                 count += count_occurrences(item, target);
@@ -5814,6 +5838,12 @@ fn count_occurrences_no_inner_if(expr: &Expr, target: &Expr) -> usize {
         Expr::Atleast(s) => {
             count += count_occurrences_no_inner_if(&s.bound, target);
             count += count_occurrences_no_inner_if(&s.input, target);
+        }
+        Expr::CreateProveDhTuple(cpd) => {
+            count += count_occurrences_no_inner_if(&cpd.g, target);
+            count += count_occurrences_no_inner_if(&cpd.h, target);
+            count += count_occurrences_no_inner_if(&cpd.u, target);
+            count += count_occurrences_no_inner_if(&cpd.v, target);
         }
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
@@ -6288,6 +6318,17 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             ergotree_ir::mir::atleast::Atleast::new(new_bound, new_input)
                 .map(Expr::Atleast)
                 .unwrap_or_else(|_| Expr::Atleast(s.clone()))
+        }
+        Expr::CreateProveDhTuple(cpd) => {
+            let new_g = replace_all(&cpd.g, target, replacement);
+            let new_h = replace_all(&cpd.h, target, replacement);
+            let new_u = replace_all(&cpd.u, target, replacement);
+            let new_v = replace_all(&cpd.v, target, replacement);
+            ergotree_ir::mir::create_prove_dh_tuple::CreateProveDhTuple::new(
+                new_g, new_h, new_u, new_v,
+            )
+            .map(Expr::CreateProveDhTuple)
+            .unwrap_or_else(|_| Expr::CreateProveDhTuple(cpd.clone()))
         }
         // Leaves and lambda bodies (not traversed for replacement at this level)
         other => other.clone(),

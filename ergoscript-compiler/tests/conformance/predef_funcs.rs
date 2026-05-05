@@ -61,6 +61,33 @@ fn predef_at_least_dedup_provedlog_siblings() {
 }
 
 #[test]
+fn predef_create_prove_dh_tuple_dedup_group_generator() {
+    // WS-F cluster 001 (DIFF agreement-prefix 10010400d8):
+    // `proveDHTuple(g, g, g, g)` has four structurally-identical
+    // `groupGenerator` siblings. Scala's graph IR hash-conses them into one
+    // ValDef + four ValUses (`db6a01dd` lowered as `Global.groupGenerator`
+    // PropertyCall, hash-consed via `findOrCreateDefinition`); Rust must
+    // mirror that by walking CreateProveDhTuple's children in CSE
+    // (`collect_subexprs[_scope]`, `count_occurrences[_no_inner_if]`,
+    // `replace_all`, `emit_deps`) so the four edge incidences make
+    // `dag_count >= 2` and the post-extract reorder sees the dependency.
+    use ergoscript_compiler::compiler::compile;
+    use ergoscript_compiler::script_env::ScriptEnv;
+    use ergotree_ir::serialization::SigmaSerializable;
+    let src = r#"{
+  val sp = proveDHTuple(groupGenerator, groupGenerator, groupGenerator, groupGenerator)
+  sigmaProp(sp.propBytes.size > 0 && sp.propBytes.size > 0)
+}"#;
+    let tree = compile(src, ScriptEnv::new()).expect("compile");
+    let bytes = tree.sigma_serialize_bytes().expect("serialize");
+    let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    assert_eq!(
+        hex, "10010400d802d601db6a01ddd60291b1d0ce72017201720172017300d1ed72027202",
+        "WS-F cluster 001: must emit one ValDef for groupGenerator and ValUse it four times"
+    );
+}
+
+#[test]
 fn predef_pk() {
     // Mainnet P2PK address (real, from ergotree-ir test fixtures).
     compile_tree(r#"{ PK("9hzP24a2q8KLPVCUk7gdMDXYc7vinmGuxmLp5KU7k9UwptgYBYV") }"#);
