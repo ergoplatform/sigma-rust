@@ -333,6 +333,151 @@ fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     Some(Constant::from(result).into())
 }
 
+/// Mirror Scala graph-IR fold: `Plus/Minus/Multiply/Divide/Modulo(Const, Const) → Const`
+/// for `SByte` / `SShort` / `SInt` / `SLong`.
+///
+/// Same `propagateBinOp` default arm at `DefRewriting.scala:166` that powers the
+/// Ordering fold (628ddcab) — none of the five arithmetic ArithOps have a custom
+/// `rewriteBinOp` arm. Empirical p2sAddress probe across the 25 (op × type)
+/// combinations confirmed: Byte/Short/Int/Long all fold for all five ops; BigInt
+/// does NOT fold (distinct addresses across all five BigInt arms — captured in
+/// `project_bigint_arith_not_folded.md`).
+///
+/// Per-arm corner cases:
+///   - **Overflow.** Scala's `propagateBinOp` invokes `op.applySeq(a, b)` which
+///     may raise (Byte/Short overflow at compile time was empirically observed —
+///     `(100.toByte) + (100.toByte)` is rejected by p2sAddress with "Byte
+///     overflow"). Only fold when the checked operation is in-range; otherwise
+///     leave the unfolded BinOp so Rust mirrors Scala's runtime-evaluation arm
+///     (or the program is rejected upstream by another pass; either way, no
+///     bytes-divergence vs Scala for the no-overflow programs that compile).
+///   - **Divide / Modulo by zero.** Scala leaves these unfolded (probed:
+///     `{ val v = 10 / 0; sigmaProp(v >= 0) }` produces a distinct address from
+///     `sigmaProp(true)`, i.e. Scala emits the runtime division so it errors at
+///     evaluation, not compile time). Mirror: skip the fold when divisor is
+///     zero.
+///
+/// **BigInt deliberately excluded** — Scala's distinct addresses for all five
+/// BigInt arms (`{ (5).toBigInt + (10).toBigInt; ... }` etc.) prove it does not
+/// fold. Add it to Rust and we regress every BigInt-arith program — the
+/// xorOf-style trap from `project_xorof_not_fold_sibling.md`.
+///
+/// Conservative scope: only fold when both args are `Const` of the same numeric
+/// `Literal` variant (Byte+Byte, Short+Short, Int+Int, Long+Long). Mixed-type
+/// Const pairs already get `numeric_upcast_pair`'d upstream — for the four
+/// widening arms whose `Upcast(Const, _)` Rust does NOT fold (Byte→Short/Int/Long,
+/// Short→Int/Long; see `project_numeric_upcast_const_per_arm_asymmetry.md`),
+/// one operand stays as `Upcast(...)` here and falls through to the unchanged
+/// runtime BinOp path, matching Scala.
+fn fold_arith_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    if !matches!(
+        op,
+        BinaryOp::Plus
+            | BinaryOp::Minus
+            | BinaryOp::Multiply
+            | BinaryOp::Divide
+            | BinaryOp::Modulo
+    ) {
+        return None;
+    }
+    let (lc, rc) = match (l, r) {
+        (Expr::Const(lc), Expr::Const(rc)) => (lc, rc),
+        _ => return None,
+    };
+    let result: Constant = match (&lc.v, &rc.v) {
+        (Literal::Byte(a), Literal::Byte(b)) => {
+            let v = match op {
+                BinaryOp::Plus => a.checked_add(*b)?,
+                BinaryOp::Minus => a.checked_sub(*b)?,
+                BinaryOp::Multiply => a.checked_mul(*b)?,
+                BinaryOp::Divide => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_div(*b)?
+                }
+                BinaryOp::Modulo => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_rem(*b)?
+                }
+                _ => unreachable!(),
+            };
+            v.into()
+        }
+        (Literal::Short(a), Literal::Short(b)) => {
+            let v = match op {
+                BinaryOp::Plus => a.checked_add(*b)?,
+                BinaryOp::Minus => a.checked_sub(*b)?,
+                BinaryOp::Multiply => a.checked_mul(*b)?,
+                BinaryOp::Divide => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_div(*b)?
+                }
+                BinaryOp::Modulo => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_rem(*b)?
+                }
+                _ => unreachable!(),
+            };
+            v.into()
+        }
+        (Literal::Int(a), Literal::Int(b)) => {
+            let v = match op {
+                BinaryOp::Plus => a.checked_add(*b)?,
+                BinaryOp::Minus => a.checked_sub(*b)?,
+                BinaryOp::Multiply => a.checked_mul(*b)?,
+                BinaryOp::Divide => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_div(*b)?
+                }
+                BinaryOp::Modulo => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_rem(*b)?
+                }
+                _ => unreachable!(),
+            };
+            v.into()
+        }
+        (Literal::Long(a), Literal::Long(b)) => {
+            let v = match op {
+                BinaryOp::Plus => a.checked_add(*b)?,
+                BinaryOp::Minus => a.checked_sub(*b)?,
+                BinaryOp::Multiply => a.checked_mul(*b)?,
+                BinaryOp::Divide => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_div(*b)?
+                }
+                BinaryOp::Modulo => {
+                    if *b == 0 {
+                        return None;
+                    }
+                    a.checked_rem(*b)?
+                }
+                _ => unreachable!(),
+            };
+            v.into()
+        }
+        // BigInt / UnsignedBigInt: deliberately NOT folded — Scala leaves the
+        // unfolded BinOp at the graph IR level (verified empirically via
+        // p2sAddress on all five op × BigInt arms; see commit message body).
+        _ => return None,
+    };
+    Some(result.into())
+}
+
 /// Mirror Scala graph-IR fold: `Coll.length` on a known-length receiver folds
 /// to `Const(Int(n))` at build time.
 ///
@@ -450,6 +595,8 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 // This matches the Scala ErgoScript compiler's implicit conversions.
                 let (l, r) = numeric_upcast_pair(l, r);
                 if let Some(folded) = fold_compare_const_const(&hir.op.node, &l, &r) {
+                    folded
+                } else if let Some(folded) = fold_arith_const_const(&hir.op.node, &l, &r) {
                     folded
                 } else {
                     BinOp {
@@ -3675,27 +3822,13 @@ mod tests {
 
     #[test]
     fn bin_numeric_int() {
+        // Const+Const arithmetic folds at MIR-lower time to mirror Scala's
+        // graph-IR `propagateBinOp`. See `fold_arith_const_const`.
         check(
             "4+2",
             expect![[r#"
-                BinOp(
-                    Spanned {
-                        source_span: SourceSpan {
-                            offset: 0,
-                            length: 0,
-                        },
-                        expr: BinOp {
-                            kind: Arith(
-                                Plus,
-                            ),
-                            left: Const(
-                                "4: SInt",
-                            ),
-                            right: Const(
-                                "2: SInt",
-                            ),
-                        },
-                    },
+                Const(
+                    "6: SInt",
                 )"#]],
         );
     }
@@ -3705,24 +3838,8 @@ mod tests {
         check(
             "4L+2L",
             expect![[r#"
-                BinOp(
-                    Spanned {
-                        source_span: SourceSpan {
-                            offset: 0,
-                            length: 0,
-                        },
-                        expr: BinOp {
-                            kind: Arith(
-                                Plus,
-                            ),
-                            left: Const(
-                                "4: SLong",
-                            ),
-                            right: Const(
-                                "2: SLong",
-                            ),
-                        },
-                    },
+                Const(
+                    "6: SLong",
                 )"#]],
         );
     }
