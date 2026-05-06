@@ -485,6 +485,48 @@ fn fold_arith_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     Some(result.into())
 }
 
+/// Mirror Scala graph-IR fold: `OrderingMin/Max(Const, Const) → Const` for
+/// `SByte` / `SShort` / `SInt` / `SLong`.
+///
+/// Sibling extension of `8b1843d5` (Long-only) — the same `propagateBinOp`
+/// default arm at `DefRewriting.scala:166` powers `OrderingMin/Max` for every
+/// numeric type. Per-arm asymmetry probe via p2sAddress on the local node:
+/// Byte/Short/Int/Long all collapse `min/max(Const, Const) <= Const` programs
+/// to `sigmaProp(true)` (= baseline `4MQyML64GnzMxZgm`); BigInt does NOT fold
+/// (distinct addresses, same shape as `project_bigint_arith_not_folded.md`'s
+/// arithmetic asymmetry — `OrderingMin/Max[BigInt]` falls into the same
+/// non-folding bucket).
+///
+/// Conservative scope: only fold same-Literal-variant pairs (mirrors
+/// `c46577cd`'s arithmetic-fold scope). Mixed-type Const pairs from implicit
+/// `numeric_upcast` are unreachable for `min`/`max` because the parser-level
+/// callee resolution forces both args to a single numeric type, but the
+/// guard is left in place defensively.
+fn fold_min_max_const_const(is_min: bool, l: &Expr, r: &Expr) -> Option<Expr> {
+    use ergotree_ir::mir::constant::Literal;
+    let (lc, rc) = match (l, r) {
+        (Expr::Const(lc), Expr::Const(rc)) => (lc, rc),
+        _ => return None,
+    };
+    let result: Constant = match (&lc.v, &rc.v) {
+        (Literal::Byte(a), Literal::Byte(b)) => {
+            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        }
+        (Literal::Short(a), Literal::Short(b)) => {
+            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        }
+        (Literal::Int(a), Literal::Int(b)) => {
+            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        }
+        (Literal::Long(a), Literal::Long(b)) => {
+            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        }
+        // BigInt deliberately NOT folded — verified empirically.
+        _ => return None,
+    };
+    Some(result.into())
+}
+
 /// Mirror Scala's `rewriteBinOp` Equals/NotEquals arm
 /// (DefRewriting.scala:99-128): `if (x == y) Const(true|false)` — Ref-equality
 /// after Scalan hash-cons.
@@ -1201,22 +1243,10 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         })?;
                         // Mirror Scala graph-IR fold: OrderingMin(Const, Const)
                         // collapses to Const at build time via propagateBinOp
-                        // (DefRewriting.scala default arm). Without this, Rust
-                        // emits the unfolded Min opcode over two SLong consts
-                        // while Scala emits the single folded Const.
-                        use ergotree_ir::mir::constant::Literal;
-                        if let (
-                            Expr::Const(Constant {
-                                v: Literal::Long(a),
-                                ..
-                            }),
-                            Expr::Const(Constant {
-                                v: Literal::Long(b),
-                                ..
-                            }),
-                        ) = (&left, &right)
-                        {
-                            Constant::from(std::cmp::min(*a, *b)).into()
+                        // (DefRewriting.scala default arm). Helper covers
+                        // Byte/Short/Int/Long; BigInt falls through unfolded.
+                        if let Some(folded) = fold_min_max_const_const(true, &left, &right) {
+                            folded
                         } else {
                             BinOp {
                                 kind: ArithOp::Min.into(),
@@ -1729,19 +1759,8 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                             )
                         })?;
                         // See "min" arm above for Scala graph-IR fold rationale.
-                        use ergotree_ir::mir::constant::Literal;
-                        if let (
-                            Expr::Const(Constant {
-                                v: Literal::Long(a),
-                                ..
-                            }),
-                            Expr::Const(Constant {
-                                v: Literal::Long(b),
-                                ..
-                            }),
-                        ) = (&left, &right)
-                        {
-                            Constant::from(std::cmp::max(*a, *b)).into()
+                        if let Some(folded) = fold_min_max_const_const(false, &left, &right) {
+                            folded
                         } else {
                             BinOp {
                                 kind: ArithOp::Max.into(),
