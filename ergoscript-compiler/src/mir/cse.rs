@@ -653,14 +653,36 @@ fn reorder_valdefs(expr: Expr) -> Expr {
                 false,
             );
 
-            // Any ValDefs not referenced transitively from result go at the end
+            // Drop ValDefs with zero uses (dead post-fold residue).
+            // Scala's TreeBuilding emits no ValDef when `hasManyUsagesGlobal`
+            // is false. `emit_deps` is incomplete (skips Atleast/SizeOf/Coll/
+            // SigmaPropBytes/...), so use `count_val_uses_in` (walks
+            // `direct_children`) for the live/dead decision.
+            let mut use_counts: HashMap<u32, usize> = HashMap::new();
+            count_val_uses_in(&s.expr.result, &mut use_counts);
             for item in &s.expr.items {
                 if let Expr::ValDef(vd) = item {
-                    if !emitted_ids.contains(&vd.expr.id.0) {
-                        emitted_ids.insert(vd.expr.id.0);
-                        emitted.push(item.clone());
+                    let id = vd.expr.id.0;
+                    if !emitted_ids.contains(&id) {
+                        // Include transitive uses via other already-emitted
+                        // ValDefs' RHSes (those will be kept regardless).
+                        for em in &emitted {
+                            if let Expr::ValDef(em_vd) = em {
+                                count_val_uses_in(&em_vd.expr.rhs, &mut use_counts);
+                            }
+                        }
+                        let used = use_counts.get(&id).copied().unwrap_or(0) > 0;
+                        if used {
+                            emitted_ids.insert(id);
+                            emitted.push(item.clone());
+                        }
+                        // else: drop (dead ValDef post-fold)
                     }
                 }
+            }
+
+            if emitted.is_empty() {
+                return *s.expr.result;
             }
 
             Expr::BlockValue(Spanned {
