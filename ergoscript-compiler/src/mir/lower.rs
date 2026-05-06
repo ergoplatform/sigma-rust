@@ -508,33 +508,67 @@ fn fold_arith_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
 ///       `SELF.id == SELF.id`, repeated `ValUse` of the same id. Empirically
 ///       confirmed to fold to `sigmaProp(true)` across all of these shapes.
 ///
-/// Bool-specialization arm
-/// (`EQ(x_Bool, Const(b))` → `x_Bool` or `Not(x_Bool)`) is deferred to a
-/// separate session — see `project_cluster_010_residual_diagnosis.md` §3.A2.
-/// HIR-stage already folds Bool Const+Const for both same-value and
-/// differing-value cases (via the broader Bool-spec rule), so the Const+Const
-/// arm here also correctly returns `Const(true|false)` for any Bool pair.
+///   (3) **Bool specialization** — `EQ(x_Bool, Const(b))` → `x_Bool` (b=true)
+///       or `Not(x_Bool)` (b=false); NEQ mirrors. Symmetric in operand order
+///       (Scala checks RHS-Const first, then LHS-Const). The non-Const side
+///       must be Bool-typed; gated on exactly-one-side-Const so Const+Const
+///       falls to (1). Mirror of `DefRewriting.scala:99-128` Equals/NotEquals
+///       arm. Empirically confirmed against 8 variants (4 op×side combinations
+///       × 2 directions) — all match the `x_Bool`/`Not(x_Bool)` baselines
+///       exactly. Tautology fold (`x || !x → true`) NOT applied by Scala —
+///       single-step rewrite only, no cascade.
 ///
 /// **Scope: ONLY EQ/NEQ.** Per `project_reflexive_ordering_not_folded.md`,
 /// Scala has no Ref-equality fold for `OrderingLT/LTEQ/GT/GTEQ` —
 /// `HEIGHT >= HEIGHT` and `bi >= bi` stay as runtime BinOps. Do NOT extend
 /// the same-Expr fold to `Lt/Le/Gt/Ge`.
 fn fold_eq_neq(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
-    let result = match op {
+    use ergotree_ir::mir::constant::Literal;
+    let op_is_eq = match op {
         BinaryOp::Eq => true,
         BinaryOp::Neq => false,
         _ => return None,
     };
     if let (Expr::Const(lc), Expr::Const(rc)) = (l, r) {
         if lc.v == rc.v {
-            return Some(Constant::from(result).into());
+            return Some(Constant::from(op_is_eq).into());
         }
         // Differing-value Const+Const for non-Bool: leave unfolded.
         // (Bool Const+Const arrives here already collapsed by HIR-stage.)
         return None;
     }
     if l == r {
-        return Some(Constant::from(result).into());
+        return Some(Constant::from(op_is_eq).into());
+    }
+    // Bool specialization: exactly one side is Const(Boolean), the other side
+    // is a Bool-typed non-Const Expr. Mirrors DefRewriting.scala's Equals
+    // arm (RHS-Const checked first, then LHS-Const).
+    let bool_const_other: Option<(bool, &Expr)> = match (l, r) {
+        (other, Expr::Const(c)) if matches!(c.v, Literal::Boolean(_)) => {
+            if let Literal::Boolean(b) = c.v {
+                (other.tpe() == SType::SBoolean).then_some((b, other))
+            } else {
+                None
+            }
+        }
+        (Expr::Const(c), other) if matches!(c.v, Literal::Boolean(_)) => {
+            if let Literal::Boolean(b) = c.v {
+                (other.tpe() == SType::SBoolean).then_some((b, other))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    };
+    if let Some((b, other)) = bool_const_other {
+        let folded = if op_is_eq == b {
+            other.clone()
+        } else {
+            LogicalNot::try_build(other.clone())
+                .ok()?
+                .into()
+        };
+        return Some(folded);
     }
     None
 }
