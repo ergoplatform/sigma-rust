@@ -301,6 +301,15 @@ fn is_numeric_tpe(tpe: &Option<SType>) -> bool {
 /// `Literal` variant. Mixed Const+ValUse / ValUse+ValUse take the unchanged
 /// runtime path. Type-mismatched Const pairs (e.g. Byte vs Long after some
 /// upstream divergence) also fall through.
+///
+/// **BigInt / UnsignedBigInt deliberately excluded** — empirical p2sAddress probe
+/// (treeVersion=0): differing-value `(5).toBigInt op (10).toBigInt` for all four
+/// Ordering ops emits 4 distinct unfolded addresses, none matching the
+/// `sigmaProp(true|false)` baselines. Scala leaves BigInt Const+Const Ordering
+/// as a runtime BinOp — same per-arm asymmetry as the arithmetic side
+/// (`project_bigint_arith_not_folded.md`). See `project_reflexive_ordering_not_folded.md`
+/// for the comparison-side probe table; folding the BigInt arms here regresses
+/// `numeric_cmp_095/096/097/098` (Rust 7 bytes folded vs Scala 18 bytes unfolded).
 fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     use ergotree_ir::mir::constant::Literal;
     use std::cmp::Ordering;
@@ -319,8 +328,6 @@ fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
         (Literal::Short(a), Literal::Short(b)) => a.cmp(b),
         (Literal::Int(a), Literal::Int(b)) => a.cmp(b),
         (Literal::Long(a), Literal::Long(b)) => a.cmp(b),
-        (Literal::BigInt(a), Literal::BigInt(b)) => a.cmp(b),
-        (Literal::UnsignedBigInt(a), Literal::UnsignedBigInt(b)) => a.cmp(b),
         _ => return None,
     };
     let result = match op {
