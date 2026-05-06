@@ -439,16 +439,24 @@ fn eval_binary(op: &BinaryOp, lhs: &Literal, rhs: &Literal) -> Option<Literal> {
         (BinaryOp::Lt, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a < b)),
         (BinaryOp::Ge, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a >= b)),
         (BinaryOp::Le, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a <= b)),
-        (BinaryOp::Eq, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a == b)),
-        (BinaryOp::Neq, Literal::Long(a), Literal::Long(b)) => Some(Literal::Bool(a != b)),
+        // Long EQ/NEQ — narrow to same-value only. Scala's `Equals/NotEquals`
+        // arm folds via Ref-equality (hash-cons → same-value Const+Const same Ref);
+        // differing-value non-Bool Const+Const stays unfolded
+        // (`project_eq_neq_not_fold_sibling.md`).
+        (BinaryOp::Eq, Literal::Long(a), Literal::Long(b)) if a == b => Some(Literal::Bool(true)),
+        (BinaryOp::Neq, Literal::Long(a), Literal::Long(b)) if a == b => Some(Literal::Bool(false)),
         // Int comparisons
         (BinaryOp::Gt, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a > b)),
         (BinaryOp::Lt, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a < b)),
         (BinaryOp::Ge, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a >= b)),
         (BinaryOp::Le, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a <= b)),
-        (BinaryOp::Eq, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a == b)),
-        (BinaryOp::Neq, Literal::Int(a), Literal::Int(b)) => Some(Literal::Bool(a != b)),
-        // Bool comparisons
+        // Int EQ/NEQ — same-value only (see Long arm above)
+        (BinaryOp::Eq, Literal::Int(a), Literal::Int(b)) if a == b => Some(Literal::Bool(true)),
+        (BinaryOp::Neq, Literal::Int(a), Literal::Int(b)) if a == b => Some(Literal::Bool(false)),
+        // Bool comparisons — fold all four `(Const(b1), Const(b2))` cases. Beyond
+        // Ref-equality, Scala's Boolean specialization (`Const(b) == nonConst-Bool`
+        // → nonConst-Bool or Not(nonConst-Bool)) collapses any Bool Const+Const
+        // pair (probed: `true == false` → sigmaProp(false)).
         (BinaryOp::Eq, Literal::Bool(a), Literal::Bool(b)) => Some(Literal::Bool(a == b)),
         (BinaryOp::Neq, Literal::Bool(a), Literal::Bool(b)) => Some(Literal::Bool(a != b)),
         // Boolean logic

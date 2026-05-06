@@ -485,6 +485,60 @@ fn fold_arith_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     Some(result.into())
 }
 
+/// Mirror Scala's `rewriteBinOp` Equals/NotEquals arm
+/// (DefRewriting.scala:99-128): `if (x == y) Const(true|false)` — Ref-equality
+/// after Scalan hash-cons.
+///
+/// Two cases lower to the same Scala-side fold; this Rust mirror catches both
+/// at MIR-stage (HIR-stage already handles Long/Int Const+Const same-value
+/// directly via `hir/optimize.rs`, but several MIR-stage rewrites — Coll.size,
+/// IntLit.toLong, arith Const+Const — only materialize Consts here, so a HIR
+/// fold cannot see them):
+///
+///   (1) **Same-value `Const+Const`** of any equality-deciding `Literal`
+///       variant (Byte/Short/Int/Long/BigInt/UnsignedBigInt/ByteArray/
+///       GroupElement/etc.). Empirically all probed types fold same-value EQ
+///       at the Scala graph IR — the `if (x == y)` Ref-equality arm fires
+///       because two `Const(v)` with structurally equal `v` hash-cons to the
+///       same `Ref`. Differing-value Const+Const for non-Bool types stays
+///       unfolded (see `project_eq_neq_not_fold_sibling.md`).
+///
+///   (2) **Same-Expr structural equality** — covers `byteArrayToBigInt(SELF.id)
+///       == byteArrayToBigInt(SELF.id)` (walker_001), `HEIGHT == HEIGHT`,
+///       `SELF.id == SELF.id`, repeated `ValUse` of the same id. Empirically
+///       confirmed to fold to `sigmaProp(true)` across all of these shapes.
+///
+/// Bool-specialization arm
+/// (`EQ(x_Bool, Const(b))` → `x_Bool` or `Not(x_Bool)`) is deferred to a
+/// separate session — see `project_cluster_010_residual_diagnosis.md` §3.A2.
+/// HIR-stage already folds Bool Const+Const for both same-value and
+/// differing-value cases (via the broader Bool-spec rule), so the Const+Const
+/// arm here also correctly returns `Const(true|false)` for any Bool pair.
+///
+/// **Scope: ONLY EQ/NEQ.** Per `project_reflexive_ordering_not_folded.md`,
+/// Scala has no Ref-equality fold for `OrderingLT/LTEQ/GT/GTEQ` —
+/// `HEIGHT >= HEIGHT` and `bi >= bi` stay as runtime BinOps. Do NOT extend
+/// the same-Expr fold to `Lt/Le/Gt/Ge`.
+fn fold_eq_neq(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
+    let result = match op {
+        BinaryOp::Eq => true,
+        BinaryOp::Neq => false,
+        _ => return None,
+    };
+    if let (Expr::Const(lc), Expr::Const(rc)) = (l, r) {
+        if lc.v == rc.v {
+            return Some(Constant::from(result).into());
+        }
+        // Differing-value Const+Const for non-Bool: leave unfolded.
+        // (Bool Const+Const arrives here already collapsed by HIR-stage.)
+        return None;
+    }
+    if l == r {
+        return Some(Constant::from(result).into());
+    }
+    None
+}
+
 /// Mirror Scala graph-IR fold: `Coll.length` on a known-length receiver folds
 /// to `Const(Int(n))` at build time.
 ///
@@ -604,6 +658,8 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 if let Some(folded) = fold_compare_const_const(&hir.op.node, &l, &r) {
                     folded
                 } else if let Some(folded) = fold_arith_const_const(&hir.op.node, &l, &r) {
+                    folded
+                } else if let Some(folded) = fold_eq_neq(&hir.op.node, &l, &r) {
                     folded
                 } else {
                     BinOp {
