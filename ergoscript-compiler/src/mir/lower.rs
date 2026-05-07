@@ -637,6 +637,7 @@ fn fold_eq_neq(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
 ///   - `Expr::Const(Constant{ v: Literal::Coll(_), .. })` — CollConst case.
 ///   - `Expr::Collection(Collection::Exprs{ items, .. })` — `Coll(...)` form.
 ///   - `Expr::Collection(Collection::BoolConstants(bools))` — bool literal form.
+///
 /// Other receivers (`INPUTS`, `box.tokens`, `box.R4.get.coll`, ExtractRegisterAs,
 /// Map/Filter results, etc.) take the unchanged `SizeOf` path.
 fn fold_coll_size_on_known_length(obj: &Expr) -> Option<Expr> {
@@ -3449,6 +3450,16 @@ fn replace_val_uses(
                 fv.args().to_vec(),
                 new_body,
             )))
+        }
+        Expr::Append(spanned) => {
+            let inner = spanned.expr().clone();
+            let new_input =
+                replace_val_uses(*inner.input, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            let new_col_2 =
+                replace_val_uses(*inner.col_2, acc_id, elem_id, tuple_id, tuple_tpe, span)?;
+            Ok(Append::new(new_input, new_col_2)
+                .map_err(|e| MirLoweringError::new(format!("{:?}", e), span))?
+                .into())
         }
         Expr::LogicalNot(spanned) => {
             let inner = spanned.expr().clone();
