@@ -480,6 +480,32 @@ fn literal_type(lit: &Literal) -> SType {
 // Pass 2: Val Inlining (single-use elimination)
 // ---------------------------------------------------------------------------
 
+/// RHS shapes that lower to a single 1-byte leaf opcode (no constant-table
+/// entry). Scala's graph CSE inlines these regardless of use count because
+/// a `ValDef + ValUse` pair always costs more bytes than the inlined leaf.
+/// Mirror that here so user-source `val self_ = SELF`, `val h = HEIGHT` etc.
+/// don't survive as ValDefs in MIR.
+///
+/// Why exclude `Const`-equivalents (e.g. `fromBase16` of a string literal)?
+/// Inlining those duplicates the value in the constant table —
+/// `ConstantStore::put` does not deduplicate, so each inlined site adds a
+/// fresh table entry. Scala's graph CSE collapses identical Const symbols
+/// before serialization; we don't, so leaving `val tokenId = fromBase16(...)`
+/// as a ValDef is the cheaper choice for now.
+///
+/// Why exclude `GroupGenerator`? Its MIR lowering is the multi-byte
+/// `Global.groupGenerator` PropertyCall (4 bytes serialized), not a 1-byte
+/// opcode. With N uses, ValDef + N ValUses (4 + 2N) beats N inlined copies
+/// (4N) for N≥3, which Scala extracts. Inlining mid-byte rhss regresses
+/// composition_136/147/210 (groupGenerator-bound + proveDHTuple).
+fn is_inline_always_rhs(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Literal(_) | ExprKind::Context => true,
+        ExprKind::GlobalVars(gv) => !matches!(gv, super::GlobalVars::GroupGenerator),
+        _ => false,
+    }
+}
+
 /// Count how many times each ValId is referenced in the expression tree.
 fn count_val_uses(expr: &Expr, counts: &mut HashMap<u32, usize>) {
     match &expr.kind {
@@ -1335,7 +1361,7 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                             } else {
                                 *vd.rhs.clone()
                             };
-                            let is_constant = matches!(rhs.kind, ExprKind::Literal(_));
+                            let is_constant = is_inline_always_rhs(&rhs);
                             if use_count == 0 {
                                 continue;
                             } else if is_constant {
