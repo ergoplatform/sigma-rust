@@ -1113,19 +1113,43 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                     let id = vd.expr.id.0;
                     let count = use_counts.get(&id).copied().unwrap_or(0);
                     if count == 1 {
-                        if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
-                            // Hoist inner items to surrounding scope; inline
-                            // only the BlockValue's result at the use site.
-                            for inner in inner_bv.expr.items.iter() {
-                                if let Expr::ValDef(inner_vd) = inner {
-                                    hoisted_ids.push(inner_vd.expr.id.0);
+                        let mut rhs_to_inline =
+                            if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
+                                // Hoist inner items to surrounding scope; inline
+                                // only the BlockValue's result at the use site.
+                                for inner in inner_bv.expr.items.iter() {
+                                    if let Expr::ValDef(inner_vd) = inner {
+                                        hoisted_ids.push(inner_vd.expr.id.0);
+                                    }
+                                    hoisted_items.push(inner.clone());
                                 }
-                                hoisted_items.push(inner.clone());
-                            }
-                            inline_map.insert(id, (*inner_bv.expr.result).clone());
-                        } else {
-                            inline_map.insert(id, (*vd.expr.rhs).clone());
+                                (*inner_bv.expr.result).clone()
+                            } else {
+                                (*vd.expr.rhs).clone()
+                            };
+                        // Forward-substitute prior single-use inlines into this
+                        // RHS so the later sequential `replace_all` over the
+                        // block doesn't reintroduce a ValUse(K) whose ValDef(K)
+                        // has already been dropped. Without this, a chain like
+                        //   val K = ...; val J = f(K)
+                        // (where both are single-use, J is the only user of K,
+                        // and J is used in the block result) inlines K's
+                        // ValDef on iteration 1 (no block-side ValUse(K) to
+                        // substitute), then on iteration 2 substitutes ValUse(J)
+                        // → f(ValUse(K)), leaving a dangling ValUse(K) at the
+                        // use site. Surfaced by oracle_refresh's
+                        //   val sum     = lastSortedSum._2._2
+                        //   val average = sum / dataPoints.size
+                        // pair, which broke the constant-segregation roundtrip
+                        // with `ValDefIdNotFound(ValId(13))`.
+                        for (prior_id, prior_rhs) in &inline_map {
+                            let prior_use = Expr::ValUse(ValUse {
+                                val_id: ValId(*prior_id),
+                                tpe: prior_rhs.tpe(),
+                            });
+                            rhs_to_inline = replace_all(&rhs_to_inline, &prior_use, prior_rhs);
                         }
+                        inline_map.insert(id, rhs_to_inline);
                     }
                 }
             }
