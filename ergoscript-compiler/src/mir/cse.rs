@@ -48,6 +48,13 @@ pub fn apply_cse(expr: Expr) -> Expr {
             let pre_extracted = pre_extract_from_valdefs(branch_cse, &mut next_id);
             let inlined = inline_single_use_vals(pre_extracted);
             let deduped = deduplicate_inner_consts(inlined);
+            // Re-run outer inlining: Phase 3 (relational BinOp dedup, sig-15
+            // sigmausd_bank close) extracts a new branch-scope ValDef whose
+            // RHS may consume two prior uses of an OUTER user-bound val
+            // (e.g. `oraclePoolNFT`), reducing it to a single use. The earlier
+            // `inline_single_use_vals` pass ran before that drop, so the now-
+            // single-use outer ValDef would otherwise survive as overhead.
+            let deduped = inline_single_use_vals(deduped);
             let flattened = flatten_nested_blocks(deduped);
 
             // Capture outer items[] IDs pre-disambig in items-order — paired with
@@ -1606,17 +1613,26 @@ fn dedup_consts_in_block(expr: Expr) -> Expr {
 
         let duplicates = filter_candidates(duplicates);
 
-        // Drop BinOps whose both operands are ValUses (over-extract pattern).
+        // Drop arithmetic BinOps whose both operands are ValUses (S42
+        // over-extract pattern — e.g. SigUSDV1's `Minus(VU, VU)` at count=3
+        // costs 1B). Relational BinOps (Eq/NEq/LT/LE/GT/GE) ARE kept even
+        // with both-ValUse operands: their two-arm `&&`-chain occurrences
+        // (sig-15 sigmausd_bank's `dataInput.tokens(0)._1 == oraclePoolNFT`)
+        // genuinely save bytes when extracted into one branch ValDef + 2
+        // ValUses (vs. two inline BinOps + the otherwise-required outer ValDef
+        // for the const operand).
         let duplicates: Vec<Expr> = duplicates
             .into_iter()
             .filter(|d| {
                 if let Expr::BinOp(s) = d {
+                    let is_arith =
+                        matches!(s.expr.kind, ergotree_ir::mir::bin_op::BinOpKind::Arith(_));
                     let both_valuse = matches!(&*s.expr.left, Expr::ValUse(_))
                         && matches!(&*s.expr.right, Expr::ValUse(_));
-                    if log && both_valuse {
-                        eprintln!("[P3] DROP both-ValUse :: {}", format_binop_brief(d));
+                    if log && is_arith && both_valuse {
+                        eprintln!("[P3] DROP both-ValUse arith :: {}", format_binop_brief(d));
                     }
-                    !both_valuse
+                    !(is_arith && both_valuse)
                 } else {
                     true
                 }
@@ -1864,14 +1880,29 @@ fn format_binop_brief(expr: &Expr) -> String {
     }
 }
 
-/// Collect arithmetic BinOp candidates for inner-scope dedup (Phase 3).
-/// Only collects arithmetic BinOps (Minus, Plus, Multiply, etc.) where
-/// at least one child is a ValUse. In Scala's graph, arithmetic ops use
-/// singleton ExactNumeric and are hash-consed within ThunkDef scopes.
+/// Collect BinOp candidates for inner-scope dedup (Phase 3).
+/// Collects:
+///   - arithmetic BinOps (Minus, Plus, Multiply, etc.) where at least one child
+///     is a ValUse — Scala hash-conses these via singleton `ExactNumeric`.
+///   - relational BinOps (Eq/NEq/LT/LE/GT/GE) where at least one child is a
+///     ValUse. Equals/NotEquals nodes ARE hash-consed when both operands are
+///     graph-shared syms (per `is_graph_shared`); Ordering ops use singleton
+///     `ExactOrdering`. Including these closes the sig-15 sigmausd_bank gap
+///     where `BinOp(Eq, dataInput.tokens(0)._1, oraclePoolNFT)` appears in two
+///     `&&`-chain arms within the if-true branch — `count_dag_usages_scope`
+///     undercounts because both occurrences sit inside `&&` right-arm
+///     ThunkDefs, so root and branch CSE never see ≥2 occurrences. The Phase
+///     3 `count_for_rule` rescue path (used when the candidate references a
+///     scope-local ValDef) DOES count globally with the main-scope guard, so
+///     adding the candidate here is enough.
 fn collect_binop_candidates(expr: &Expr, out: &mut Vec<Expr>) {
     if let Expr::BinOp(s) = expr {
-        let is_arith = matches!(s.expr.kind, ergotree_ir::mir::bin_op::BinOpKind::Arith(_));
-        if is_arith
+        let is_eligible = matches!(
+            s.expr.kind,
+            ergotree_ir::mir::bin_op::BinOpKind::Arith(_)
+                | ergotree_ir::mir::bin_op::BinOpKind::Relation(_)
+        );
+        if is_eligible
             && (matches!(&*s.expr.left, Expr::ValUse(_))
                 || matches!(&*s.expr.right, Expr::ValUse(_)))
         {
