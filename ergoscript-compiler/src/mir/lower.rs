@@ -145,7 +145,24 @@ fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
 /// so the constant is segregated as `SBigInt` instead of `SInt`, which makes
 /// our pool encoding diverge from NODE on every fixture mixing bare int
 /// literals with BigInt arithmetic (e.g. spectrum N2T/T2T pool's `FeeDenom`).
+///
+/// **Exception: `Upcast(Const(N: SInt), SLong)` IS folded** to `Const(SLong N)`.
+/// Empirical p2sAddress probe (treeVersion=0): all three shapes
+/// `l * -1`, `l * (-1).toLong`, `l * -1L` (with `l: Long = INPUTS(0).value`)
+/// produce identical bytes with `Const(SLong(-1))` in the pool — Scala folds
+/// the implicit Upcast at graph-build via the `propagateUnOp` default arm,
+/// same fold that `fold_int_lit_to_long` mirrors for the explicit `.toLong`
+/// path. Closes sigmausd_bank's S3 residual where `fee * -1` (Long * Int) was
+/// emitting `Upcast(Const(-1: SInt), SLong)` instead of `Const(-1: SLong)`.
+/// Narrow scope (SInt→SLong only) preserves the per-arm asymmetry: SByte/SShort
+/// upcasts stay unfolded (per Scala parser behavior), as does SInt→SBigInt
+/// (per the FeeDenom rationale above).
 fn numeric_upcast(expr: Expr, target: SType) -> Expr {
+    if target == SType::SLong {
+        if let Some(folded) = fold_int_lit_to_long(&expr) {
+            return folded;
+        }
+    }
     Upcast::new(expr, target).expect("numeric upcast").into()
 }
 
