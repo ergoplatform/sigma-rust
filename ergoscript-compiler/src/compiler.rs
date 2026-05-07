@@ -4475,6 +4475,68 @@ fn debug_chaincash() {
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
 
+/// Dev-only: dump LOCAL/NODE hex + IR for sigmao_option.
+/// Run: source ~/.secrets && cargo test -p ergoscript-compiler debug_sigmao -- --ignored --nocapture
+#[test]
+#[ignore]
+fn debug_sigmao() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let source = std::fs::read_to_string(fixtures_dir.join("sigmao_option.es")).unwrap();
+
+    let local_tree = compile(&source, ScriptEnv::new()).unwrap();
+    let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+    let local_hex: String = local_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let canon = compile_canonical(&source, ScriptEnv::new(), node_url, &api_key).unwrap();
+    let node_bytes = canon.tree.sigma_serialize_bytes().unwrap();
+    let node_hex: String = node_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let first_diff = local_bytes
+        .iter()
+        .zip(node_bytes.iter())
+        .position(|(a, b)| a != b);
+    eprintln!("\n=== sigmao_option ===");
+    eprintln!("LOCAL ({}B): {}", local_bytes.len(), local_hex);
+    eprintln!("NODE  ({}B): {}", node_bytes.len(), node_hex);
+    match first_diff {
+        Some(off) => eprintln!(
+            "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
+        ),
+        None => eprintln!("MATCH"),
+    }
+    eprintln!(
+        "matched={:?}  bytes(canon)={}  bytes(local)={}",
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
+    );
+    eprintln!("\n=== CONSTANTS ===");
+    eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
+    eprintln!("NODE  constants_len: {:?}", canon.tree.constants_len());
+    if let Ok(consts) = local_tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  LOCAL[{}] {:?}", i, local_tree.get_constant(i));
+        }
+    }
+    if let Ok(consts) = canon.tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
+        }
+    }
+    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
+    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 ///
 /// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`

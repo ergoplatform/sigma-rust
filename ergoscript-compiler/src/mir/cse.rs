@@ -4110,11 +4110,7 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     }
 
     // Step 3: Return (expr, usage_count) pairs
-    unique
-        .into_iter()
-        .zip(parent_counts)
-        .map(|(expr, count)| (expr, count))
-        .collect()
+    unique.into_iter().zip(parent_counts).collect()
 }
 
 // -----------------------------------------------------------------------
@@ -5253,6 +5249,23 @@ fn process_ast_graph_impl(
                 // Empirical fixtures: composition_143, composition_189.
                 let is_global_only_provedlog = matches!(node, Expr::CreateProveDlog(_))
                     && !touches_runtime_context(node);
+                // sig-15 sigmao_option: `SelectField(ValUse(outer_val), n)` on a tuple
+                // bound at root (typical pattern: `val tup = box.tokens.getOrElse(i, _)`
+                // followed by many `tup._1` / `tup._2` references) is hash-consed in
+                // Scala's graph IR — the SelectField sym depends only on the outer
+                // ValUse, which is itself root-bound. Scala's `mainG.hasManyUsagesGlobal`
+                // counts uses across &&/|| ThunkDefs AND If-branch ThunkDefs and emits
+                // the ValDef at root regardless of where the uses physically sit. The
+                // strict `appears_in_main_scope` AND permissive `appears_outside_if_branches`
+                // both reject when all uses are inside If arms — but this is the wrong
+                // model for SelectField(ValUse): the ValUse itself is the only stable
+                // dependency, and it IS at root, so the SelectField can be hoisted to
+                // root unconditionally. (`references_locally_defined` upstream already
+                // rejects ValUses targeting branch-local IDs, so reaching this point
+                // implies the ValUse is root-bound.)
+                let is_select_field_on_val_use = matches!(node,
+                    Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_))
+                );
                 let use_if_branch_check = matches!(node, Expr::ExtractId(ei) if matches!(&*ei.input, Expr::GlobalVars(_)))
                     || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)))
                     || is_global_only_provedlog;
@@ -5281,10 +5294,11 @@ fn process_ast_graph_impl(
                 // at root is semantically equivalent to inline evaluation.
                 // Only context-touching and pure-const-Upcast/bare-Const
                 // candidates need the scope check.
-                let needs_check = use_if_branch_check
+                let needs_check = (use_if_branch_check
                     || touches_context(node)
                     || is_pure_const_upcast
-                    || is_bare_const;
+                    || is_bare_const)
+                    && !is_select_field_on_val_use;
                 if needs_check {
                     let in_scope = if use_if_branch_check {
                         appears_outside_if_branches(&expr, node)
