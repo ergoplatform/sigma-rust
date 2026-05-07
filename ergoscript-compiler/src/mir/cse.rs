@@ -6379,6 +6379,16 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
             .map(Expr::CreateProveDhTuple)
             .unwrap_or_else(|_| Expr::CreateProveDhTuple(cpd.clone()))
         }
+        // WS-F cluster 010 B4: without this arm, `proveDlog(gg)` appearing
+        // inline at a use site falls through to `other => other.clone()`,
+        // so the extracted ValDef for `groupGenerator` is never substituted
+        // into the CreateProveDlog input. Empirical fixture: composition_064.
+        Expr::CreateProveDlog(cpd) => {
+            let new_input = replace_all(&cpd.input, target, replacement);
+            ergotree_ir::mir::create_provedlog::CreateProveDlog::try_build(new_input)
+                .map(Expr::CreateProveDlog)
+                .unwrap_or_else(|_| Expr::CreateProveDlog(cpd.clone()))
+        }
         // Leaves and lambda bodies (not traversed for replacement at this level)
         other => other.clone(),
     }
