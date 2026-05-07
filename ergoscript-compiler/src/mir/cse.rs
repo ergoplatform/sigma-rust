@@ -2705,48 +2705,60 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
     let local_max = find_max_val_id(&expr);
 
     if is_lambda_scope {
-        // Lambda scope: use the old tree-based approach with savings sort.
+        // Lambda scope: re-collect candidates after each extraction (mirrors
+        // Scala's `processAstGraph` iterative graph rewrite — `processAstGraph`
+        // re-walks the graph after each `lift` so newly-emerging hash-cons
+        // candidates that only appear AFTER a parent extraction are picked up).
+        // Tiebreak on equal savings prefers the SHALLOWER candidate.
+        //
+        // sig-15 oracle_refresh fold lambda exhibits this: `t._1` (depth 1,
+        // count 3, savings 2) and `t._1._2` (depth 2, count 2, savings 2)
+        // tie. NODE picks `t._1` first; after that `SelectField(2,ValUse(t1))`
+        // emerges as a fresh candidate (count 2, depth 1) and is extracted
+        // next. The pre-fix one-shot sort+iterate picks `t._1._2` first by
+        // HashMap iteration luck, dropping `t._1`'s tree count to 1 and
+        // missing the second extraction.
+        //
         // Lambda bodies use +2 gap from max ID (Scala compiler convention).
-        let mut all_subexprs: Vec<Expr> = Vec::new();
-        collect_subexprs(&expr, &mut all_subexprs);
-        let dag_usages = count_dag_usages(&expr);
-        let mut candidates: Vec<(Expr, usize)> = Vec::new();
-        for (sub, dag_count) in &dag_usages {
-            if *dag_count < 2 {
-                continue;
-            }
-            if !is_collectible(sub) {
-                continue;
-            }
-            let tree_count = all_subexprs.iter().filter(|s| *s == sub).count();
-            if tree_count >= 2 {
-                candidates.push((sub.clone(), tree_count));
-            }
-        }
-        if candidates.is_empty() {
-            return expr;
-        }
-        candidates.sort_by_key(|(c, count)| {
-            let depth = expr_depth(c);
-            let savings = (*count as i32 - 1) * depth as i32;
-            std::cmp::Reverse(savings)
-        });
-        // Lambda scope: use +2 gap from max ID (Scala compiler convention)
         let mut next_id = local_max.max(global_max_id) + 2;
         let mut result = expr;
         let mut new_val_defs: Vec<Expr> = Vec::new();
-
-        for (candidate, _count) in &candidates {
-            let current_count = count_occurrences(&result, candidate);
-            if current_count < 2 {
-                continue;
+        loop {
+            let mut all_subexprs: Vec<Expr> = Vec::new();
+            collect_subexprs(&result, &mut all_subexprs);
+            let dag_usages = count_dag_usages(&result);
+            let mut best: Option<(Expr, i32, usize)> = None;
+            for (sub, dag_count) in &dag_usages {
+                if *dag_count < 2 {
+                    continue;
+                }
+                if !is_collectible(sub) {
+                    continue;
+                }
+                let tree_count = all_subexprs.iter().filter(|s| *s == sub).count();
+                if tree_count < 2 {
+                    continue;
+                }
+                let depth = expr_depth(sub);
+                let savings = (tree_count as i32 - 1) * depth as i32;
+                let better = match &best {
+                    None => true,
+                    Some((_, best_sav, best_depth)) => {
+                        savings > *best_sav
+                            || (savings == *best_sav && depth < *best_depth)
+                    }
+                };
+                if better {
+                    best = Some((sub.clone(), savings, depth));
+                }
             }
+            let Some((candidate, _, _)) = best else { break };
             let val_id = next_id;
             next_id += 1;
-            let tpe = expr_type(candidate);
+            let tpe = expr_type(&candidate);
             result = replace_all(
                 &result,
-                candidate,
+                &candidate,
                 &Expr::ValUse(ValUse {
                     val_id: ValId(val_id),
                     tpe,
@@ -2756,7 +2768,7 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
                 source_span: SourceSpan::empty(),
                 expr: ValDef {
                     id: ValId(val_id),
-                    rhs: candidate.clone().into(),
+                    rhs: candidate.into(),
                 },
             }));
         }
@@ -2764,7 +2776,7 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         if new_val_defs.is_empty() {
             return result;
         }
-        match result {
+        let wrapped = match result {
             Expr::BlockValue(spanned) => {
                 let mut items = new_val_defs;
                 items.extend(spanned.expr.items);
@@ -2783,13 +2795,41 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
                     result: other.into(),
                 },
             }),
-        }
+        };
+        // sig-15 oracle_refresh: the outer `inline_single_use_vals` and
+        // `reorder_valdefs` passes don't recurse into lambda bodies (their
+        // driver, `map_children`, intentionally does not cross FuncValue
+        // boundaries — that's owned by `process_lambdas`). Source-level vals
+        // like `wasSorted`/`oldSum` that survive HIR
+        // `has_shared_field_in_clean_scope` (because they share `t._2`
+        // access) get pinned as MIR ValDefs and are never inlined despite
+        // single use; and CSE-introduced ValDefs end up prepended in
+        // emission order rather than DFS-walk order. Scala does both
+        // implicitly via TreeBuilding's single graph traversal. Apply
+        // inline+reorder here so the lambda-body shape and ID order match
+        // NODE.
+        reorder_valdefs(inline_single_use_vals(wrapped))
     } else if has_lambdas {
         // Top-level with lambdas: use the old savings-based approach.
         // The Scala compiler's flatSchedule (which includes lambda body nodes)
         // changes effective usage counts, so we block ValUse-containing
         // expressions to match. The graph IR approach over-extracts here
         // because it doesn't model the flatSchedule interaction.
+        //
+        // Carve-out (sig-15 oracle_refresh R2): the blanket `contains_val_use`
+        // block over-rejects structural unary ops on an outer-bound ValUse.
+        // Scala's graph IR hash-conses `SelectField(ValUse, n)` and
+        // `SizeOf(ValUse)` (their sym depends only on the ValUse, which is
+        // root-bound), and `mainG.hasManyUsagesGlobal` counts cross-ThunkDef
+        // uses for these — so they get extracted at root regardless of where
+        // the uses physically sit. PropertyCall / Extract* / etc. are NOT
+        // hash-consed identically (method-call symbols carry method-specific
+        // identity), so we keep those blocked. Companion to `168acaf2`'s
+        // SelectField-on-ValUse carve-out in `process_ast_graph_impl`.
+        //
+        // Restricted further to count_in_lambda_bodies == 0: when a candidate
+        // also has lambda-body occurrences, the flatSchedule semantics differ
+        // and the original block applies.
         let mut all_subexprs: Vec<Expr> = Vec::new();
         collect_subexprs(&expr, &mut all_subexprs);
         let dag_usages = count_dag_usages(&expr);
@@ -2798,8 +2838,18 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
             if *dag_count < 2 {
                 continue;
             }
-            if !is_collectible(sub) || contains_val_use(sub) {
+            if !is_collectible(sub) {
                 continue;
+            }
+            if contains_val_use(sub) {
+                let is_root_bound_unary = matches!(sub,
+                    Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_))
+                ) || matches!(sub,
+                    Expr::SizeOf(s) if matches!(&*s.input, Expr::ValUse(_))
+                );
+                if !is_root_bound_unary || count_in_lambda_bodies(&expr, sub) > 0 {
+                    continue;
+                }
             }
             let tree_count = all_subexprs.iter().filter(|s| *s == sub).count();
             if tree_count >= 2 {
