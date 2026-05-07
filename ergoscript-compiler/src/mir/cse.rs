@@ -2982,6 +2982,19 @@ fn map_children_with_id_mut(expr: Expr, gid: &mut u32, f: fn(Expr, &mut u32) -> 
                 until: f(*s.expr.until, gid).into(),
             },
         }),
+        // Fold's `fold_op` is the FuncValue; without descending here,
+        // `process_lambdas` never reaches the lambda body and inner-scope
+        // CSE on the accumulator-tuple selectors is skipped. Closes
+        // oracle_refresh shared `t` / `t._2` selector chain inside the
+        // fold lambda body.
+        Expr::Fold(s) => Expr::Fold(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::coll_fold::Fold {
+                input: f(*s.expr.input, gid).into(),
+                zero: f(*s.expr.zero, gid).into(),
+                fold_op: f(*s.expr.fold_op, gid).into(),
+            },
+        }),
         Expr::SigmaAnd(sa) => {
             let items: Vec<Expr> = sa.items.into_iter().map(|i| f(i, gid)).collect();
             Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
