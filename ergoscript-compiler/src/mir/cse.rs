@@ -658,6 +658,7 @@ fn reorder_valdefs(expr: Expr) -> Expr {
                 &mut emitted,
                 &mut emitted_ids,
                 false,
+                false,
             );
 
             // Drop ValDefs with zero uses (dead post-fold residue).
@@ -1940,12 +1941,19 @@ fn collect_all_val_uses(expr: &Expr, out: &mut Vec<u32>) {
 /// ThunkDef's flatSchedule lists inner ThunkDefs before their parent expressions,
 /// which causes the innermost || in a left-associative chain to effectively
 /// process its right arm before the left arm.
+///
+/// `parent_is_or` is true iff this expression's immediate parent in the
+/// recursion is a `BinOp(Or)`. Used to gate the OR-chain reverse_inner logic
+/// so it only fires inside actual OR chains. For a standalone `(a || b)` whose
+/// parent is `And`, sigmaProp wrap, or a ValDef RHS, this stays false and the
+/// natural left-then-right walk is preserved (sig-15 sigmausd_bank S4 fix).
 fn emit_deps(
     expr: &Expr,
     val_map: &HashMap<u32, Expr>,
     emitted: &mut Vec<Expr>,
     emitted_ids: &mut HashSet<u32>,
     in_thunk: bool,
+    parent_is_or: bool,
 ) {
     match expr {
         Expr::ValUse(vu) => {
@@ -1954,7 +1962,7 @@ fn emit_deps(
                 if let Some(vd_expr) = val_map.get(&id) {
                     if let Expr::ValDef(vd) = vd_expr {
                         // Emit dependencies of this ValDef's RHS first
-                        emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk);
+                        emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk, false);
                     }
                     emitted_ids.insert(id);
                     emitted.push(vd_expr.clone());
@@ -1963,11 +1971,11 @@ fn emit_deps(
         }
         Expr::BlockValue(s) => {
             for item in &s.expr.items {
-                emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(item, val_map, emitted, emitted_ids, in_thunk, false);
             }
-            emit_deps(&s.expr.result, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.result, val_map, emitted, emitted_ids, in_thunk, false);
         }
-        Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::BinOp(s) => {
             let is_logical = matches!(
                 s.expr.kind,
@@ -1995,29 +2003,34 @@ fn emit_deps(
                         ergotree_ir::mir::bin_op::LogicalOp::Or
                     )
                 ));
-                let reverse_inner = in_thunk && is_or && !left_is_or;
+                // Gate `reverse_inner` on `parent_is_or` so it only fires for the
+                // innermost OR of an actual OR chain (where the parent is also an
+                // OR). A standalone `(a || b)` whose parent is `And`, `sigmaProp`,
+                // or a ValDef RHS has parent_is_or=false → no reverse, preserving
+                // natural left-to-right dep-walk. sig-15 sigmausd_bank S4 close.
+                let reverse_inner = in_thunk && is_or && !left_is_or && parent_is_or;
                 if reverse_inner {
                     // Innermost || in thunk context: right arm first (matches Scala's
                     // ThunkDef body flatSchedule where ThunkDef children come before parents)
-                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true);
-                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, true);
+                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true, is_or);
+                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, true, is_or);
                 } else {
                     // Left arm is in main scope (not thunk)
-                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk);
+                    emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk, is_or);
                     // Right arm enters thunk context
-                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true);
+                    emit_deps(&s.expr.right, val_map, emitted, emitted_ids, true, is_or);
                 }
             } else {
-                emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk);
-                emit_deps(&s.expr.right, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk, false);
+                emit_deps(&s.expr.right, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::BoolToSigmaProp(bts) => {
-            emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&bts.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
         Expr::If(if_op) => {
             // Condition is in the main scope — process normally
-            emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk, false);
             // If branches are ThunkDef scopes in Scala's graph IR.
             // ThunkDef.deps (free variables) are ordered by symbol ID,
             // so we collect all val refs from both branches, sort by ID,
@@ -2097,7 +2110,7 @@ fn emit_deps(
                 if !emitted_ids.contains(&id) {
                     if let Some(vd_expr) = val_map.get(&id) {
                         if let Expr::ValDef(vd) = vd_expr {
-                            emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk);
+                            emit_deps(&vd.expr.rhs, val_map, emitted, emitted_ids, in_thunk, false);
                         }
                         emitted_ids.insert(id);
                         emitted.push(vd_expr.clone());
@@ -2106,139 +2119,139 @@ fn emit_deps(
             }
         }
         Expr::Filter(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Exists(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::ForAll(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Map(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.mapper, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.mapper, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Fold(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.zero, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.fold_op, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.zero, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.fold_op, val_map, emitted, emitted_ids, in_thunk, false);
         }
-        Expr::FuncValue(fv) => emit_deps(fv.body(), val_map, emitted, emitted_ids, in_thunk),
-        Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk),
+        Expr::FuncValue(fv) => emit_deps(fv.body(), val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::MethodCall(s) => {
-            emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk, false);
             for a in &s.expr.args {
-                emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(a, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::ByteArrayToBigInt(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
-        Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::ExtractRegisterAs(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
         Expr::ExtractScriptBytes(esb) => {
-            emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
-        Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::ExtractCreationInfo(eci) => {
-            emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
-        Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::ByIndex(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.index, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.index, val_map, emitted, emitted_ids, in_thunk, false);
             if let Some(ref d) = s.expr.default {
-                emit_deps(d, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(d, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
-        Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::OptionIsDefined(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
         Expr::OptionGetOrElse(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.default, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.default, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Slice(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.from, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.until, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.from, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.until, val_map, emitted, emitted_ids, in_thunk, false);
         }
-        Expr::LogicalNot(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::Negation(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::SigmaPropBytes(spb) => emit_deps(&spb.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::LogicalNot(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::Negation(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::SigmaPropBytes(spb) => emit_deps(&spb.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::CreateProveDlog(cpd) => {
-            emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk)
+            emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
         Expr::CreateProveDhTuple(cpd) => {
-            emit_deps(&cpd.g, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&cpd.h, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&cpd.u, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&cpd.v, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&cpd.g, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&cpd.h, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&cpd.u, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&cpd.v, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::SigmaAnd(sa) => {
             for i in sa.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::SigmaOr(so) => {
             for i in so.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::Tuple(t) => {
             for i in t.items.iter() {
-                emit_deps(i, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(i, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::TreeLookup(s) => {
-            emit_deps(&s.expr.tree, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.key, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.proof, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.tree, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.key, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.proof, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Apply(app) => {
-            emit_deps(&app.func, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&app.func, val_map, emitted, emitted_ids, in_thunk, false);
             for a in &app.args {
-                emit_deps(a, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(a, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
-        Expr::And(a) => emit_deps(&a.expr.input, val_map, emitted, emitted_ids, in_thunk),
-        Expr::Or(o) => emit_deps(&o.expr.input, val_map, emitted, emitted_ids, in_thunk),
+        Expr::And(a) => emit_deps(&a.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::Or(o) => emit_deps(&o.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
-                emit_deps(item, val_map, emitted, emitted_ids, in_thunk);
+                emit_deps(item, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::Append(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.expr.col_2, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.expr.col_2, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::Exponentiate(s) => {
-            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::MultiplyGroup(s) => {
-            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk);
-            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(&s.right, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::DecodePoint(s) => {
-            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::LongToByteArray(s) => {
-            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::ByteArrayToLong(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk);
+            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
         }
         _ => {}
     }
