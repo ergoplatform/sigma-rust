@@ -2943,6 +2943,18 @@ fn map_children_with_id_mut(expr: Expr, gid: &mut u32, f: fn(Expr, &mut u32) -> 
                 method: s.expr.method,
             },
         }),
+        // Slice can wrap a Filter (`coll.filter(...).slice(...)`); without
+        // descending into Slice's children, `process_lambdas` never reaches
+        // the inner FuncValue and the Filter lambda body is left un-CSE'd.
+        // Closes rosen_event_trigger 1B (`box.tokens` 2× inside Filter body).
+        Expr::Slice(s) => Expr::Slice(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::coll_slice::Slice {
+                input: f(*s.expr.input, gid).into(),
+                from: f(*s.expr.from, gid).into(),
+                until: f(*s.expr.until, gid).into(),
+            },
+        }),
         Expr::SigmaAnd(sa) => {
             let items: Vec<Expr> = sa.items.into_iter().map(|i| f(i, gid)).collect();
             Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
