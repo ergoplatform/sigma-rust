@@ -20,9 +20,9 @@ use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 use crate::serialization::constant_store::ConstantStore;
 use core::convert::TryFrom;
-use core2::io;
 use derive_more::From;
 use io::Cursor;
+use no_std_io2::io;
 #[cfg(feature = "std")]
 use std::sync::OnceLock;
 use thiserror::Error;
@@ -440,8 +440,8 @@ impl TryFrom<ErgoTree> for ProveDlog {
     }
 }
 
-impl From<core2::io::Error> for ErgoTreeError {
-    fn from(e: core2::io::Error) -> Self {
+impl From<no_std_io2::io::Error> for ErgoTreeError {
+    fn from(e: no_std_io2::io::Error) -> Self {
         ErgoTreeError::IoError(e.to_string())
     }
 }
