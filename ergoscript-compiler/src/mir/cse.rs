@@ -2820,10 +2820,13 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
         if new_val_defs.is_empty() {
             return result;
         }
+        let (new_val_defs, result, _next_id) =
+            lambda_rescue_post_pass(new_val_defs, result, next_id);
         match result {
             Expr::BlockValue(spanned) => {
                 let mut items = new_val_defs;
                 items.extend(spanned.expr.items);
+                let items = topo_order_valdefs(items);
                 Expr::BlockValue(Spanned {
                     source_span: SourceSpan::empty(),
                     expr: BlockValue {
@@ -2835,7 +2838,7 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
             other => Expr::BlockValue(Spanned {
                 source_span: SourceSpan::empty(),
                 expr: BlockValue {
-                    items: new_val_defs,
+                    items: topo_order_valdefs(new_val_defs),
                     result: other.into(),
                 },
             }),
@@ -5406,6 +5409,24 @@ fn process_ast_graph_impl(
         })
         .collect();
 
+    // Lambda-rescue post-pass: if a sub-expression of one of these new
+    // ValDef RHSes also appears in a lambda body in `result`, extract it
+    // as a separate ValDef. Mirrors Scala's `mainG.hasManyUsagesGlobal`
+    // behaviour through ThunkDef boundaries (sig-15 rosen_event_trigger).
+    let post_next_id = val_defs
+        .iter()
+        .filter_map(|vd| {
+            if let Expr::ValDef(s) = vd {
+                Some(s.expr.id.0)
+            } else {
+                None
+            }
+        })
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(next_id);
+    let (val_defs, result, _) = lambda_rescue_post_pass(val_defs, result, post_next_id);
+
     // Wrap in BlockValue. New ValDefs are prepended to existing items, but
     // their RHSs may ValUse existing item ids and existing items may ValUse
     // newly-extracted ids. Topo-sort to ensure every ValUse comes after its
@@ -5769,12 +5790,126 @@ fn count_occurrences(expr: &Expr, target: &Expr) -> usize {
                 count += count_occurrences(item, target);
             }
         }
-        Expr::FuncValue(_) => {
-            // Don't count inside lambda bodies — they're handled separately
+        Expr::FuncValue(fv) => {
+            // Recurse into lambda body so cross-lambda occurrences are seen.
+            // Mirrors Scala's mainG.hasManyUsagesGlobal which counts parent
+            // edges across ThunkDef boundaries on the global IR sym graph
+            // (sig-15 rosen_event_trigger: OUTPUTS(0).propBytes used 2×
+            // wrapped in Blake2b256 + 1× raw inside a forall lambda body).
+            count += count_occurrences(fv.body(), target);
         }
         _ => {}
     }
     count
+}
+
+/// Lambda-rescue post-pass shared between `cse_expr`'s has_lambdas branch and
+/// `process_ast_graph_impl`. For each sub-expression of an already-extracted
+/// ValDef RHS that ALSO appears in a lambda body in `result`, extract it as a
+/// new ValDef. Mirrors Scala's `mainG.hasManyUsagesGlobal` which counts
+/// parent-edge multiplicity through ThunkDef (lambda) boundaries — Rust's
+/// `count_dag_usages` stops at FuncValue, undercounting candidates whose
+/// outer parent-edges are all wrapped in another (already-extracted)
+/// candidate but which also have a literal occurrence in some lambda body.
+///
+/// sig-15 rosen_event_trigger pattern: `OUTPUTS(0).propBytes` wrapped 2× in
+/// `Blake2b256(...)` at top-level + 1× raw inside a forall lambda body. Main
+/// extraction sees only the Blake2b256 wrapper (parent count = 1 to propBytes
+/// at outer); this post-pass recovers val for propBytes when total occurrences
+/// (RHS + lambda body, via FV-recursive count_occurrences) reaches ≥ 2.
+fn lambda_rescue_post_pass(
+    mut new_val_defs: Vec<Expr>,
+    mut result: Expr,
+    mut next_id: u32,
+) -> (Vec<Expr>, Expr, u32) {
+    loop {
+        let mut subs: Vec<Expr> = Vec::new();
+        for vd in &new_val_defs {
+            if let Expr::ValDef(s) = vd {
+                collect_subexprs(&s.expr.rhs, &mut subs);
+            }
+        }
+        let mut unique: Vec<Expr> = Vec::new();
+        for s in &subs {
+            if !unique.iter().any(|u| u == s) {
+                unique.push(s.clone());
+            }
+        }
+        let mut best: Option<(Expr, i32)> = None;
+        for cand in &unique {
+            if !is_collectible(cand) || contains_val_use(cand) {
+                continue;
+            }
+            // count_occurrences is FV-recursive (sees through lambda bodies).
+            let mut total = 0usize;
+            for vd in &new_val_defs {
+                if let Expr::ValDef(s) = vd {
+                    total += count_occurrences(&s.expr.rhs, cand);
+                }
+            }
+            total += count_occurrences(&result, cand);
+            if total < 2 {
+                continue;
+            }
+            // Require ≥ 1 occurrence inside a lambda body — otherwise the
+            // candidate was already considered by main extraction's outer
+            // counting and either extracted or rejected.
+            let in_lambda = count_in_lambda_bodies(&result, cand);
+            if in_lambda == 0 {
+                continue;
+            }
+            let depth = expr_depth(cand) as i32;
+            let savings = (total as i32 - 1) * depth;
+            if best.as_ref().map_or(true, |(_, s)| savings > *s) {
+                best = Some((cand.clone(), savings));
+            }
+        }
+        let Some((cand, _)) = best else { break };
+        let val_id = next_id;
+        next_id += 1;
+        let tpe = expr_type(&cand);
+        let val_use = Expr::ValUse(ValUse {
+            val_id: ValId(val_id),
+            tpe,
+        });
+        for vd in new_val_defs.iter_mut() {
+            if let Expr::ValDef(s) = vd {
+                let new_rhs = replace_all(&s.expr.rhs, &cand, &val_use);
+                *vd = Expr::ValDef(Spanned {
+                    source_span: s.source_span,
+                    expr: ValDef {
+                        id: s.expr.id,
+                        rhs: new_rhs.into(),
+                    },
+                });
+            }
+        }
+        // replace_all is FV-recursive, so lambda bodies are rewritten too.
+        result = replace_all(&result, &cand, &val_use);
+        new_val_defs.push(Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: ValId(val_id),
+                rhs: cand.into(),
+            },
+        }));
+    }
+    (new_val_defs, result, next_id)
+}
+
+/// Count occurrences of `target` strictly inside FuncValue bodies of `expr`.
+/// Used by the has_lambdas post-pass to gate rescue extractions: only fire
+/// for candidates with at least one lambda-body occurrence (otherwise the
+/// candidate would already have been considered by the main loop's
+/// outer-only counting and either extracted or rejected).
+fn count_in_lambda_bodies(expr: &Expr, target: &Expr) -> usize {
+    match expr {
+        Expr::FuncValue(fv) => count_occurrences(fv.body(), target),
+        _ => direct_children(expr)
+            .iter()
+            .map(|c| count_in_lambda_bodies(c, target))
+            .sum(),
+    }
 }
 
 /// Like `count_occurrences` but stops at `Expr::If` branches — only recurses
@@ -6415,7 +6550,15 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
                 .map(Expr::CreateProveDlog)
                 .unwrap_or_else(|_| Expr::CreateProveDlog(cpd.clone()))
         }
-        // Leaves and lambda bodies (not traversed for replacement at this level)
+        // FuncValue: recurse into body so target → replacement substitution
+        // reaches lambda-body occurrences. Mirrors Scala's mainG behaviour
+        // where a sym's references in lambda bodies all become ValUse(outer_id)
+        // when the sym is extracted at the surrounding scope.
+        Expr::FuncValue(fv) => {
+            let new_body = replace_all(fv.body(), target, replacement);
+            Expr::FuncValue(FuncValue::new(fv.args().to_vec(), new_body))
+        }
+        // Leaves
         other => other.clone(),
     }
 }
