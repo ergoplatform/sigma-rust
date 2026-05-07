@@ -4851,6 +4851,20 @@ fn touches_context(expr: &Expr) -> bool {
     }
 }
 
+/// Like `touches_context` but treats the `Global` singleton as pure (it is a
+/// hash-consed singleton sym in Scala's graph IR — its uses are tracked
+/// globally across ThunkDef scopes). Used to recognise candidates whose only
+/// "context" touch is `Global` (e.g. `proveDlog(groupGenerator)`), so they
+/// can be hoisted to root scope under the permissive `appears_outside_if_branches`
+/// check rather than strict `appears_in_main_scope`.
+fn touches_runtime_context(expr: &Expr) -> bool {
+    match expr {
+        Expr::ValUse(_) | Expr::GlobalVars(_) | Expr::Context | Expr::GetVar(_) => true,
+        Expr::Global => false,
+        _ => direct_children(expr).into_iter().any(touches_runtime_context),
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ScopeMode {
     /// Outermost ThunkDef — extracted ValDefs land at root scope.
@@ -5227,8 +5241,21 @@ fn process_ast_graph_impl(
             //   whole point of branch mode is to extract at this branch
             //   scope.
             if mode == ScopeMode::Root {
+                // WS-F cluster 010 B3: `proveDlog(groupGenerator)` — i.e.
+                // `CreateProveDlog` whose only context touch is the singleton
+                // `Global` receiver — is hash-consed in Scala's graph IR
+                // exactly like ExtractId(SELF). `mainG.hasManyUsagesGlobal`
+                // counts its usages across &&/|| ThunkDefs, so when both
+                // occurrences sit inside an `||` right-arm thunk Scala still
+                // extracts the ValDef at the surrounding (root) scope. Without
+                // this carve-out, `appears_in_main_scope` (strict) rejects the
+                // candidate and Rust inlines twice, diverging from Scala.
+                // Empirical fixtures: composition_143, composition_189.
+                let is_global_only_provedlog = matches!(node, Expr::CreateProveDlog(_))
+                    && !touches_runtime_context(node);
                 let use_if_branch_check = matches!(node, Expr::ExtractId(ei) if matches!(&*ei.input, Expr::GlobalVars(_)))
-                    || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)));
+                    || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)))
+                    || is_global_only_provedlog;
                 // Pure-constant Upcast wrappers must be scope-checked even though
                 // they don't touch context: Scala's ThunkScope.findDef chain
                 // creates a separate sym per Thunk for these, so a wrapper used
