@@ -5780,30 +5780,47 @@ fn process_ast_graph_impl(
                 // Empirical fixtures: composition_143, composition_189.
                 let is_global_only_provedlog = matches!(node, Expr::CreateProveDlog(_))
                     && !touches_runtime_context(node);
-                // sig-15 sigmao_option (`168acaf2`) and paideia_stake_state S3: SelectField is
-                // hash-consed by Scala's TreeBuilding on (input_sym, field_index) — the
-                // SelectField sym depends only on the input sym. When the input is shareable at
-                // root, Scala's `mainG.hasManyUsagesGlobal` counts SelectField uses across &&/||
-                // ThunkDefs and emits the ValDef at root. The strict `appears_in_main_scope`
-                // rejects whenever all uses are inside any deferred thunk (And/Or right arm OR
-                // If branch), so it's too aggressive for SelectField. We use the more permissive
-                // `appears_outside_if_branches` for SelectField-on-stable: SelectField is root-
-                // hoistable iff at least one use is reachable without crossing an If-branch
-                // boundary (i.e. the Scala graph would create the SelectField sym at the outer
-                // scope first and subsequent thunk uses would hash-cons to it). Sigmao
-                // (`val tup = box.tokens.getOrElse(...)` then `tup._N` in If-branches) and
-                // paideia (`validSelfReplication = allOf(Coll(... newStakeStateBox.tokens(1)._2
-                // ...))` at outer scope) both have outer-scope uses so they pass; ergoraffle
-                // and duckpools have all SelectField uses inside If-branches so they fail and
-                // remain branch-extracted.
+                // sig-15 sigmao_option (`168acaf2`) and paideia_stake_state S3 (`d6ba8d82`):
+                // SelectField is hash-consed by Scala's TreeBuilding on (input_sym, field_index)
+                // — the SelectField sym depends only on the input sym. When the input is
+                // shareable at root, Scala's `mainG.hasManyUsagesGlobal` counts SelectField uses
+                // across &&/|| ThunkDefs and emits the ValDef at root. The strict
+                // `appears_in_main_scope` rejects whenever all uses are inside any deferred
+                // thunk (And/Or right arm OR If branch), so it's too aggressive for SelectField.
                 //
-                // The input itself must be either already root-bound (`ValUse`) or dag-shared
-                // (will be extracted in this same pass). Otherwise the resolved RHS would still
-                // contain the unresolved input chain (eg `SelectField(branch-local-ByIndex, .f)`)
-                // and over-extract.
-                let is_select_field_on_stable = matches!(node,
+                // Two input-stability classes need different scope-check semantics:
+                //
+                // (A) `Expr::ValUse(_)` input — the ValUse is already root-bound (upstream
+                //     `references_locally_defined` upstream rejects branch-local ValUses, so
+                //     reaching this point implies root-binding). The SelectField sym only
+                //     depends on this root-bound ValUse; Scala's `hasManyUsagesGlobal` will
+                //     hoist regardless of where the uses physically sit, including when ALL
+                //     uses are inside If-arm thunks. Bypass the scope check entirely (S1
+                //     `168acaf2` invariant). Sigmao_option's
+                //     `val tup = box.tokens.getOrElse(...)` + many `tup._N` references inside
+                //     `validMintOption || validDeliverOption || validExerciseOption` If arms
+                //     fits this case.
+                //
+                // (B) Dag-shared non-ValUse input (eg `ByIndex(GlobalVars, Const)` itself shared
+                //     across siblings) — the input WILL be extracted in this same pass, so the
+                //     resolved SelectField RHS becomes `SelectField(ValUse(...), n)`, but until
+                //     resolution the candidate sym still references the unresolved input chain.
+                //     Scala's segregation places it at the LCA of its sibling occurrences. Use
+                //     the LCA-aware permissive check (S3 paideia: `appears_outside_if_branches`
+                //     OR `count_distinct_top_level_containers >= 2`).
+                //
+                // Splitting (A) vs (B) is required: sigmao's `tup._N` uses are all inside If
+                // arms (no use is "outside" any If, and the SelectField appears only inside the
+                // disjunction's body, not in 2+ distinct top-level container positions of the
+                // outer block) — neither LCA predicate fires, so a unified `is_select_field_on_stable`
+                // gate would (and did, post-`d6ba8d82`) reject sigmao's hoist.
+                let is_select_field_on_val_use = matches!(node,
                     Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_))
-                        || dag_usages.iter().any(|(e, c)| *c >= 2 && e == &*s.expr.input)
+                );
+                let is_select_field_on_dag_shared = matches!(node,
+                    Expr::SelectField(s)
+                        if !matches!(&*s.expr.input, Expr::ValUse(_))
+                        && dag_usages.iter().any(|(e, c)| *c >= 2 && e == &*s.expr.input)
                 );
                 let use_if_branch_check = matches!(node, Expr::ExtractId(ei) if matches!(&*ei.input, Expr::GlobalVars(_)))
                     || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)))
@@ -5833,22 +5850,21 @@ fn process_ast_graph_impl(
                 // at root is semantically equivalent to inline evaluation.
                 // Only context-touching and pure-const-Upcast/bare-Const
                 // candidates need the scope check.
-                let needs_check = use_if_branch_check
+                let needs_check = (use_if_branch_check
                     || touches_context(node)
                     || is_pure_const_upcast
                     || is_bare_const
-                    || is_select_field_on_stable;
+                    || is_select_field_on_dag_shared)
+                    && !is_select_field_on_val_use;
                 if needs_check {
-                    let in_scope = if is_select_field_on_stable {
-                        // SelectField on stable input: LCA-aware check. Hoist when
-                        // either (a) at least one use is literally outside an If
-                        // branch (sigmao_option's `tup._N` referenced in another
-                        // outer val's RHS), or (b) the candidate appears in 2+
-                        // distinct top-level sibling containers (paideia's
-                        // `validStakeTx || validEmitTx || validUnstakeTx` arms,
-                        // each containing uses inside their own If cascades).
-                        // Both cases force LCA to the outer scope; case (b) is the
-                        // delta from `168acaf2`.
+                    let in_scope = if is_select_field_on_dag_shared {
+                        // SelectField on dag-shared non-ValUse input: LCA-aware check.
+                        // Hoist when either (a) at least one use is literally outside
+                        // an If branch, or (b) the candidate appears in 2+ distinct
+                        // top-level sibling containers (paideia's `validStakeTx ||
+                        // validEmitTx || validUnstakeTx` arms, each containing uses
+                        // inside their own If cascades). Both cases force the LCA to
+                        // the outer scope. (S3 paideia `d6ba8d82`)
                         appears_outside_if_branches(&expr, node)
                             || count_distinct_top_level_containers(&expr, node) >= 2
                     } else if use_if_branch_check {
