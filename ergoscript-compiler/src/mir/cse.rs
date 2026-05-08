@@ -5682,22 +5682,30 @@ fn process_ast_graph_impl(
                 // Empirical fixtures: composition_143, composition_189.
                 let is_global_only_provedlog = matches!(node, Expr::CreateProveDlog(_))
                     && !touches_runtime_context(node);
-                // sig-15 sigmao_option: `SelectField(ValUse(outer_val), n)` on a tuple
-                // bound at root (typical pattern: `val tup = box.tokens.getOrElse(i, _)`
-                // followed by many `tup._1` / `tup._2` references) is hash-consed in
-                // Scala's graph IR — the SelectField sym depends only on the outer
-                // ValUse, which is itself root-bound. Scala's `mainG.hasManyUsagesGlobal`
-                // counts uses across &&/|| ThunkDefs AND If-branch ThunkDefs and emits
-                // the ValDef at root regardless of where the uses physically sit. The
-                // strict `appears_in_main_scope` AND permissive `appears_outside_if_branches`
-                // both reject when all uses are inside If arms — but this is the wrong
-                // model for SelectField(ValUse): the ValUse itself is the only stable
-                // dependency, and it IS at root, so the SelectField can be hoisted to
-                // root unconditionally. (`references_locally_defined` upstream already
-                // rejects ValUses targeting branch-local IDs, so reaching this point
-                // implies the ValUse is root-bound.)
-                let is_select_field_on_val_use = matches!(node,
+                // sig-15 sigmao_option (`168acaf2`) and paideia_stake_state S3: SelectField is
+                // hash-consed by Scala's TreeBuilding on (input_sym, field_index) — the
+                // SelectField sym depends only on the input sym. When the input is shareable at
+                // root, Scala's `mainG.hasManyUsagesGlobal` counts SelectField uses across &&/||
+                // ThunkDefs and emits the ValDef at root. The strict `appears_in_main_scope`
+                // rejects whenever all uses are inside any deferred thunk (And/Or right arm OR
+                // If branch), so it's too aggressive for SelectField. We use the more permissive
+                // `appears_outside_if_branches` for SelectField-on-stable: SelectField is root-
+                // hoistable iff at least one use is reachable without crossing an If-branch
+                // boundary (i.e. the Scala graph would create the SelectField sym at the outer
+                // scope first and subsequent thunk uses would hash-cons to it). Sigmao
+                // (`val tup = box.tokens.getOrElse(...)` then `tup._N` in If-branches) and
+                // paideia (`validSelfReplication = allOf(Coll(... newStakeStateBox.tokens(1)._2
+                // ...))` at outer scope) both have outer-scope uses so they pass; ergoraffle
+                // and duckpools have all SelectField uses inside If-branches so they fail and
+                // remain branch-extracted.
+                //
+                // The input itself must be either already root-bound (`ValUse`) or dag-shared
+                // (will be extracted in this same pass). Otherwise the resolved RHS would still
+                // contain the unresolved input chain (eg `SelectField(branch-local-ByIndex, .f)`)
+                // and over-extract.
+                let is_select_field_on_stable = matches!(node,
                     Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_))
+                        || dag_usages.iter().any(|(e, c)| *c >= 2 && e == &*s.expr.input)
                 );
                 let use_if_branch_check = matches!(node, Expr::ExtractId(ei) if matches!(&*ei.input, Expr::GlobalVars(_)))
                     || matches!(node, Expr::ExtractAmount(ea) if matches!(&*ea.input, Expr::GlobalVars(_) | Expr::ByIndex(_)))
@@ -5727,13 +5735,25 @@ fn process_ast_graph_impl(
                 // at root is semantically equivalent to inline evaluation.
                 // Only context-touching and pure-const-Upcast/bare-Const
                 // candidates need the scope check.
-                let needs_check = (use_if_branch_check
+                let needs_check = use_if_branch_check
                     || touches_context(node)
                     || is_pure_const_upcast
-                    || is_bare_const)
-                    && !is_select_field_on_val_use;
+                    || is_bare_const
+                    || is_select_field_on_stable;
                 if needs_check {
-                    let in_scope = if use_if_branch_check {
+                    let in_scope = if is_select_field_on_stable {
+                        // SelectField on stable input: LCA-aware check. Hoist when
+                        // either (a) at least one use is literally outside an If
+                        // branch (sigmao_option's `tup._N` referenced in another
+                        // outer val's RHS), or (b) the candidate appears in 2+
+                        // distinct top-level sibling containers (paideia's
+                        // `validStakeTx || validEmitTx || validUnstakeTx` arms,
+                        // each containing uses inside their own If cascades).
+                        // Both cases force LCA to the outer scope; case (b) is the
+                        // delta from `168acaf2`.
+                        appears_outside_if_branches(&expr, node)
+                            || count_distinct_top_level_containers(&expr, node) >= 2
+                    } else if use_if_branch_check {
                         appears_outside_if_branches(&expr, node)
                     } else {
                         appears_in_main_scope(&expr, node)
@@ -5959,6 +5979,90 @@ fn appears_outside_if_inner(expr: &Expr, target: &Expr, in_if_branch: bool) -> b
 /// Get the type of an expression.
 fn expr_type(expr: &Expr) -> SType {
     expr.tpe()
+}
+
+/// Count distinct top-level siblings of `tree` that contain at least one
+/// occurrence of `target`. For a `BlockValue` outer scope, "siblings" are
+/// the items[] entries plus the result expression. The LCA of target's uses
+/// is the outer scope iff at least 2 distinct siblings contain the target —
+/// then Scala's segregation emits the ValDef at the outer scope (root).
+///
+/// sig-15 paideia_stake_state S3: SelectField on a stable input
+/// (`box.tokens(i)._f`) used inside If branches across 2+ sibling val RHSs
+/// or sibling thunks of an outer Or-chain (`validStakeTx || validEmitTx ||
+/// validUnstakeTx`) has its LCA at root despite no use being outside any If.
+/// `appears_outside_if_branches` would reject — it requires a use literally
+/// outside any If — but Scala hoists because the per-thunk syms unify at
+/// the outer scope when ≥2 sibling thunks reference the same input sym.
+fn count_distinct_top_level_containers(tree: &Expr, target: &Expr) -> usize {
+    // Step into wrapping unary nodes (`sigmaProp` / `BoolToSigmaProp`) so the
+    // outer Or/And chain inside is reached. HIR inlines single-use vals, so
+    // `sigmaProp(validStakeTx || validEmitTx || validUnstakeTx)` arrives here
+    // as a single result expression rather than three sibling items[]; we need
+    // to walk into the chain to count the original sibling thunks.
+    let inner = match tree {
+        Expr::BoolToSigmaProp(bsp) => &*bsp.input,
+        _ => tree,
+    };
+    let siblings: Vec<&Expr> = match inner {
+        Expr::BlockValue(bv) => {
+            let mut v: Vec<&Expr> = bv.expr.items.iter().collect();
+            // If the block's result is itself a logical chain, expand its arms
+            // as additional sibling containers (arms post-HIR-inline).
+            let result_inner: &Expr = match &*bv.expr.result {
+                Expr::BoolToSigmaProp(bsp) => &bsp.input,
+                other => other,
+            };
+            match result_inner {
+                Expr::BinOp(s)
+                    if matches!(
+                        s.expr.kind,
+                        ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                            ergotree_ir::mir::bin_op::LogicalOp::Or
+                                | ergotree_ir::mir::bin_op::LogicalOp::And
+                        )
+                    ) =>
+                {
+                    collect_logical_chain_arms(result_inner, s.expr.kind, &mut v);
+                }
+                _ => v.push(&bv.expr.result),
+            }
+            v
+        }
+        Expr::BinOp(s)
+            if matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::Or
+                        | ergotree_ir::mir::bin_op::LogicalOp::And
+                )
+            ) =>
+        {
+            let mut v: Vec<&Expr> = Vec::new();
+            collect_logical_chain_arms(inner, s.expr.kind, &mut v);
+            v
+        }
+        _ => vec![inner],
+    };
+    siblings
+        .iter()
+        .filter(|s| count_occurrences(s, target) > 0)
+        .count()
+}
+
+fn collect_logical_chain_arms<'a>(
+    expr: &'a Expr,
+    kind: ergotree_ir::mir::bin_op::BinOpKind,
+    out: &mut Vec<&'a Expr>,
+) {
+    if let Expr::BinOp(s) = expr {
+        if s.expr.kind == kind {
+            collect_logical_chain_arms(&s.expr.left, kind, out);
+            collect_logical_chain_arms(&s.expr.right, kind, out);
+            return;
+        }
+    }
+    out.push(expr);
 }
 
 /// Estimate the depth of an expression (for sorting candidates innermost-first).
