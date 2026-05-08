@@ -5002,6 +5002,182 @@ fn debug_gluon() {
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
 
+/// Local-only probe: for each sig-15 fixture, compile locally and report
+/// post-CSE ValId collision count + whether segregation roundtrip succeeds.
+/// No node call, no byte comparison; pure structural diagnostic.
+///
+/// Run: cargo test -p ergoscript-compiler probe_sig15_collisions -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_sig15_collisions() {
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    use ergotree_ir::mir::val_def::ValId;
+    use ergotree_ir::traversable::Traversable;
+    use ergotree_ir::types::stype::SType;
+    use std::collections::HashMap;
+
+    fn walk_collisions(
+        e: &MirExpr,
+        seen: &mut HashMap<ValId, Vec<SType>>,
+        type_collisions: &mut usize,
+        total_collisions: &mut usize,
+    ) {
+        if let MirExpr::ValDef(vd) = e {
+            let id = vd.expr.id;
+            let tpe = vd.expr.rhs.tpe();
+            let entry = seen.entry(id).or_default();
+            for prev in entry.iter() {
+                *total_collisions += 1;
+                if prev != &tpe {
+                    *type_collisions += 1;
+                }
+            }
+            entry.push(tpe);
+        }
+        for c in <MirExpr as Traversable>::children(e) {
+            walk_collisions(c, seen, type_collisions, total_collisions);
+        }
+    }
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+
+    let fixtures: &[(&str, String)] = &[
+        ("chaincash_reserve.es", String::new()),
+        ("dexy_bank_full.es", String::new()),
+        ("duckpools_child_interest.es", String::new()),
+        ("oracle_refresh.es", String::new()),
+        ("rosen_event_trigger.es", String::new()),
+        ("sigmao_option.es", String::new()),
+        ("skyharbor_v1_erg.es", String::new()),
+        ("spectrum_n2t_pool.es", String::new()),
+        (
+            "ergomixer_fullmix.es",
+            format!(
+                "val tokenId: Coll[Byte] = {dummy_token};\n\
+                 val feeEmissionScriptHash: Coll[Byte] = {dummy_token2};\n",
+            ),
+        ),
+        (
+            "ergoraffle_active.es",
+            format!(
+                "val ticketScriptHash: Coll[Byte] = {dummy_token};\n\
+                 val winnerScriptHash: Coll[Byte] = {dummy_token2};\n\
+                 val redeemScriptHash: Coll[Byte] = {dummy_token3};\n\
+                 val randomBoxToken: Coll[Byte] = {dummy_token};\n\
+                 val fee: Long = 1000000L;\n",
+            ),
+        ),
+        (
+            "gluon_box_guard.es",
+            format!(
+                "val _MinFee: Long = 1000000L;\n\
+                 val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+                 val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+                 val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+                 val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+                 val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+                 val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+                 val _BOX: Coll[Byte] = {dummy_token};\n\
+                 val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+                 val _MULTISIG: SigmaProp = {dummy_pk};\n\
+                 val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+                 val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+                 val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+                 val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _DEV_FEE_REPAID: Long = 0L;\n\
+                 val _FEE_REPAID: Long = 0L;\n\
+                 val _Per_volume_bucket: Long = 720L;\n\
+                 val _PER_VOLUME_BUCKET: Long = 720L;\n",
+            ),
+        ),
+        (
+            "phoenix_hodlerg_bank_full.es",
+            format!("val phoenixFeeContractBytesHash: Coll[Byte] = {dummy_token};\n",),
+        ),
+        (
+            "paideia_stake_state.es",
+            format!(
+                "val _stakedTokenID: Coll[Byte] = {dummy_token};\n\
+                 val _stakePoolNFT: Coll[Byte] = {dummy_token2};\n\
+                 val _emissionNFT: Coll[Byte] = {dummy_token3};\n\
+                 val _stakeContractHash: Coll[Byte] = {dummy_addr};\n",
+            ),
+        ),
+        (
+            "sigmausd_bank.es",
+            format!(
+                "val oraclePoolNFT: Coll[Byte] = {dummy_token};\n\
+                 val updateNFT: Coll[Byte] = {dummy_token2};\n\
+                 val minReserveRatioPercent: Long = 400L;\n\
+                 val defaultMaxReserveRatioPercent: Long = 800L;\n",
+            ),
+        ),
+        (
+            "spectrum_t2t_pool.es",
+            String::from("val InitiallyLockedLP: Long = 9223372036854775807L;\n"),
+        ),
+    ];
+    let _ = dummy_pk;
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+
+    eprintln!("\n=== Sig-15 Collision/Segregation Probe (LOCAL only) ===");
+    eprintln!(
+        "{:30}  {:>8}  {:>10}  {:>10}  {:>14}  {:>10}",
+        "fixture", "valdefs", "distinct", "type-coll", "total-coll", "segreg"
+    );
+    for (fixture, prelude) in fixtures {
+        let path = fixtures_dir.join(fixture);
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let source = if prelude.is_empty() {
+            raw.clone()
+        } else if let Some(idx) = raw.find('{') {
+            let mut s = String::with_capacity(raw.len() + prelude.len());
+            s.push_str(&raw[..=idx]);
+            s.push('\n');
+            s.push_str(prelude);
+            s.push_str(&raw[idx + 1..]);
+            s
+        } else {
+            raw.clone()
+        };
+
+        let expr = match compile_expr(&source, ScriptEnv::new()) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("  {:30}  COMPILE ERROR {:?}", fixture, e);
+                continue;
+            }
+        };
+        let mut seen = HashMap::new();
+        let mut type_coll = 0;
+        let mut tot_coll = 0;
+        walk_collisions(&expr, &mut seen, &mut type_coll, &mut tot_coll);
+        let total: usize = seen.values().map(|v| v.len()).sum();
+        let distinct = seen.len();
+        let segreg = ErgoTree::new(ErgoTreeHeader::v0(true), &expr);
+        let segreg_tag = match &segreg {
+            Ok(_) => "OK",
+            Err(_) => "FAIL",
+        };
+        eprintln!(
+            "  {:30}  {:>8}  {:>10}  {:>10}  {:>14}  {:>10}",
+            fixture, total, distinct, type_coll, tot_coll, segreg_tag
+        );
+    }
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 ///
 /// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`
