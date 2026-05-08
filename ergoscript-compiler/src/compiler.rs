@@ -4820,6 +4820,188 @@ fn debug_paideia() {
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
 
+/// Dev-only: dump LOCAL/NODE hex + IR for gluon_box_guard.
+/// Run: source ~/.secrets && cargo test -p ergoscript-compiler debug_gluon -- --ignored --nocapture
+#[test]
+#[ignore]
+fn debug_gluon() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let raw = std::fs::read_to_string(fixtures_dir.join("gluon_box_guard.es")).unwrap();
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+    let prelude = format!(
+        "val _MinFee: Long = 1000000L;\n\
+         val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+         val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+         val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+         val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+         val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+         val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+         val _BOX: Coll[Byte] = {dummy_token};\n\
+         val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+         val _MULTISIG: SigmaProp = {dummy_pk};\n\
+         val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+         val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+         val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+         val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _DEV_FEE_REPAID: Long = 0L;\n\
+         val _FEE_REPAID: Long = 0L;\n\
+         val _Per_volume_bucket: Long = 720L;\n\
+         val _PER_VOLUME_BUCKET: Long = 720L;\n",
+    );
+    let idx = raw.find('{').expect("gluon_box_guard.es missing leading {");
+    let mut source = String::with_capacity(raw.len() + prelude.len());
+    source.push_str(&raw[..=idx]);
+    source.push('\n');
+    source.push_str(&prelude);
+    source.push_str(&raw[idx + 1..]);
+
+    let expr = compile_expr(&source, ScriptEnv::new()).unwrap();
+    let segregation_attempt = ErgoTree::new(ErgoTreeHeader::v0(true), &expr);
+    eprintln!(
+        "\n=== gluon_box_guard SEGREGATION PROBE ===\nsegregation_attempt: {}",
+        match &segregation_attempt {
+            Ok(_) => "OK".to_string(),
+            Err(e) => format!("ERR {:?}", e),
+        }
+    );
+
+    // Walk CSE'd expr and detect ValDef-ID collisions where rhs types differ.
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    use ergotree_ir::mir::val_def::ValId;
+    use ergotree_ir::traversable::Traversable;
+    use ergotree_ir::types::stype::SType;
+    use std::collections::HashMap;
+    fn walk_collisions(
+        e: &MirExpr,
+        seen: &mut HashMap<ValId, Vec<SType>>,
+        collisions: &mut Vec<(ValId, SType, SType)>,
+    ) {
+        if let MirExpr::ValDef(vd) = e {
+            let id = vd.expr.id;
+            let tpe = vd.expr.rhs.tpe();
+            let entry = seen.entry(id).or_default();
+            for prev in entry.iter() {
+                if prev != &tpe {
+                    collisions.push((id, prev.clone(), tpe.clone()));
+                }
+            }
+            entry.push(tpe);
+        }
+        for c in <MirExpr as Traversable>::children(e) {
+            walk_collisions(c, seen, collisions);
+        }
+    }
+    let mut seen = HashMap::new();
+    let mut collisions = Vec::new();
+    walk_collisions(&expr, &mut seen, &mut collisions);
+    eprintln!("VAL_ID collision count: {}", collisions.len());
+    for (id, t1, t2) in collisions.iter().take(20) {
+        eprintln!("  COLLISION ValId({:?}): {:?} vs {:?}", id, t1, t2);
+    }
+    let total_valdefs: usize = seen.values().map(|v| v.len()).sum();
+    eprintln!(
+        "total ValDef nodes: {}; distinct IDs: {}",
+        total_valdefs,
+        seen.len()
+    );
+
+    // Also: find any OptionGet whose input ValUse points at an id whose
+    // post-walker recorded type is NOT SOption.
+    fn walk_optget_mismatches(
+        e: &MirExpr,
+        store_get: &dyn Fn(&ValId) -> Option<SType>,
+        out: &mut Vec<(ValId, SType)>,
+    ) {
+        if let MirExpr::OptionGet(og) = e {
+            if let MirExpr::ValUse(vu) = og.expr.input.as_ref() {
+                if let Some(t) = store_get(&vu.val_id) {
+                    if !matches!(t, SType::SOption(_)) {
+                        out.push((vu.val_id, t));
+                    }
+                }
+            }
+        }
+        for c in <MirExpr as Traversable>::children(e) {
+            walk_optget_mismatches(c, store_get, out);
+        }
+    }
+    let store_lookup: HashMap<ValId, SType> = seen
+        .iter()
+        .map(|(id, v)| (*id, v.last().unwrap().clone()))
+        .collect();
+    let mut og_bad = Vec::new();
+    walk_optget_mismatches(
+        &expr,
+        &|id| store_lookup.get(id).cloned(),
+        &mut og_bad,
+    );
+    eprintln!("OptionGet(ValUse(N)) where N's last-walker type is NOT SOption: {}", og_bad.len());
+    for (id, t) in og_bad.iter().take(10) {
+        eprintln!("  ValId({:?}) last-recorded type {:?}", id, t);
+    }
+
+    let local_tree = compile(&source, ScriptEnv::new()).unwrap();
+    let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+    let local_hex: String = local_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let canon = compile_canonical(&source, ScriptEnv::new(), node_url, &api_key).unwrap();
+    let node_bytes = canon.tree.sigma_serialize_bytes().unwrap();
+    let node_hex: String = node_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let first_diff = local_bytes
+        .iter()
+        .zip(node_bytes.iter())
+        .position(|(a, b)| a != b);
+    eprintln!("\n=== gluon_box_guard ===");
+    eprintln!("LOCAL ({}B): {}", local_bytes.len(), local_hex);
+    eprintln!("NODE  ({}B): {}", node_bytes.len(), node_hex);
+    match first_diff {
+        Some(off) => eprintln!(
+            "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
+        ),
+        None => eprintln!("MATCH"),
+    }
+    eprintln!(
+        "matched={:?}  bytes(canon)={}  bytes(local)={}",
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
+    );
+    eprintln!("\n=== CONSTANTS ===");
+    eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
+    eprintln!("NODE  constants_len: {:?}", canon.tree.constants_len());
+    if let Ok(consts) = local_tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  LOCAL[{}] {:?}", i, local_tree.get_constant(i));
+        }
+    }
+    if let Ok(consts) = canon.tree.constants_len() {
+        for i in 0..consts {
+            eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
+        }
+    }
+    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
+    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 ///
 /// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`
