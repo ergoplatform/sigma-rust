@@ -39,6 +39,22 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // from different source locations (e.g. SELF.R4[T].get used
             // in two places) would be treated as different nodes.
             let expr = strip_source_spans(expr);
+            // sig-15 paideia_stake_state S2: inline ValDefs whose RHS is a
+            // primitively-context-pure alias (`ByIndex(GlobalVars, Const)`,
+            // i.e. `INPUTS(N)` / `OUTPUTS(N)` aliases like
+            // `val newStakeBox = OUTPUTS(1)`). Source-level aliases
+            // bound inside If branches survive HIR `is_inline_always_rhs`
+            // (which only handles Literal / Context / bare GlobalVars) and
+            // pin a branch-local ValId. Downstream CSE then rejects every
+            // candidate whose RHS references that ValId via the
+            // `branch_local_ids` forward-ref guard in
+            // `process_ast_graph_impl`, so structurally-identical
+            // `OUTPUTS(N).tokens(...)` chains across the cond and both
+            // branches never collapse into a single root-bound ValDef
+            // (NODE has 36 outer ValDefs vs LOCAL's 27 here). Inlining the
+            // alias ValDefs unblocks structural matching at outer scope;
+            // CSE re-extracts shared chains at the LCA.
+            let expr = inline_alias_vals(expr);
             let global_max_id = find_max_val_id(&expr);
             let cse_result = cse_expr(expr, global_max_id, false);
             let branch_cse_max = find_max_val_id(&cse_result);
@@ -236,6 +252,213 @@ fn strip_source_spans(expr: Expr) -> Expr {
         other => other, // non-Spanned: Const, GlobalVars, ValUse, etc.
     }
 }
+
+/// True if `rhs` is a "trivial alias" RHS — an expression whose lowering is so
+/// small that inlining it at every use site costs at most ~the same as keeping
+/// the ValDef + ValUses, AND whose value is structurally re-computable at any
+/// scope (no transitive dependence on a local ValUse). Currently: bare
+/// `ByIndex(GlobalVars, Const)` with no default — the canonical
+/// `INPUTS(N)` / `OUTPUTS(N)` alias shape.
+///
+/// HIR's `is_inline_always_rhs` already inlines bare `Literal` / `Context` /
+/// `GlobalVars` (excluding `GroupGenerator`), so by MIR pre-CSE only the
+/// ByIndex variant survives.
+fn is_alias_rhs(rhs: &Expr) -> bool {
+    if let Expr::ByIndex(s) = rhs {
+        matches!(&*s.expr.input, Expr::GlobalVars(_))
+            && matches!(&*s.expr.index, Expr::Const(_))
+            && s.expr.default.is_none()
+    } else {
+        false
+    }
+}
+
+/// Inline ValDefs whose RHS satisfies `is_alias_rhs` so structurally-
+/// identical alias RHSes (one direct in an If's condition, one via a
+/// branch-local ValDef) collapse during downstream CSE candidate counting
+/// and the chain extracts at the right LCA. Two scoping rules apply,
+/// each gated by a separate cross-scope evidence counter (see the call
+/// site for details and the `should_inline` decision in
+/// `inline_alias_vals_walk`).
+///
+/// Naively inlining every alias would either over-extract on Rust CSE's
+/// re-pass (governance-reserve / oracle_refresh / chaincash_reserve
+/// regressions where NODE preserves the source-author val) or hash-cons
+/// across mutually-exclusive If arms in a way NODE doesn't (Lilium
+/// SaleLP). The split eager / in-branch occurrence counts gate against
+/// both classes.
+///
+/// Sig-15 paideia_stake_state S2 partial close.
+fn inline_alias_vals(mut expr: Expr) -> Expr {
+    // Pre-scan: count EAGER (outside any If branch) AND IN-BRANCH
+    // occurrences of every is_alias_rhs sub-expression separately.
+    //
+    // Inlining decisions per ValDef location:
+    //   - Inside an If branch: inline if there's an EAGER occurrence
+    //     elsewhere (eager_count >= 1). Eager occurrences indicate the
+    //     alias is also visible at a surrounding scope where outer CSE
+    //     could extract it — inlining unblocks that LCA-scope extraction.
+    //   - Outside any If branch (outer scope): inline if there's an
+    //     IN-BRANCH occurrence elsewhere (branch_count >= 1). The outer
+    //     val isn't itself the rejection target, but its inlining lets
+    //     branch-local references collapse with each other and with this
+    //     outer val's uses to a single root-bound CSE extraction matching
+    //     NODE (paideia `val newStakeStateBox = OUTPUTS(0)` outer plus
+    //     line 326/443 deep references).
+    //
+    // Sibling-If-branch occurrences alone DON'T trigger inlining: NODE
+    // sees mutually-exclusive ThunkDefs as separate sym scopes (Lilium
+    // SaleLP `OUTPUTS(0/1)` regression). The outer-or-eager counterpart
+    // is the cross-scope evidence we need.
+    let mut eager_counts: Vec<(Expr, usize)> = Vec::new();
+    let mut branch_counts: Vec<(Expr, usize)> = Vec::new();
+    count_alias_split_occurrences(&expr, false, &mut eager_counts, &mut branch_counts);
+    inline_alias_vals_walk(&mut expr, false, &eager_counts, &branch_counts);
+    expr
+}
+
+/// Walk `expr`, tracking whether the current position is inside any If
+/// branch. For every `is_alias_rhs` sub-expression encountered, record it
+/// in `eager_counts` (if NOT inside an If branch) or `branch_counts` (if
+/// inside one). Stored as Vecs because `Expr` doesn't implement `Hash`.
+fn count_alias_split_occurrences(
+    expr: &Expr,
+    in_if_branch: bool,
+    eager_counts: &mut Vec<(Expr, usize)>,
+    branch_counts: &mut Vec<(Expr, usize)>,
+) {
+    if is_alias_rhs(expr) {
+        let target = if in_if_branch {
+            &mut *branch_counts
+        } else {
+            &mut *eager_counts
+        };
+        if let Some(entry) = target.iter_mut().find(|(e, _)| e == expr) {
+            entry.1 += 1;
+        } else {
+            target.push((expr.clone(), 1));
+        }
+    }
+    if let Expr::If(if_op) = expr {
+        count_alias_split_occurrences(
+            &if_op.condition,
+            in_if_branch,
+            eager_counts,
+            branch_counts,
+        );
+        count_alias_split_occurrences(&if_op.true_branch, true, eager_counts, branch_counts);
+        count_alias_split_occurrences(&if_op.false_branch, true, eager_counts, branch_counts);
+        return;
+    }
+    use ergotree_ir::traversable::Traversable;
+    for child in expr.children() {
+        count_alias_split_occurrences(child, in_if_branch, eager_counts, branch_counts);
+    }
+}
+
+fn alias_count_for(rhs: &Expr, counts: &[(Expr, usize)]) -> usize {
+    counts
+        .iter()
+        .find(|(e, _)| e == rhs)
+        .map(|(_, c)| *c)
+        .unwrap_or(0)
+}
+
+fn inline_alias_vals_walk(
+    expr: &mut Expr,
+    in_if_branch: bool,
+    eager_counts: &[(Expr, usize)],
+    branch_counts: &[(Expr, usize)],
+) {
+    use ergotree_ir::traversable::Traversable;
+    match expr {
+        Expr::If(if_op) => {
+            // Cond evaluates eagerly at the surrounding scope; branches
+            // enter the if-branch scope (Scala ThunkDef).
+            inline_alias_vals_walk(
+                &mut if_op.condition,
+                in_if_branch,
+                eager_counts,
+                branch_counts,
+            );
+            inline_alias_vals_walk(&mut if_op.true_branch, true, eager_counts, branch_counts);
+            inline_alias_vals_walk(&mut if_op.false_branch, true, eager_counts, branch_counts);
+        }
+        Expr::BlockValue(s) => {
+            // Recurse children first (bottom-up).
+            for item in s.expr.items.iter_mut() {
+                inline_alias_vals_walk(item, in_if_branch, eager_counts, branch_counts);
+            }
+            inline_alias_vals_walk(&mut s.expr.result, in_if_branch, eager_counts, branch_counts);
+
+            let mut inline_map: indexmap::IndexMap<u32, Expr> = indexmap::IndexMap::new();
+            for item in s.expr.items.iter() {
+                if let Expr::ValDef(vd) = item {
+                    if !is_alias_rhs(&vd.expr.rhs) {
+                        continue;
+                    }
+                    let should_inline = if in_if_branch {
+                        // Inside an If branch: inline if there's a separate
+                        // eager occurrence the outer LCA can extract toward.
+                        alias_count_for(&vd.expr.rhs, eager_counts) >= 1
+                    } else {
+                        // Outer scope: inline only if there's an in-branch
+                        // occurrence of the same RHS (so inlining lets the
+                        // branch-local references collapse with this val's
+                        // uses to a single root-bound CSE extraction matching
+                        // NODE). Otherwise, leave the source-author val
+                        // intact (governance-reserve / oracle_refresh case).
+                        alias_count_for(&vd.expr.rhs, branch_counts) >= 1
+                    };
+                    if should_inline {
+                        inline_map.insert(vd.expr.id.0, (*vd.expr.rhs).clone());
+                    }
+                }
+            }
+
+            if inline_map.is_empty() {
+                return;
+            }
+
+            // Drop the inlined ValDefs from items.
+            let kept: Vec<Expr> = std::mem::take(&mut s.expr.items)
+                .into_iter()
+                .filter(|i| {
+                    if let Expr::ValDef(vd) = i {
+                        !inline_map.contains_key(&vd.expr.id.0)
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+            s.expr.items = kept;
+
+            // Substitute every ValUse(id) site within remaining items + result.
+            for (val_id, rhs) in &inline_map {
+                let val_use = Expr::ValUse(ValUse {
+                    val_id: ValId(*val_id),
+                    tpe: rhs.tpe(),
+                });
+                let new_items: Vec<Expr> = s.expr
+                    .items
+                    .iter()
+                    .map(|i| replace_all(i, &val_use, rhs))
+                    .collect();
+                s.expr.items = new_items;
+                let new_result = replace_all(&s.expr.result, &val_use, rhs);
+                s.expr.result = new_result.into();
+            }
+        }
+        // Everything else: structural recurse via Traversable so we never
+        // miss an Expr variant (the same approach used by `disambig_walk`).
+        other => {
+            for child in other.children_mut() {
+                inline_alias_vals_walk(child, in_if_branch, eager_counts, branch_counts);
+            }
+        }
+    }
+}
+
 
 /// Re-assign val IDs in DFS traversal order from the result expression.
 ///
