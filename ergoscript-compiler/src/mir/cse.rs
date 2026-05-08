@@ -2038,6 +2038,70 @@ fn emit_deps(
             let mut branch_val_ids: Vec<u32> = Vec::new();
             collect_all_val_uses(&if_op.true_branch, &mut branch_val_ids);
             collect_all_val_uses(&if_op.false_branch, &mut branch_val_ids);
+            // Sig-15 sigmausd_bank S5: detect "transitive interleave" where a
+            // direct branch VU's RHS references ANOTHER direct branch VU.
+            // In this pattern, the sort-by-ID emits the depended-on val
+            // before its dependent, but recursive emission of the dependent's
+            // RHS surfaces a non-direct val (e.g. val_34=BinOp reachable only
+            // via val_35) that should ALSO be emitted before its sibling
+            // dep (val_33=If, also a direct branch VU). Sort-by-ID can't see
+            // this third val, so it ends up after val_33 instead of before.
+            //
+            // For sigmausd_bank's `validReserveRatio` outer If: branches
+            // contain {VU(scExchange), VU(scCircDelta), VU(maxRR=If),
+            // VU(reserveRatioPercentOut=val_35)}. val_35's RHS references
+            // VU(maxRR=If) AND VU(BinOp_22*29) — the latter is NOT in
+            // direct branches. NODE emits BinOp before If (graph sym
+            // creation order); sort-by-ID emits If first (smaller pre-
+            // renumber ID), then val_35 surfaces BinOp via its RHS walk.
+            //
+            // Strict-subset gate: when ANY direct branch VU's RHS references
+            // ANOTHER direct branch VU, fall through to recursive emit_deps
+            // walk on both branches. Recursive walk preserves first-use-DFS
+            // order — when val_35 is the first reached, its RHS walk emits
+            // BinOp first (cond), then If (true branch), then val_35 itself,
+            // matching NODE.
+            let direct_set: HashSet<u32> = branch_val_ids.iter().copied().collect();
+            let mut has_direct_interleave = false;
+            for &id in &branch_val_ids {
+                if let Some(Expr::ValDef(vd)) = val_map.get(&id) {
+                    let mut deps: Vec<u32> = Vec::new();
+                    collect_all_val_uses(&vd.expr.rhs, &mut deps);
+                    if deps
+                        .iter()
+                        .any(|d| *d != id && direct_set.contains(d))
+                    {
+                        has_direct_interleave = true;
+                        break;
+                    }
+                }
+            }
+            // Only apply the recursive-walk path for inner blocks (non-dense
+            // val_map). Outer blocks (dense 1..N keys after Pass 1a / Pass 1b)
+            // already have body-schedule-aligned IDs, so the existing sort-
+            // by-ID emission matches Scala's schedule there.
+            let dense_outer = !val_map.is_empty()
+                && val_map.keys().copied().max().unwrap_or(0) == val_map.len() as u32
+                && val_map.keys().copied().min().unwrap_or(0) >= 1;
+            if has_direct_interleave && !dense_outer {
+                emit_deps(
+                    &if_op.true_branch,
+                    val_map,
+                    emitted,
+                    emitted_ids,
+                    in_thunk,
+                    false,
+                );
+                emit_deps(
+                    &if_op.false_branch,
+                    val_map,
+                    emitted,
+                    emitted_ids,
+                    in_thunk,
+                    false,
+                );
+                return;
+            }
             // S62: expand transitively. A direct branch-VU like
             // `validBankRecreation` may have an RHS referencing other outer
             // vals (e.g. minBankValue/R6) that themselves are NOT directly
