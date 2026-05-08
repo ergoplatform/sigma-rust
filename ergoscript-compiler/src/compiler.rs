@@ -5178,6 +5178,178 @@ fn probe_sig15_collisions() {
     }
 }
 
+/// Dev-only: probe gluon's scope structure to confirm whether a ValUse(N, T)
+/// has any ancestor scope containing ValDef(N, T) — i.e., whether the
+/// CSE-emitted AST is well-scoped enough for a scope-aware parser to resolve.
+///
+/// Run: cargo test -p ergoscript-compiler probe_gluon_scopes -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_gluon_scopes() {
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    use ergotree_ir::mir::val_def::ValId;
+    use ergotree_ir::types::stype::SType;
+    use std::collections::HashMap;
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr =
+        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+    let prelude = format!(
+        "val _MinFee: Long = 1000000L;\n\
+         val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+         val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+         val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+         val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+         val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+         val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+         val _BOX: Coll[Byte] = {dummy_token};\n\
+         val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+         val _MULTISIG: SigmaProp = {dummy_pk};\n\
+         val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+         val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+         val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+         val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _DEV_FEE_REPAID: Long = 0L;\n\
+         val _FEE_REPAID: Long = 0L;\n\
+         val _Per_volume_bucket: Long = 720L;\n\
+         val _PER_VOLUME_BUCKET: Long = 720L;\n",
+    );
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let raw = std::fs::read_to_string(fixtures_dir.join("gluon_box_guard.es")).unwrap();
+    let idx = raw.find('{').expect("gluon_box_guard.es missing leading {");
+    let mut source = String::with_capacity(raw.len() + prelude.len());
+    source.push_str(&raw[..=idx]);
+    source.push('\n');
+    source.push_str(&prelude);
+    source.push_str(&raw[idx + 1..]);
+    let expr = compile_expr(&source, ScriptEnv::new()).unwrap();
+
+    // Walk AST tracking scope-path. Scope path = sequence of (scope_kind,
+    // child_idx) tuples from root to current node. Scope-introducers are
+    // BlockValue, If true_branch, If false_branch, FuncValue body.
+    type ScopePath = Vec<(&'static str, usize)>;
+
+    fn walk_scopes(
+        e: &MirExpr,
+        path: &mut ScopePath,
+        defs: &mut Vec<(ValId, SType, ScopePath)>,
+        uses: &mut Vec<(ValId, SType, ScopePath)>,
+    ) {
+        if let MirExpr::OptionGet(og) = e {
+            if let MirExpr::ValUse(vu) = og.expr.input.as_ref() {
+                uses.push((vu.val_id, vu.tpe.clone(), path.clone()));
+            }
+        }
+        if let MirExpr::ValDef(vd) = e {
+            defs.push((vd.expr.id, vd.expr.rhs.tpe(), path.clone()));
+        }
+        match e {
+            MirExpr::BlockValue(bv) => {
+                path.push(("block", 0));
+                for (i, item) in bv.expr.items.iter().enumerate() {
+                    let last = path.len() - 1;
+                    path[last].1 = i;
+                    walk_scopes(item, path, defs, uses);
+                }
+                let last = path.len() - 1;
+                path[last].1 = bv.expr.items.len();
+                walk_scopes(&bv.expr.result, path, defs, uses);
+                path.pop();
+            }
+            MirExpr::If(if_op) => {
+                walk_scopes(&if_op.condition, path, defs, uses);
+                path.push(("if-T", 0));
+                walk_scopes(&if_op.true_branch, path, defs, uses);
+                path.pop();
+                path.push(("if-F", 0));
+                walk_scopes(&if_op.false_branch, path, defs, uses);
+                path.pop();
+            }
+            MirExpr::FuncValue(fv) => {
+                path.push(("fn", 0));
+                walk_scopes(fv.body(), path, defs, uses);
+                path.pop();
+            }
+            _ => {
+                use ergotree_ir::traversable::Traversable;
+                for c in <MirExpr as Traversable>::children(e) {
+                    walk_scopes(c, path, defs, uses);
+                }
+            }
+        }
+    }
+
+    let mut defs: Vec<(ValId, SType, ScopePath)> = Vec::new();
+    let mut uses: Vec<(ValId, SType, ScopePath)> = Vec::new();
+    let mut path: ScopePath = Vec::new();
+    walk_scopes(&expr, &mut path, &mut defs, &mut uses);
+
+    fn is_ancestor(maybe_anc: &[(&'static str, usize)], child: &[(&'static str, usize)]) -> bool {
+        if maybe_anc.len() > child.len() {
+            return false;
+        }
+        // Path equality except last segment of `maybe_anc` may have any
+        // child_idx — for BlockValue we encode item-index in last frame, but
+        // for ancestor matching only the *kind* matters at each prefix step.
+        for (i, seg) in maybe_anc.iter().enumerate() {
+            if seg.0 != child[i].0 {
+                return false;
+            }
+        }
+        true
+    }
+
+    let mut by_id: HashMap<ValId, Vec<(SType, ScopePath)>> = HashMap::new();
+    for (id, t, p) in &defs {
+        by_id.entry(*id).or_default().push((t.clone(), p.clone()));
+    }
+
+    let mut bad: Vec<(ValId, SType, ScopePath, Vec<(SType, ScopePath)>)> = Vec::new();
+    for (id, expected_t, use_path) in &uses {
+        let want_inner = match expected_t {
+            SType::SOption(inner) => SType::clone(inner),
+            _ => continue,
+        };
+        let want_t = SType::SOption(std::sync::Arc::new(want_inner));
+        // Find any ValDef(id) whose scope-path is an ancestor of the use_path
+        // and whose tpe matches.
+        let candidates = by_id.get(id).cloned().unwrap_or_default();
+        let any_match = candidates.iter().any(|(t, def_path)| {
+            *t == want_t && is_ancestor(def_path, use_path)
+        });
+        if !any_match {
+            bad.push((*id, want_t, use_path.clone(), candidates));
+        }
+    }
+
+    eprintln!("=== gluon scope-resolvability probe ===");
+    eprintln!("ValDefs: {}, OptionGet(ValUse) sites: {}", defs.len(), uses.len());
+    eprintln!("Unresolvable OptionGet(ValUse) sites: {}", bad.len());
+    for (i, (id, want, up, cands)) in bad.iter().enumerate().take(8) {
+        eprintln!(
+            "  [{}] ValUse(id={}) wants {:?}",
+            i,
+            id.0,
+            want,
+        );
+        eprintln!("       use scope-path: {:?}", up);
+        eprintln!("       all ValDef(id={}) candidates:", id.0);
+        for (t, dp) in cands {
+            eprintln!("         tpe={:?} path={:?}", t, dp);
+        }
+    }
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 ///
 /// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`
