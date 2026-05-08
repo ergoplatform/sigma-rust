@@ -38,7 +38,7 @@ mod tests {
     };
 
     use alloc::vec::Vec;
-    use core2::io::Cursor;
+    use no_std_io2::io::Cursor;
     use proptest::prelude::*;
 
     proptest! {
