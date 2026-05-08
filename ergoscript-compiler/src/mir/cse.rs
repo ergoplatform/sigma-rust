@@ -72,6 +72,14 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // single-use outer ValDef would otherwise survive as overhead.
             let deduped = inline_single_use_vals(deduped);
             let flattened = flatten_nested_blocks(deduped);
+            // sig-15 paideia_stake_state S5: post-PAG chain-rewrite for
+            // outer ValDefs whose RHS is a stable chain link. Sub-passes
+            // (`apply_cse_within_branches`, `pre_extract_from_valdefs`)
+            // can extract a chain root (e.g. `INPUTS(1)`) into outer items[]
+            // via `flatten_nested_blocks` while leaving other outer items'
+            // inline references unrewritten. See doc on
+            // `rewrite_byindex_globalvars_chain` for the rewrite shape set.
+            let flattened = rewrite_byindex_globalvars_chain(flattened);
 
             // Capture outer items[] IDs pre-disambig in items-order — paired with
             // post-disambig IDs (items[] order is preserved by disambig) gives us
@@ -1660,6 +1668,96 @@ fn flatten_nested_blocks(expr: Expr) -> Expr {
         }
         other => other,
     }
+}
+
+/// sig-15 paideia_stake_state S5 (Bug B): post-PAG chain-rewrite for
+/// stable chain-link outer ValDefs.
+///
+/// When a `ByIndex(GlobalVars, Const)` candidate is rejected at PAG/Root as
+/// `not-in-main-scope` (its uses sit inside If branches) but extracted at
+/// PAG/Branch and then hoisted to outer scope by `flatten_nested_blocks`,
+/// other outer-scope items whose RHSes still contain the inline form are
+/// not rewritten — the chain is broken (e.g. paideia: `val 32 = INPUTS(1)`
+/// lands at outer items[] but later items keep inline `ByIndex(Inputs,1)`
+/// inside their `PropertyCall(box.tokens)` chain).
+///
+/// This pass scans outer BlockValue items for ValDefs whose RHS is a
+/// stable chain link — `ByIndex(GlobalVars(_), Const(_))`, `ByIndex(ValUse,
+/// Const(_))`, or `PropertyCall(ValUse, _)` — and rewrites every other
+/// occurrence (in items' RHSes and in `result`) to `ValUse(id)`. The
+/// existence of an outer ValDef binding the expression means CSE already
+/// decided the candidate should be a sym; we propagate that decision to
+/// chain references that earlier passes missed.
+///
+/// The pass iterates to a fixed point so deeper rungs collapse in the same
+/// run — once `INPUTS(1)` is rewritten to `ValUse(N)`, the surrounding
+/// `PropertyCall(ValUse(N), tokens)` becomes structurally identical to a
+/// `box.tokens` ValDef, and the next iteration collapses those refs too.
+///
+/// Topological correctness across the rewritten items list is restored by
+/// the downstream `reorder_valdefs` body-walk emission, so callers don't
+/// need to topo-sort here.
+fn rewrite_byindex_globalvars_chain(expr: Expr) -> Expr {
+    let Expr::BlockValue(spanned) = expr else {
+        return expr;
+    };
+    let bv = spanned.expr;
+    let mut items = bv.items;
+    let mut result = *bv.result;
+
+    let is_chain_rhs = |rhs: &Expr| -> bool {
+        match rhs {
+            Expr::ByIndex(s) => {
+                matches!(&*s.expr.input, Expr::GlobalVars(_) | Expr::ValUse(_))
+                    && matches!(&*s.expr.index, Expr::Const(_))
+            }
+            Expr::PropertyCall(s) => matches!(&*s.expr.obj, Expr::ValUse(_)),
+            _ => false,
+        }
+    };
+    let mut applied_ids: HashSet<u32> = HashSet::new();
+    // Iteration cap is a safety net — the rewrite is monotone (each iteration
+    // marks at least one ValDef as applied) so it converges in O(items.len()).
+    for _ in 0..items.len().saturating_add(1) {
+        let snapshot: Vec<(usize, u32, Expr)> = items
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, item)| {
+                if let Expr::ValDef(vd) = item {
+                    let rhs: &Expr = &vd.expr.rhs;
+                    if is_chain_rhs(rhs) && !applied_ids.contains(&vd.expr.id.0) {
+                        return Some((idx, vd.expr.id.0, rhs.clone()));
+                    }
+                }
+                None
+            })
+            .collect();
+        if snapshot.is_empty() {
+            break;
+        }
+        for (def_idx, val_id, rhs) in snapshot {
+            applied_ids.insert(val_id);
+            let val_use = Expr::ValUse(ValUse {
+                val_id: ValId(val_id),
+                tpe: expr_type(&rhs),
+            });
+            for (k, item) in items.iter_mut().enumerate() {
+                if k == def_idx {
+                    continue;
+                }
+                *item = replace_all(item, &rhs, &val_use);
+            }
+            result = replace_all(&result, &rhs, &val_use);
+        }
+    }
+
+    Expr::BlockValue(Spanned {
+        source_span: spanned.source_span,
+        expr: BlockValue {
+            items,
+            result: result.into(),
+        },
+    })
 }
 
 /// Dedup inner-scope expressions within an If branch.
