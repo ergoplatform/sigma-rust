@@ -88,14 +88,39 @@ fn widen_numeric_literals(expr: Expr) -> Expr {
             }),
             ..expr
         },
-        ExprKind::Apply(app) => Expr {
-            kind: ExprKind::Apply(Apply {
-                func: Box::new(widen_numeric_literals(*app.func)),
-                args: app.args.into_iter().map(widen_numeric_literals).collect(),
-                type_arg: app.type_arg,
-            }),
-            ..expr
-        },
+        ExprKind::Apply(app) => {
+            let new_func = widen_numeric_literals(*app.func);
+            let new_args: Vec<Expr> = app.args.into_iter().map(widen_numeric_literals).collect();
+            // `min(a, b)` and `max(a, b)` lower to a binary numeric op — widen
+            // narrower literal args the same way `widen_binop_literal_pair`
+            // does for `BinOp`. Without this, sigmausd's
+            // `max(min(longExpr, longExpr), 0)` leaves the `0: SInt` arg
+            // unwidened, MIR's later `numeric_upcast_pair` wraps it as
+            // `Upcast(Const(SInt 0), SLong)`, and (with the per-arm fold
+            // disabled in MIR) the pool slot stays SInt instead of folding
+            // to SLong like NODE.
+            let new_args = if let ExprKind::Ident(ref name) = new_func.kind {
+                if (name == "min" || name == "max") && new_args.len() == 2 {
+                    let mut it = new_args.into_iter();
+                    let a = it.next().unwrap();
+                    let b = it.next().unwrap();
+                    let (a, b) = widen_binop_literal_pair(a, b);
+                    vec![a, b]
+                } else {
+                    new_args
+                }
+            } else {
+                new_args
+            };
+            Expr {
+                kind: ExprKind::Apply(Apply {
+                    func: Box::new(new_func),
+                    args: new_args,
+                    type_arg: app.type_arg,
+                }),
+                ..expr
+            }
+        }
         ExprKind::FieldAccess(fa) => Expr {
             kind: ExprKind::FieldAccess(FieldAccessExpr {
                 object: Box::new(widen_numeric_literals(*fa.object)),
@@ -158,47 +183,65 @@ fn hir_numeric_rank(tpe: &SType) -> Option<u8> {
 /// If exactly one operand is a Literal with a narrower numeric type than the
 /// other operand's known type, widen the literal in place.
 fn widen_binop_literal_pair(lhs: Expr, rhs: Expr) -> (Expr, Expr) {
-    // RHS is a literal, LHS has a wider known type
-    if let ExprKind::Literal(ref lit) = rhs.kind {
-        if let (Some(l), Some(r)) = (lhs.tpe.as_ref(), rhs.tpe.as_ref()) {
-            if let (Some(lr), Some(rr)) = (hir_numeric_rank(l), hir_numeric_rank(r)) {
-                if lr > rr {
-                    if let Some(widened) = widen_literal(lit, l) {
-                        let target = l.clone();
-                        return (
-                            lhs,
-                            Expr {
-                                kind: ExprKind::Literal(widened),
-                                tpe: Some(target),
-                                span: rhs.span,
-                            },
-                        );
-                    }
-                }
-            }
-        }
+    // RHS is a literal (or a negated literal), LHS has a wider known type.
+    // We treat `Negation(Literal(N))` like a literal here so that
+    // `longExpr * -1` widens the inner `1` to SLong, producing
+    // `Negation(Literal(1: SLong))` which `constant_fold`'s Negation arm then
+    // collapses to `Literal(-1: SLong)`. Without this, the `-1: SInt` survives
+    // until MIR and would force an `Upcast(Const(SInt -1), SLong)` wrapper
+    // instead of the folded `Const(SLong -1)` that NODE emits for source
+    // literals (cf. `probe_int_to_long_upcast_fold` cases A/H).
+    if let Some(widened) = try_widen_literal_at_binop_pos(&rhs, &lhs) {
+        return (lhs, widened);
     }
-    // LHS is a literal, RHS has a wider known type
-    if let ExprKind::Literal(ref lit) = lhs.kind {
-        if let (Some(l), Some(r)) = (lhs.tpe.as_ref(), rhs.tpe.as_ref()) {
-            if let (Some(lr), Some(rr)) = (hir_numeric_rank(l), hir_numeric_rank(r)) {
-                if rr > lr {
-                    if let Some(widened) = widen_literal(lit, r) {
-                        let target = r.clone();
-                        return (
-                            Expr {
-                                kind: ExprKind::Literal(widened),
-                                tpe: Some(target),
-                                span: lhs.span,
-                            },
-                            rhs,
-                        );
-                    }
-                }
-            }
-        }
+    // LHS variant
+    if let Some(widened) = try_widen_literal_at_binop_pos(&lhs, &rhs) {
+        return (widened, rhs);
     }
     (lhs, rhs)
+}
+
+/// If `narrow` is a literal (or negated literal) and `wide` carries a wider
+/// numeric type, return a widened replacement for `narrow`. Returns `None`
+/// when widening doesn't apply (non-literal, val-bound ValUse, or types not
+/// in the numeric rank order). Val-bound ValUses are intentionally NOT
+/// recognized — Scala emits `Upcast(Const(SInt), SLong)` for those (kept
+/// unfolded), and Rust HIR substitutes ValUse → Literal in `constant_fold`
+/// AFTER this widening pass, so the distinction between source-literal and
+/// val-bound is preserved by running this gate at widen-time only.
+fn try_widen_literal_at_binop_pos(narrow: &Expr, wide: &Expr) -> Option<Expr> {
+    let (l_ty, r_ty) = (wide.tpe.as_ref()?, narrow.tpe.as_ref()?);
+    let (lr, rr) = (hir_numeric_rank(l_ty)?, hir_numeric_rank(r_ty)?);
+    if lr <= rr {
+        return None;
+    }
+    match &narrow.kind {
+        ExprKind::Literal(lit) => {
+            let widened = widen_literal(lit, l_ty)?;
+            Some(Expr {
+                kind: ExprKind::Literal(widened),
+                tpe: Some(l_ty.clone()),
+                span: narrow.span,
+            })
+        }
+        ExprKind::Negation(inner) => match &inner.kind {
+            ExprKind::Literal(lit) => {
+                let widened_inner = widen_literal(lit, l_ty)?;
+                let new_inner = Expr {
+                    kind: ExprKind::Literal(widened_inner),
+                    tpe: Some(l_ty.clone()),
+                    span: inner.span,
+                };
+                Some(Expr {
+                    kind: ExprKind::Negation(Box::new(new_inner)),
+                    tpe: Some(l_ty.clone()),
+                    span: narrow.span,
+                })
+            }
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 /// Widen a numeric literal to a wider type.

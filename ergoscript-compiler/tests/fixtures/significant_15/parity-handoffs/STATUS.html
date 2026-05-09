@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>sigma-rust ergoscript-compiler — status</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel2: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --orange: #f0883e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; color: #fff; }
+  h2 { font-size: 16px; margin: 24px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); color: #fff; }
+  h3 { font-size: 13px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; gap: 16px; }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .panel.tight { padding: 10px 12px; }
+  .stat { display: flex; align-items: baseline; gap: 8px; }
+  .stat-num { font-size: 28px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+  .stat-label { font-size: 12px; color: var(--muted); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .progress { background: var(--panel2); border-radius: 4px; height: 8px; overflow: hidden; margin: 6px 0; position: relative; }
+  .progress-bar { height: 100%; background: var(--green); }
+  .progress-bar.partial { background: var(--yellow); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--panel2); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.mono { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; color: var(--accent); }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .pill.green { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .pill.yellow { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .pill.red { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+  .pill.orange { background: rgba(240,136,62,0.15); color: var(--orange); border: 1px solid rgba(240,136,62,0.3); }
+  .pill.muted { background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
+  code { background: var(--panel2); padding: 1px 6px; border-radius: 3px; font-size: 12px; font-family: "SF Mono", Menlo, Consolas, monospace; color: var(--accent); }
+  ol.priorities { padding-left: 0; list-style: none; counter-reset: prio; margin: 0; }
+  ol.priorities > li { counter-increment: prio; padding: 12px 14px; background: var(--panel2); border-radius: 6px; margin-bottom: 8px; position: relative; padding-left: 44px; }
+  ol.priorities > li::before { content: counter(prio); position: absolute; left: 12px; top: 12px; width: 22px; height: 22px; background: var(--accent); color: var(--bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+  ol.priorities .title { font-weight: 600; color: #fff; }
+  ol.priorities .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  ol.priorities .body { font-size: 13px; margin-top: 6px; }
+  .footnote { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .header-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+  .header-meta span { font-size: 12px; color: var(--muted); }
+  .header-meta code { color: var(--accent); }
+  ul.compact { margin: 4px 0; padding-left: 18px; }
+  ul.compact li { margin: 2px 0; font-size: 13px; }
+  details { margin-top: 8px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 12px; padding: 4px 0; }
+  details[open] summary { margin-bottom: 8px; }
+  .check { color: var(--green); }
+  .cross { color: var(--red); }
+  .warn { color: var(--yellow); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>sigma-rust ergoscript-compiler — parity status</h1>
+<div class="header-meta">
+  <span>branch <code>workstream-f</code></span>
+  <span>HEAD <code>12dcbea7</code></span>
+  <span>updated 2026-05-09</span>
+  <span>local-only · gitignored</span>
+</div>
+
+<!-- TOP-LINE STATS -->
+<div class="grid grid-3" style="margin-top: 20px;">
+  <div class="panel">
+    <div class="stat-label">Sig-15 LOCAL byte-match</div>
+    <div class="stat"><span class="stat-num">12</span><span class="stat-label">/ 15</span></div>
+    <div class="progress"><div class="progress-bar" style="width: 80%"></div></div>
+    <div class="stat-sub">3 plateaus diagnosed; oracle + duckpools restored from <code>6e559e1f</code> cascade</div>
+  </div>
+  <div class="panel">
+    <div class="stat-label">F.2 differential fuzz corpus</div>
+    <div class="stat"><span class="stat-num">97.9%</span></div>
+    <div class="progress"><div class="progress-bar" style="width: 97.9%"></div></div>
+    <div class="stat-sub">563 MATCH / 10 DIFF / 2 SCALA_FAIL / 0 RUST_FAIL · 575 total</div>
+  </div>
+  <div class="panel">
+    <div class="stat-label">Ecosystem batch (real contracts)</div>
+    <div class="stat"><span class="stat-num">11</span><span class="stat-label">/ 14</span></div>
+    <div class="progress"><div class="progress-bar partial" style="width: 78.6%"></div></div>
+    <div class="stat-sub">3 USED NODE: SigmaFi OpenOrder ERG/Token, SkyHarbor SigUSDV1 (DuckPools ParentInterest restored alongside <code>09</code>)</div>
+  </div>
+</div>
+
+<div class="grid grid-3" style="margin-top: 16px;">
+  <div class="panel tight">
+    <div class="stat-label">Lib unit tests</div>
+    <div class="stat"><span class="stat-num">233</span><span class="stat-label">/ 233</span></div>
+  </div>
+  <div class="panel tight">
+    <div class="stat-label">Conformance</div>
+    <div class="stat"><span class="stat-num">164</span><span class="stat-label">/ 164</span></div>
+  </div>
+  <div class="panel tight">
+    <div class="stat-label">Falsification fingerprint instances</div>
+    <div class="stat"><span class="stat-num">10</span><span class="stat-label">methodology rule</span></div>
+  </div>
+</div>
+
+<!-- GOAL -->
+<h2>Goal</h2>
+<div class="panel">
+  <strong>Compile-anything-deploy with bounded categorical risk</strong> — produce ErgoTree bytecode in pure Rust that is byte-identical to the Scala reference compiler (Ergo node v6.1.2) for all keystone contracts, with diagnosed plateaus where exact match requires structural CSE-pass invariant work.
+  <div class="footnote">Long-arc deliverables: AVL IR fix (Lithos/Etcha/Machina Finance), DuckPools BigInt polynomial CSE stack overflow, unified CSE-pass workstream (3 plateaus → 13/15 or 15/15).</div>
+</div>
+
+<!-- SIG-15 BREAKDOWN -->
+<h2>Sig-15 fixtures</h2>
+
+<h3>Closed — 12 LOCAL byte-MATCH</h3>
+<div class="panel">
+<table>
+<thead><tr><th>Fixture</th><th>Closing commit</th><th>Sessions</th><th>Class</th></tr></thead>
+<tbody>
+<tr><td>chaincash_reserve</td><td class="mono">S69-S72</td><td class="num">4+</td><td>HIR alias drop + replace_all arm completeness (Append, Exponentiate, MultiplyGroup); +2 residual deferred</td></tr>
+<tr><td>dexy_bank_full</td><td class="muted">—</td><td class="num">0</td><td>Untouched — MATCH from start</td></tr>
+<tr><td>duckpools_child_interest</td><td class="mono">S67 + restoration commit</td><td class="num">2</td><td>Initially closed S67 (2026-05-02); silently regressed by <code>6e559e1f</code> Const-Upcast over-fold; restored 2026-05-09 by moving fold from MIR to HIR widen (literal-vs-val gate)</td></tr>
+<tr><td>ergomixer_fullmix</td><td class="mono">S68</td><td class="num">1</td><td>CreateProveDhTuple direct_children + groupGenerator PropertyCall lowering</td></tr>
+<tr><td>ergoraffle_active</td><td class="mono">716ac236 + ac6dc12f</td><td class="num">2</td><td>Inner-block extraction + CSE gap</td></tr>
+<tr><td>oracle_refresh</td><td class="mono">3038845e + restoration commit</td><td class="num">3</td><td>Initially closed S35 (R1+R2+R3); silently regressed by <code>6e559e1f</code> Const-Upcast over-fold (<code>val maxDeviationPercent = 5</code> at <code>lastData * maxDev</code>); restored 2026-05-09</td></tr>
+<tr><td>phoenix_hodlerg_bank_full</td><td class="mono">ea04228c</td><td class="num">1</td><td>S62 close</td></tr>
+<tr><td>rosen_event_trigger</td><td class="mono">65e27134</td><td class="num">3</td><td>Compensating-bugs canonical: Append arm + Slice arm + lambda_rescue_post_pass</td></tr>
+<tr><td>sigmausd_bank</td><td class="mono">23fbe431</td><td class="num">5</td><td>Canonical 5-session arc: GlobalVars inline → Relation BinOp dedup → SInt→SLong fold → OR-chain gate → If-arm interleave (fold migrated to HIR widen 2026-05-09 to preserve literal-vs-val asymmetry)</td></tr>
+<tr><td>skyharbor_v1_erg</td><td class="mono">c7112a1e</td><td class="num">1</td><td>Wave-1 close</td></tr>
+<tr><td>spectrum_n2t_pool</td><td class="mono">209d448f</td><td class="num">1</td><td>S65 (FeeDenom analysis)</td></tr>
+<tr><td>spectrum_t2t_pool</td><td class="mono">209d448f</td><td class="num">0</td><td>Folded into S65 close</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>Open — 3 fixtures (all PLATEAU)</h3>
+<div class="panel">
+<table>
+<thead><tr><th>Fixture</th><th>Δ bytes</th><th>Status</th><th>Class</th><th>Path forward</th></tr></thead>
+<tbody>
+<tr>
+  <td>paideia_stake_state</td>
+  <td class="num">+2</td>
+  <td><span class="pill yellow">PLATEAU</span></td>
+  <td>Cross-branch coordination (5 sessions, 5 falsifications)</td>
+  <td>Unified CSE-pass workstream — shared sym across sibling thunks</td>
+</tr>
+<tr>
+  <td>gluon_box_guard</td>
+  <td class="num">−153</td>
+  <td><span class="pill yellow">PLATEAU</span></td>
+  <td>Post-CSE AST-consistency emit-bug</td>
+  <td>CSE invariant: every <code>ValUse(id, tpe)</code> must have matching <code>ValDef(id, _: tpe)</code> in scope chain</td>
+</tr>
+<tr>
+  <td>sigmao_option</td>
+  <td class="num">−32</td>
+  <td><span class="pill yellow">PLATEAU</span></td>
+  <td>Renumbering pipeline rewrite required</td>
+  <td><code>mir/cse.rs</code> module-level refactor: <code>dfs_reassign_val_ids</code> → <code>reorder_valdefs</code> → <code>sequential_renumber</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- NEXT STEPS -->
+<h2>Next steps — priority order</h2>
+<ol class="priorities">
+<li>
+  <div class="title">Resolve parked lint edits</div>
+  <div class="meta">housekeeping · sub-session · do before any GitHub push</div>
+  <div class="body">Working tree carries <code>diff_fuzz.rs</code> + <code>diff_fuzz_gen.rs</code> modifications "parked unrelated" across 10+ sessions, plus untracked <code>SIGNIFICANT-15-PLAN.md</code>. Review → commit, revert, or stash. Don't ship wave-2 with stale uncommitted work.</div>
+</li>
+<li>
+  <div class="title">Wave-2 push to GitHub</div>
+  <div class="meta">milestone closure · needs explicit user approval (per <code>feedback_no_push_before_test</code>)</div>
+  <div class="body">PR against <code>main</code> covering per-fixture session commits + framework v1 + 2026-05-09 oracle/duckpools restoration. Clean story: "production-parity 12/15 keystone contracts + diagnostic methodology that produced them."</div>
+</li>
+<li>
+  <div class="title">Pick one of four directions</div>
+  <div class="meta">post-push · depends on what you want next</div>
+  <div class="body">
+    <ul class="compact">
+      <li><strong>MCP impl</strong> (~½ day) — force multiplier; 3 Rust-side tools per <code>docs/sigma-audit-mcp-design.md</code>. Pick if expecting ≥3 more audit sessions.</li>
+      <li><strong>Unified CSE-pass workstream</strong> (3-5 sessions) — close paideia/gluon/sigmao plateaus together. Sig-15 → 13/15 or 15/15. Higher risk, methodology-class win.</li>
+      <li><strong>AVL IR fix</strong> (~3-4 sessions) — <code>CreateAvlTree::value_length</code> shape mismatch unblocks Lithos/Etcha/Machina Finance. Separate from sig-15.</li>
+      <li><strong>DuckPools BigInt polynomial CSE stack overflow</strong> (2-3 sessions) — closes the 1 sig-15 fixture currently <code>--ignored</code>. Lowest priority of the four.</li>
+    </ul>
+    <div class="footnote" style="margin-top: 8px;"><strong>Recommendation:</strong> 1 → 2 → 3, then 4-MCP. Reasoning: MCP investment amortizes across the next 5+ sessions whether they're CSE-workstream or AVL.</div>
+  </div>
+</li>
+</ol>
+
+<!-- FRAMEWORK -->
+<h2>Audit framework v1 (landed at <code>12dcbea7</code>)</h2>
+
+<div class="grid grid-2">
+<div class="panel">
+  <h3>User-global (<code>~/.claude/</code>)</h3>
+  <ul class="compact">
+    <li><code>/audit-fixture-session</code> skill — encodes per-fixture arc cadence (Probe 0 metals BLOCKING, Probe 1 empirical IR, Probe 2 falsification, commit/archive)</li>
+    <li><code>/audit-residual-classify</code> skill — given fixture + Δ, classifies into 8 known methodology classes</li>
+    <li>11 memory rules — including <code>feedback_metals_first</code>, <code>feedback_falsification_fingerprint</code> (10 instances), <code>project_collisions_are_legitimate_parser_bug_class</code></li>
+  </ul>
+</div>
+
+<div class="panel">
+  <h3>Project-local (in repo)</h3>
+  <ul class="compact">
+    <li><code>AUDIT-FRAMEWORK-GUIDE.md</code> — collaborator-facing user guide</li>
+    <li><code>docs/sigma-audit-mcp-design.md</code> — MCP MVP spec (3 tools, ~½ day impl)</li>
+    <li><code>debug_&lt;fixture&gt;</code> helpers per sig-15 fixture in <code>compiler.rs</code></li>
+    <li><code>probe_sig15_collisions</code> + <code>probe_gluon_scopes</code> — forward-pace metrics</li>
+    <li>F.1 ecosystem harness, F.2 typed-AST generator, CSE_TRACE instrumentation</li>
+    <li>Cluster archives (~30) under <code>target/diff_fuzz/clusters/closed/</code> (gitignored, local audit trail)</li>
+  </ul>
+</div>
+</div>
+
+<div class="panel" style="margin-top: 16px;">
+  <h3>External dependency</h3>
+  <strong>Metals MCP</strong> wired against <code>/home/cq/sigmastate-interpreter</code> (commit <code>755deb3</code> on master). 27 build targets including <code>scJVM</code>. Workhorse: <code>get-source(fqcn=..., module="scJVM", detailed=true)</code> returns full Scala bodies in one call. <span class="warn">5 of 10 falsifications resulted from skipping metals queries</span> — now memorialized as top-level feedback rule.
+</div>
+
+<!-- METHODOLOGY ARTIFACTS -->
+<h2>Methodology assets</h2>
+
+<div class="grid grid-2">
+<div class="panel">
+  <h3>8 residual classes</h3>
+  <ol class="compact" style="padding-left: 18px;">
+    <li>Constant-fold per-arm/per-shape</li>
+    <li>Walker-arm completeness</li>
+    <li>Extraction-count under</li>
+    <li>Extraction-count over</li>
+    <li>Body-walker-order / scope-placement</li>
+    <li>Alias-ValDef HIR/MIR seam</li>
+    <li>AST-consistency emitter-layer (gluon plateau)</li>
+    <li>Cross-branch coordination (paideia plateau)</li>
+  </ol>
+</div>
+
+<div class="panel">
+  <h3>3 validated gating patterns</h3>
+  <ul class="compact">
+    <li><strong>Strict-subset gating</strong> (sigmausd S4/S5) — gate via additional state thread; flag fires in subset of prior cases</li>
+    <li><strong>Two-axis evidence gating</strong> (paideia S2) — eager-vs-in-branch occurrence evidence both required</li>
+    <li><strong>LCA-aware permissive scope check</strong> (paideia S3) — walks BlockValue.items + result Or/And chain</li>
+  </ul>
+</div>
+</div>
+
+<!-- FALSIFICATION LEDGER -->
+<h2>Falsification fingerprint — 10 instances</h2>
+<details>
+<summary>Show ledger</summary>
+<div class="panel">
+<table>
+<thead><tr><th>#</th><th>Date</th><th>Falsified prediction</th><th>Lesson</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>2026-05-05</td><td>A4 LongLit→BigInt fold (per-arm uniformity)</td><td>Per-shape asymmetry: standalone YES, val-bound NO; HIR can't distinguish</td></tr>
+<tr><td>2</td><td>2026-05-07</td><td>S4 paideia Bug A required for coupling</td><td>NODE encoding-level prefers extracted Tuple regardless of locality</td></tr>
+<tr><td>3</td><td>2026-05-08</td><td>S5 paideia ByIndex re-classification post-cascade</td><td>Only 1 inline occurrence; re-classification can't manufacture a 2nd</td></tr>
+<tr><td>4</td><td>2026-05-08</td><td>S6 paideia Bug B = LCA-aware branch extraction</td><td>Per-branch dag_count produces 2 ValDefs vs NODE's 1</td></tr>
+<tr><td>5</td><td>2026-05-08</td><td>S7 paideia B-medium HashSet cross-branch suppression</td><td>Wrong-branch suppression: true_branch wins ValDef, false_branch inlines 3 copies</td></tr>
+<tr><td>6</td><td>2026-05-08</td><td>S2 gluon Level A global ValId counter</td><td>Scala emits colliding IDs legitimately; 2 currently-MATCH fixtures regress</td></tr>
+<tr><td>7</td><td>2026-05-08</td><td>S3 gluon Level B scope-aware parser</td><td>AST is internally inconsistent; no parser change can recover missing binding</td></tr>
+<tr><td>8</td><td>2026-05-08</td><td>S3 sigmao stale-S2-plan superseded by <code>d6ba8d82</code></td><td>Cascades shift the residual class; bisect-pre-flight before executing stale plans</td></tr>
+<tr><td>9</td><td>2026-05-08</td><td>S4 sigmao re-confirms S2 with Bug 1 isolation matching prediction</td><td>Coupled diagnosis genuine; renumbering pipeline rewrite is structural blocker</td></tr>
+<tr><td>10</td><td>2026-05-09</td><td>S1 oracle/duckpools — first Negation(Literal)+min/max widen attempt covers source-literal cases but misses <code>max(min(...), 0)</code> Apply-arg shape</td><td>Apply-arg widening is not a universal rule; only <code>min</code>/<code>max</code> lower to a binary numeric op and need pair-widening; sigmausd's <code>max(min(bcReserveIn, bcReserveNeededIn), 0)</code> falsified the &quot;BinOp-only widening is sufficient&quot; assumption mid-fix</td></tr>
+</tbody>
+</table>
+<div class="footnote">Pattern is now empirical methodology, not coincidence. Treat next-session predictions as hypotheses with measurable falsification axes, not recipes.</div>
+</div>
+</details>
+
+<!-- HOUSEKEEPING -->
+<h2>Working tree housekeeping</h2>
+<div class="panel">
+<table>
+<thead><tr><th>File</th><th>Status</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td class="mono">ergoscript-compiler/tests/diff_fuzz.rs</td><td><span class="pill muted">parked</span></td><td>Pre-existing lint edits — review then commit/revert/stash</td></tr>
+<tr><td class="mono">ergoscript-compiler/tests/diff_fuzz_gen.rs</td><td><span class="pill muted">parked</span></td><td>Same as above</td></tr>
+<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/SIGNIFICANT-15-PLAN.md</td><td><span class="pill muted">untracked</span></td><td>Decide if needed; commit or remove</td></tr>
+<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/SIGMA-AUDIT-MCP-DESIGN.md</td><td><span class="pill muted">orphan</span></td><td>Canonical version now at <code>docs/sigma-audit-mcp-design.md</code> — remove the duplicate</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="footnote" style="margin-top: 24px; text-align: center;">
+  Generated 2026-05-09 from current HEAD <code>12dcbea7</code> · file: <code>ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/STATUS.html</code> (gitignored)
+</div>
+
+</div>
+</body>
+</html>

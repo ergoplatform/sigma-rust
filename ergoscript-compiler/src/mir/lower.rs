@@ -146,23 +146,19 @@ fn numeric_upcast_pair(l: Expr, r: Expr) -> (Expr, Expr) {
 /// our pool encoding diverge from NODE on every fixture mixing bare int
 /// literals with BigInt arithmetic (e.g. spectrum N2T/T2T pool's `FeeDenom`).
 ///
-/// **Exception: `Upcast(Const(N: SInt), SLong)` IS folded** to `Const(SLong N)`.
-/// Empirical p2sAddress probe (treeVersion=0): all three shapes
-/// `l * -1`, `l * (-1).toLong`, `l * -1L` (with `l: Long = INPUTS(0).value`)
-/// produce identical bytes with `Const(SLong(-1))` in the pool — Scala folds
-/// the implicit Upcast at graph-build via the `propagateUnOp` default arm,
-/// same fold that `fold_int_lit_to_long` mirrors for the explicit `.toLong`
-/// path. Closes sigmausd_bank's S3 residual where `fee * -1` (Long * Int) was
-/// emitting `Upcast(Const(-1: SInt), SLong)` instead of `Const(-1: SLong)`.
-/// Narrow scope (SInt→SLong only) preserves the per-arm asymmetry: SByte/SShort
-/// upcasts stay unfolded (per Scala parser behavior), as does SInt→SBigInt
-/// (per the FeeDenom rationale above).
+/// The implicit `Upcast(Const(N: SInt), SLong)` fold is performed at HIR widen
+/// time (`widen_numeric_literals` / `widen_binop_literal_pair`), not here.
+/// Reason: by MIR-time we cannot distinguish a `Const(SInt)` that came from a
+/// source-level inline literal (Scala folds — sigmausd `fee * -1`) from one
+/// that came from a val-bound substitution (Scala does NOT fold — oracle
+/// `val maxDev = 5; lastData * maxDev`, duckpools `val updateFrequency = 120;
+/// deltaHeight >= updateFrequency`). Empirical probe `probe_int_to_long_upcast_fold`
+/// confirms: literal Int operands (positive or negative) at a wider-Long BinOp
+/// position fold to Const(SLong) in NODE; val-substituted Int operands stay as
+/// Const(SInt) with a separate Upcast wrapper. HIR widen runs before
+/// `constant_fold` substitutes ValUse → Literal and so preserves the
+/// distinction; the fold has been moved there to match the asymmetry.
 fn numeric_upcast(expr: Expr, target: SType) -> Expr {
-    if target == SType::SLong {
-        if let Some(folded) = fold_int_lit_to_long(&expr) {
-            return folded;
-        }
-    }
     Upcast::new(expr, target).expect("numeric upcast").into()
 }
 

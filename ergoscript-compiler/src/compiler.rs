@@ -6388,3 +6388,59 @@ fn debug_cluster001() {
     eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
+
+/// Dev-only: probe Scala's `Upcast(Const(SInt N), SLong)` fold across
+/// positive/negative literal and val-bound shapes. The 6e559e1f commit
+/// only tested `-1`; this probe widens coverage to confirm whether the
+/// fold is sign-asymmetric or shape-asymmetric.
+///
+/// Run: source ~/.secrets && cargo test -p ergoscript-compiler probe_int_to_long_upcast_fold -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_int_to_long_upcast_fold() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let api_key = std::env::var("API_KEY").unwrap_or_default();
+    let node_url = "http://localhost:9053";
+
+    let cases: &[(&str, &str)] = &[
+        ("A: l*-1 val-bound", "{val l: Long = INPUTS(0).value; sigmaProp(l * -1 > 0L)}"),
+        ("B: l*5 val-bound", "{val l: Long = INPUTS(0).value; sigmaProp(l * 5 > 0L)}"),
+        ("C: INPUTS(0).value*5 no val", "{sigmaProp(INPUTS(0).value * 5 > 0L)}"),
+        ("D: l-5 val-bound", "{val l: Long = INPUTS(0).value; sigmaProp(l - 5 > 0L)}"),
+        ("E: l>=5 cmp", "{val l: Long = INPUTS(0).value; sigmaProp(l >= 5)}"),
+        ("F: l>=0 cmp", "{val l: Long = INPUTS(0).value; sigmaProp(l >= 0)}"),
+        ("G: oracle-shape val", "{val maxDev = 5; val l: Long = INPUTS(0).value; sigmaProp(l * maxDev > 0L)}"),
+        ("H: l*-5 val-bound", "{val l: Long = INPUTS(0).value; sigmaProp(l * -5 > 0L)}"),
+        ("I: if-thunk l*-1", "{val l: Long = INPUTS(0).value; sigmaProp(if (l < 0L) l * -1 > 0L else l > 0L)}"),
+        ("J: nested-block l*-1", "{val l: Long = INPUTS(0).value; val a = {l * -1}; sigmaProp(a > 0L)}"),
+        ("K: sigmausd-shape", "{val l: Long = INPUTS(0).value; val fee = l * 2L / 100L; val actualFee = if (fee < 0L) {fee * -1} else fee; sigmaProp(actualFee > 0L)}"),
+    ];
+
+    for (label, src) in cases {
+        eprintln!("\n=== {} ===\n  src: {}", label, src);
+        let local_tree = compile(src, ScriptEnv::new()).unwrap();
+        let local_bytes = local_tree.sigma_serialize_bytes().unwrap();
+        let local_hex: String = local_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+        eprintln!("  LOCAL ({}B): {}", local_bytes.len(), local_hex);
+        match compile_canonical(src, ScriptEnv::new(), node_url, &api_key) {
+            Ok(canon) => {
+                let bytes = canon.tree.sigma_serialize_bytes().unwrap();
+                let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+                eprintln!("  NODE  ({}B): {}", bytes.len(), hex);
+                eprintln!("  {}", if local_bytes == bytes { "MATCH" } else { "DIFF" });
+                if let Ok(n) = canon.tree.constants_len() {
+                    for i in 0..n {
+                        eprintln!("    NODE[{}] {:?}", i, canon.tree.get_constant(i));
+                    }
+                }
+                if let Ok(n) = local_tree.constants_len() {
+                    for i in 0..n {
+                        eprintln!("    LOCAL[{}] {:?}", i, local_tree.get_constant(i));
+                    }
+                }
+            }
+            Err(e) => eprintln!("  COMPILE ERR: {:?}", e),
+        }
+    }
+}
