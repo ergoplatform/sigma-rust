@@ -113,7 +113,9 @@ impl SigmaSerializable for Cthreshold {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let k = r.get_u16()? as u8; // safe because we serialized u8 as u16
+        let k_u16 = r.get_u16()?;
+        let k = u8::try_from(k_u16)
+            .map_err(|_| SigmaParsingError::Misc(format!("Cthreshold k={k_u16} exceeds 255")))?;
         let items_count = r.get_u16()?;
         let mut items = Vec::with_capacity(items_count as usize);
         for _ in 0..items_count {
@@ -123,5 +125,22 @@ impl SigmaSerializable for Cthreshold {
             k,
             children: items.try_into()?,
         })
+    }
+}
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::serialization::{sigma_byte_writer::SigmaByteWriter, SigmaSerializable};
+    use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+    #[test]
+    fn k_above_255() {
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        w.put_u16(300).unwrap();
+        w.put_u16(0).unwrap();
+        let err = Cthreshold::sigma_parse_bytes(&data).unwrap_err();
+        assert!(matches!(err, SigmaParsingError::Misc(ref msg) if msg.contains("k=300")),);
     }
 }
