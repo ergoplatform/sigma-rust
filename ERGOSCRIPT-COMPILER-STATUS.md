@@ -11,15 +11,29 @@ The `ergoscript-compiler` crate compiles ErgoScript source code to ErgoTree byte
 | Suite | Result |
 |---|---|
 | `ergoscript-compiler --lib` | 233/233 |
-| `ergoscript-compiler --lib -- --ignored` | 4/4 |
-| `ergoscript-compiler --test conformance` | 154/154 |
+| `ergoscript-compiler --lib -- --ignored` | 11/11 |
+| `ergoscript-compiler --test conformance` | 164/164 |
 | `test_batch_node_byte_match` | 1/1 |
-| `test_ecosystem_batch` (auth-gated, vs `localhost:9053`) | 14/14 LOCAL MATCH |
-| `test_significant_15` (auth-gated, vs `localhost:9053`) | 9/15 LOCAL MATCH |
+| `test_ecosystem_batch` (auth-gated, vs `localhost:9053`) | 11 LOCAL MATCH + 3 USED NODE / 14 |
+| `test_significant_15` (auth-gated, vs `localhost:9053`) | **10/15 LOCAL MATCH** |
+| `test_diff_fuzz` (auth-gated, generated F.2 corpus) | 563 MATCH / 10 DIFF / 0 RUST_FAIL / 2 SCALA_FAIL = **97.8%** |
+| `test_diff_fuzz_gen` (corpus generator) | 2/2 |
 | `ergotree-ir --features arbitrary --lib` | 255/255 |
 | `ergotree-interpreter --features arbitrary --lib` | 336/336 |
 
-**Byte-match parity with the Scala node**: 45/46 legacy contract fixtures (1 skipped — CSE stack overflow on a deeply nested BigInt polynomial; see Known issues), the 14 ecosystem contracts in the auth-gated batch (SigmaFi, SkyHarbor, DuckPools, Lilium), **and 9/15 keystone contracts from the "15 Significant Ergo Contracts" initiative** (skyharbor V1, phoenix HodlERG bank, spectrum n2t/t2t pools, dexy bank, ergoraffle, duckpools child interest, ergomixer fullmix, chaincash reserve). Per-fixture provenance and remaining-backlog status in [`ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md`](ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md).
+**Byte-match parity with the Scala node**: 45/46 legacy contract fixtures (1 skipped — CSE stack overflow on a deeply nested BigInt polynomial; see Known issues), the 14 ecosystem contracts in the auth-gated batch (SigmaFi, SkyHarbor, DuckPools, Lilium), **10/15 keystone contracts from the "15 Significant Ergo Contracts" initiative** (`chaincash_reserve`, `dexy_bank_full`, `ergomixer_fullmix`, `ergoraffle_active`, `phoenix_hodlerg_bank_full`, `rosen_event_trigger`, `sigmausd_bank`, `skyharbor_v1_erg`, `spectrum_n2t_pool`, `spectrum_t2t_pool`), **and 563/575 generated programs from the WS-F differential fuzzer** (typed AST builder against the Scala node, 97.9% byte-match — see [`tests/diff_fuzz.rs`](ergoscript-compiler/tests/diff_fuzz.rs) and [`tests/diff_fuzz_gen.rs`](ergoscript-compiler/tests/diff_fuzz_gen.rs)). Per-fixture provenance and remaining-backlog status in [`ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md`](ergoscript-compiler/tests/fixtures/significant_15/MANIFEST.md).
+
+**5 sig-15 contracts remain open** (USED NODE — local compiles, but bytes diverge from Scala; canonical mode falls back to node):
+
+| Fixture | Δ | Class | Path forward |
+|---|---|---|---|
+| `paideia_stake_state` | +2 | Cross-branch coordination plateau | CSE-pass invariant work |
+| `gluon_box_guard` | -154 | Post-CSE AST-consistency emit-bug plateau | CSE invariant: every `ValUse(id, tpe)` must have matching `ValDef(id, _: tpe)` in scope chain |
+| `sigmao_option` | -32 | Renumbering pipeline rewrite plateau | `mir/cse.rs` module-level refactor |
+| `oracle_refresh` | -2 | Suspected silent cascade regression since CLOSE at `3038845e` | Verify + restore (cf. sigmao S3 `52ca2c14` precedent) |
+| `duckpools_child_interest` | -4 | Suspected silent cascade regression since CLOSE at S67 | Same as oracle |
+
+The three diagnosed plateaus (paideia, gluon, sigmao) share a structural pattern — post-CSE structural integrity — and are best paired as a unified CSE-pass workstream rather than per-fixture sessions. See [`AUDIT-FRAMEWORK-GUIDE.md`](AUDIT-FRAMEWORK-GUIDE.md) for the methodology + diagnostic-infrastructure inventory + how to run audit sessions on the open fixtures.
 
 ### Two compilation modes
 
@@ -164,6 +178,10 @@ cargo test -p ergoscript-compiler test_ecosystem_batch -- --ignored --nocapture
 ```
 
 ## Open items for future work
+
+### WS-F differential fuzzer (post-wave-2)
+
+The 10 remaining DIFF programs in the F.2 corpus form a small categorical residual after the wave-2 cluster-fix arc (cluster-001 walker/fold gaps, cluster-008 constant-folding sub-shapes, cluster-010 EQ/NEQ + DCE + structural). Verification rules learned during the arc are captured in per-pattern methodology notes (xorOf vs anyOf/allOf, BoolToSigmaProp non-folding, EQ/NEQ ≠ LT/LE/GT/GE fold sibling, min/max chain-fold composition, numeric upcast Const arm asymmetry, BigInt arithmetic non-folding, reflexive ordering non-folding, post-arc residual diagnosis). Per-fixture sig-15 fallback work resumes in a separate workstream.
 
 ### Residuals from the language-conformance arc
 
