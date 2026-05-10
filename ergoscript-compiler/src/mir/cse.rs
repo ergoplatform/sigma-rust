@@ -6099,6 +6099,58 @@ fn collect_cond_branch_shared(expr: &Expr) -> Vec<Expr> {
 
 /// Shared implementation: given pre-computed dag_usages and schedule,
 /// select multi-use nodes for extraction and build the result BlockValue.
+//
+// WS-G.1 diagnosis (2026-05-10) — placement strategy diverges from Scala.
+//
+// Scala's `processAstGraph` (sigma.compiler.ir.TreeBuilding) iterates each
+// AstGraph's *local* `subG.schedule` and emits a ValDef at THIS scope only
+// when (a) `mainG.hasManyUsagesGlobal(s)` (flat schedule, `.syms`) AND (b) the
+// sym lives in this scope's `domain`. The sym's owning scope is fixed at
+// graph-construction time by `ThunkScope.findDef → findGlobalDefinition`
+// (sigma.compiler.ir.primitives.Thunks): the FIRST ThunkScope that constructs
+// an equivalent Def claims it; sibling thunks reach the sym via
+// `findGlobalDefinition` but do NOT add it to their own `bodyDefs`. At
+// `processAstGraph` time, sibling scopes' `curEnv` therefore doesn't bind
+// the shared sym; their `buildValue` env-misses and inline-rebuilds.
+//
+// Net Scala behaviour: a cross-scope shared sym emits as ValDef in its
+// FIRST-DFS-CONSTRUCTION SCOPE (deeper than the LCA of all uses). Other
+// scopes inline-rebuild; `ConstantStore::put` then dedups any literal
+// `Const` children of the inline copies, partially compensating size.
+//
+// Rust here uses two separable scope modes:
+//
+//   - `ScopeMode::Root`: extract globally-shared candidates at the
+//     OUTERMOST eligible scope (root BlockValue), then propagate ValUse
+//     refs inward via `replace_all`. Cross-thunk shared candidates that
+//     pass the scope checks become a single ValDef + N ValUses.
+//
+//   - `ScopeMode::Branch` (called via `apply_cse_within_branches`): each
+//     If branch runs an INDEPENDENT CSE pass over its own subtree. No
+//     cross-branch coordination — sibling branches that share a candidate
+//     each extract it locally, producing N ValDefs for one Scala graph-IR
+//     sym.
+//
+// Empirical divergence at HEAD (G.1 archive
+// `<commit>_ws-g1-paideia-gluon-shared-mechanism-diagnosis.md`):
+//
+//   - paideia +2: `[PAG/Root] extract id=82 dag_count=3 :: Tuple([Coll[Byte](),
+//     0L])` hoists the cross-branch-shared Tuple to root (LOCAL val 33);
+//     Scala-NODE places at val 48 inside `if_true` (first-DFS scope). Δ +2
+//     from constant-pool dedup pattern (LOCAL 77 / NODE 79 entries).
+//
+//   - gluon +102: zero Root extractions; many `[PAG/Branch]` extractions
+//     for the SAME shape across nested If arms (id=238 BinOp 9×; id=242
+//     Slice 5×). NODE has ONE graph-level sym per shared shape.
+//
+// Both fixtures share an underlying architectural cause: Rust's MIR uses
+// tree-position CSE with retroactive dedup; Scala's IR uses DAG-identity
+// hash-cons at construction. Closing both requires graph-IR migration of
+// `process_ast_graph_*` (~200-400 LOC), NOT a single LCA-aware placement
+// decision — Scala has no LCA primitive in AstGraphs/ProgramGraphs/Thunks/
+// TreeBuilding, so an "LCA placement" mechanism on the Rust side wouldn't
+// match what NODE actually does. See the WS-G.2 reframing in
+// `WORKSTREAM-G-HANDOFF.md` for the migration design space.
 fn process_ast_graph_impl(
     expr: Expr,
     global_max_id: u32,
