@@ -4589,6 +4589,19 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
 /// `hasManyUsagesGlobal` in the Scala compiler's `processAstGraph`.
 ///
 /// Returns a list of (expression, dag_usage_count) pairs.
+//
+// Walker-completeness empirical validation (sig-15 paideia S9, 2026-05-10):
+// CSE_TRACE_EXTRACT against debug_paideia at HEAD reports
+// `[PAG/Root] extract id=82 dag_count=3 :: Tuple([Coll[Byte](), Const(0:SLong)])` —
+// the count walker (via collect_subexprs + direct_children) correctly identifies
+// the cross-branch shared pure-const Tuple at dag_count=3 globally and extracts.
+// 15th falsification fingerprint instance: brief's "branch-local count walker
+// undercounts cross-branch sym" hypothesis FALSIFIED at HEAD. Paideia's Δ +2
+// residual is structural placement (Scala first-DFS-scope vs Rust outermost-
+// eligible-scope), NOT walker completeness. Distinct from #13 sigmao S7 +
+// #14 gluon S4 (both 1-line walker-arm fixes); paideia plateau hardens with
+// empirical evidence the structural barrier is real. See `project_sig15_paideia_s9_*`
+// memory + cluster archive `<HEAD>_sig15-paideia-session9-walker-lens-falsified.md`.
 fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 1: Collect all sub-expressions and deduplicate by structural equality
     let mut all_subexprs: Vec<Expr> = Vec::new();
