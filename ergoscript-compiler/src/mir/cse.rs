@@ -39,6 +39,7 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // from different source locations (e.g. SELF.R4[T].get used
             // in two places) would be treated as different nodes.
             let expr = strip_source_spans(expr);
+            trace_slot_shift("00-strip_source_spans", &expr);
             // sig-15 paideia_stake_state S2: inline ValDefs whose RHS is a
             // primitively-context-pure alias (`ByIndex(GlobalVars, Const)`,
             // i.e. `INPUTS(N)` / `OUTPUTS(N)` aliases like
@@ -55,15 +56,21 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // alias ValDefs unblocks structural matching at outer scope;
             // CSE re-extracts shared chains at the LCA.
             let expr = inline_alias_vals(expr);
+            trace_slot_shift("01-inline_alias_vals", &expr);
             let global_max_id = find_max_val_id(&expr);
             let cse_result = cse_expr(expr, global_max_id, false);
+            trace_slot_shift("02-cse_expr", &cse_result);
             let branch_cse_max = find_max_val_id(&cse_result);
             let branch_cse = apply_cse_within_branches(cse_result, branch_cse_max);
+            trace_slot_shift("03-apply_cse_within_branches", &branch_cse);
             let pre_extract_max = find_max_val_id(&branch_cse);
             let mut next_id = pre_extract_max + 1;
             let pre_extracted = pre_extract_from_valdefs(branch_cse, &mut next_id);
+            trace_slot_shift("04-pre_extract_from_valdefs", &pre_extracted);
             let inlined = inline_single_use_vals(pre_extracted);
+            trace_slot_shift("05a-inline_single_use_vals", &inlined);
             let deduped = deduplicate_inner_consts(inlined);
+            trace_slot_shift("06-deduplicate_inner_consts", &deduped);
             // Re-run outer inlining: Phase 3 (relational BinOp dedup, sig-15
             // sigmausd_bank close) extracts a new branch-scope ValDef whose
             // RHS may consume two prior uses of an OUTER user-bound val
@@ -71,7 +78,9 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // `inline_single_use_vals` pass ran before that drop, so the now-
             // single-use outer ValDef would otherwise survive as overhead.
             let deduped = inline_single_use_vals(deduped);
+            trace_slot_shift("05b-inline_single_use_vals", &deduped);
             let flattened = flatten_nested_blocks(deduped);
+            trace_slot_shift("07-flatten_nested_blocks", &flattened);
             // sig-15 paideia_stake_state S5: post-PAG chain-rewrite for
             // outer ValDefs whose RHS is a stable chain link. Sub-passes
             // (`apply_cse_within_branches`, `pre_extract_from_valdefs`)
@@ -80,6 +89,7 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // inline references unrewritten. See doc on
             // `rewrite_byindex_globalvars_chain` for the rewrite shape set.
             let flattened = rewrite_byindex_globalvars_chain(flattened);
+            trace_slot_shift("08-rewrite_byindex_globalvars_chain", &flattened);
 
             // Capture outer items[] IDs pre-disambig in items-order — paired with
             // post-disambig IDs (items[] order is preserved by disambig) gives us
@@ -110,6 +120,7 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // from items[3] to items[8]. Disambig is order-independent on
             // tree shape; it only renames ids to be globally unique.
             let disambiguated = disambiguate_val_ids(flattened);
+            trace_slot_shift("09-disambiguate_val_ids", &disambiguated);
 
             let post_disambig_outer_ids: Vec<u32> = if let Expr::BlockValue(s) = &disambiguated {
                 s.expr
@@ -143,8 +154,12 @@ pub fn apply_cse(expr: Expr) -> Expr {
             }
 
             let reassigned = dfs_reassign_val_ids(disambiguated, &source_positions_post_disambig);
+            trace_slot_shift("10-dfs_reassign_val_ids", &reassigned);
             let reordered = reorder_valdefs(reassigned);
-            sequential_renumber(reordered)
+            trace_slot_shift("11-reorder_valdefs", &reordered);
+            let final_expr = sequential_renumber(reordered);
+            trace_slot_shift("12-sequential_renumber", &final_expr);
+            final_expr
         })
         .expect("failed to spawn CSE thread")
         .join()
@@ -4713,6 +4728,125 @@ fn collect_structural_parents<'a>(expr: &'a Expr, out: &mut Vec<&'a Expr>) {
 }
 
 // -----------------------------------------------------------------------
+// Probe 1 — orphan ValUse detector (sig-15 sigmao S7, 2026-05-09)
+// -----------------------------------------------------------------------
+//
+// Scope-aware walker that detects ValUse(K) refs whose ValDef(K) is NOT
+// in the lexical scope at the use site. Pure observability.
+//
+// Scope semantics:
+//   - BlockValue(items, result):
+//       - For each ValDef item at index i, its rhs sees the OUTER scope
+//         plus prior items[0..i].id.
+//       - The result sees outer scope plus all items[].id.
+//   - FuncValue(args, body):
+//       - body sees outer scope plus all args.idx.
+//   - Other forms: pass current scope through to children.
+//
+// An orphan ValUse(K) is one where K is in NEITHER the outer scope NOR
+// any in-scope sibling at the point of reference.
+#[allow(dead_code)]
+fn count_orphan_valuses(expr: &Expr) -> usize {
+    let mut count = 0usize;
+    let scope: HashSet<u32> = HashSet::new();
+    walk_orphan(expr, &scope, &mut count);
+    count
+}
+
+#[allow(dead_code)]
+fn walk_orphan(expr: &Expr, scope: &HashSet<u32>, count: &mut usize) {
+    match expr {
+        Expr::ValUse(vu) => {
+            if !scope.contains(&vu.val_id.0) {
+                *count += 1;
+            }
+        }
+        Expr::BlockValue(s) => {
+            // Items processed in order; each ValDef's rhs sees prior items
+            // only. The result sees all items.
+            let mut block_scope = scope.clone();
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    walk_orphan(&vd.expr.rhs, &block_scope, count);
+                    block_scope.insert(vd.expr.id.0);
+                } else {
+                    walk_orphan(item, &block_scope, count);
+                }
+            }
+            walk_orphan(&s.expr.result, &block_scope, count);
+        }
+        Expr::ValDef(s) => {
+            // Top-level ValDef (not inside a BlockValue items[] list) — rhs
+            // sees current scope; the def's id does NOT enter scope at this
+            // level (only its enclosing BlockValue handles that).
+            walk_orphan(&s.expr.rhs, scope, count);
+        }
+        Expr::FuncValue(fv) => {
+            let mut body_scope = scope.clone();
+            for arg in fv.args() {
+                body_scope.insert(arg.idx.0);
+            }
+            walk_orphan(fv.body(), &body_scope, count);
+        }
+        other => {
+            for child in direct_children(other) {
+                walk_orphan(child, scope, count);
+            }
+        }
+    }
+}
+
+#[inline]
+fn trace_slot_shift(stage: &str, expr: &Expr) {
+    if std::env::var("CSE_TRACE_SLOT_SHIFT").is_ok() {
+        let mut orphans: Vec<u32> = Vec::new();
+        let scope: HashSet<u32> = HashSet::new();
+        collect_orphan_ids(expr, &scope, &mut orphans);
+        if !orphans.is_empty() {
+            eprintln!("[SLOT_SHIFT] stage={} orphan_ids={:?}", stage, orphans);
+        }
+    }
+}
+
+fn collect_orphan_ids(expr: &Expr, scope: &HashSet<u32>, out: &mut Vec<u32>) {
+    match expr {
+        Expr::ValUse(vu) => {
+            if !scope.contains(&vu.val_id.0) {
+                out.push(vu.val_id.0);
+            }
+        }
+        Expr::BlockValue(s) => {
+            let mut block_scope = scope.clone();
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    collect_orphan_ids(&vd.expr.rhs, &block_scope, out);
+                    block_scope.insert(vd.expr.id.0);
+                } else {
+                    collect_orphan_ids(item, &block_scope, out);
+                }
+            }
+            collect_orphan_ids(&s.expr.result, &block_scope, out);
+        }
+        Expr::ValDef(s) => {
+            collect_orphan_ids(&s.expr.rhs, scope, out);
+        }
+        Expr::FuncValue(fv) => {
+            let mut body_scope = scope.clone();
+            for arg in fv.args() {
+                body_scope.insert(arg.idx.0);
+            }
+            collect_orphan_ids(fv.body(), &body_scope, out);
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_orphan_ids(child, scope, out);
+            }
+        }
+    }
+}
+
+
+// -----------------------------------------------------------------------
 // Graph IR: processAstGraph port
 // -----------------------------------------------------------------------
 
@@ -7261,6 +7395,72 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         Expr::FuncValue(fv) => {
             let new_body = replace_all(fv.body(), target, replacement);
             Expr::FuncValue(FuncValue::new(fv.args().to_vec(), new_body))
+        }
+        // sig-15 sigmao S7 (2026-05-09): DecodePoint walker-completeness fix.
+        // Previously fell into the leaf catch-all → CreateProveDlog(DecodePoint(VU(K)))
+        // body's VU(K) was never substituted by inline_single_use_vals's
+        // replace_all loop, leaving orphan VU(K) when ValDef(K) was inlined.
+        // Empirical: Probe 1 with B0 widened gate showed sigmao orphan VU(21)
+        // appearing at stage 05a. Adding this arm closes the substitution gap.
+        Expr::DecodePoint(dp) => {
+            let new_input = replace_all(&dp.input, target, replacement);
+            Expr::DecodePoint(ergotree_ir::mir::decode_point::DecodePoint {
+                input: new_input.into(),
+            })
+        }
+        // Other single-input wrappers also missing from this match — add
+        // proactively to avoid latent walker-completeness bugs of the same
+        // shape. Each is byte-neutral on current sig-15 + F.2 (no test
+        // currently triggers a ValUse inside one of these positions during
+        // inline substitution), but the gap exists structurally.
+        Expr::CalcSha256(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::CalcSha256(ergotree_ir::mir::calc_sha256::CalcSha256 {
+                input: new_input.into(),
+            })
+        }
+        Expr::BitInversion(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::BitInversion(ergotree_ir::mir::bit_inversion::BitInversion {
+                input: new_input.into(),
+            })
+        }
+        Expr::ByteArrayToLong(s) => {
+            let new_input = replace_all(&s.expr.input, target, replacement);
+            Expr::ByteArrayToLong(Spanned {
+                source_span: s.source_span,
+                expr: ergotree_ir::mir::byte_array_to_long::ByteArrayToLong {
+                    input: new_input.into(),
+                },
+            })
+        }
+        Expr::ExtractBytesWithNoRef(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::ExtractBytesWithNoRef(
+                ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef {
+                    input: new_input.into(),
+                },
+            )
+        }
+        Expr::LongToByteArray(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::LongToByteArray(ergotree_ir::mir::long_to_byte_array::LongToByteArray {
+                input: new_input.into(),
+            })
+        }
+        Expr::SigmaPropIsProven(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::SigmaPropIsProven(
+                ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven {
+                    input: new_input.into(),
+                },
+            )
+        }
+        Expr::XorOf(s) => {
+            let new_input = replace_all(&s.input, target, replacement);
+            Expr::XorOf(ergotree_ir::mir::xor_of::XorOf {
+                input: new_input.into(),
+            })
         }
         // Leaves
         other => other.clone(),

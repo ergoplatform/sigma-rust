@@ -5138,6 +5138,11 @@ fn probe_sig15_collisions() {
         "fixture", "valdefs", "distinct", "type-coll", "total-coll", "segreg"
     );
     for (fixture, prelude) in fixtures {
+        // Probe 1 attribution: when CSE_TRACE_SLOT_SHIFT is set, prefix the
+        // per-fixture trace block so orphan-VU counts can be attributed.
+        if std::env::var("CSE_TRACE_SLOT_SHIFT").is_ok() {
+            eprintln!("---fixture={}---", fixture);
+        }
         let path = fixtures_dir.join(fixture);
         let raw = std::fs::read_to_string(&path).unwrap();
         let source = if prelude.is_empty() {
