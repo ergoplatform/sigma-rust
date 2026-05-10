@@ -8896,3 +8896,367 @@ mod renumber_scope_safety {
         assert!(dups.is_empty(), "renumber dup: {:?}", dups);
     }
 }
+
+// =============================================================================
+// WS-G.2.2 — hash-cons primitive (standalone)
+// =============================================================================
+//
+// Standalone hash-cons data primitive mirroring Scala's
+// `sigma.compiler.ir.primitives.Thunks.ThunkScope.findDef` chain
+// (current-scope bodyDefs → parent.findDef → root._globalDefs). See
+// `parity-handoffs/G2.2-HASH-CONS-PRIMITIVE-HANDOFF.md` for the design probe
+// and the Scala source it replicates.
+//
+// G.2.2 is layer 0: data primitive + unit tests only. No CSE integration —
+// `process_ast_graph_impl`, `apply_cse_within_branches`, and the renumbering
+// pipeline are not touched. That's G.2.3.
+#[allow(dead_code)] // G.2.3 will wire these in.
+mod sym_table {
+    use super::direct_children;
+    use ergotree_ir::mir::bin_op::BinOpKind;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::serialization::SigmaSerializable;
+    use std::collections::HashMap;
+    use std::hash::{Hash, Hasher};
+
+    /// Scope is identified by its index in `SymTable.scope_parents`.
+    /// Scope 0 is the root (no parent).
+    pub(super) type ScopeId = usize;
+
+    /// ValDef ID assigned by the hash-cons pass.
+    /// The renumbering pipeline (`sequential_renumber`) will reassign final
+    /// IDs later; these are stable within one hash-cons pass only.
+    pub(super) type SymId = u32;
+
+    /// Newtype wrapping `Expr` so it can be used as a `HashMap` key with
+    /// structural equality. Equality is `Expr: PartialEq` (consumers MUST
+    /// strip `SourceSpan`s on the wrapped Expr before insertion — see
+    /// `strip_source_spans` in the parent module — because `Spanned<T>`'s
+    /// derived `PartialEq` includes the span).
+    #[derive(Clone, PartialEq, Eq, Debug)]
+    pub(super) struct ExprKey(pub Expr);
+
+    impl Hash for ExprKey {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            expr_hash(&self.0, state);
+        }
+    }
+
+    /// Structural, order-sensitive hash for `Expr` consistent with
+    /// `Expr: PartialEq` on span-stripped inputs. Recurses via
+    /// `direct_children` and hashes per-arm scalar identity for leaves and
+    /// nodes whose discriminant alone does not distinguish them (BinOp kind,
+    /// ValDef id, MethodCall method_id, etc.).
+    fn expr_hash<H: Hasher>(expr: &Expr, state: &mut H) {
+        std::mem::discriminant(expr).hash(state);
+        match expr {
+            Expr::Const(c) => {
+                // `Constant` has no `Hash` impl; sigma_serialize produces
+                // canonical bytes for structurally-equal Constants.
+                if let Ok(bytes) = c.sigma_serialize_bytes() {
+                    bytes.hash(state);
+                }
+            }
+            Expr::ConstPlaceholder(cp) => {
+                cp.id.hash(state);
+            }
+            Expr::ValUse(vu) => {
+                vu.val_id.0.hash(state);
+                std::mem::discriminant(&vu.tpe).hash(state);
+            }
+            Expr::GlobalVars(gv) => {
+                std::mem::discriminant(gv).hash(state);
+            }
+            Expr::ValDef(vd) => {
+                vd.expr.id.0.hash(state);
+            }
+            Expr::BinOp(b) => {
+                // BinOpKind is a 2-level enum (outer category × inner op);
+                // hash both discriminants for distinctness.
+                std::mem::discriminant(&b.expr.kind).hash(state);
+                match &b.expr.kind {
+                    BinOpKind::Arith(a) => std::mem::discriminant(a).hash(state),
+                    BinOpKind::Relation(r) => std::mem::discriminant(r).hash(state),
+                    BinOpKind::Logical(l) => std::mem::discriminant(l).hash(state),
+                    BinOpKind::Bit(b) => std::mem::discriminant(b).hash(state),
+                }
+            }
+            Expr::FuncValue(fv) => {
+                for arg in fv.args() {
+                    arg.idx.0.hash(state);
+                    std::mem::discriminant(&arg.tpe).hash(state);
+                }
+            }
+            Expr::PropertyCall(pc) => {
+                pc.expr.method.method_id().0.hash(state);
+            }
+            Expr::MethodCall(mc) => {
+                mc.expr.method.method_id().0.hash(state);
+            }
+            Expr::SelectField(sf) => {
+                sf.expr.field_index.zero_based_index().hash(state);
+            }
+            _ => {
+                // Other variants: discriminant + child hashes suffice for
+                // structural distinctness. PartialEq is the final arbiter on
+                // collision.
+            }
+        }
+        for child in direct_children(expr) {
+            expr_hash(child, state);
+        }
+    }
+
+    /// Hash-cons table mirroring Scala's `_globalDefs` + `ThunkScope.bodyDefs`
+    /// chain. Each scope has its own structural-equality map; lookup walks
+    /// from the current scope up through its parent chain to the root.
+    pub(super) struct SymTable {
+        /// `scope_parents[i]` = parent scope of scope i, or None for root
+        /// (scope 0).
+        scope_parents: Vec<Option<ScopeId>>,
+        /// Per-scope structural-equality maps:
+        /// `scope_defs[scope_id][ExprKey] = SymId`.
+        scope_defs: Vec<HashMap<ExprKey, SymId>>,
+        /// Counter for fresh sym IDs.
+        next_sym: SymId,
+    }
+
+    impl SymTable {
+        pub fn new() -> Self {
+            // Scope 0 = root
+            Self {
+                scope_parents: vec![None],
+                scope_defs: vec![HashMap::new()],
+                next_sym: 0,
+            }
+        }
+
+        /// Create a new child scope under `parent`. Returns the new scope id.
+        pub fn new_scope(&mut self, parent: ScopeId) -> ScopeId {
+            let id = self.scope_parents.len();
+            self.scope_parents.push(Some(parent));
+            self.scope_defs.push(HashMap::new());
+            id
+        }
+
+        /// Search the scope chain for `expr` starting at `scope`, walking
+        /// current → parent → ... → root. Mirrors `ThunkScope.findDef`.
+        pub fn find(&self, expr: &Expr, scope: ScopeId) -> Option<SymId> {
+            let key = ExprKey(expr.clone());
+            let mut current = scope;
+            loop {
+                if let Some(&sym_id) = self.scope_defs[current].get(&key) {
+                    return Some(sym_id);
+                }
+                match self.scope_parents[current] {
+                    Some(parent) => current = parent,
+                    None => return None,
+                }
+            }
+        }
+
+        /// Insert `expr` into `scope` with a fresh `SymId`. Returns the
+        /// assigned id. Caller must only call this after `find` returns None
+        /// (otherwise the new id shadows the existing entry in this scope
+        /// but the ancestor entry remains visible from sibling scopes).
+        pub fn intern(&mut self, expr: &Expr, scope: ScopeId) -> SymId {
+            let id = self.next_sym;
+            self.next_sym += 1;
+            self.scope_defs[scope].insert(ExprKey(expr.clone()), id);
+            id
+        }
+
+        /// Combined `find` + `intern`. Returns `(sym_id, is_new)` where
+        /// `is_new = true` on first encounter.
+        pub fn find_or_intern(&mut self, expr: &Expr, scope: ScopeId) -> (SymId, bool) {
+            match self.find(expr, scope) {
+                Some(sym_id) => (sym_id, false),
+                None => {
+                    let sym_id = self.intern(expr, scope);
+                    (sym_id, true)
+                }
+            }
+        }
+
+        /// Is `ancestor` an ancestor of (or equal to) `scope`? Used to
+        /// determine whether a sym's owning scope is visible from the
+        /// current scope.
+        pub fn is_ancestor(&self, ancestor: ScopeId, scope: ScopeId) -> bool {
+            let mut current = scope;
+            loop {
+                if current == ancestor {
+                    return true;
+                }
+                match self.scope_parents[current] {
+                    Some(parent) => current = parent,
+                    None => return false,
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use ergotree_ir::mir::bin_op::{ArithOp, BinOp, BinOpKind};
+        use ergotree_ir::mir::constant::Constant;
+        use ergotree_ir::mir::val_def::{ValDef, ValId};
+        use ergotree_ir::source_span::{SourceSpan, Spanned};
+
+        fn c_i64(v: i64) -> Expr {
+            Expr::Const(Constant::from(v))
+        }
+
+        fn binop_plus_spanned(left: Expr, right: Expr, span_offset: usize) -> Expr {
+            Expr::BinOp(Spanned {
+                source_span: SourceSpan {
+                    offset: span_offset,
+                    length: 1,
+                },
+                expr: BinOp {
+                    kind: BinOpKind::Arith(ArithOp::Plus),
+                    left: Box::new(left),
+                    right: Box::new(right),
+                },
+            })
+        }
+
+        fn vdef(id: u32, rhs: Expr) -> Expr {
+            Expr::ValDef(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: ValDef {
+                    id: ValId(id),
+                    rhs: Box::new(rhs),
+                },
+            })
+        }
+
+        fn hash_of(expr: &Expr) -> u64 {
+            use std::collections::hash_map::DefaultHasher;
+            let mut h = DefaultHasher::new();
+            ExprKey(expr.clone()).hash(&mut h);
+            h.finish()
+        }
+
+        /// Test #1: intern `Const(5i64)` twice in root scope. Second call
+        /// returns same SymId; table still has 1 entry.
+        #[test]
+        fn sym_table_same_expr_same_scope() {
+            let mut t = SymTable::new();
+            let e = c_i64(5);
+            let (id1, new1) = t.find_or_intern(&e, 0);
+            let (id2, new2) = t.find_or_intern(&e, 0);
+            assert!(new1);
+            assert!(!new2);
+            assert_eq!(id1, id2);
+            assert_eq!(t.scope_defs[0].len(), 1);
+        }
+
+        /// Test #2: intern E in root; create child scope; `find_or_intern(E,
+        /// child)` returns the same SymId, `is_new=false`. Confirms the
+        /// scope-chain walk sees the root-level entry.
+        #[test]
+        fn sym_table_same_expr_child_scope() {
+            let mut t = SymTable::new();
+            let e = c_i64(7);
+            let (root_id, _) = t.find_or_intern(&e, 0);
+            let child = t.new_scope(0);
+            let (child_id, is_new) = t.find_or_intern(&e, child);
+            assert!(!is_new, "child lookup should find root entry");
+            assert_eq!(root_id, child_id);
+        }
+
+        /// Test #3: intern E in scope A; create sibling scope B (both
+        /// children of root). `find_or_intern(E, B)` walks B → root, misses
+        /// (E lives in A.bodyDefs, not root), returns a NEW sym. Two
+        /// separate SymIds. This is the SIBLING INDEPENDENCE behavior
+        /// G.2.1 confirmed from Thunks.scala.
+        #[test]
+        fn sym_table_sibling_scopes_create_separate_syms() {
+            let mut t = SymTable::new();
+            let scope_a = t.new_scope(0);
+            let scope_b = t.new_scope(0);
+            let e = c_i64(42);
+            let (id_a, new_a) = t.find_or_intern(&e, scope_a);
+            let (id_b, new_b) = t.find_or_intern(&e, scope_b);
+            assert!(new_a);
+            assert!(new_b, "sibling scope should not see scope_a's entry");
+            assert_ne!(
+                id_a, id_b,
+                "siblings must produce distinct SymIds (Thunks.scala parity)"
+            );
+        }
+
+        /// Test #4: root(0) → child(1) → grandchild(2). Verify `is_ancestor`
+        /// returns true for ancestors (incl. self), false otherwise.
+        #[test]
+        fn sym_table_is_ancestor() {
+            let mut t = SymTable::new();
+            let child = t.new_scope(0);
+            let grandchild = t.new_scope(child);
+            assert!(t.is_ancestor(0, grandchild));
+            assert!(t.is_ancestor(child, grandchild));
+            assert!(!t.is_ancestor(grandchild, 0));
+            assert!(t.is_ancestor(child, child), "self-ancestor");
+        }
+
+        /// Test #5: two separately-constructed `BinOp(Plus, Const(1),
+        /// Const(2))` with different `SourceSpan` are `ExprKey`-equal AND
+        /// hash to the same value AFTER source-span strip. (Consumers
+        /// canonicalize via `strip_source_spans` before insertion.)
+        #[test]
+        fn expr_key_structural_equality() {
+            let e1 = super::super::strip_source_spans(binop_plus_spanned(c_i64(1), c_i64(2), 10));
+            let e2 = super::super::strip_source_spans(binop_plus_spanned(c_i64(1), c_i64(2), 20));
+            assert_eq!(ExprKey(e1.clone()), ExprKey(e2.clone()));
+            assert_eq!(hash_of(&e1), hash_of(&e2));
+        }
+
+        /// Test #6: `BinOp(Plus, Const(1), Const(2))` ≠ `BinOp(Plus,
+        /// Const(2), Const(1))`. Operand order matters for both equality
+        /// and hash.
+        #[test]
+        fn expr_key_structural_inequality() {
+            let e1 = super::super::strip_source_spans(binop_plus_spanned(c_i64(1), c_i64(2), 0));
+            let e2 = super::super::strip_source_spans(binop_plus_spanned(c_i64(2), c_i64(1), 0));
+            assert_ne!(ExprKey(e1.clone()), ExprKey(e2.clone()));
+            assert_ne!(
+                hash_of(&e1),
+                hash_of(&e2),
+                "operand order must affect hash"
+            );
+        }
+
+        /// Test #7: `ValDef(id=1, rhs=Const(5))` and `ValDef(id=2,
+        /// rhs=Const(5))` are NOT equal (different ids) and must hash
+        /// differently. ValDefs are rarely extraction candidates but the
+        /// hash must be consistent with `Expr: PartialEq`.
+        #[test]
+        fn expr_key_vd_id_independence() {
+            let e1 = vdef(1, c_i64(5));
+            let e2 = vdef(2, c_i64(5));
+            assert_ne!(ExprKey(e1.clone()), ExprKey(e2.clone()));
+            assert_ne!(hash_of(&e1), hash_of(&e2), "ValDef id must affect hash");
+        }
+
+        /// Test #8: intern E in root (scope 0); create child(1); intern E'
+        /// (different expr) in child(1). `find(E, child)` finds the root
+        /// entry via the chain walk; `find(E', root)` misses (child entry
+        /// is not visible from an ancestor).
+        #[test]
+        fn sym_table_find_after_reparent() {
+            let mut t = SymTable::new();
+            let e_root = c_i64(100);
+            let e_child = c_i64(200);
+            let (root_sym, _) = t.find_or_intern(&e_root, 0);
+            let child = t.new_scope(0);
+            let (child_sym, _) = t.find_or_intern(&e_child, child);
+            // From child: e_root visible via parent chain.
+            assert_eq!(t.find(&e_root, child), Some(root_sym));
+            // From root: e_child not visible (it lives in a descendant scope).
+            assert_eq!(t.find(&e_child, 0), None);
+            // Sanity: child sees its own entry too.
+            assert_eq!(t.find(&e_child, child), Some(child_sym));
+        }
+    }
+}
