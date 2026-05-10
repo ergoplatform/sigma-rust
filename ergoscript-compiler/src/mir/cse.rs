@@ -4640,8 +4640,76 @@ fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
         }
     }
 
+    // Diagnostic infrastructure (sig-15 sigmao S6, 2026-05-09):
+    // For each sym in `unique`, log (collectible_parent_count, structural_
+    // parent_count) where structural-parent set is restricted to semantic
+    // Scala graph parents (BoolToSigmaProp / SigmaAnd / SigmaOr / If) —
+    // excluding emit-time wrappers (ValDef / BlockValue / FuncValue) which
+    // are not pre-extraction syms in Scala's `flatSchedule`.
+    //
+    // No behavioral effect — purely observational. Gated by CSE_TRACE_STRUCT_PARENTS.
+    //
+    // Empirical findings (sigmao session 6):
+    // - Strict-subset gate (collectible==0 AND structural>=2) is INERT on
+    //   sigmao: CreateProveDlog has collectible=1 structural=1 (SigmaPropBytes
+    //   is a collectible parent). Brief's "3 BoolToSigmaProp parents" framing
+    //   empirically falsified — only 1 structural parent exists for the sym.
+    // - Wider gate (collectible<2 AND total>=2) tipping CreateProveDlog from
+    //   count=1 → 2 regresses sigmao 1116B → 987B with segregation FAIL —
+    //   matches S5 broad Fix A failure mode verbatim. Renumbering pipeline
+    //   prerequisite is real even for single-sym extraction.
+    let trace = std::env::var("CSE_TRACE_STRUCT_PARENTS").is_ok();
+    if trace {
+        let mut structural_parents: Vec<&Expr> = Vec::new();
+        collect_structural_parents(expr, &mut structural_parents);
+        let mut unique_struct: Vec<&Expr> = Vec::new();
+        for sp in &structural_parents {
+            if !unique_struct.iter().any(|u| u == sp) {
+                unique_struct.push(*sp);
+            }
+        }
+        let mut structural_counts: Vec<usize> = vec![0; unique.len()];
+        for sp in &unique_struct {
+            for child in direct_children(sp) {
+                if let Some(child_idx) = unique.iter().position(|u| u == child) {
+                    structural_counts[child_idx] += 1;
+                }
+            }
+        }
+        for i in 0..unique.len() {
+            if structural_counts[i] >= 1 || parent_counts[i] >= 1 {
+                let gate_strict = parent_counts[i] == 0 && structural_counts[i] >= 2;
+                let gate_total =
+                    parent_counts[i] < 2 && parent_counts[i] + structural_counts[i] >= 2;
+                eprintln!(
+                    "[STRUCT_GATE_INFO] sym={:.140?} collectible={} structural={} strict_fires={} total_fires={}",
+                    unique[i], parent_counts[i], structural_counts[i], gate_strict, gate_total
+                );
+            }
+        }
+    }
+
     // Step 3: Return (expr, usage_count) pairs
     unique.into_iter().zip(parent_counts).collect()
+}
+
+/// Recursively collect every structural-only (non-collectible) non-leaf node
+/// reachable from `expr` that is a SEMANTIC graph parent in Scala's IR.
+/// Excludes ValDef and BlockValue: those are emit-time encoder wrappers, not
+/// pre-extraction graph nodes (Scala's processAstGraph operates on Defs, not
+/// on encoded ValDef/BlockValue forms — those don't exist as syms in
+/// `flatSchedule`).
+fn collect_structural_parents<'a>(expr: &'a Expr, out: &mut Vec<&'a Expr>) {
+    let is_struct_parent = matches!(
+        expr,
+        Expr::BoolToSigmaProp(_) | Expr::SigmaAnd(_) | Expr::SigmaOr(_) | Expr::If(_)
+    );
+    if is_struct_parent {
+        out.push(expr);
+    }
+    for child in direct_children(expr) {
+        collect_structural_parents(child, out);
+    }
 }
 
 // -----------------------------------------------------------------------
