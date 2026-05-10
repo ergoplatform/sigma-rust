@@ -4402,36 +4402,15 @@ fn is_input_stable(expr: &Expr) -> bool {
 
 /// Check if an expression contains any ValUse reference.
 fn contains_val_use(expr: &Expr) -> bool {
-    match expr {
-        Expr::ValUse(_) => true,
-        Expr::PropertyCall(s) => contains_val_use(&s.expr.obj),
-        Expr::MethodCall(s) => {
-            contains_val_use(&s.expr.obj) || s.expr.args.iter().any(contains_val_use)
-        }
-        Expr::ExtractAmount(ea) => contains_val_use(&ea.input),
-        Expr::ExtractRegisterAs(s) => contains_val_use(&s.expr.input),
-        Expr::ExtractScriptBytes(esb) => contains_val_use(&esb.input),
-        Expr::ExtractBytes(eb) => contains_val_use(&eb.input),
-        Expr::ExtractId(ei) => contains_val_use(&ei.input),
-        Expr::ExtractCreationInfo(eci) => contains_val_use(&eci.input),
-        Expr::SizeOf(so) => contains_val_use(&so.input),
-        Expr::ByIndex(s) => {
-            contains_val_use(&s.expr.input)
-                || contains_val_use(&s.expr.index)
-                || s.expr.default.as_ref().is_some_and(|d| contains_val_use(d))
-        }
-        Expr::SelectField(s) => contains_val_use(&s.expr.input),
-        Expr::OptionGet(s) => contains_val_use(&s.expr.input),
-        Expr::OptionIsDefined(s) => contains_val_use(&s.expr.input),
-        Expr::BinOp(s) => contains_val_use(&s.expr.left) || contains_val_use(&s.expr.right),
-        Expr::LogicalNot(s) => contains_val_use(&s.expr.input),
-        Expr::Negation(s) => contains_val_use(&s.expr.input),
-        Expr::Upcast(uc) => contains_val_use(&uc.input),
-        Expr::ByteArrayToBigInt(s) => contains_val_use(&s.expr.input),
-        Expr::CalcBlake2b256(cb) => contains_val_use(&cb.input),
-        Expr::SigmaPropBytes(spb) => contains_val_use(&spb.input),
-        _ => false,
+    if let Expr::ValUse(_) = expr {
+        return true;
     }
+    // sig-15 gluon S4: recurse via `direct_children` for completeness.
+    // A missing arm here causes a CSE candidate that *does* contain a ValUse
+    // to slip past the `has_lambdas`-branch gate and be extracted at outer
+    // scope, hoisting an inner-scoped ValUse out of its binder. Same
+    // walker-completeness class as S7's `replace_all` DecodePoint arm.
+    direct_children(expr).iter().any(|c| contains_val_use(c))
 }
 
 /// Check if an expression tree contains any FuncValue (lambda).
@@ -4804,6 +4783,209 @@ fn trace_slot_shift(stage: &str, expr: &Expr) {
         collect_orphan_ids(expr, &scope, &mut orphans);
         if !orphans.is_empty() {
             eprintln!("[SLOT_SHIFT] stage={} orphan_ids={:?}", stage, orphans);
+        }
+    }
+    if std::env::var("CSE_TRACE_VU_PATH").is_ok() {
+        let mut found: Vec<(u32, ergotree_ir::types::stype::SType, Vec<&'static str>)> = Vec::new();
+        let scope: HashSet<u32> = HashSet::new();
+        let mut path: Vec<&'static str> = Vec::new();
+        collect_orphan_paths(expr, &scope, &mut path, &mut found);
+        for (id, tpe, p) in &found {
+            eprintln!(
+                "[VU_PATH] stage={} orphan_id={} tpe={:?} path={:?}",
+                stage, id, tpe, p
+            );
+        }
+        if let Ok(target) = std::env::var("CSE_TRACE_VD_FOR") {
+            if let Ok(target_id) = target.parse::<u32>() {
+                let mut found2: Vec<(ergotree_ir::types::stype::SType, Vec<&'static str>)> =
+                    Vec::new();
+                let mut path2: Vec<&'static str> = Vec::new();
+                collect_valdef_paths(expr, target_id, &mut path2, &mut found2);
+                for (tpe, p) in &found2 {
+                    eprintln!(
+                        "[VD_PATH] stage={} target_id={} tpe={:?} path={:?}",
+                        stage, target_id, tpe, p
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn collect_valdef_paths(
+    expr: &Expr,
+    target_id: u32,
+    path: &mut Vec<&'static str>,
+    out: &mut Vec<(ergotree_ir::types::stype::SType, Vec<&'static str>)>,
+) {
+    if let Expr::ValDef(s) = expr {
+        if s.expr.id.0 == target_id {
+            out.push((s.expr.rhs.tpe(), path.clone()));
+        }
+    }
+    match expr {
+        Expr::BlockValue(s) => {
+            path.push("block");
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    if vd.expr.id.0 == target_id {
+                        out.push((vd.expr.rhs.tpe(), path.clone()));
+                    }
+                    path.push("vd_rhs");
+                    collect_valdef_paths(&vd.expr.rhs, target_id, path, out);
+                    path.pop();
+                } else {
+                    collect_valdef_paths(item, target_id, path, out);
+                }
+            }
+            path.push("result");
+            collect_valdef_paths(&s.expr.result, target_id, path, out);
+            path.pop();
+            path.pop();
+        }
+        Expr::If(if_op) => {
+            path.push("if_cond");
+            collect_valdef_paths(&if_op.condition, target_id, path, out);
+            path.pop();
+            path.push("if_true");
+            collect_valdef_paths(&if_op.true_branch, target_id, path, out);
+            path.pop();
+            path.push("if_false");
+            collect_valdef_paths(&if_op.false_branch, target_id, path, out);
+            path.pop();
+        }
+        Expr::FuncValue(fv) => {
+            path.push("fn_body");
+            collect_valdef_paths(fv.body(), target_id, path, out);
+            path.pop();
+        }
+        Expr::ValDef(s) => {
+            path.push("vd_rhs");
+            collect_valdef_paths(&s.expr.rhs, target_id, path, out);
+            path.pop();
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_valdef_paths(child, target_id, path, out);
+            }
+        }
+    }
+}
+
+fn collect_orphan_paths<'a>(
+    expr: &'a Expr,
+    scope: &HashSet<u32>,
+    path: &mut Vec<&'static str>,
+    out: &mut Vec<(u32, ergotree_ir::types::stype::SType, Vec<&'static str>)>,
+) {
+    match expr {
+        Expr::ValUse(vu) => {
+            if !scope.contains(&vu.val_id.0) {
+                out.push((vu.val_id.0, vu.tpe.clone(), path.clone()));
+            }
+        }
+        Expr::BlockValue(s) => {
+            let mut block_scope = scope.clone();
+            path.push("block");
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    path.push("vd_rhs");
+                    collect_orphan_paths(&vd.expr.rhs, &block_scope, path, out);
+                    path.pop();
+                    block_scope.insert(vd.expr.id.0);
+                } else {
+                    collect_orphan_paths(item, &block_scope, path, out);
+                }
+            }
+            path.push("result");
+            collect_orphan_paths(&s.expr.result, &block_scope, path, out);
+            path.pop();
+            path.pop();
+        }
+        Expr::ValDef(s) => {
+            path.push("vd_rhs");
+            collect_orphan_paths(&s.expr.rhs, scope, path, out);
+            path.pop();
+        }
+        Expr::FuncValue(fv) => {
+            let mut body_scope = scope.clone();
+            for arg in fv.args() {
+                body_scope.insert(arg.idx.0);
+            }
+            path.push("fn_body");
+            collect_orphan_paths(fv.body(), &body_scope, path, out);
+            path.pop();
+        }
+        Expr::If(if_op) => {
+            path.push("if_cond");
+            collect_orphan_paths(&if_op.condition, scope, path, out);
+            path.pop();
+            path.push("if_true");
+            collect_orphan_paths(&if_op.true_branch, scope, path, out);
+            path.pop();
+            path.push("if_false");
+            collect_orphan_paths(&if_op.false_branch, scope, path, out);
+            path.pop();
+        }
+        other => {
+            let kind: &'static str = match other {
+                Expr::OptionGet(_) => "OptionGet",
+                Expr::SelectField(_) => "SelectField",
+                Expr::SigmaAnd(_) => "SigmaAnd",
+                Expr::SigmaOr(_) => "SigmaOr",
+                Expr::BoolToSigmaProp(_) => "BoolToSigmaProp",
+                Expr::BinOp(_) => "BinOp",
+                Expr::Apply(_) => "Apply",
+                Expr::MethodCall(_) => "MC",
+                Expr::PropertyCall(_) => "PC",
+                Expr::ExtractRegisterAs(_) => "ExtractReg",
+                Expr::Filter(_) => "Filter",
+                Expr::Map(_) => "Map",
+                Expr::Fold(_) => "Fold",
+                Expr::Exists(_) => "Exists",
+                Expr::ForAll(_) => "ForAll",
+                Expr::Collection(_) => "Collection",
+                Expr::Tuple(_) => "Tuple",
+                Expr::ByIndex(_) => "ByIndex",
+                Expr::SizeOf(_) => "SizeOf",
+                Expr::Append(_) => "Append",
+                Expr::Slice(_) => "Slice",
+                Expr::Upcast(_) => "Upcast",
+                Expr::Downcast(_) => "Downcast",
+                Expr::Negation(_) => "Negation",
+                Expr::CreateProveDlog(_) => "CreateProveDlog",
+                Expr::CreateProveDhTuple(_) => "CreateProveDhT",
+                Expr::DecodePoint(_) => "DecodePoint",
+                Expr::SigmaPropBytes(_) => "SigmaPropBytes",
+                Expr::ExtractScriptBytes(_) => "ExtractScript",
+                Expr::ExtractBytes(_) => "ExtractBytes",
+                Expr::ExtractAmount(_) => "ExtractAmount",
+                Expr::OptionGetOrElse(_) => "OptionGetOrElse",
+                Expr::OptionIsDefined(_) => "OptionIsDefined",
+                Expr::And(_) => "And",
+                Expr::Or(_) => "Or",
+                Expr::LogicalNot(_) => "LogicalNot",
+                Expr::Atleast(_) => "Atleast",
+                Expr::CalcBlake2b256(_) => "Blake2b",
+                Expr::CalcSha256(_) => "Sha256",
+                Expr::ByteArrayToBigInt(_) => "BAtoBigInt",
+                Expr::ByteArrayToLong(_) => "BAtoLong",
+                Expr::LongToByteArray(_) => "LongToBA",
+                Expr::SubstConstants(_) => "SubstConstants",
+                Expr::TreeLookup(_) => "TreeLookup",
+                Expr::CreateAvlTree(_) => "CreateAvlTree",
+                Expr::GetVar(_) => "GetVar",
+                Expr::Const(_) => "Const",
+                Expr::ConstPlaceholder(_) => "CP",
+                Expr::GlobalVars(_) => "GV",
+                _ => "_",
+            };
+            path.push(kind);
+            for child in direct_children(other) {
+                collect_orphan_paths(child, scope, path, out);
+            }
+            path.pop();
         }
     }
 }
