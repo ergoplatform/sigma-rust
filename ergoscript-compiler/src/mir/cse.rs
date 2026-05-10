@@ -6151,6 +6151,96 @@ fn collect_cond_branch_shared(expr: &Expr) -> Vec<Expr> {
 // TreeBuilding, so an "LCA placement" mechanism on the Rust side wouldn't
 // match what NODE actually does. See the WS-G.2 reframing in
 // `WORKSTREAM-G-HANDOFF.md` for the migration design space.
+//
+// WS-G.2.1 design probe (2026-05-10) — Scala sym-table data model + migration
+// target.  Probe 0 (metals: Base, Thunks, AstGraphs, TreeBuilding) confirmed
+// the following data model; G.2.2 must build a Rust analogue:
+//
+// === Scala data model ===
+//
+//   1. Equivalence relation (sigma.compiler.ir.Base.Node):
+//      `Def.equals = Arrays.deepEquals(elements, other.elements)` where
+//      `elements = [getClass, productElement(0), productElement(1), ...]`.
+//      Two separately-constructed Defs with identical structure are equals()
+//      and hash to the same value. Rust analogue: `Expr: PartialEq` (already
+//      structural) + `Expr: Hash` (to be added in G.2.2).
+//
+//   2. Global hash-cons table (Base._globalDefs: AVHashMap[Def, Def]):
+//      `findGlobalDefinition(d)` returns an existing sym if one with equal
+//      structure exists. `createDefinition` without a scope adds to
+//      `_globalDefs`. All `reifyObject` calls OUTSIDE any ThunkScope go
+//      through this global table — every structurally-unique Def gets ONE sym
+//      at root scope. Rust analogue: `HashMap<ExprKey, SymId>` as the
+//      `SymTable`'s root tier.
+//
+//   3. ThunkScope chain (Thunks.ThunkScope):
+//      Each ThunkDef (if-branch, &&/|| right operand, lambda body) gets its
+//      own `ThunkScope { parent, bodyDefs: AVHashMap[Def, Def], bodyIds }`.
+//      `findDef(d)` walks: current.bodyDefs → parent.findDef → ... →
+//      `findGlobalDefinition`. Creating a new sym inside scope S adds it to
+//      S.bodyDefs only, NOT to any ancestor or `_globalDefs`. Sibling scopes
+//      A and B do NOT share bodyDefs; equivalent Defs first-constructed in A
+//      and B become SEPARATE syms, each living in its own domain.
+//
+//   4. First-DFS-construction-scope ownership:
+//      When `reifyObject(d)` is called during graph-building, `ThunkScope.findDef`
+//      searches upward. If found in an ancestor scope (including global) →
+//      the existing sym is returned; no new sym created. If NOT found → a new
+//      sym is created and added to the CURRENT scope's bodyDefs (or
+//      `_globalDefs` if no ThunkScope active). Therefore: the owning scope of
+//      sym S = the FIRST scope (in source-order graph-building DFS) that
+//      constructed the equivalent Def.
+//      - paideia Tuple: first constructed inside if_true's ThunkDef body (source
+//        order: if_true branch precedes if_false). Sym lives in if_true.bodyDefs.
+//        `processAstGraph` for root's `subG.schedule` does NOT include this sym
+//        (not in root's domain). `processAstGraph` for if_true sees it, emits
+//        ONE ValDef at val 48.
+//      - gluon BinOp/Slice: first constructed at ROOT scope (referenced from a
+//        val declaration evaluated before the If-branch ThunkDefs). Sym in
+//        `_globalDefs`. Root `processAstGraph` sees it, emits ONE ValDef.
+//        All branches reference via curEnv; no per-branch re-extraction.
+//
+//   5. `processAstGraph` per-scope iteration:
+//      Iterates `subG.schedule` (LOCAL scope, not flatSchedule). Counts via
+//      `mainG.hasManyUsagesGlobal` (global flat-schedule, `.syms`). A sym emits
+//      ValDef in scope T iff: (a) `hasManyUsagesGlobal == true`, AND (b) sym
+//      is in T's domain (was first-constructed in T). `curEnv` threading
+//      propagates parent ValDef bindings into nested scopes; sibling scopes do
+//      NOT share curEnv.
+//
+// === Rust current structure ===
+//
+//   `count_dag_usages`: CORRECT for global edge-incidence counting (S9
+//   confirmed). Equivalent to flatSchedule+.syms buildUsageMap. NOT replaced
+//   by migration — provides the usage threshold check.
+//
+//   `process_ast_graph_impl(ScopeMode::Root)`: candidates with dag_count>=2
+//   are extracted at OUTERMOST eligible scope. For pure-const candidates (no
+//   ValUse/GlobalVars), `needs_check=false` bypasses scope gate entirely →
+//   paideia Tuple hoisted to root instead of staying at if_true.
+//
+//   `apply_cse_within_branches`: processes each If-branch INDEPENDENTLY via
+//   separate `process_ast_graph_branch` calls. No cross-branch coordination.
+//   Shared BinOps/Slices with local dag_count>=2 get extracted PER-BRANCH →
+//   gluon's 9× / 5× redundant ValDef overhead.
+//
+// === G.2.2 migration target ===
+//
+//   Required: `struct SymTable { scope_parents: Vec<Option<usize>>,
+//   table: HashMap<ExprKey, (ScopeId, SymId)>, next_sym: u32 }` and
+//   `impl ExprKey` (wrapping `Expr` with a custom `Hash`). The unified DFS
+//   pass: (1) at scope boundaries push new ScopeId; (2) on first encounter of
+//   E in scope S → record `(E → (S, sym_id))`; (3) on second encounter in
+//   ANY scope → if scope S is ancestor of owning scope, use parent's sym_id;
+//   if S is sibling/descendant, the new sym was first-constructed in S' —
+//   count the use but don't re-extract. The extraction fires in the scope that
+//   OWNS the sym (S'). See G2.2-HASH-CONS-PRIMITIVE-HANDOFF.md.
+//
+//   Preserved through migration: `replace_all` (S7, walker-completeness),
+//   `contains_val_use` (S4, walker-completeness), `direct_children` (used by
+//   both), renumbering pipeline (`dfs_reassign_val_ids → reorder_valdefs →
+//   sequential_renumber` confirmed correct at S7). Hash-cons does NOT replace
+//   these — it replaces the extraction-scope decision only.
 fn process_ast_graph_impl(
     expr: Expr,
     global_max_id: u32,

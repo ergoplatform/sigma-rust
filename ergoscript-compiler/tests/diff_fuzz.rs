@@ -858,9 +858,7 @@ fn construct_fingerprint(source: &str) -> Vec<String> {
                 i += 1;
             }
             let ident = &source[start..i];
-            if known_predefs.contains(&ident) {
-                tokens.push(ident.to_string());
-            } else if known_forms.contains(&ident) {
+            if known_predefs.contains(&ident) || known_forms.contains(&ident) {
                 tokens.push(ident.to_string());
             }
         } else if c == b'.' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_alphabetic() {

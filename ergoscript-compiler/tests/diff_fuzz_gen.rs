@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! WS-F.2 — Programmatic ErgoScript generator (typed AST builder).
 //!
 //! Emits ~600 type-correct ErgoScript programs covering the predef + method
@@ -707,7 +708,7 @@ fn gen_numeric_pass(seed: u64) -> Vec<(String, String)> {
                     seed ^ 0x3333_3333,
                     (i as u64) * 1000 + (j as u64) * 100 + k as u64,
                 ));
-                let mut env = Env::fresh();
+                let env = Env::fresh();
                 let a = match env.pick_or_lit(t1, &mut rng) {
                     Some(t) => t,
                     None => continue,
@@ -780,7 +781,7 @@ fn gen_numeric_pass(seed: u64) -> Vec<(String, String)> {
                         seed ^ 0x4444_4444,
                         (i as u64) * 100 + k as u64,
                     ));
-                    let mut env = Env::fresh();
+                    let env = Env::fresh();
                     let a = match env.pick_or_lit(t1, &mut rng) {
                         Some(t) => t,
                         None => continue,
