@@ -75,17 +75,94 @@ fn compile_from_hir(
         .spawn(move || {
             let binder = Binder::new(env);
             let bind = binder.bind(hir)?;
+            trace_const_counts_outer_hir("outer-00-post-bind", &bind);
             let typed = assign_type(bind)?;
+            trace_const_counts_outer_hir("outer-01-post-assign_type", &typed);
             let optimized = hir::optimize::optimize(typed);
+            trace_const_counts_outer_hir("outer-02-post-optimize", &optimized);
             let mir = mir::lower::lower(optimized)?;
+            trace_const_counts_outer_mir("outer-03-post-mir-lower", &mir);
             let mir = mir::lower::propagate_val_types(mir);
+            trace_const_counts_outer_mir("outer-04-post-propagate_val_types", &mir);
             let cse_mir = mir::cse::apply_cse(mir);
+            trace_const_counts_outer_mir("outer-05-post-apply_cse", &cse_mir);
             let res = ergotree_ir::type_check::type_check(cse_mir)?;
             Ok(res)
         })
         .expect("failed to spawn compiler thread")
         .join()
         .expect("compiler thread panicked")
+}
+
+/// BISECT-A3 boundary trace (HIR-side). Env-gated; observational.
+fn trace_const_counts_outer_hir(stage: &str, expr: &hir::Expr) {
+    if std::env::var("CSE_TRACE_CONST_COUNTS").is_ok() {
+        let c1 = count_hir_int_lit(expr, 1);
+        let c3 = count_hir_int_lit(expr, 3);
+        eprintln!(
+            "[CONST_COUNTS] stage={:36}  1:SInt={:>3}  3:SInt={:>3}",
+            stage, c1, c3
+        );
+    }
+}
+
+fn trace_const_counts_outer_mir(stage: &str, expr: &ergotree_ir::mir::expr::Expr) {
+    if std::env::var("CSE_TRACE_CONST_COUNTS").is_ok() {
+        let c1 = mir::cse::count_const_sint(expr, 1);
+        let c3 = mir::cse::count_const_sint(expr, 3);
+        eprintln!(
+            "[CONST_COUNTS] stage={:36}  1:SInt={:>3}  3:SInt={:>3}",
+            stage, c1, c3
+        );
+    }
+}
+
+fn count_hir_int_lit(expr: &hir::Expr, target: i32) -> usize {
+    let mut n = 0;
+    fn walk(expr: &hir::Expr, target: i32, n: &mut usize) {
+        use crate::hir::{ExprKind, Literal};
+        match &expr.kind {
+            ExprKind::Literal(Literal::Int(v)) if *v == target => *n += 1,
+            ExprKind::Binary(bin) => {
+                walk(&bin.lhs, target, n);
+                walk(&bin.rhs, target, n);
+            }
+            ExprKind::Block(items) => {
+                for item in items {
+                    walk(item, target, n);
+                }
+            }
+            ExprKind::ValDef(vd) => walk(&vd.rhs, target, n),
+            ExprKind::Apply(app) => {
+                walk(&app.func, target, n);
+                for arg in &app.args {
+                    walk(arg, target, n);
+                }
+            }
+            ExprKind::FieldAccess(fa) => walk(&fa.object, target, n),
+            ExprKind::If(if_expr) => {
+                walk(&if_expr.condition, target, n);
+                walk(&if_expr.then_branch, target, n);
+                walk(&if_expr.else_branch, target, n);
+            }
+            ExprKind::Lambda(lam) => walk(&lam.body, target, n),
+            ExprKind::LogicalNot(inner)
+            | ExprKind::Negation(inner)
+            | ExprKind::BitInversion(inner) => walk(inner, target, n),
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    walk(item, target, n);
+                }
+            }
+            ExprKind::Literal(_)
+            | ExprKind::Ident(_)
+            | ExprKind::GlobalVars(_)
+            | ExprKind::ValUse(_)
+            | ExprKind::Context => {}
+        }
+    }
+    walk(expr, target, &mut n);
+    n
 }
 
 /// Compiles given source code to [`ErgoTree`], or returns an error
@@ -5935,6 +6012,7 @@ fn probe_gluon_sibling_redundancy() {
     eprintln!("DOMINANT CLASS: {}", dominant);
 }
 
+#[cfg(test)]
 fn summarize_expr(e: &ergotree_ir::mir::expr::Expr) -> String {
     use ergotree_ir::mir::expr::Expr as MirExpr;
     let d = format!("{:?}", std::mem::discriminant(e));

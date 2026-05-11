@@ -4921,8 +4921,29 @@ fn walk_orphan(expr: &Expr, scope: &HashSet<u32>, count: &mut usize) {
     }
 }
 
+/// BISECT-A3: count occurrences of `Const(target: SInt)` in a MIR `Expr` tree.
+/// Used by `trace_slot_shift`'s `CSE_TRACE_CONST_COUNTS` arm to localize the
+/// pre-CSE pass where the sigmao `1:SInt`/`3:SInt` multiset diff (NODE 12/4 vs
+/// LOCAL 11/3) emerges.
+pub(crate) fn count_const_sint(expr: &Expr, target: i32) -> usize {
+    let mut all = Vec::new();
+    collect_consts(expr, &mut all);
+    all.iter()
+        .filter(|c| matches!(c, Expr::Const(k)
+            if matches!(k.v, ergotree_ir::mir::constant::Literal::Int(v) if v == target)))
+        .count()
+}
+
 #[inline]
 fn trace_slot_shift(stage: &str, expr: &Expr) {
+    if std::env::var("CSE_TRACE_CONST_COUNTS").is_ok() {
+        let c1 = count_const_sint(expr, 1);
+        let c3 = count_const_sint(expr, 3);
+        eprintln!(
+            "[CONST_COUNTS] stage={:36}  1:SInt={:>3}  3:SInt={:>3}",
+            stage, c1, c3
+        );
+    }
     if std::env::var("CSE_TRACE_SLOT_SHIFT").is_ok() {
         let mut orphans: Vec<u32> = Vec::new();
         let scope: HashSet<u32> = HashSet::new();

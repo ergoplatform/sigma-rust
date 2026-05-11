@@ -10,10 +10,79 @@ use ergotree_ir::types::stype::SType;
 
 /// Run all optimization passes in order.
 pub fn optimize(expr: Expr) -> Expr {
+    trace_const_counts_hir("hir-00-pre-optimize", &expr);
     let expr = widen_numeric_literals(expr);
+    trace_const_counts_hir("hir-01-widen_numeric_literals", &expr);
     let expr = constant_fold(expr, &mut HashMap::new());
+    trace_const_counts_hir("hir-02-constant_fold", &expr);
     let expr = inline_single_use_vals(expr);
-    eliminate_negation(expr)
+    trace_const_counts_hir("hir-03-inline_single_use_vals", &expr);
+    let res = eliminate_negation(expr);
+    trace_const_counts_hir("hir-04-eliminate_negation", &res);
+    res
+}
+
+/// BISECT-A3: count `Literal::Int(target)` occurrences in an HIR `Expr` tree.
+/// Walker uses `count_val_uses`-shape direct_children recursion. Used by
+/// `trace_const_counts_hir` to localize the sub-pass where sigmao loses
+/// one `1:SInt` and one `3:SInt` occurrence vs Scala NODE.
+fn count_target_int_lits(expr: &Expr, target: i32) -> usize {
+    let mut n = 0;
+    count_target_int_lits_inner(expr, target, &mut n);
+    n
+}
+
+fn count_target_int_lits_inner(expr: &Expr, target: i32, n: &mut usize) {
+    match &expr.kind {
+        ExprKind::Literal(Literal::Int(v)) if *v == target => *n += 1,
+        ExprKind::Binary(bin) => {
+            count_target_int_lits_inner(&bin.lhs, target, n);
+            count_target_int_lits_inner(&bin.rhs, target, n);
+        }
+        ExprKind::Block(items) => {
+            for item in items {
+                count_target_int_lits_inner(item, target, n);
+            }
+        }
+        ExprKind::ValDef(vd) => count_target_int_lits_inner(&vd.rhs, target, n),
+        ExprKind::Apply(app) => {
+            count_target_int_lits_inner(&app.func, target, n);
+            for arg in &app.args {
+                count_target_int_lits_inner(arg, target, n);
+            }
+        }
+        ExprKind::FieldAccess(fa) => count_target_int_lits_inner(&fa.object, target, n),
+        ExprKind::If(if_expr) => {
+            count_target_int_lits_inner(&if_expr.condition, target, n);
+            count_target_int_lits_inner(&if_expr.then_branch, target, n);
+            count_target_int_lits_inner(&if_expr.else_branch, target, n);
+        }
+        ExprKind::Lambda(lam) => count_target_int_lits_inner(&lam.body, target, n),
+        ExprKind::LogicalNot(inner)
+        | ExprKind::Negation(inner)
+        | ExprKind::BitInversion(inner) => count_target_int_lits_inner(inner, target, n),
+        ExprKind::Tuple(items) => {
+            for item in items {
+                count_target_int_lits_inner(item, target, n);
+            }
+        }
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::ValUse(_)
+        | ExprKind::Context => {}
+    }
+}
+
+fn trace_const_counts_hir(stage: &str, expr: &Expr) {
+    if std::env::var("CSE_TRACE_CONST_COUNTS").is_ok() {
+        let c1 = count_target_int_lits(expr, 1);
+        let c3 = count_target_int_lits(expr, 3);
+        eprintln!(
+            "[CONST_COUNTS] stage={:36}  1:SInt={:>3}  3:SInt={:>3}",
+            stage, c1, c3
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
