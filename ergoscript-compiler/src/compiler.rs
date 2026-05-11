@@ -5417,6 +5417,545 @@ fn probe_gluon_scopes() {
     }
 }
 
+/// Inversion B Probe 1 (all sig-15) — sibling-redundancy inventory across the
+/// full sig-15 corpus. Cross-fixture pre-flight for the merge-pass hypothesis:
+/// if currently-MATCH fixtures already have Row B2 groups, a naïve post-CSE
+/// merge pass will regress them.
+///
+/// Run: cargo test -p ergoscript-compiler probe_sig15_sibling_redundancy -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_sig15_sibling_redundancy() {
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    use ergotree_ir::mir::val_def::ValId;
+    use ergotree_ir::traversable::Traversable;
+
+    fn walk(
+        e: &MirExpr,
+        path: &mut Vec<String>,
+        out: &mut Vec<(Vec<String>, ValId, MirExpr)>,
+    ) {
+        match e {
+            MirExpr::ValDef(spanned) => {
+                let vd = &spanned.expr;
+                out.push((path.clone(), vd.id, (*vd.rhs).clone()));
+                path.push("VD.rhs".to_string());
+                walk(&vd.rhs, path, out);
+                path.pop();
+            }
+            MirExpr::BlockValue(bv_spanned) => {
+                let bv = &bv_spanned.expr;
+                for (i, it) in bv.items.iter().enumerate() {
+                    path.push(format!("BV.item[{}]", i));
+                    walk(it, path, out);
+                    path.pop();
+                }
+                path.push("BV.result".to_string());
+                walk(&bv.result, path, out);
+                path.pop();
+            }
+            MirExpr::If(if_op) => {
+                path.push("If.cond".to_string());
+                walk(&if_op.condition, path, out);
+                path.pop();
+                path.push("If.true".to_string());
+                walk(&if_op.true_branch, path, out);
+                path.pop();
+                path.push("If.false".to_string());
+                walk(&if_op.false_branch, path, out);
+                path.pop();
+            }
+            MirExpr::FuncValue(fv) => {
+                path.push("Fn.body".to_string());
+                walk(fv.body(), path, out);
+                path.pop();
+            }
+            other => {
+                let label = format!("{:?}", std::mem::discriminant(other));
+                for (i, c) in <MirExpr as Traversable>::children(other).enumerate() {
+                    path.push(format!("{}.child[{}]", label, i));
+                    walk(c, path, out);
+                    path.pop();
+                }
+            }
+        }
+    }
+
+    fn is_prefix(a: &[String], b: &[String]) -> bool {
+        a.len() <= b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y)
+    }
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr =
+        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+
+    let fixtures: &[(&str, String)] = &[
+        ("chaincash_reserve.es", String::new()),
+        ("dexy_bank_full.es", String::new()),
+        ("duckpools_child_interest.es", String::new()),
+        ("oracle_refresh.es", String::new()),
+        ("rosen_event_trigger.es", String::new()),
+        ("sigmao_option.es", String::new()),
+        ("skyharbor_v1_erg.es", String::new()),
+        ("spectrum_n2t_pool.es", String::new()),
+        (
+            "ergomixer_fullmix.es",
+            format!(
+                "val tokenId: Coll[Byte] = {dummy_token};\n\
+                 val feeEmissionScriptHash: Coll[Byte] = {dummy_token2};\n",
+            ),
+        ),
+        (
+            "ergoraffle_active.es",
+            format!(
+                "val ticketScriptHash: Coll[Byte] = {dummy_token};\n\
+                 val winnerScriptHash: Coll[Byte] = {dummy_token2};\n\
+                 val redeemScriptHash: Coll[Byte] = {dummy_token3};\n\
+                 val randomBoxToken: Coll[Byte] = {dummy_token};\n\
+                 val fee: Long = 1000000L;\n",
+            ),
+        ),
+        (
+            "gluon_box_guard.es",
+            format!(
+                "val _MinFee: Long = 1000000L;\n\
+                 val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+                 val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+                 val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+                 val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+                 val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+                 val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+                 val _BOX: Coll[Byte] = {dummy_token};\n\
+                 val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+                 val _MULTISIG: SigmaProp = {dummy_pk};\n\
+                 val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+                 val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+                 val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+                 val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _DEV_FEE_REPAID: Long = 0L;\n\
+                 val _FEE_REPAID: Long = 0L;\n\
+                 val _Per_volume_bucket: Long = 720L;\n\
+                 val _PER_VOLUME_BUCKET: Long = 720L;\n",
+            ),
+        ),
+        ("phoenix_hodlerg_bank_full.es", String::new()),
+        ("paideia_stake_state.es", String::new()),
+        ("sigmausd_bank.es", String::new()),
+        ("spectrum_t2t_pool.es", String::new()),
+    ];
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+
+    eprintln!("\n=== Sig-15 Sibling-Redundancy Probe (cross-fixture pre-flight) ===");
+    eprintln!(
+        "  {:30}  {:>7}  {:>4}  {:>4}  {:>4}  {:>4}  {:>5}",
+        "fixture", "valdefs", "B1", "B2", "B3", "SAME", "pairs"
+    );
+
+    for (fixture, prelude) in fixtures {
+        let raw = match std::fs::read_to_string(fixtures_dir.join(fixture)) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let source = if prelude.is_empty() {
+            raw
+        } else {
+            let idx = raw.find('{').expect("fixture missing leading {");
+            let mut s = String::with_capacity(raw.len() + prelude.len());
+            s.push_str(&raw[..=idx]);
+            s.push('\n');
+            s.push_str(prelude);
+            s.push_str(&raw[idx + 1..]);
+            s
+        };
+        let expr = match compile_expr(&source, ScriptEnv::new()) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("  {:30}  compile error: {:?}", fixture, e);
+                continue;
+            }
+        };
+        let mut entries: Vec<(Vec<String>, ValId, MirExpr)> = Vec::new();
+        let mut path: Vec<String> = vec!["root".to_string()];
+        walk(&expr, &mut path, &mut entries);
+
+        let n = entries.len();
+        let mut visited = vec![false; n];
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for i in 0..n {
+            if visited[i] {
+                continue;
+            }
+            let mut g = vec![i];
+            visited[i] = true;
+            for j in (i + 1)..n {
+                if !visited[j] && entries[i].2 == entries[j].2 {
+                    g.push(j);
+                    visited[j] = true;
+                }
+            }
+            groups.push(g);
+        }
+
+        let mut b1 = 0usize;
+        let mut b2 = 0usize;
+        let mut b3 = 0usize;
+        let mut same = 0usize;
+        let mut total_pairs = 0usize;
+        for g in &groups {
+            if g.len() < 2 {
+                continue;
+            }
+            let mut anc = 0usize;
+            let mut sib = 0usize;
+            let mut ss = 0usize;
+            for ai in 0..g.len() {
+                for bi in (ai + 1)..g.len() {
+                    let pa = &entries[g[ai]].0;
+                    let pb = &entries[g[bi]].0;
+                    if pa == pb {
+                        ss += 1;
+                    } else if is_prefix(pa, pb) || is_prefix(pb, pa) {
+                        anc += 1;
+                    } else {
+                        sib += 1;
+                    }
+                }
+            }
+            total_pairs += anc + sib + ss;
+            if sib > 0 && anc > 0 {
+                b3 += 1;
+            } else if sib > 0 {
+                b2 += 1;
+            } else if anc > 0 {
+                b1 += 1;
+            } else {
+                same += 1;
+            }
+        }
+        eprintln!(
+            "  {:30}  {:>7}  {:>4}  {:>4}  {:>4}  {:>4}  {:>5}",
+            fixture, n, b1, b2, b3, same, total_pairs
+        );
+
+        if b2 > 0 || b3 > 0 {
+            for g in &groups {
+                if g.len() < 2 {
+                    continue;
+                }
+                let mut anc = 0usize;
+                let mut sib = 0usize;
+                for ai in 0..g.len() {
+                    for bi in (ai + 1)..g.len() {
+                        let pa = &entries[g[ai]].0;
+                        let pb = &entries[g[bi]].0;
+                        if pa != pb {
+                            if is_prefix(pa, pb) || is_prefix(pb, pa) {
+                                anc += 1;
+                            } else {
+                                sib += 1;
+                            }
+                        }
+                    }
+                }
+                if sib == 0 {
+                    continue;
+                }
+                eprintln!(
+                    "    [{}x sib={} anc={}] rhs={}",
+                    g.len(),
+                    sib,
+                    anc,
+                    summarize_expr(&entries[g[0]].2),
+                );
+                for &idx in g.iter().take(4) {
+                    eprintln!(
+                        "      id={} depth={} path_tail={:?}",
+                        entries[idx].1 .0,
+                        entries[idx].0.len(),
+                        entries[idx]
+                            .0
+                            .iter()
+                            .rev()
+                            .take(5)
+                            .rev()
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Inversion B Probe 1 — sibling-redundancy inventory for gluon_box_guard.
+///
+/// Walks gluon's post-CSE Expr, collects every ValDef with its structural
+/// scope-path, groups by structurally-equal RHS, and classifies each
+/// multi-occurrence group as:
+///   - SAME_SCOPE: all occurrences share one BlockValue parent (already
+///     deduplicated by within-scope CSE; if present, indicates leak)
+///   - ANCESTOR_CHAIN: one occurrence's scope-path is a prefix of another's
+///     (Row B1 — branch-mode walker should have reused ancestor sym)
+///   - SIBLING: no pair has ancestor relationship (Row B2 — needs post-CSE
+///     merge pass)
+///   - MIXED: both ancestor pairs and sibling pairs present (Row B3)
+///
+/// Run: cargo test -p ergoscript-compiler probe_gluon_sibling_redundancy -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_gluon_sibling_redundancy() {
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    use ergotree_ir::mir::val_def::ValId;
+    use ergotree_ir::traversable::Traversable;
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr =
+        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+    let raw = std::fs::read_to_string(fixtures_dir.join("gluon_box_guard.es")).unwrap();
+    let prelude = format!(
+        "val _MinFee: Long = 1000000L;\n\
+         val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+         val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+         val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+         val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+         val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+         val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+         val _BOX: Coll[Byte] = {dummy_token};\n\
+         val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+         val _MULTISIG: SigmaProp = {dummy_pk};\n\
+         val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+         val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+         val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+         val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+         val _DEV_FEE_REPAID: Long = 0L;\n\
+         val _FEE_REPAID: Long = 0L;\n\
+         val _Per_volume_bucket: Long = 720L;\n\
+         val _PER_VOLUME_BUCKET: Long = 720L;\n",
+    );
+    let idx = raw.find('{').expect("gluon_box_guard.es missing leading {");
+    let mut source = String::with_capacity(raw.len() + prelude.len());
+    source.push_str(&raw[..=idx]);
+    source.push('\n');
+    source.push_str(&prelude);
+    source.push_str(&raw[idx + 1..]);
+
+    let expr = compile_expr(&source, ScriptEnv::new()).unwrap();
+
+    // Path segments label structural junctions on the way down.
+    // Format example: ["root", "BV.item[2]", "If.true", "BV.item[0]"]
+    fn walk(
+        e: &MirExpr,
+        path: &mut Vec<String>,
+        out: &mut Vec<(Vec<String>, ValId, MirExpr)>,
+    ) {
+        match e {
+            MirExpr::ValDef(spanned) => {
+                let vd = &spanned.expr;
+                out.push((path.clone(), vd.id, (*vd.rhs).clone()));
+                // Don't descend into the RHS for inventory purposes — that
+                // would create spurious sub-extracted matches. We're cataloging
+                // top-level ValDef placements.
+                path.push("VD.rhs".to_string());
+                walk(&vd.rhs, path, out);
+                path.pop();
+            }
+            MirExpr::BlockValue(bv_spanned) => {
+                let bv = &bv_spanned.expr;
+                for (i, it) in bv.items.iter().enumerate() {
+                    path.push(format!("BV.item[{}]", i));
+                    walk(it, path, out);
+                    path.pop();
+                }
+                path.push("BV.result".to_string());
+                walk(&bv.result, path, out);
+                path.pop();
+            }
+            MirExpr::If(if_op) => {
+                path.push("If.cond".to_string());
+                walk(&if_op.condition, path, out);
+                path.pop();
+                path.push("If.true".to_string());
+                walk(&if_op.true_branch, path, out);
+                path.pop();
+                path.push("If.false".to_string());
+                walk(&if_op.false_branch, path, out);
+                path.pop();
+            }
+            MirExpr::FuncValue(fv) => {
+                path.push("Fn.body".to_string());
+                walk(fv.body(), path, out);
+                path.pop();
+            }
+            other => {
+                let label = format!("{:?}", std::mem::discriminant(other));
+                for (i, c) in <MirExpr as Traversable>::children(other).enumerate() {
+                    path.push(format!("{}.child[{}]", label, i));
+                    walk(c, path, out);
+                    path.pop();
+                }
+            }
+        }
+    }
+
+    let mut entries: Vec<(Vec<String>, ValId, MirExpr)> = Vec::new();
+    let mut root_path: Vec<String> = vec!["root".to_string()];
+    walk(&expr, &mut root_path, &mut entries);
+
+    eprintln!("\n=== gluon Inversion B Probe 1 ===");
+    eprintln!("total ValDef occurrences: {}", entries.len());
+
+    // Group by structurally equal rhs (O(n^2); n~93 → fine).
+    let n = entries.len();
+    let mut visited = vec![false; n];
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    for i in 0..n {
+        if visited[i] {
+            continue;
+        }
+        let mut g = vec![i];
+        visited[i] = true;
+        for j in (i + 1)..n {
+            if !visited[j] && entries[i].2 == entries[j].2 {
+                g.push(j);
+                visited[j] = true;
+            }
+        }
+        groups.push(g);
+    }
+
+    let mut multi_groups: Vec<&Vec<usize>> = groups.iter().filter(|g| g.len() >= 2).collect();
+    multi_groups.sort_by_key(|g| std::cmp::Reverse(g.len()));
+    eprintln!("structurally-equal-rhs groups with count >= 2: {}", multi_groups.len());
+
+    fn is_prefix(a: &[String], b: &[String]) -> bool {
+        a.len() <= b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y)
+    }
+
+    let mut total_sibling_pairs = 0usize;
+    let mut total_ancestor_pairs = 0usize;
+    let mut row_b1_groups = 0usize;
+    let mut row_b2_groups = 0usize;
+    let mut row_b3_groups = 0usize;
+    let mut same_scope_groups = 0usize;
+
+    for (gi, g) in multi_groups.iter().enumerate() {
+        let mut sibling_pairs = 0usize;
+        let mut ancestor_pairs = 0usize;
+        let mut same_scope_pairs = 0usize;
+        for ai in 0..g.len() {
+            for bi in (ai + 1)..g.len() {
+                let pa = &entries[g[ai]].0;
+                let pb = &entries[g[bi]].0;
+                if pa == pb {
+                    same_scope_pairs += 1;
+                } else if is_prefix(pa, pb) || is_prefix(pb, pa) {
+                    ancestor_pairs += 1;
+                } else {
+                    sibling_pairs += 1;
+                }
+            }
+        }
+        total_sibling_pairs += sibling_pairs;
+        total_ancestor_pairs += ancestor_pairs;
+
+        let class = if sibling_pairs > 0 && ancestor_pairs > 0 {
+            row_b3_groups += 1;
+            "MIXED(B3)"
+        } else if sibling_pairs > 0 {
+            row_b2_groups += 1;
+            "SIBLING(B2)"
+        } else if ancestor_pairs > 0 {
+            row_b1_groups += 1;
+            "ANCESTOR(B1)"
+        } else {
+            same_scope_groups += 1;
+            "SAME_SCOPE"
+        };
+
+        if gi < 12 {
+            eprintln!(
+                "\nGroup #{} ({}× | class={}): rhs={:?}",
+                gi,
+                g.len(),
+                class,
+                summarize_expr(&entries[g[0]].2),
+            );
+            for &idx in g.iter().take(8) {
+                let (p, id, _) = &entries[idx];
+                eprintln!("  id={} path={:?}", id.0, p);
+            }
+            if g.len() > 8 {
+                eprintln!("  ... ({} more)", g.len() - 8);
+            }
+            eprintln!(
+                "  pair counts: ancestor={} sibling={} same_scope={}",
+                ancestor_pairs, sibling_pairs, same_scope_pairs
+            );
+        }
+    }
+
+    eprintln!("\n=== Inversion B Probe 1 — summary ===");
+    eprintln!("multi-occurrence groups: {}", multi_groups.len());
+    eprintln!("  Row B1 (ANCESTOR-only):  {}", row_b1_groups);
+    eprintln!("  Row B2 (SIBLING-only):   {}", row_b2_groups);
+    eprintln!("  Row B3 (MIXED):          {}", row_b3_groups);
+    eprintln!("  SAME_SCOPE (anomaly):    {}", same_scope_groups);
+    eprintln!("total pairs: ancestor={} sibling={}", total_ancestor_pairs, total_sibling_pairs);
+    let dominant = if row_b2_groups + row_b3_groups == 0 && row_b1_groups > 0 {
+        "Row B1 — ancestor-chain (extraction-time scope-handoff bug)"
+    } else if row_b1_groups + row_b3_groups == 0 && row_b2_groups > 0 {
+        "Row B2 — truly sibling (needs post-CSE merge pass)"
+    } else if row_b1_groups > 0 || row_b2_groups > 0 || row_b3_groups > 0 {
+        "Row B3 — mixed (both fixes potentially needed)"
+    } else {
+        "Row B4 — no cross-branch redundancy (FALSIFIES Inversion B hypothesis)"
+    };
+    eprintln!("DOMINANT CLASS: {}", dominant);
+}
+
+fn summarize_expr(e: &ergotree_ir::mir::expr::Expr) -> String {
+    use ergotree_ir::mir::expr::Expr as MirExpr;
+    let d = format!("{:?}", std::mem::discriminant(e));
+    let head = match e {
+        MirExpr::BinOp(b) => format!("BinOp({:?})", b.expr.kind),
+        MirExpr::Const(c) => format!("Const({:?})", c.tpe),
+        MirExpr::ValUse(vu) => format!("ValUse({}, {:?})", vu.val_id.0, vu.tpe),
+        MirExpr::SelectField(sf) => format!("SelectField(.{})", sf.expr.field_index),
+        MirExpr::ExtractRegisterAs(_) => "ExtractRegisterAs".to_string(),
+        MirExpr::OptionGet(_) => "OptionGet".to_string(),
+        MirExpr::Slice(_) => "Slice".to_string(),
+        MirExpr::Append(_) => "Append".to_string(),
+        MirExpr::Tuple(_) => "Tuple".to_string(),
+        MirExpr::Collection(_) => "Collection".to_string(),
+        MirExpr::MethodCall(mc) => format!("MethodCall({})", mc.expr.method.name()),
+        _ => d,
+    };
+    let tpe = e.tpe();
+    format!("{} : {:?}", head, tpe)
+}
+
 /// Ecosystem contract corpus — real-world contracts from SigmaFi, SkyHarbor, DuckPools, and Lilium.
 ///
 /// Returned as `(name, source)` tuples. Used by both `test_ecosystem_batch`
