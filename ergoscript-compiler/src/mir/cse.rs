@@ -5846,7 +5846,11 @@ fn short_expr(e: &Expr) -> String {
 fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
     let dag_usages = count_dag_usages(&expr);
     let schedule = dfs_schedule(&expr);
-    process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
+    if hash_cons_enabled() {
+        process_ast_graph_hash_cons(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
+    } else {
+        process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
+    }
 }
 
 /// Branch-level variant of `process_ast_graph`.
@@ -6010,7 +6014,11 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         eprintln!("=== end branch dump ===\n");
     }
 
-    process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
+    if hash_cons_enabled() {
+        process_ast_graph_hash_cons(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
+    } else {
+        process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
+    }
 }
 
 /// Collect sub-expressions that appear in BOTH arms of some inner-If reachable
@@ -6556,6 +6564,294 @@ fn process_ast_graph_impl(
     // their RHSs may ValUse existing item ids and existing items may ValUse
     // newly-extracted ids. Topo-sort to ensure every ValUse comes after its
     // ValDef (same class as S32 Bug A).
+    match result {
+        Expr::BlockValue(spanned) => {
+            let mut items = val_defs;
+            items.extend(spanned.expr.items);
+            let items = topo_order_valdefs(items);
+            Expr::BlockValue(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: BlockValue {
+                    items,
+                    result: spanned.expr.result,
+                },
+            })
+        }
+        other => Expr::BlockValue(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: BlockValue {
+                items: topo_order_valdefs(val_defs),
+                result: other.into(),
+            },
+        }),
+    }
+}
+
+/// WS-G.2.3 — runtime gate for the parallel hash-cons driver.
+/// Default OFF; the existing `process_ast_graph_impl` path is preserved
+/// for every fixture currently at MATCH. G.2.4 toggles per-fixture for
+/// cross-fixture comparison.
+fn hash_cons_enabled() -> bool {
+    std::env::var("CSE_HASH_CONS").as_deref() == Ok("1")
+}
+
+/// WS-G.2.3 — parallel hash-cons driver. Mirrors the SHAPE of
+/// `process_ast_graph_impl` (schedule + dag_count threshold → env →
+/// replace_all → build_value_recurse → BlockValue wrap) but replaces the
+/// scope-gate hierarchy (`appears_in_main_scope` /
+/// `count_distinct_top_level_containers` / GlobalVars carve-outs) with a
+/// single hash-cons ownership check derived from a structural-equality
+/// SymTable walk.
+///
+/// Algorithm (per G.2.1 + G.2.3 handoff):
+///   1. Pre-order DFS of `expr` interning every sub-expression into a
+///      SymTable. Each If true/false branch, each &&/|| right operand, and
+///      each FuncValue body opens a new scope (parent = current). This
+///      mirrors Scala's `ThunkScope.findDef → findGlobalDefinition` chain
+///      and produces sibling-scope independence (Thunks.scala parity).
+///   2. For each candidate node in `schedule` with `dag_count >= 2` and
+///      `!references_locally_defined`, gate extraction by:
+///         `sym_table.find(node, ROOT).is_some()`
+///      — i.e., the sub-expression was first-constructed at root scope (or
+///      an ancestor of root, which is just root itself). Sub-expressions
+///      whose first construction was inside a child ThunkDef scope live
+///      there and are NOT hoisted here.
+///   3. Identical replace_all / build_value_recurse / topo-sort tail as
+///      `process_ast_graph_impl`.
+///
+/// Pre-stated falsification (per handoff): hash-cons is necessary but
+/// probably NOT sufficient. The four known unknowns (perf, walker
+/// completeness, DFS-construction-order vs LCA-of-uses, downstream
+/// renumbering interface) may surface as blockers. Diag-only commit
+/// posture: this driver lands as a flag-gated parallel path; default
+/// behaviour unchanged.
+///
+/// Instrumentation: `CSE_TRACE_HASH_CONS=1` logs every `find_or_intern`,
+/// every new_scope, and every extract / skip decision.
+fn process_ast_graph_hash_cons(
+    expr: Expr,
+    global_max_id: u32,
+    dag_usages: Vec<(Expr, usize)>,
+    schedule: Vec<Expr>,
+    mode: ScopeMode,
+) -> Expr {
+    use sym_table::{ScopeId, SymTable};
+
+    let trace = std::env::var("CSE_TRACE_HASH_CONS").is_ok();
+    let mut st = SymTable::new();
+    let root: ScopeId = 0;
+
+    fn is_logical_and_or(kind: &ergotree_ir::mir::bin_op::BinOpKind) -> bool {
+        matches!(
+            kind,
+            ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                ergotree_ir::mir::bin_op::LogicalOp::And
+                    | ergotree_ir::mir::bin_op::LogicalOp::Or
+            )
+        )
+    }
+
+    fn intern_walk(e: &Expr, st: &mut SymTable, scope: sym_table::ScopeId, trace: bool) {
+        let (sym, is_new) = st.find_or_intern(e, scope);
+        if trace {
+            eprintln!(
+                "[HC/intern] scope={} sym={} new={} :: {}",
+                scope,
+                sym,
+                is_new,
+                short_expr(e)
+            );
+        }
+        match e {
+            Expr::If(if_op) => {
+                intern_walk(&if_op.condition, st, scope, trace);
+                let s_t = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HC/new_scope] parent={} child={} (If.true)", scope, s_t);
+                }
+                intern_walk(&if_op.true_branch, st, s_t, trace);
+                let s_f = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HC/new_scope] parent={} child={} (If.false)", scope, s_f);
+                }
+                intern_walk(&if_op.false_branch, st, s_f, trace);
+            }
+            Expr::BinOp(s) if is_logical_and_or(&s.expr.kind) => {
+                intern_walk(&s.expr.left, st, scope, trace);
+                let s_r = st.new_scope(scope);
+                if trace {
+                    eprintln!(
+                        "[HC/new_scope] parent={} child={} (&&/|| right)",
+                        scope, s_r
+                    );
+                }
+                intern_walk(&s.expr.right, st, s_r, trace);
+            }
+            Expr::FuncValue(fv) => {
+                let s_b = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HC/new_scope] parent={} child={} (FuncValue body)", scope, s_b);
+                }
+                intern_walk(fv.body(), st, s_b, trace);
+            }
+            _ => {
+                for c in direct_children(e) {
+                    intern_walk(c, st, scope, trace);
+                }
+            }
+        }
+    }
+
+    // Canonicalize the intern-walk input the same way ExprKey expects
+    // (consumers MUST strip source spans). `apply_cse` already stripped
+    // spans at pipeline entry; this is defensive in case the driver is
+    // ever called from a different path.
+    let expr_for_walk = strip_source_spans(expr.clone());
+    intern_walk(&expr_for_walk, &mut st, root, trace);
+
+    let branch_local_ids = collect_branch_local_val_ids(&expr);
+    let mut env: Vec<(Expr, u32)> = Vec::new();
+    let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
+
+    for node in &schedule {
+        if !is_extractable(node) {
+            continue;
+        }
+        if !is_graph_shared(node) {
+            if trace {
+                eprintln!(
+                    "[HC/{:?}] skip-not-shared :: {}",
+                    mode,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+        let dag_count = dag_usages
+            .iter()
+            .find(|(e, _)| e == node)
+            .map(|(_, c)| *c)
+            .unwrap_or(0);
+        if dag_count < 2 {
+            if trace {
+                eprintln!(
+                    "[HC/{:?}] skip dag_count={} :: {}",
+                    mode,
+                    dag_count,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+        if references_locally_defined(node, &branch_local_ids) {
+            if trace {
+                eprintln!(
+                    "[HC/{:?}] reject reason=branch_local_ids dag_count={} :: {}",
+                    mode,
+                    dag_count,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+
+        // Hash-cons scope gate (replaces appears_in_main_scope hierarchy):
+        // node is eligible for extraction at this scope iff some sym for
+        // it lives at root (the current driver scope is `root` per our
+        // intern walk; sub-thunks created during the walk are unreachable
+        // from `st.find(_, root)`).
+        let owned_at_root = st.find(node, root).is_some();
+        if !owned_at_root {
+            if trace {
+                eprintln!(
+                    "[HC/{:?}] reject reason=not-owned-at-root dag_count={} :: {}",
+                    mode,
+                    dag_count,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+
+        if trace {
+            eprintln!(
+                "[HC/{:?}] extract id={} dag_count={} :: {}",
+                mode,
+                next_id,
+                dag_count,
+                short_expr(node)
+            );
+        }
+        env.push((node.clone(), next_id));
+        next_id += 1;
+    }
+
+    if env.is_empty() {
+        return expr;
+    }
+
+    // Replacement tail — structurally identical to process_ast_graph_impl
+    // (lines 6486–6580). Preserved verbatim so byte-divergence under
+    // CSE_HASH_CONS=1 is attributable to the extraction-gate change, not
+    // a different rewrite shape.
+    let mut result = expr;
+    let mut final_env: Vec<(Expr, u32)> = Vec::new();
+    let mut env = env;
+    let mut i = 0;
+    while i < env.len() {
+        let (ref node, val_id) = env[i];
+        let tree_count = count_occurrences(&result, node);
+        if tree_count < 2 {
+            i += 1;
+            continue;
+        }
+        let node = node.clone();
+        let val_use = Expr::ValUse(ValUse {
+            val_id: ValId(val_id),
+            tpe: expr_type(&node),
+        });
+        result = replace_all(&result, &node, &val_use);
+        for entry in env.iter_mut().skip(i + 1) {
+            let (ref mut env_expr, _) = entry;
+            *env_expr = replace_all(env_expr, &node, &val_use);
+        }
+        final_env.push((node, val_id));
+        i += 1;
+    }
+    let env = final_env;
+
+    if env.is_empty() {
+        return result;
+    }
+
+    let val_defs: Vec<Expr> = env
+        .iter()
+        .map(|(node, val_id)| {
+            let rhs = build_value_recurse(node, &env);
+            Expr::ValDef(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: ValDef {
+                    id: ValId(*val_id),
+                    rhs: rhs.into(),
+                },
+            })
+        })
+        .collect();
+
+    let post_next_id = val_defs
+        .iter()
+        .filter_map(|vd| {
+            if let Expr::ValDef(s) = vd {
+                Some(s.expr.id.0)
+            } else {
+                None
+            }
+        })
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(next_id);
+    let (val_defs, result, _) = lambda_rescue_post_pass(val_defs, result, post_next_id);
+
     match result {
         Expr::BlockValue(spanned) => {
             let mut items = val_defs;
