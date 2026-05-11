@@ -4708,6 +4708,33 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
 // OUTSIDE its applicability (constant-pool emission, not extraction-gate
 // decision). See archive
 // `<commit>_sig15-sigmao-S9-bisect-A-handoff-premise-falsified.md`.
+//
+// BISECT-A2 — sigmao -32 constant-pool bucket A2.2 CLASSIFIED (sig-15
+// sigmao S10, 2026-05-11, HEAD `e845da3e`). Pure measurement session per
+// `BISECT-A2-SIGMAO-CONSTANT-POOL-HANDOFF.md`. Probe 0 metals on
+// `sigma.serialization.ConstantStore` (full source) shows `put` is
+// non-deduping: `store += c.asInstanceOf[Constant[SType]]; mkConstant-
+// Placeholder(store.length - 1, tpe)` — every call appends, equal
+// Constants do NOT collapse. Probe 0 metals on
+// `sigma.compiler.ir.TreeBuilding::buildValue` shows the `Const(x)` arm
+// unconditionally calls `store.put(constant)` when `constantsProcessing
+// = Some(store)`; the `IsConstantDef` gate in `processAstGraph` excludes
+// Const from ValDef emission only, not from pool emission. Therefore
+// `constants_len` divergence ⇔ distinct-`Const`-Sym count divergence in
+// the post-CSE live graph. Bucket (A2.1) ConstantStore::put dedup is
+// structurally FALSIFIED. Probe 1 empirical (multiset diff of LOCAL +
+// NODE pool dumps from `debug_sigmao`): symmetric difference is exactly
+// `NODE - LOCAL = +1 × Const(1: SInt) + +1 × Const(3: SInt)`; all 13
+// other distinct pool-values agree in multiplicity exactly. Bucket
+// (A2.2) upstream pass collapses CLASSIFIED — a Rust HIR or MIR pass
+// collapses one Const(1: SInt) and one Const(3: SInt) graph node that
+// Scala's IR preserves as distinct. Next session: per-Const-value count
+// dump at HIR→MIR boundary and each pre-CSE stage to localize the
+// collapsing pass. Candidate surfaces ranked: HIR const-fold > MIR
+// lowering literal-memoization > inline_alias_vals /
+// inline_single_use_vals / deduplicate_inner_consts. See sub-handoff
+// `BISECT-A2.2-SIGMAO-COLLAPSING-PASS-HANDOFF.md` and archive
+// `<commit>_sig15-sigmao-S10-BISECT-A2-bucket-A2.2-classified.md`.
 fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 1: Collect all sub-expressions and deduplicate by structural equality
     let mut all_subexprs: Vec<Expr> = Vec::new();
