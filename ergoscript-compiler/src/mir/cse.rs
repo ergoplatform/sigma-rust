@@ -4576,7 +4576,22 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         | Expr::ValUse(_)
         | Expr::Context
         | Expr::Global => vec![],
-        // Catch-all for less common nodes
+        // Catch-all for less common nodes.
+        //
+        // WS-G.2.3 audit 1.A (this session, see
+        // parity-handoffs/G2.3a-DIRECT-CHILDREN-COMPLETENESS-HANDOFF.md): the
+        // following variants have real Expr children that the catch-all
+        // silently drops — count_dag_usages / contains_val_use / collect_*
+        // helpers therefore under-count uses for ASTs that contain them, and
+        // the G.2.2 expr_hash recurses zero children for these nodes:
+        //   SubstConstants, CalcSha256, Xor, BitInversion,
+        //   ExtractBytesWithNoRef, SigmaPropIsProven, ZkProofBlock, XorOf,
+        //   CreateAvlTree, DeserializeRegister (optional default).
+        // These need explicit arms before G.2.3 hash-cons integration. The
+        // sig-15 12/15 + F.2 563/575 + ecosystem 11/14 MATCH set happens not
+        // to contain these variants in shared sub-expr contexts (otherwise
+        // the gap would already be a visible delta), so the fix's primary
+        // risk is in F.2 corpus.
         _ => vec![],
     }
 }
