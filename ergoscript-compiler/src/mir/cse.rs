@@ -9292,6 +9292,88 @@ mod sym_table {
             // Sanity: child sees its own entry too.
             assert_eq!(t.find(&e_child, child), Some(child_sym));
         }
+
+        /// G.2.3 Audit 1.B — perf baseline for `expr_hash`.
+        ///
+        /// Runs 1_000_000 hashes over a representative AST mix and prints
+        /// µs/call. Gated `#[ignore]`; invoke with:
+        ///   `cargo test -p ergoscript-compiler --lib --release \
+        ///       hash_cons::tests::audit_1b_expr_hash_perf -- --ignored --nocapture`
+        ///
+        /// Projection: per G.2.3 handoff, F.2 corpus is 575 programs × ~50
+        /// Consts/program × multiple `find_or_intern` calls/pipeline pass.
+        /// Pass condition: projected wall-time adds <10% to F.2 run. The bench
+        /// prints both per-call time and a projected total for the reader to
+        /// judge against the F.2 baseline (~seconds, varies by host).
+        #[test]
+        #[ignore]
+        fn audit_1b_expr_hash_perf() {
+            use std::collections::hash_map::DefaultHasher;
+            use std::time::Instant;
+
+            // Mixed AST: a small expression containing every arm `expr_hash`
+            // dispatches on by-arm (Const, ValUse, BinOp) plus structural
+            // recursion via `direct_children`. Keep representative, not
+            // huge — Scala's `_globalDefs` keys are typically small sub-exprs.
+            let mix = binop_plus_spanned(
+                binop_plus_spanned(c_i64(1), c_i64(2), 0),
+                binop_plus_spanned(c_i64(3), c_i64(4), 0),
+                0,
+            );
+            let mix = super::super::strip_source_spans(mix);
+
+            const N: u64 = 1_000_000;
+            let t0 = Instant::now();
+            let mut acc: u64 = 0;
+            for _ in 0..N {
+                let mut h = DefaultHasher::new();
+                ExprKey(mix.clone()).hash(&mut h);
+                acc = acc.wrapping_add(h.finish());
+            }
+            let dt = t0.elapsed();
+            let ns_per_call = dt.as_nanos() as f64 / N as f64;
+
+            // Projected F.2 work: 575 programs × 50 Consts × 4 pipeline passes
+            // = 115_000 `find_or_intern` hashes. Each hash recurses into all
+            // sub-exprs, so per-program work is much larger; this is a floor.
+            let proj_hashes_low: u64 = 575 * 50 * 4;
+            let proj_us = (ns_per_call * proj_hashes_low as f64) / 1_000.0;
+
+            eprintln!(
+                "[AUDIT 1.B] N={N} hashes elapsed={dt:?} per-call={ns_per_call:.1}ns \
+                 floor-projection={proj_us:.1}µs ({proj_hashes_low} hashes × per-call) \
+                 acc={acc}"
+            );
+        }
+
+        /// G.2.3 Audit 1.B (Const arm) — perf isolation of the
+        /// `sigma_serialize_bytes`-per-Const path. The Const arm allocates a
+        /// `Vec<u8>` per call, so it's the suspected hot-spot. Bench it
+        /// separately to compare against the structural-mix bench above.
+        #[test]
+        #[ignore]
+        fn audit_1b_expr_hash_perf_const_arm() {
+            use std::collections::hash_map::DefaultHasher;
+            use std::time::Instant;
+
+            let c = super::super::strip_source_spans(c_i64(0x1234_5678_9abc_def0));
+
+            const N: u64 = 1_000_000;
+            let t0 = Instant::now();
+            let mut acc: u64 = 0;
+            for _ in 0..N {
+                let mut h = DefaultHasher::new();
+                ExprKey(c.clone()).hash(&mut h);
+                acc = acc.wrapping_add(h.finish());
+            }
+            let dt = t0.elapsed();
+            let ns_per_call = dt.as_nanos() as f64 / N as f64;
+
+            eprintln!(
+                "[AUDIT 1.B / Const] N={N} hashes elapsed={dt:?} per-call={ns_per_call:.1}ns \
+                 acc={acc}"
+            );
+        }
     }
 }
 
