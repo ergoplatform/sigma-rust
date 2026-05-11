@@ -4672,6 +4672,45 @@ fn debug_sigmao() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
+    // BISECT-A5 / S13 — aligned slot-by-slot pool diff (A5.1 pool entry order class).
+    // Pool order = first-encounter during recursive Expr::sigma_serialize traversal
+    // (Rust mirror of Scala TreeBuilding.buildValue). Divergent slots ⇒ either
+    // ValDef schedule order differs OR a ValDef RHS shape differs (extraction-set).
+    if let (Ok(ll), Ok(nl)) = (local_tree.constants_len(), canon.tree.constants_len()) {
+        let n = ll.max(nl);
+        let mut first_div: Option<usize> = None;
+        let mut last_div: Option<usize> = None;
+        let mut div_count = 0usize;
+        eprintln!("\n=== POOL ORDER DIFF (A5.1) ===");
+        for i in 0..n {
+            let l = if i < ll {
+                format!("{:?}", local_tree.get_constant(i))
+            } else {
+                "<absent>".into()
+            };
+            let r = if i < nl {
+                format!("{:?}", canon.tree.get_constant(i))
+            } else {
+                "<absent>".into()
+            };
+            let mark = if l == r { " " } else { "≠" };
+            if l != r {
+                if first_div.is_none() {
+                    first_div = Some(i);
+                }
+                last_div = Some(i);
+                div_count += 1;
+            }
+            eprintln!("  [{:>3}] {} L={}  N={}", i, mark, l, r);
+        }
+        eprintln!(
+            "POOL DIFF SUMMARY: divergent_slots={} first_div={:?} last_div={:?} aligned_tail_len={}",
+            div_count,
+            first_div,
+            last_div,
+            n - last_div.map(|i| i + 1).unwrap_or(n),
+        );
+    }
     eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
     eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
 }
