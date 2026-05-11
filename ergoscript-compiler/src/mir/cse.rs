@@ -1153,6 +1153,51 @@ fn extract_if_cond_shared(
         if deeper_block_with_ge_two_occurrences(&current_items, &current_result, &sub) {
             continue;
         }
+        // BISECT-A4 (S12): reject BinOp candidates whose entire subtree
+        // contains no `ValUse` — pure-context-property comparisons such
+        // as `INPUTS.size == 1` or `INPUTS.size >= 3`. Scala's TreeBuilding
+        // gate (`hasManyUsagesGlobal && !IsContextProperty && !IsInternalDef
+        // && !IsConstantDef`) leaves these inline in IfNode.cond rather
+        // than promoting to a graph Sym (empirically: NODE pool for sigmao
+        // keeps Const(1:SInt)=12 / Const(3:SInt)=4 whereas Rust collapses
+        // them to 11/3 via this pass). Discriminator empirically verified
+        // by `CSE_TRACE_PRE_EXTRACT` (S12 archive): all MATCH-fixture BinOp
+        // extractions (chaincash / oracle / sigmausd / gluon / ergoraffle)
+        // carry a ValUse child; only sigmao + paideia BinOp extractions
+        // here are no-ValUse (and both are currently USED NODE).
+        if let Expr::BinOp(ref b) = sub {
+            use ergotree_ir::mir::bin_op::{BinOpKind, RelationOp};
+            if matches!(
+                b.expr.kind,
+                BinOpKind::Relation(RelationOp::Eq | RelationOp::NEq)
+            ) && !contains_val_use(&sub)
+            {
+                continue;
+            }
+        }
+        if std::env::var("CSE_TRACE_PRE_EXTRACT").is_ok() {
+            let c1 = count_const_sint(&sub, 1);
+            let c3 = count_const_sint(&sub, 3);
+            let kind = pre_extract_variant_name(&sub);
+            // Split count by If.cond vs outside-If.cond positions over the
+            // current synthetic scope (items + result).
+            let mut in_cond = 0usize;
+            let mut out_cond = 0usize;
+            let r = count_in_if_cond(&current_result, &sub, false);
+            in_cond += r.0;
+            out_cond += r.1;
+            for it in &current_items {
+                let r = count_in_if_cond(it, &sub, false);
+                in_cond += r.0;
+                out_cond += r.1;
+            }
+            let dbg = format!("{:?}", sub);
+            let dbg_trim: String = dbg.chars().take(160).collect();
+            eprintln!(
+                "[PRE_EXTRACT] id={} kind={} cnt={} cond={} out={} c1={} c3={} rescue={} shape={}",
+                *next_id, kind, cnt, in_cond, out_cond, c1, c3, rescue, dbg_trim
+            );
+        }
         let id = *next_id;
         *next_id += 1;
         let val_use = Expr::ValUse(ValUse {
@@ -4918,6 +4963,103 @@ fn walk_orphan(expr: &Expr, scope: &HashSet<u32>, count: &mut usize) {
                 walk_orphan(child, scope, count);
             }
         }
+    }
+}
+
+/// BISECT-A4: split `count_occurrences(scope, target)` into (in_if_cond, outside_if_cond).
+/// "in_if_cond" = occurrences anywhere within the `condition` sub-tree of an `If` node.
+/// Used by `CSE_TRACE_PRE_EXTRACT` to test whether sigmao's BinOp(Eq, SizeOf, Const)
+/// candidates appear ONLY inside If.cond positions (while named-fixture extractions
+/// also appear outside If.cond).
+fn count_in_if_cond(expr: &Expr, target: &Expr, inside_cond: bool) -> (usize, usize) {
+    let here = if expr == target {
+        if inside_cond { (1, 0) } else { (0, 1) }
+    } else {
+        (0, 0)
+    };
+    let mut acc = here;
+    let mut add = |c: (usize, usize)| {
+        acc.0 += c.0;
+        acc.1 += c.1;
+    };
+    match expr {
+        Expr::If(if_op) => {
+            add(count_in_if_cond(&if_op.condition, target, true));
+            add(count_in_if_cond(&if_op.true_branch, target, inside_cond));
+            add(count_in_if_cond(&if_op.false_branch, target, inside_cond));
+        }
+        Expr::BinOp(s) => {
+            add(count_in_if_cond(&s.expr.left, target, inside_cond));
+            add(count_in_if_cond(&s.expr.right, target, inside_cond));
+        }
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                add(count_in_if_cond(item, target, inside_cond));
+            }
+            add(count_in_if_cond(&s.expr.result, target, inside_cond));
+        }
+        Expr::ValDef(s) => {
+            add(count_in_if_cond(&s.expr.rhs, target, inside_cond));
+        }
+        other => {
+            for c in direct_children(other) {
+                add(count_in_if_cond(&c, target, inside_cond));
+            }
+        }
+    }
+    acc
+}
+
+/// BISECT-A4: one-token variant tag for an extracted `pre_extract_from_valdefs` candidate.
+/// Used by the `CSE_TRACE_PRE_EXTRACT` arm to characterize the wrapper shape.
+fn pre_extract_variant_name(e: &Expr) -> &'static str {
+    match e {
+        Expr::Const(_) => "Const",
+        Expr::ValUse(_) => "ValUse",
+        Expr::GlobalVars(_) => "GlobalVars",
+        Expr::BinOp(_) => "BinOp",
+        Expr::And(_) => "And",
+        Expr::Or(_) => "Or",
+        Expr::Xor(_) => "Xor",
+        Expr::If(_) => "If",
+        Expr::SelectField(_) => "SelectField",
+        Expr::ByIndex(_) => "ByIndex",
+        Expr::OptionGet(_) => "OptionGet",
+        Expr::OptionGetOrElse(_) => "OptionGetOrElse",
+        Expr::OptionIsDefined(_) => "OptionIsDefined",
+        Expr::SizeOf(_) => "SizeOf",
+        Expr::ExtractAmount(_) => "ExtractAmount",
+        Expr::ExtractScriptBytes(_) => "ExtractScriptBytes",
+        Expr::ExtractBytes(_) => "ExtractBytes",
+        Expr::ExtractBytesWithNoRef(_) => "ExtractBytesWithNoRef",
+        Expr::ExtractCreationInfo(_) => "ExtractCreationInfo",
+        Expr::ExtractId(_) => "ExtractId",
+        Expr::ExtractRegisterAs(_) => "ExtractRegisterAs",
+        Expr::PropertyCall(_) => "PropertyCall",
+        Expr::MethodCall(_) => "MethodCall",
+        Expr::Apply(_) => "Apply",
+        Expr::Tuple(_) => "Tuple",
+        Expr::Collection(_) => "Collection",
+        Expr::CalcBlake2b256(_) => "CalcBlake2b256",
+        Expr::CalcSha256(_) => "CalcSha256",
+        Expr::BoolToSigmaProp(_) => "BoolToSigmaProp",
+        Expr::SigmaPropBytes(_) => "SigmaPropBytes",
+        Expr::CreateProveDlog(_) => "CreateProveDlog",
+        Expr::CreateProveDhTuple(_) => "CreateProveDhTuple",
+        Expr::DecodePoint(_) => "DecodePoint",
+        Expr::Fold(_) => "Fold",
+        Expr::Map(_) => "Map",
+        Expr::Filter(_) => "Filter",
+        Expr::Append(_) => "Append",
+        Expr::Slice(_) => "Slice",
+        Expr::SigmaAnd(_) => "SigmaAnd",
+        Expr::SigmaOr(_) => "SigmaOr",
+        Expr::Atleast(_) => "Atleast",
+        Expr::Negation(_) => "Negation",
+        Expr::Upcast(_) => "Upcast",
+        Expr::Downcast(_) => "Downcast",
+        Expr::LogicalNot(_) => "LogicalNot",
+        _ => "Other",
     }
 }
 
