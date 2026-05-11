@@ -4664,6 +4664,24 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
 // architectural-second" hypothesis from the inversion analysis is empirically
 // EMPTY for paideia. 20th falsification fingerprint instance. Plateau hardens.
 // See archive `b8864e16_sig15-paideia-S20-inversion-A-row2-confirmed-fix-space-empty.md`.
+//
+// Inversion C — sigmao -32 amortization cost-model FALSIFIED at Probe 0 (sig-15
+// sigmao S8 / Inversion C, 2026-05-11, HEAD `51f4effc`). The S7 archive
+// (`83a962f0`) coined "amortization-aware extraction threshold" as the residual
+// class for sigmao's -32B gap: hypothesis was that `needs_check` (or a sibling
+// gate) should reject extraction when ValDef-header overhead exceeds sharing
+// savings (`savings = N_uses * inline_size`, `cost = HEADER + N_uses * VALUSE`).
+// Metals read of `sigma.compiler.ir.TreeBuilding.processAstGraph` (4 predicates:
+// `hasManyUsagesGlobal && !IsContextProperty && !IsInternalDef && !IsConstantDef`)
+// + `sigma.compiler.ir.AstGraphs.hasManyUsagesGlobal` (literal
+// `globalUsagesOf(s).length > 1`) shows **no size, rhs-shape, or amortization
+// predicate anywhere in Scala's gate**. Row C4 of the decision tree fires:
+// hypothesis falsified at Probe 0 layer; sigmao's -32 reframed as Rust over-
+// extracting where Scala's `>1` test rejects (live-tree use count, not threshold).
+// 22nd falsification fingerprint instance. All three inversions (A architectural,
+// B post-pass merge, C cost-model threshold) now exhausted; WS-G stop condition
+// triggers. 12/15 is the honest ship state.
+// See archive `<commit>_sig15-sigmao-S8-inversion-C-amortization-falsified.md`.
 fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 1: Collect all sub-expressions and deduplicate by structural equality
     let mut all_subexprs: Vec<Expr> = Vec::new();
