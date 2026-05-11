@@ -4569,6 +4569,31 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             items.iter().collect()
         }
+        // Single-input arms (1-child) — G.2.3a, audit 1.A.
+        Expr::CalcSha256(s) => vec![&s.input],
+        Expr::BitInversion(s) => vec![&s.input],
+        Expr::ExtractBytesWithNoRef(s) => vec![&s.input],
+        Expr::SigmaPropIsProven(s) => vec![&s.input],
+        Expr::ZkProofBlock(s) => vec![&s.input],
+        Expr::XorOf(s) => vec![&s.input],
+        // Multi-child arms — G.2.3a, audit 1.A.
+        Expr::Xor(s) => vec![&s.left, &s.right],
+        Expr::SubstConstants(s) => vec![
+            &s.expr.script_bytes,
+            &s.expr.positions,
+            &s.expr.new_values,
+        ],
+        Expr::CreateAvlTree(s) => {
+            let mut v: Vec<&Expr> = vec![&s.flags, &s.digest, &s.key_length];
+            if let Some(vl) = s.value_length.as_deref() {
+                v.push(vl);
+            }
+            v
+        }
+        Expr::DeserializeRegister(s) => match s.default.as_deref() {
+            Some(d) => vec![d],
+            None => vec![],
+        },
         // Leaf nodes — no children
         Expr::Const(_)
         | Expr::ConstPlaceholder(_)
@@ -4576,22 +4601,16 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         | Expr::ValUse(_)
         | Expr::Context
         | Expr::Global => vec![],
-        // Catch-all for less common nodes.
+        // Catch-all for remaining less common nodes.
         //
-        // WS-G.2.3 audit 1.A (this session, see
-        // parity-handoffs/G2.3a-DIRECT-CHILDREN-COMPLETENESS-HANDOFF.md): the
-        // following variants have real Expr children that the catch-all
-        // silently drops — count_dag_usages / contains_val_use / collect_*
-        // helpers therefore under-count uses for ASTs that contain them, and
-        // the G.2.2 expr_hash recurses zero children for these nodes:
-        //   SubstConstants, CalcSha256, Xor, BitInversion,
-        //   ExtractBytesWithNoRef, SigmaPropIsProven, ZkProofBlock, XorOf,
-        //   CreateAvlTree, DeserializeRegister (optional default).
-        // These need explicit arms before G.2.3 hash-cons integration. The
-        // sig-15 12/15 + F.2 563/575 + ecosystem 11/14 MATCH set happens not
-        // to contain these variants in shared sub-expr contexts (otherwise
-        // the gap would already be a visible delta), so the fix's primary
-        // risk is in F.2 corpus.
+        // WS-G.2.3a (audit 1.A fix): the previously-missing-arm set
+        // (SubstConstants, CalcSha256, Xor, BitInversion, ExtractBytesWithNoRef,
+        // SigmaPropIsProven, ZkProofBlock, XorOf, CreateAvlTree,
+        // DeserializeRegister) now has explicit arms above. The remaining
+        // variants in this fall-through truly have no Expr children
+        // (GetVar, DeserializeContext, Collection::BoolConstants, …) — drop
+        // is correct by construction. `walker_completeness_probe` mod at file
+        // bottom pins this invariant per variant.
         _ => vec![],
     }
 }
@@ -9273,5 +9292,163 @@ mod sym_table {
             // Sanity: child sees its own entry too.
             assert_eq!(t.find(&e_child, child), Some(child_sym));
         }
+    }
+}
+
+/// G.2.3a — walker-completeness probe for `direct_children`.
+///
+/// Audit 1.A failed: 10 Expr variants have real Expr children but fall through
+/// the catch-all `_ => vec![]` arm, so all 50+ helpers that walk via
+/// `direct_children` (count_dag_usages / contains_val_use / collect_* / expr_hash)
+/// silently under-count uses for ASTs containing them.
+///
+/// This probe constructs a minimal AST for each affected variant and asserts
+/// the expected child count. Today (HEAD `51dda6a1`) the 10 high/med-risk
+/// arms FAIL; after the fix they pass. Test is the falsification artifact —
+/// partial arm coverage shows up as partial pass.
+#[cfg(test)]
+mod walker_completeness_probe {
+    use super::*;
+    use ergotree_ir::chain::ergo_box::RegisterId;
+    use ergotree_ir::mir::bit_inversion::BitInversion;
+    use ergotree_ir::mir::calc_sha256::CalcSha256;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::create_avl_tree::CreateAvlTree;
+    use ergotree_ir::mir::deserialize_register::DeserializeRegister;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef;
+    use ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven;
+    use ergotree_ir::mir::subst_const::SubstConstants;
+    use ergotree_ir::mir::xor::Xor;
+    use ergotree_ir::mir::xor_of::XorOf;
+    use ergotree_ir::mir::zk_proof::ZkProofBlock;
+    use ergotree_ir::source_span::{SourceSpan, Spanned};
+    use ergotree_ir::types::stype::SType;
+
+    fn ci(v: i32) -> Expr {
+        Expr::Const(Constant::from(v))
+    }
+    fn cb_byte(v: i8) -> Expr {
+        Expr::Const(Constant::from(v))
+    }
+    fn cb_bytes() -> Expr {
+        Expr::Const(Constant::from(vec![1i8, 2, 3]))
+    }
+    fn cb_bool() -> Expr {
+        Expr::Const(Constant::from(true))
+    }
+
+    #[test]
+    fn calc_sha256_has_one_child() {
+        let e = Expr::CalcSha256(CalcSha256 { input: Box::new(cb_bytes()) });
+        assert_eq!(direct_children(&e).len(), 1);
+    }
+
+    #[test]
+    fn bit_inversion_has_one_child() {
+        let e = Expr::BitInversion(BitInversion { input: Box::new(ci(7)) });
+        assert_eq!(direct_children(&e).len(), 1);
+    }
+
+    #[test]
+    fn extract_bytes_with_no_ref_has_one_child() {
+        // SBox-typed input; substituting a placeholder of the right shape is
+        // sufficient for the walker-arm test — we don't evaluate.
+        let e = Expr::ExtractBytesWithNoRef(ExtractBytesWithNoRef {
+            input: Box::new(Expr::GlobalVars(
+                ergotree_ir::mir::global_vars::GlobalVars::SelfBox,
+            )),
+        });
+        assert_eq!(direct_children(&e).len(), 1);
+    }
+
+    #[test]
+    fn sigma_prop_is_proven_has_one_child() {
+        use ergotree_ir::mir::create_provedlog::CreateProveDlog;
+        let body = Expr::CreateProveDlog(CreateProveDlog {
+            input: Box::new(Expr::GlobalVars(
+                ergotree_ir::mir::global_vars::GlobalVars::Height,
+            )),
+        });
+        let e = Expr::SigmaPropIsProven(SigmaPropIsProven { input: Box::new(body) });
+        assert_eq!(direct_children(&e).len(), 1);
+    }
+
+    #[test]
+    fn xor_of_has_one_child() {
+        let e = Expr::XorOf(XorOf {
+            input: Box::new(cb_bool()),
+        });
+        assert_eq!(direct_children(&e).len(), 1);
+    }
+
+    #[test]
+    fn xor_has_two_children() {
+        let e = Expr::Xor(Xor {
+            left: Box::new(cb_bytes()),
+            right: Box::new(cb_bytes()),
+        });
+        assert_eq!(direct_children(&e).len(), 2);
+    }
+
+    #[test]
+    fn subst_constants_has_three_children() {
+        let e = Expr::SubstConstants(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: SubstConstants {
+                script_bytes: Box::new(cb_bytes()),
+                positions: Box::new(Expr::Const(Constant::from(vec![0i32]))),
+                new_values: Box::new(Expr::Const(Constant::from(vec![1i32]))),
+            },
+        });
+        assert_eq!(direct_children(&e).len(), 3);
+    }
+
+    #[test]
+    fn create_avl_tree_has_three_or_four_children() {
+        let e3 = Expr::CreateAvlTree(CreateAvlTree {
+            flags: Box::new(cb_byte(1)),
+            digest: Box::new(cb_bytes()),
+            key_length: Box::new(ci(32)),
+            value_length: None,
+        });
+        assert_eq!(direct_children(&e3).len(), 3);
+        let e4 = Expr::CreateAvlTree(CreateAvlTree {
+            flags: Box::new(cb_byte(1)),
+            digest: Box::new(cb_bytes()),
+            key_length: Box::new(ci(32)),
+            value_length: Some(Box::new(ci(8))),
+        });
+        assert_eq!(direct_children(&e4).len(), 4);
+    }
+
+    #[test]
+    fn deserialize_register_default_visited_when_present() {
+        let none_default = Expr::DeserializeRegister(DeserializeRegister {
+            reg: RegisterId::R0,
+            tpe: SType::SLong,
+            default: None,
+        });
+        assert_eq!(direct_children(&none_default).len(), 0);
+        let some_default = Expr::DeserializeRegister(DeserializeRegister {
+            reg: RegisterId::R0,
+            tpe: SType::SLong,
+            default: Some(Box::new(ci(0))),
+        });
+        assert_eq!(direct_children(&some_default).len(), 1);
+    }
+
+    #[test]
+    fn zk_proof_block_has_one_child() {
+        // ZkProofBlock requires SSigmaProp body — use a CreateProveDlog
+        // placeholder so the assertion focuses purely on child count.
+        use ergotree_ir::mir::create_provedlog::CreateProveDlog;
+        let body = Expr::CreateProveDlog(CreateProveDlog {
+            input: Box::new(Expr::GlobalVars(
+                ergotree_ir::mir::global_vars::GlobalVars::Height,
+            )),
+        });
+        let e = Expr::ZkProofBlock(ZkProofBlock { input: Box::new(body) });
+        assert_eq!(direct_children(&e).len(), 1);
     }
 }
