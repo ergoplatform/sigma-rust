@@ -4649,6 +4649,21 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
 // #14 gluon S4 (both 1-line walker-arm fixes); paideia plateau hardens with
 // empirical evidence the structural barrier is real. See `project_sig15_paideia_s9_*`
 // memory + cluster archive `<HEAD>_sig15-paideia-session9-walker-lens-falsified.md`.
+//
+// Inversion A — paideia surgical-fix space EMPTY (sig-15 paideia S20/Inversion A,
+// 2026-05-11, HEAD `b8864e16`): Probe 1 re-confirmed dag_count=3 for the Tuple at
+// id=82, and source-AST inspection placed the 5 syntactic occurrences across TWO
+// top-level val.RHS thunks (validStakeTx addStake-else, validUnstakeTx partial-
+// branch) — Row 2 of the inversion-A decision tree (cross-thunk shared). The
+// surgical-fix-Row-2 space was already empirically exhausted by S7 (Bug A pure-
+// const Tuple predicate alone → +14B via per-branch sibling extraction) and S8
+// (B-medium HashSet cross-branch suppression → +15B via wrong-branch suppression).
+// Closure requires Scala's first-DFS-construction-scope (sibling-thunk owner-by-
+// first-encounter) mechanism, which IS the WS-G hash-cons migration falsified
+// across 11 sessions / 19 falsification fingerprint instances. The "surgical-first,
+// architectural-second" hypothesis from the inversion analysis is empirically
+// EMPTY for paideia. 20th falsification fingerprint instance. Plateau hardens.
+// See archive `b8864e16_sig15-paideia-S20-inversion-A-row2-confirmed-fix-space-empty.md`.
 fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 1: Collect all sub-expressions and deduplicate by structural equality
     let mut all_subexprs: Vec<Expr> = Vec::new();
