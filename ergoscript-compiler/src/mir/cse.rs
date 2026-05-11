@@ -55,6 +55,19 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // (NODE has 36 outer ValDefs vs LOCAL's 27 here). Inlining the
             // alias ValDefs unblocks structural matching at outer scope;
             // CSE re-extracts shared chains at the LCA.
+            // WS-G.2.4b Probe 1 (19th falsification, diag-only, no code change):
+            // Hypothesis was that `inline_alias_vals` destroys the source-order
+            // val structure relied on by the hash-cons walker, causing dexy
+            // (+44) and duckpools (-2) under-extraction under `CSE_HASH_CONS=1`.
+            // Empirical probe: gating this call off when `hash_cons_enabled()`
+            // leaves dexy 353B / duck 596B UNCHANGED and regresses paideia
+            // 1495B → 1550B (+27 → +82). Path C as stated does NOT recover
+            // either fixture. Root cause must be inside the walker itself
+            // (`process_ast_graph_hash_cons` / `SymTable::find_or_intern`
+            // scope-chain semantics) or in a downstream pass that destroys
+            // root anchoring, NOT pre-CSE `inline_alias_vals` — non-alias
+            // boolean vals like dexy's `validMint` were never inlined here.
+            // See target/diff_fuzz/clusters/closed/<commit>_ws-g2-4b-path-c-falsified.md.
             let expr = inline_alias_vals(expr);
             trace_slot_shift("01-inline_alias_vals", &expr);
             let global_max_id = find_max_val_id(&expr);
