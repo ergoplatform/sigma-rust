@@ -4682,6 +4682,32 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
 // B post-pass merge, C cost-model threshold) now exhausted; WS-G stop condition
 // triggers. 12/15 is the honest ship state.
 // See archive `<commit>_sig15-sigmao-S8-inversion-C-amortization-falsified.md`.
+//
+// BISECT-A — sigmao -32 per-sym divergence FALSIFIED at Probe 1 (sig-15
+// sigmao S9, 2026-05-11, HEAD `1ab6c3e0`). BISECT-A handoff opened a new
+// methodology layer (per-sym empirical bisection of count / predicate /
+// scope) and locked the target sym as `CreateProveDlog(DecodePoint(
+// ByIndex(VU(8), 0)))` citing S7 archive (`83a962f0`) as "Rust extracts
+// at root, dag_count=2; Scala doesn't extract." Probe 0 metals closed
+// bucket (b) structurally (`IsContextProperty` / `IsInternalDef` /
+// `IsConstantDef` unapply arms verified, none match CreateProveDlog).
+// Probe 1 empirical (`CSE_TRACE_EXTRACT=1 debug_sigmao` at HEAD)
+// FALSIFIES the premise:
+//     [PAG/Root] skip dag_count=1 :: CreateProveDlog(DecodePoint(VU(21)))
+// Rust and Scala AGREE on this sym — both skip. S7's `dag_count=2` was
+// conditional on the uncommitted B0 widened-gate experiment, not baseline
+// HEAD. The real -32B residual lives in constant-pool emission (LOCAL
+// constants_len 59 vs NODE 61, first byte-diff at offset 1 — the
+// constants_len varint itself), one layer downstream of this function's
+// extraction gate. 23rd falsification fingerprint instance — new class:
+// handoff-premise carrying conditional-state forward as baseline. Rule:
+// when a handoff locks a specific sym/expression/number from a prior
+// archive, re-anchor via `CSE_TRACE_EXTRACT=1 debug_<fixture>` at HEAD
+// (~30s) BEFORE building bucket frameworks. Bisection methodology not
+// invalidated but requires re-derivation; sigmao's residual likely falls
+// OUTSIDE its applicability (constant-pool emission, not extraction-gate
+// decision). See archive
+// `<commit>_sig15-sigmao-S9-bisect-A-handoff-premise-falsified.md`.
 fn count_dag_usages(expr: &Expr) -> Vec<(Expr, usize)> {
     // Step 1: Collect all sub-expressions and deduplicate by structural equality
     let mut all_subexprs: Vec<Expr> = Vec::new();
