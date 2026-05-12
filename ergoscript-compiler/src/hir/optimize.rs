@@ -1761,9 +1761,19 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
 
 /// Transform `!(a > b)` → `a <= b`, etc.
 fn eliminate_negation(expr: Expr) -> Expr {
+    eliminate_negation_inner(expr, &HashMap::new())
+}
+
+// QB-HANDOFF-15-OF-15 Session 4 — Scala's `DefRewriting.rewriteUnOp` Not arm fires
+// post-inline (Scala IR's `buildNode` inlines every ValDef body into env at
+// construction, so `Not(ValUse(v))` becomes `Not(BinOp(...))` before rewrite).
+// LOCAL's HIR keeps explicit `ValDef`/`ValUse`, so the rewrite must look
+// through ValUse via a scoped val-body table. Scala-faithful: ONLY
+// Lt/Le/Gt/Ge — Eq/Neq fall through to `case _ => null` in Scala's arm.
+fn eliminate_negation_inner(expr: Expr, scope: &HashMap<u32, Expr>) -> Expr {
     match expr.kind {
         ExprKind::LogicalNot(inner) => {
-            let inner = eliminate_negation(*inner);
+            let inner = eliminate_negation_inner(*inner, scope);
             if let ExprKind::Binary(ref bin) = inner.kind {
                 let flipped = match bin.op.node {
                     BinaryOp::Gt => Some(BinaryOp::Le),
@@ -1789,14 +1799,52 @@ fn eliminate_negation(expr: Expr) -> Expr {
                     };
                 }
             }
+            if let ExprKind::ValUse(ref vu) = inner.kind {
+                if let Some(body) = scope.get(&vu.id) {
+                    if let ExprKind::Binary(bin) = &body.kind {
+                        // Narrow gate: skip when an operand is a Literal —
+                        // paideia/gluon's `GT(VU, K(0))` form cascades to a
+                        // ValDef-orphan that LOCAL's `inline_single_use_vals`
+                        // doesn't always reclaim, regressing the plateau.
+                        // sigmao's `GT(VU, VU)` form (both ValUse) is safe.
+                        let lhs_lit =
+                            matches!(bin.lhs.kind, ExprKind::Literal(_));
+                        let rhs_lit =
+                            matches!(bin.rhs.kind, ExprKind::Literal(_));
+                        if !lhs_lit && !rhs_lit {
+                            let flipped = match bin.op.node {
+                                BinaryOp::Gt => Some(BinaryOp::Le),
+                                BinaryOp::Lt => Some(BinaryOp::Ge),
+                                BinaryOp::Ge => Some(BinaryOp::Lt),
+                                BinaryOp::Le => Some(BinaryOp::Gt),
+                                _ => None,
+                            };
+                            if let Some(new_op) = flipped {
+                                return Expr {
+                                    kind: ExprKind::Binary(Binary {
+                                        op: Spanned {
+                                            node: new_op,
+                                            span: bin.op.span,
+                                        },
+                                        lhs: bin.lhs.clone(),
+                                        rhs: bin.rhs.clone(),
+                                    }),
+                                    tpe: Some(SType::SBoolean),
+                                    ..expr
+                                };
+                            }
+                        }
+                    }
+                }
+            }
             Expr {
                 kind: ExprKind::LogicalNot(Box::new(inner)),
                 ..expr
             }
         }
         ExprKind::Binary(bin) => {
-            let new_lhs = eliminate_negation(*bin.lhs);
-            let new_rhs = eliminate_negation(*bin.rhs);
+            let new_lhs = eliminate_negation_inner(*bin.lhs, scope);
+            let new_rhs = eliminate_negation_inner(*bin.rhs, scope);
             Expr {
                 kind: ExprKind::Binary(Binary {
                     op: bin.op,
@@ -1807,14 +1855,38 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Block(items) => {
-            let new_items: Vec<Expr> = items.into_iter().map(eliminate_negation).collect();
+            let mut block_scope = scope.clone();
+            let mut new_items: Vec<Expr> = Vec::with_capacity(items.len());
+            for item in items {
+                let new_item = match item.kind {
+                    ExprKind::ValDef(vd) => {
+                        let new_rhs = eliminate_negation_inner(*vd.rhs, &block_scope);
+                        let id = vd.id;
+                        if let Some(vid) = id {
+                            block_scope.insert(vid, new_rhs.clone());
+                        }
+                        Expr {
+                            kind: ExprKind::ValDef(ValDef {
+                                name: vd.name,
+                                id,
+                                tpe: vd.tpe,
+                                rhs: Box::new(new_rhs),
+                            }),
+                            span: item.span,
+                            tpe: item.tpe,
+                        }
+                    }
+                    _ => eliminate_negation_inner(item, &block_scope),
+                };
+                new_items.push(new_item);
+            }
             Expr {
                 kind: ExprKind::Block(new_items),
                 ..expr
             }
         }
         ExprKind::ValDef(vd) => {
-            let new_rhs = eliminate_negation(*vd.rhs);
+            let new_rhs = eliminate_negation_inner(*vd.rhs, scope);
             Expr {
                 kind: ExprKind::ValDef(ValDef {
                     name: vd.name,
@@ -1826,8 +1898,12 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Apply(app) => {
-            let new_func = eliminate_negation(*app.func);
-            let new_args: Vec<Expr> = app.args.into_iter().map(eliminate_negation).collect();
+            let new_func = eliminate_negation_inner(*app.func, scope);
+            let new_args: Vec<Expr> = app
+                .args
+                .into_iter()
+                .map(|a| eliminate_negation_inner(a, scope))
+                .collect();
             Expr {
                 kind: ExprKind::Apply(Apply {
                     func: Box::new(new_func),
@@ -1838,7 +1914,7 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::FieldAccess(fa) => {
-            let new_obj = eliminate_negation(*fa.object);
+            let new_obj = eliminate_negation_inner(*fa.object, scope);
             Expr {
                 kind: ExprKind::FieldAccess(FieldAccessExpr {
                     object: Box::new(new_obj),
@@ -1849,9 +1925,9 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::If(if_expr) => {
-            let new_cond = eliminate_negation(*if_expr.condition);
-            let new_then = eliminate_negation(*if_expr.then_branch);
-            let new_else = eliminate_negation(*if_expr.else_branch);
+            let new_cond = eliminate_negation_inner(*if_expr.condition, scope);
+            let new_then = eliminate_negation_inner(*if_expr.then_branch, scope);
+            let new_else = eliminate_negation_inner(*if_expr.else_branch, scope);
             Expr {
                 kind: ExprKind::If(IfExprHir {
                     condition: Box::new(new_cond),
@@ -1862,7 +1938,7 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Lambda(lam) => {
-            let new_body = eliminate_negation(*lam.body);
+            let new_body = eliminate_negation_inner(*lam.body, scope);
             Expr {
                 kind: ExprKind::Lambda(LambdaExpr {
                     params: lam.params,
@@ -1873,21 +1949,24 @@ fn eliminate_negation(expr: Expr) -> Expr {
             }
         }
         ExprKind::Negation(inner) => {
-            let new_inner = eliminate_negation(*inner);
+            let new_inner = eliminate_negation_inner(*inner, scope);
             Expr {
                 kind: ExprKind::Negation(Box::new(new_inner)),
                 ..expr
             }
         }
         ExprKind::BitInversion(inner) => {
-            let new_inner = eliminate_negation(*inner);
+            let new_inner = eliminate_negation_inner(*inner, scope);
             Expr {
                 kind: ExprKind::BitInversion(Box::new(new_inner)),
                 ..expr
             }
         }
         ExprKind::Tuple(items) => {
-            let new_items: Vec<Expr> = items.into_iter().map(eliminate_negation).collect();
+            let new_items: Vec<Expr> = items
+                .into_iter()
+                .map(|i| eliminate_negation_inner(i, scope))
+                .collect();
             Expr {
                 kind: ExprKind::Tuple(new_items),
                 ..expr
