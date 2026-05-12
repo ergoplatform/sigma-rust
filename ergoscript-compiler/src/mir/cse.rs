@@ -38,6 +38,7 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // of source position. Without this, two identical expressions
             // from different source locations (e.g. SELF.R4[T].get used
             // in two places) would be treated as different nodes.
+            trace_slot_shift("00-pre_cse_entry", &expr);
             let expr = strip_source_spans(expr);
             trace_slot_shift("00-strip_source_spans", &expr);
             // sig-15 paideia_stake_state S2: inline ValDefs whose RHS is a
@@ -5076,6 +5077,162 @@ pub(crate) fn count_const_sint(expr: &Expr, target: i32) -> usize {
         .count()
 }
 
+/// Q24-S3 / WS-G QB-HANDOFF-15-OF-15 Session 3 — normalized shape signature
+/// for sigmao 9-NODE-only-shape per-stage evolution probe.
+/// Mirror of `compiler::expr_shape` (which is `#[cfg(test)]`-gated and not
+/// reachable from this non-test trace site). Strips ValIds + concrete Const
+/// values; retains tpe + opcode + child structure + per-opcode discriminants.
+fn shape_signature(e: &Expr) -> String {
+    use ergotree_ir::traversable::Traversable;
+    let (name, extra): (&'static str, Option<String>) = match e {
+        Expr::Const(c) => return format!("K({})", c.tpe),
+        Expr::ConstPlaceholder(c) => return format!("Cph({})", c.tpe),
+        Expr::ValUse(_) => return "VU".to_string(),
+        Expr::Context => return "Ctx".to_string(),
+        Expr::Global => return "Global".to_string(),
+        Expr::GlobalVars(g) => {
+            use ergotree_ir::mir::global_vars::GlobalVars;
+            let nm = match g {
+                GlobalVars::Inputs => "Inputs",
+                GlobalVars::Outputs => "Outputs",
+                GlobalVars::Height => "Height",
+                GlobalVars::SelfBox => "Self",
+                GlobalVars::MinerPubKey => "MinerPk",
+                GlobalVars::GroupGenerator => "GroupGen",
+            };
+            return nm.to_string();
+        }
+        Expr::Append(_) => ("Append", None),
+        Expr::SubstConstants(_) => ("SubstConsts", None),
+        Expr::ByteArrayToLong(_) => ("BAToL", None),
+        Expr::ByteArrayToBigInt(_) => ("BAToBI", None),
+        Expr::LongToByteArray(_) => ("LtoBA", None),
+        Expr::Collection(_) => ("Coll", None),
+        Expr::Tuple(_) => ("Tup", None),
+        Expr::CalcBlake2b256(_) => ("Blake", None),
+        Expr::CalcSha256(_) => ("Sha", None),
+        Expr::FuncValue(_) => ("Fn", None),
+        Expr::Apply(_) => ("Apply", None),
+        Expr::MethodCall(m) => ("MC", Some(format!("{}", m.expr().method.name()))),
+        Expr::PropertyCall(p) => ("PC", Some(format!("{}", p.expr().method.name()))),
+        Expr::BlockValue(_) => ("Block", None),
+        Expr::ValDef(v) => ("VD", Some(format!("id={}", v.expr().id.0))),
+        Expr::If(_) => ("If", None),
+        Expr::BinOp(b) => ("BO", Some(format!("{}", b.expr().kind))),
+        Expr::And(_) => ("And", None),
+        Expr::Or(_) => ("Or", None),
+        Expr::Xor(_) => ("Xor", None),
+        Expr::Atleast(_) => ("AtLeast", None),
+        Expr::LogicalNot(_) => ("Not", None),
+        Expr::Negation(_) => ("Neg", None),
+        Expr::BitInversion(_) => ("BitInv", None),
+        Expr::OptionGet(_) => ("OGet", None),
+        Expr::OptionIsDefined(_) => ("OIsDef", None),
+        Expr::OptionGetOrElse(_) => ("OGetOr", None),
+        Expr::ExtractAmount(_) => ("ExAmt", None),
+        Expr::ExtractRegisterAs(r) => (
+            "ExReg",
+            Some(format!("R{}", r.expr().register_id)),
+        ),
+        Expr::ExtractBytes(_) => ("ExBytes", None),
+        Expr::ExtractBytesWithNoRef(_) => ("ExBNoRef", None),
+        Expr::ExtractScriptBytes(_) => ("ExScript", None),
+        Expr::ExtractCreationInfo(_) => ("ExCreaInfo", None),
+        Expr::ExtractId(_) => ("ExId", None),
+        Expr::ByIndex(b) => (
+            "ByIdx",
+            Some(if b.expr().default.is_some() { "or" } else { "raw" }.to_string()),
+        ),
+        Expr::SizeOf(_) => ("SizeOf", None),
+        Expr::Slice(_) => ("Slice", None),
+        Expr::Fold(_) => ("Fold", None),
+        Expr::Map(_) => ("Map", None),
+        Expr::Filter(_) => ("Filter", None),
+        Expr::Exists(_) => ("Exists", None),
+        Expr::ForAll(_) => ("ForAll", None),
+        Expr::SelectField(s) => (
+            "Sel",
+            Some(format!("#{}", s.expr().field_index.zero_based_index() + 1)),
+        ),
+        Expr::BoolToSigmaProp(_) => ("BTSP", None),
+        Expr::Upcast(u) => ("Up", Some(format!("{}", u.tpe))),
+        Expr::Downcast(d) => ("Dn", Some(format!("{}", d.tpe()))),
+        Expr::CreateProveDlog(_) => ("PDlog", None),
+        Expr::CreateProveDhTuple(_) => ("PDht", None),
+        Expr::SigmaPropBytes(_) => ("SPBytes", None),
+        Expr::SigmaPropIsProven(_) => ("SPIsProven", None),
+        Expr::ZkProofBlock(_) => ("ZkProof", None),
+        Expr::DecodePoint(_) => ("DecPt", None),
+        Expr::SigmaAnd(_) => ("SAnd", None),
+        Expr::SigmaOr(_) => ("SOr", None),
+        Expr::GetVar(v) => ("GVar", Some(format!("#{}", v.expr().var_id))),
+        Expr::DeserializeRegister(_) => ("DesReg", None),
+        Expr::DeserializeContext(_) => ("DesCtx", None),
+        Expr::MultiplyGroup(_) => ("MulG", None),
+        Expr::Exponentiate(_) => ("ExpG", None),
+        Expr::XorOf(_) => ("XorOf", None),
+        Expr::TreeLookup(_) => ("AvlLook", None),
+        Expr::CreateAvlTree(_) => ("MkAvl", None),
+    };
+    let children: Vec<String> = e.children().map(shape_signature).collect();
+    let head = match extra {
+        Some(x) => format!("{}<{}>", name, x),
+        None => name.to_string(),
+    };
+    if children.is_empty() {
+        head
+    } else {
+        format!("{}[{}]", head, children.join(","))
+    }
+}
+
+/// Q24-S3 — count subtree occurrences of `target` shape anywhere in `expr`.
+fn count_shape_tree(expr: &Expr, target: &str) -> usize {
+    use ergotree_ir::traversable::Traversable;
+    let mut count = if shape_signature(expr) == target { 1 } else { 0 };
+    for child in expr.children() {
+        count += count_shape_tree(child, target);
+    }
+    count
+}
+
+/// Q24-S3 — count outer `BlockValue.items` ValDef RHS positions whose shape
+/// signature matches `target`. Mirrors `print_outer_valdef_shape_diff` outer-VD
+/// extraction logic; only the root-level BlockValue is inspected.
+fn count_shape_outer_vd(expr: &Expr, target: &str) -> usize {
+    if let Expr::BlockValue(bv) = expr {
+        let mut c = 0;
+        for item in &bv.expr.items {
+            if let Expr::ValDef(vd) = item {
+                if shape_signature(&vd.expr.rhs) == target {
+                    c += 1;
+                }
+            }
+        }
+        c
+    } else {
+        0
+    }
+}
+
+/// Q24-S3 / QB-SESSION-03 — sigmao 9-NODE-only-shape targets from S23 archive
+/// `3a955f1f_*` (re-anchored at HEAD `3a955f1f` SHAPE DIFF). Per-stage
+/// `(tree, outer_vd)` count probe localizes each shape to a pipeline stage.
+/// Ordered by archive Table §3.1 (DAG-identity shapes first, simple-undercount
+/// second, fold-asymmetry last).
+const SIGMAO_NODE_ONLY_SHAPES: &[(&str, &str, i32)] = &[
+    // (alias, shape signature, NODE outer_vd count)
+    ("s1_isMinted_inline", "BO<&&>[BO<==>[VU,ExId[VU]],BO<==>[ExScript[Self],ExScript[VU]]]", 1),
+    ("s4_isExercible_unfolded", "If[BO<==>[ByIdx<raw>[VU,K(Int)],K(Long)],BO<&&>[BO<&&>[VU,VU],BO<<>[VU,BO<+>[VU,K(Long)]]],BO<&&>[VU,BO<<=>[VU,VU]]]", 1),
+    ("s5_validBasicReplOut0_inline", "If[BO<==>[VU,ExScript[Self]],BO<&&>[BO<&&>[BO<&&>[BO<&&>[BO<>=>[ExAmt[VU],VU],BO<==>[OGet[ExReg<R4>[VU]],OGet[ExReg<R4>[VU]]]],BO<==>[OGet[ExReg<R5>[VU]],VU]],BO<==>[OGet[ExReg<R6>[VU]],OGet[ExReg<R6>[VU]]]],BO<==>[OGet[ExReg<R7>[VU]],VU]],K(Boolean)]", 1),
+    ("s7_PDlog_DecPt_ByIdx_chain", "PDlog[DecPt[ByIdx<raw>[VU,K(Int)]]]", 1),
+    ("s8_SPBytes_VU_chain_dn", "SPBytes[VU]", 1),
+    ("s2_ByIdx_or_VU_K_VU", "ByIdx<or>[VU,K(Int),VU]", 6),
+    ("s3_ByIdx_raw_Outputs_K", "ByIdx<raw>[Outputs,K(Int)]", 3),
+    ("s6_PC_tokens_VU", "PC<tokens>[VU]", 3),
+    ("s9_Sel_1_VU", "Sel<#1>[VU]", 4),
+];
+
 #[inline]
 fn trace_slot_shift(stage: &str, expr: &Expr) {
     if std::env::var("CSE_TRACE_CONST_COUNTS").is_ok() {
@@ -5085,6 +5242,15 @@ fn trace_slot_shift(stage: &str, expr: &Expr) {
             "[CONST_COUNTS] stage={:36}  1:SInt={:>3}  3:SInt={:>3}",
             stage, c1, c3
         );
+    }
+    if std::env::var("CSE_TRACE_SHAPE_EVOLUTION").is_ok() {
+        let mut parts: Vec<String> = Vec::with_capacity(SIGMAO_NODE_ONLY_SHAPES.len());
+        for (alias, target, node_vd) in SIGMAO_NODE_ONLY_SHAPES {
+            let tree = count_shape_tree(expr, target);
+            let outer_vd = count_shape_outer_vd(expr, target);
+            parts.push(format!("{}={}/{}|N_vd={}", alias, tree, outer_vd, node_vd));
+        }
+        eprintln!("[SHAPE_EVO] stage={:38} {}", stage, parts.join(" "));
     }
     if std::env::var("CSE_TRACE_SLOT_SHIFT").is_ok() {
         let mut orphans: Vec<u32> = Vec::new();
