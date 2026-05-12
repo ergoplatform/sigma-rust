@@ -4347,8 +4347,14 @@ fn debug_ergoraffle() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for dexy_bank_full.
@@ -4409,8 +4415,14 @@ fn debug_dexy() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for duckpools_child_interest.
@@ -4471,8 +4483,14 @@ fn debug_duckpools() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for ergomixer_fullmix.
@@ -4548,8 +4566,14 @@ fn debug_ergomixer() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for chaincash_reserve.
@@ -4610,8 +4634,203 @@ fn debug_chaincash() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
+}
+
+/// S23 / QB-SESSION-02 — Normalized shape signature for an Expr (ValId stripped,
+/// Const value stripped, only tpe + opcode + child structure retained). Used to
+/// compute the multiset symmetric difference between LOCAL and NODE outer ValDef
+/// RHS shapes — the empirical residual class for sigmao -26 / sig-15 plateaus.
+#[cfg(test)]
+fn expr_shape(e: &ergotree_ir::mir::expr::Expr) -> String {
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::traversable::Traversable;
+    let (name, extra): (&'static str, Option<String>) = match e {
+        Expr::Const(c) => return format!("K({})", c.tpe),
+        Expr::ConstPlaceholder(c) => return format!("Cph({})", c.tpe),
+        Expr::ValUse(_) => return "VU".to_string(),
+        Expr::Context => return "Ctx".to_string(),
+        Expr::Global => return "Global".to_string(),
+        Expr::GlobalVars(g) => {
+            use ergotree_ir::mir::global_vars::GlobalVars;
+            let nm = match g {
+                GlobalVars::Inputs => "Inputs",
+                GlobalVars::Outputs => "Outputs",
+                GlobalVars::Height => "Height",
+                GlobalVars::SelfBox => "Self",
+                GlobalVars::MinerPubKey => "MinerPk",
+                GlobalVars::GroupGenerator => "GroupGen",
+            };
+            return nm.to_string();
+        }
+        Expr::Append(_) => ("Append", None),
+        Expr::SubstConstants(_) => ("SubstConsts", None),
+        Expr::ByteArrayToLong(_) => ("BAToL", None),
+        Expr::ByteArrayToBigInt(_) => ("BAToBI", None),
+        Expr::LongToByteArray(_) => ("LtoBA", None),
+        Expr::Collection(_) => ("Coll", None),
+        Expr::Tuple(_) => ("Tup", None),
+        Expr::CalcBlake2b256(_) => ("Blake", None),
+        Expr::CalcSha256(_) => ("Sha", None),
+        Expr::FuncValue(_) => ("Fn", None),
+        Expr::Apply(_) => ("Apply", None),
+        Expr::MethodCall(m) => ("MC", Some(format!("{}", m.expr().method.name()))),
+        Expr::PropertyCall(p) => ("PC", Some(format!("{}", p.expr().method.name()))),
+        Expr::BlockValue(_) => ("Block", None),
+        Expr::ValDef(v) => ("VD", Some(format!("id={}", v.expr().id.0))),
+        Expr::If(_) => ("If", None),
+        Expr::BinOp(b) => ("BO", Some(format!("{}", b.expr().kind))),
+        Expr::And(_) => ("And", None),
+        Expr::Or(_) => ("Or", None),
+        Expr::Xor(_) => ("Xor", None),
+        Expr::Atleast(_) => ("AtLeast", None),
+        Expr::LogicalNot(_) => ("Not", None),
+        Expr::Negation(_) => ("Neg", None),
+        Expr::BitInversion(_) => ("BitInv", None),
+        Expr::OptionGet(_) => ("OGet", None),
+        Expr::OptionIsDefined(_) => ("OIsDef", None),
+        Expr::OptionGetOrElse(_) => ("OGetOr", None),
+        Expr::ExtractAmount(_) => ("ExAmt", None),
+        Expr::ExtractRegisterAs(r) => (
+            "ExReg",
+            Some(format!("R{}", r.expr().register_id)),
+        ),
+        Expr::ExtractBytes(_) => ("ExBytes", None),
+        Expr::ExtractBytesWithNoRef(_) => ("ExBNoRef", None),
+        Expr::ExtractScriptBytes(_) => ("ExScript", None),
+        Expr::ExtractCreationInfo(_) => ("ExCreaInfo", None),
+        Expr::ExtractId(_) => ("ExId", None),
+        Expr::ByIndex(b) => (
+            "ByIdx",
+            Some(if b.expr().default.is_some() { "or" } else { "raw" }.to_string()),
+        ),
+        Expr::SizeOf(_) => ("SizeOf", None),
+        Expr::Slice(_) => ("Slice", None),
+        Expr::Fold(_) => ("Fold", None),
+        Expr::Map(_) => ("Map", None),
+        Expr::Filter(_) => ("Filter", None),
+        Expr::Exists(_) => ("Exists", None),
+        Expr::ForAll(_) => ("ForAll", None),
+        Expr::SelectField(s) => (
+            "Sel",
+            Some(format!("#{}", s.expr().field_index.zero_based_index() + 1)),
+        ),
+        Expr::BoolToSigmaProp(_) => ("BTSP", None),
+        Expr::Upcast(u) => ("Up", Some(format!("{}", u.tpe))),
+        Expr::Downcast(d) => ("Dn", Some(format!("{}", d.tpe()))),
+        Expr::CreateProveDlog(_) => ("PDlog", None),
+        Expr::CreateProveDhTuple(_) => ("PDht", None),
+        Expr::SigmaPropBytes(_) => ("SPBytes", None),
+        Expr::SigmaPropIsProven(_) => ("SPIsProven", None),
+        Expr::ZkProofBlock(_) => ("ZkProof", None),
+        Expr::DecodePoint(_) => ("DecPt", None),
+        Expr::SigmaAnd(_) => ("SAnd", None),
+        Expr::SigmaOr(_) => ("SOr", None),
+        Expr::GetVar(v) => ("GVar", Some(format!("#{}", v.expr().var_id))),
+        Expr::DeserializeRegister(_) => ("DesReg", None),
+        Expr::DeserializeContext(_) => ("DesCtx", None),
+        Expr::MultiplyGroup(_) => ("MulG", None),
+        Expr::Exponentiate(_) => ("ExpG", None),
+        Expr::XorOf(_) => ("XorOf", None),
+        Expr::TreeLookup(_) => ("AvlLook", None),
+        Expr::CreateAvlTree(_) => ("MkAvl", None),
+    };
+    let children: std::vec::Vec<String> = e.children().map(expr_shape).collect();
+    let head = match extra {
+        Some(x) => format!("{}<{}>", name, x),
+        None => name.to_string(),
+    };
+    if children.is_empty() {
+        head
+    } else {
+        format!("{}[{}]", head, children.join(","))
+    }
+}
+
+/// S23 / QB-SESSION-02 — Outer ValDef RHS shape multiset symmetric-difference
+/// printer. Pulls the outer `BlockValue.items` from both LOCAL and NODE roots
+/// (post-deserialization) and reports:
+/// 1) the full shape list per side (ordered),
+/// 2) the multiset symmetric difference grouped by shape (LOCAL-only / NODE-only
+///    multiplicities), to identify the candidate extraction shapes that
+///    Scala's `hasManyUsagesGlobal` admits that Rust's `count_dag_usages`
+///    does not.
+#[cfg(test)]
+fn print_outer_valdef_shape_diff(
+    local: &ergotree_ir::mir::expr::Expr,
+    node: &ergotree_ir::mir::expr::Expr,
+) {
+    use ergotree_ir::mir::expr::Expr;
+    fn outer_valdefs(root: &Expr) -> std::vec::Vec<(u32, &Expr)> {
+        match root {
+            Expr::BlockValue(bv) => bv
+                .expr()
+                .items
+                .iter()
+                .filter_map(|it| match it {
+                    Expr::ValDef(vd) => Some((vd.expr().id.0, &*vd.expr().rhs)),
+                    _ => None,
+                })
+                .collect(),
+            _ => std::vec::Vec::new(),
+        }
+    }
+    let l = outer_valdefs(local);
+    let n = outer_valdefs(node);
+    eprintln!("[LOCAL outer ValDefs: {}]", l.len());
+    for (id, rhs) in &l {
+        eprintln!("  L d{:>3} = {}", id, expr_shape(rhs));
+    }
+    eprintln!("[NODE  outer ValDefs: {}]", n.len());
+    for (id, rhs) in &n {
+        eprintln!("  N d{:>3} = {}", id, expr_shape(rhs));
+    }
+    use std::collections::BTreeMap;
+    let mut lcounts: BTreeMap<String, i32> = BTreeMap::new();
+    for (_, rhs) in &l {
+        *lcounts.entry(expr_shape(rhs)).or_insert(0) += 1;
+    }
+    let mut ncounts: BTreeMap<String, i32> = BTreeMap::new();
+    for (_, rhs) in &n {
+        *ncounts.entry(expr_shape(rhs)).or_insert(0) += 1;
+    }
+    eprintln!("\n[SHAPE DIFF (multiset symmetric difference)]");
+    let mut all: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for k in lcounts.keys() {
+        all.insert(k.clone());
+    }
+    for k in ncounts.keys() {
+        all.insert(k.clone());
+    }
+    let mut local_only = 0;
+    let mut node_only = 0;
+    let mut common = 0;
+    for k in &all {
+        let lc = lcounts.get(k).copied().unwrap_or(0);
+        let nc = ncounts.get(k).copied().unwrap_or(0);
+        let cmin = lc.min(nc);
+        common += cmin;
+        local_only += (lc - cmin).max(0);
+        node_only += (nc - cmin).max(0);
+        if lc != nc {
+            eprintln!("  Δ L={} N={}  {}", lc, nc, k);
+        }
+    }
+    eprintln!(
+        "[SHAPE SUMMARY] L={} N={} common-multiset={} L-only={} N-only={}",
+        l.len(),
+        n.len(),
+        common,
+        local_only,
+        node_only,
+    );
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for sigmao_option.
@@ -4711,8 +4930,16 @@ fn debug_sigmao() {
             n - last_div.map(|i| i + 1).unwrap_or(n),
         );
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    // S23 / QB-SESSION-02 — Outer ValDef RHS shape multiset diff.
+    // Per-shape normalized (ValId stripped, Const tpe-only). LOCAL has ~46 outer
+    // ValDefs / NODE has ~52 per S9 archive; the symmetric difference enumerates
+    // the shapes Scala extracts that Rust's count_dag_usages doesn't promote.
+    let local_root = local_tree.proposition().unwrap();
+    let node_root = canon.tree.proposition().unwrap();
+    eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+    print_outer_valdef_shape_diff(&local_root, &node_root);
+    eprintln!("\nLOCAL IR:\n{:#?}", local_root);
+    eprintln!("\nNODE  IR:\n{:#?}", node_root);
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for oracle_refresh.
@@ -4773,8 +5000,14 @@ fn debug_oracle() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for rosen_event_trigger.
@@ -4835,8 +5068,14 @@ fn debug_rosen() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for sigmausd_bank.
@@ -4913,8 +5152,14 @@ fn debug_sigmausd() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for paideia_stake_state.
@@ -4994,8 +5239,14 @@ fn debug_paideia() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: dump LOCAL/NODE hex + IR for gluon_box_guard.
@@ -5176,8 +5427,14 @@ fn debug_gluon() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Local-only probe: for each sig-15 fixture, compile locally and report
@@ -7108,8 +7365,14 @@ fn debug_cluster001() {
             eprintln!("  NODE [{}] {:?}", i, canon.tree.get_constant(i));
         }
     }
-    eprintln!("\nLOCAL IR:\n{:#?}", local_tree.proposition().unwrap());
-    eprintln!("\nNODE  IR:\n{:#?}", canon.tree.proposition().unwrap());
+    {
+        let l = local_tree.proposition().unwrap();
+        let n = canon.tree.proposition().unwrap();
+        eprintln!("\n=== OUTER VALDEF SHAPES (S23) ===");
+        print_outer_valdef_shape_diff(&l, &n);
+        eprintln!("\nLOCAL IR:\n{:#?}", l);
+        eprintln!("\nNODE  IR:\n{:#?}", n);
+    }
 }
 
 /// Dev-only: probe Scala's `Upcast(Const(SInt N), SLong)` fold across
