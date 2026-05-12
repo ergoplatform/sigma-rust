@@ -9633,16 +9633,40 @@ mod sym_table {
 
         /// Search the scope chain for `expr` starting at `scope`, walking
         /// current → parent → ... → root. Mirrors `ThunkScope.findDef`.
+        ///
+        /// Env-gated trace `CSE_TRACE_SCOPE_CHAIN=1` emits one
+        /// `[HC/chain] visit scope=X hit=true|false` line per scope
+        /// visited, plus a terminal `[HC/chain] result=Some(N)|None`
+        /// line. Used by the G.2.4c scope-chain probe to compare
+        /// hash-cons-path decisions against `process_ast_graph_impl`
+        /// decisions on the same source positions.
         pub fn find(&self, expr: &Expr, scope: ScopeId) -> Option<SymId> {
+            let trace = std::env::var("CSE_TRACE_SCOPE_CHAIN").is_ok();
             let key = ExprKey(expr.clone());
             let mut current = scope;
             loop {
-                if let Some(&sym_id) = self.scope_defs[current].get(&key) {
+                let hit = self.scope_defs[current].get(&key).copied();
+                if trace {
+                    eprintln!(
+                        "[HC/chain]   visit scope={} hit={}",
+                        current,
+                        hit.is_some()
+                    );
+                }
+                if let Some(sym_id) = hit {
+                    if trace {
+                        eprintln!("[HC/chain] result=Some({})", sym_id);
+                    }
                     return Some(sym_id);
                 }
                 match self.scope_parents[current] {
                     Some(parent) => current = parent,
-                    None => return None,
+                    None => {
+                        if trace {
+                            eprintln!("[HC/chain] result=None");
+                        }
+                        return None;
+                    }
                 }
             }
         }
