@@ -7410,6 +7410,21 @@ fn process_ast_graph_impl(
                 // at root is semantically equivalent to inline evaluation.
                 // Only context-touching and pure-const-Upcast/bare-Const
                 // candidates need the scope check.
+                //
+                // S30 paideia +2 surgical-probe falsification (30th instance,
+                // diag-only commit): adding `is_pure_const_tuple` predicate
+                // here to suppress the Tup `[Coll[Byte](), 0L)]` root ValDef
+                // at dag_count=3 regresses paideia 1470→1477B (Δ +2 → +9)
+                // because `apply_cse_within_branches` then extracts the Tup
+                // independently per validStakeTx/validUnstakeTx sibling thunk
+                // (each sees dag_count≥2 locally), yielding 2 sibling ValDefs
+                // whose aggregate header overhead exceeds the saved root-inline
+                // body bytes. Compensating-extraction class (S7/S8 1477 / 1483
+                // exact replay at this HEAD; cascade-stable across S7→S30).
+                // Architectural mechanism = Scala's first-DFS-construction-scope
+                // ownership (per Probe 0 metals on TreeBuilding.processAstGraph
+                // + GraphBuilding hash-cons), NOT a single-predicate gate.
+                // DO NOT re-attempt; closure requires WS-G hash-cons migration.
                 let needs_check = (use_if_branch_check
                     || touches_context(node)
                     || is_pure_const_upcast
