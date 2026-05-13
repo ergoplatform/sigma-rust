@@ -4402,6 +4402,26 @@ fn is_graph_shared(expr: &Expr) -> bool {
         // stable symbols whose accessors are shared.
         Expr::ExtractAmount(ea) => is_input_stable(&ea.input),
         Expr::ExtractRegisterAs(s) => is_input_stable(&s.expr.input),
+        // Sigmao S26 (2026-05-12, Cohort A1 / Session 5 of QB-HANDOFF-15-OF-15)
+        // probed narrow suppression of `ExtractScriptBytes(GlobalVars(SelfBox))`
+        // here to mirror Scala's per-thunk-distinct sym construction in
+        // `Base.findOrCreateDefinition` + `ThunkScope.findDef` (sibling thunks
+        // do not share `bodyDefs`, so two `SELF.propositionBytes` sites yield
+        // two distinct syms each with `globalUsagesOf=1` → never extracted).
+        // Result: sigmao SHAPE diff IMPROVES (common-multiset 38→40, L-only 7→4,
+        // N-only 8→6 — two L-only shapes correctly inline `ExScript[Self]`
+        // matching NODE) BUT sigmao BYTES REGRESS (Δ -24 → -28, 4B WORSE).
+        // Root cause of regression: LOCAL's `ExtractScriptBytes(Self)` ValDef was
+        // a "compensating" extraction — its 3-4B saving partially offset OTHER
+        // structurally-missing extractions (Cohort B: `PDlog[DecPt[ByIdx]]`
+        // 3-deep wrap and `SPBytes[VU]` chain split). Per
+        // `feedback_falsification_fingerprint` rule #1 ("if inline costs more
+        // bytes than extracted, the existing extraction is *correct*, not a
+        // bug"), the existing extraction is empirically correct for current
+        // LOCAL state. Standalone A1 suppression REVERTED; closure requires
+        // coupled A1 + Cohort B (architectural) and is deferred per QB-SESSION-05
+        // §4.4 P2.4-on-target. F1-F7 axes all green during the probe (sig-15
+        // 12/15, F.2 563/575, lib 251/251, conformance 164/164, ecosystem 11/14).
         Expr::ExtractScriptBytes(esb) => is_input_stable(&esb.input),
         Expr::ExtractBytes(eb) => is_input_stable(&eb.input),
         Expr::ExtractId(ei) => is_input_stable(&ei.input),
