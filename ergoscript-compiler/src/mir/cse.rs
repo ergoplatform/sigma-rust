@@ -93,6 +93,62 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // single-use outer ValDef would otherwise survive as overhead.
             let deduped = inline_single_use_vals(deduped);
             trace_slot_shift("05b-inline_single_use_vals", &deduped);
+            // QB-SESSION-10 / WS-G sig-15 sigmao S31 — Probe 1+2 of renumbering
+            // pipeline. Re-enables S29 `promote_branch_emerged_s2` under
+            // env gate `CSE_PROBE_S31_S2=1` so default pipeline preserves
+            // 12/15 baseline; flag turns the pass on for instrumentation runs.
+            //
+            // S31 PROBE 0 (metals): Scala's `processAstGraph` has NO
+            // renumbering pass. IDs are assigned serially per-scope during
+            // emission (`var curId = defId; ...; curId += 1; ValDef(curId)`);
+            // the cross-scope DAG identity is carried by hash-cons Sym
+            // construction, not by ID. LOCAL's `dfs_reassign_val_ids →
+            // reorder_valdefs → sequential_renumber` is a Rust-only artifact.
+            //
+            // S31 PROBE 1 (orphan trace): re-enabling s2 promotion at this
+            // stage with `CSE_TRACE_SLOT_SHIFT=1` reveals the actual failure
+            // mode — the hoisted shape `ByIdx<or>[VU(61), K(Int), VU(?)]`
+            // contains a free `ValUse(61)` whose `ValDef(61)` lives in an
+            // INNER scope (introduced by branch-CSE). When promoted to outer
+            // scope, `ValUse(61)` is orphaned at every downstream stage
+            // (07→09 keep id=61, 10→12 renumber to id=47). Disambig's
+            // `Expr::ValUse` arm walks the scope chain from inner→outer and
+            // bails when not found, leaving the orphan unrenamed at outer
+            // scope. Segregation FALLBACK is the SYMPTOM; the CAUSE is
+            // structurally invalid IR (outer body referencing inner-scope
+            // binding). NO renumbering fix can address this — the bytecode
+            // reader can't resolve outer ValUse→inner ValDef regardless of
+            // ID assignment.
+            //
+            // S31 PROBE 2 (scope-soundness gate): `extract_inline_shape` now
+            // computes the matched subtree's free ValUse refs (via
+            // `collect_orphan_ids`) against the OUTER block's scope; refuses
+            // hoists whose free refs are not all outer-bound. Empirical: both
+            // candidate sigmao matches refused (orphan=[61] each); LOCAL
+            // stays 1124B / Δ -24 plateau preserved; constants_len 61/61
+            // segregation OK; `probe_sig15_collisions` sigmao OK; 12 MATCH
+            // / paideia +2 / gluon +102 plateaus all preserved; F.2 563/575
+            // / lib 251/251 / conformance 164/164 / ecosystem 11/14 all
+            // preserved under both default and `CSE_PROBE_S31_S2=1`.
+            //
+            // S31 REFRAME (falsification fingerprint #31, new methodology
+            // class — post-hoc-framing-of-downstream-symptom): the S29
+            // "renumbering-pipeline-crash" framing was post-hoc — the
+            // symptom (constants_len 61→0, segregation FAIL) was correctly
+            // observed but the cause was attributed to the wrong layer
+            // (renumbering pipeline). The actual bug is at the extraction-
+            // predicate-soundness layer. Generalizes to all Cohort B
+            // promotion shapes (s9/s3/s6): any "hoist inline shape to
+            // outer scope" pass MUST scope-validate free vars; the
+            // pipeline can't rescue an unsound hoist.
+            //
+            // Closure of sigmao -24 via s2 promotion at the current code
+            // surface requires either (a) restructuring promotion to insert
+            // the new ValDef at the LOCAL scope of the match (not outer),
+            // which loses the cross-scope CSE benefit; or (b) reaching
+            // inner-scope bindings via a different mechanism (e.g. hoist
+            // the inner ValDef chain alongside) — both architectural
+            // questions for Session 11+.
             // QB-SESSION-08 / WS-G sig-15 sigmao S29 — Cohort B s2
             // post-CSE promotion (`ByIdx<or>[VU,K(Int),VU]`) FALSIFIED at
             // Probe 2 (29th falsification fingerprint instance, this commit).
@@ -5431,6 +5487,20 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
         });
     }
 
+    // S31 / Session 10 Probe 2: scope-soundness gate.
+    // Collect outer scope's bound IDs (items[]'s ValDef ids). A hoisted
+    // shape's free ValUse refs MUST all be in this set; otherwise the
+    // new outer ValDef body references an inner-scope binding that
+    // disambig can't resolve at outer scope, producing structurally
+    // invalid IR (orphan ValUse at outer scope → segregation FAIL).
+    let outer_scope: HashSet<u32> = items
+        .iter()
+        .filter_map(|i| match i {
+            Expr::ValDef(vd) => Some(vd.expr.id.0),
+            _ => None,
+        })
+        .collect();
+
     let mut extracted: Vec<Expr> = Vec::new();
 
     let processed_items: Vec<Expr> = items
@@ -5443,7 +5513,7 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
                 let new_rhs = if shape_signature(&rhs) == TARGET_SHAPE {
                     rhs
                 } else {
-                    extract_inline_shape(rhs, TARGET_SHAPE, next_id, &mut extracted)
+                    extract_inline_shape(rhs, TARGET_SHAPE, next_id, &mut extracted, &outer_scope)
                 };
                 Expr::ValDef(Spanned {
                     source_span: vd.source_span,
@@ -5453,10 +5523,10 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
                     },
                 })
             }
-            other => extract_inline_shape(other, TARGET_SHAPE, next_id, &mut extracted),
+            other => extract_inline_shape(other, TARGET_SHAPE, next_id, &mut extracted, &outer_scope),
         })
         .collect();
-    let new_result = extract_inline_shape(result, TARGET_SHAPE, next_id, &mut extracted);
+    let new_result = extract_inline_shape(result, TARGET_SHAPE, next_id, &mut extracted, &outer_scope);
 
     if extracted.is_empty() {
         return Expr::BlockValue(Spanned {
@@ -5494,11 +5564,37 @@ fn extract_inline_shape(
     target_shape: &str,
     next_id: &mut u32,
     extracted: &mut Vec<Expr>,
+    outer_scope: &HashSet<u32>,
 ) -> Expr {
     if shape_signature(&expr) == target_shape {
+        // S31 / Session 10 Probe 2: scope-soundness gate. Refuse to hoist
+        // a shape whose free ValUse refs are not all bound in outer_scope —
+        // hoisting would create an orphan ValUse at outer scope (disambig
+        // can't resolve inner-scope bindings from outer scope chain →
+        // segregation FAIL). Falsifies the S29 "renumbering-pipeline-crash"
+        // framing: the failure is at the extraction predicate level, not
+        // the renumbering pipeline.
+        let mut orphans: Vec<u32> = Vec::new();
+        collect_orphan_ids(&expr, outer_scope, &mut orphans);
+        if !orphans.is_empty() {
+            if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
+                eprintln!(
+                    "[PROMOTE_S2/unsafe] refused shape={} orphans={:?} expr={}",
+                    target_shape,
+                    orphans,
+                    short_expr(&expr)
+                );
+            }
+            // Fall through: still recurse into children so deeper safe
+            // matches can be extracted.
+            return match expr {
+                Expr::FuncValue(_) => expr,
+                other => map_children_extract_shape(other, target_shape, next_id, extracted, outer_scope),
+            };
+        }
         if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
             eprintln!(
-                "[PROMOTE_S2] extracting shape={} expr={}",
+                "[PROMOTE_S2/safe] extracting shape={} expr={}",
                 target_shape,
                 short_expr(&expr)
             );
@@ -5521,7 +5617,7 @@ fn extract_inline_shape(
     match expr {
         // FuncValue: don't cross lambda boundary (free var concerns).
         Expr::FuncValue(_) => expr,
-        other => map_children_extract_shape(other, target_shape, next_id, extracted),
+        other => map_children_extract_shape(other, target_shape, next_id, extracted, outer_scope),
     }
 }
 
@@ -5535,10 +5631,11 @@ fn map_children_extract_shape(
     target_shape: &str,
     next_id: &mut u32,
     extracted: &mut Vec<Expr>,
+    outer_scope: &HashSet<u32>,
 ) -> Expr {
     macro_rules! r {
         ($e:expr) => {
-            extract_inline_shape($e, target_shape, next_id, extracted)
+            extract_inline_shape($e, target_shape, next_id, extracted, outer_scope)
         };
     }
     match expr {
