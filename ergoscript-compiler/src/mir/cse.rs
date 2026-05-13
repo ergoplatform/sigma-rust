@@ -93,6 +93,45 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // single-use outer ValDef would otherwise survive as overhead.
             let deduped = inline_single_use_vals(deduped);
             trace_slot_shift("05b-inline_single_use_vals", &deduped);
+            // QB-SESSION-08 / WS-G sig-15 sigmao S29 — Cohort B s2
+            // post-CSE promotion (`ByIdx<or>[VU,K(Int),VU]`) FALSIFIED at
+            // Probe 2 (29th falsification fingerprint instance, this commit).
+            // Probe 1 inventory across 15 sig-15 + ecosystem fixtures cleanly
+            // discriminated sigmao_option (outer_vd_s2=5 / tree 5→6 at
+            // stage 03) from paideia/gluon/MATCH (outer_vd_s2=0 everywhere).
+            // Probe 2: insertion of `promote_branch_emerged_s2` between
+            // stage 05b (`inline_single_use_vals` second pass) and stage 07
+            // (`flatten_nested_blocks`) — chosen specifically to avoid the
+            // single-use re-inline path that undid an earlier stage 03b
+            // insertion variant. Shape-evolution probe confirms gate fires
+            // correctly: sigmao s2 outer_vd 5 → 6 at stage 05c, survives
+            // 07/08/09/10/11/12 downstream, L outer_vd parity 45 → 46
+            // (matching NODE 46), SHAPE diff IMPROVES (common 38→39 /
+            // N-only 8→7). BUT: LOCAL bytes 1124 → **1005** (segregation
+            // FAIL: constants_len 61 → 0; emitter falls back to
+            // unsegregated; sigmao_option `probe_sig15_collisions` baseline
+            // OK → FAIL). Same renumbering-pipeline-crash class as S6
+            // (#12) and S5 broad Fix A (#11) — even ONE additional
+            // surgical-narrow ValDef extraction post-CSE triggers the
+            // `dfs_reassign_val_ids → reorder_valdefs → sequential_renumber`
+            // pipeline's failure mode when the new ValDef references
+            // ValUse IDs scoped to inner BlockValues that have since been
+            // disambiguated/renumbered. Cohort B byte-ADDING direction
+            // hits the SAME architectural gate as Cohort A byte-SHRINKING
+            // (S26/S27/S28) — confirming that the renumbering-pipeline
+            // rewrite is the structural blocker for ALL extra-extraction
+            // surgical attacks at the current code surface, regardless of
+            // byte direction. Per QB-HANDOFF-15-OF-15 §0 anti-pattern,
+            // closure requires WS-G architectural rewrite (DAG-identity
+            // hash-cons migration), not narrow promotion. See
+            // `target/diff_fuzz/clusters/closed/<commit>_sig15-sigmao-S29-cohort-B-s2-promotion-falsified.md`.
+            // Helper functions `promote_branch_emerged_s2`,
+            // `extract_inline_shape`, `map_children_extract_shape` retained
+            // below as durable artifact — they correctly implement the
+            // narrow predicate; the failure is downstream pipeline
+            // incompatibility, not the predicate itself.
+            // (Pass call REMOVED to preserve sig-15 12/15 + collisions OK
+            //  baseline. Re-enable for renumbering-pipeline-rewrite probes.)
             let flattened = flatten_nested_blocks(deduped);
             trace_slot_shift("07-flatten_nested_blocks", &flattened);
             // sig-15 paideia_stake_state S5: post-PAG chain-rewrite for
@@ -5319,6 +5358,440 @@ fn trace_slot_shift(stage: &str, expr: &Expr) {
                 }
             }
         }
+    }
+}
+
+/// QB-SESSION-08 / Cohort B s2 post-stage-03 promotion.
+///
+/// Operates on the root BlockValue immediately after
+/// `apply_cse_within_branches`. Detects sigmao_option's "branch CSE produced
+/// a new occurrence of an already-extracted shape" event for shape
+/// s2 = `ByIdx<or>[VU,K(Int),VU]`.
+///
+/// Predicate (Probe 1 / Session 8 P1.1):
+/// - Fires only when the root BlockValue's items[] already contains >= 1
+///   ValDef whose RHS matches the s2 shape (i.e. LOCAL already treats this
+///   shape as extractable at outer scope at stage 02).
+/// - For every sub-expression matching the shape that is NOT itself the
+///   immediate rhs of an outer ValDef item, extract: append a new outer
+///   ValDef and replace the inline occurrence with a fresh ValUse.
+///
+/// Cross-fixture safety (Probe 1 inventory across 15 sig-15 + ecosystem):
+/// - Only sigmao_option satisfies the predicate (outer_vd_s2 = 5 at stage
+///   02 with the +1 emergence at stage 03).
+/// - paideia_stake_state has inline s2 occurrences but outer_vd_s2 = 0
+///   throughout the pipeline — predicate doesn't fire.
+/// - All MATCH fixtures (sigmausd / rosen / oracle / chaincash / dexy /
+///   duckpools / ergomixer / ergoraffle / phoenix / spectrum / skyharbor)
+///   have tree/outer_vd = 0/0 for s2 throughout — predicate doesn't fire.
+/// - gluon_box_guard has 0/0 — predicate doesn't fire.
+///
+/// Skips nested BlockValue + FuncValue subtrees: extracting from those
+/// scopes to root would create free-variable / out-of-scope ValUse refs.
+///
+/// S29 falsification (28th → 29th instance): inserted between stage 05b
+/// (`inline_single_use_vals`) and stage 07 (`flatten_nested_blocks`),
+/// the gate fires correctly (sigmao s2 outer_vd 5 → 6 = NODE parity 46;
+/// SHAPE diff improves common-multiset 38 → 39, N-only 8 → 7) but
+/// downstream `dfs_reassign_val_ids → reorder_valdefs → sequential_renumber`
+/// pipeline cannot accept the new ValDef body's pre-renumber ValUse refs,
+/// breaking constant pool segregation (constants_len 61 → 0; LOCAL falls
+/// back to unsegregated 1005B; `probe_sig15_collisions` sigmao OK → FAIL).
+/// Same renumbering-pipeline-crash class as S5 broad Fix A (#11) / S6
+/// narrow strict-subset gate (#12). Confirms: byte-ADDING direction
+/// hits the SAME architectural gate as byte-SHRINKING (S26/S27/S28).
+/// Retained as durable artifact; re-enable when renumbering pipeline
+/// rewrite (WS-G class) is in place.
+#[allow(dead_code)]
+fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
+    const TARGET_SHAPE: &str = "ByIdx<or>[VU,K(Int),VU]";
+
+    let s = match expr {
+        Expr::BlockValue(s) => s,
+        other => return other,
+    };
+    let inner = s.expr;
+    let items = inner.items;
+    let result = *inner.result;
+
+    // Predicate: count outer ValDef RHS matches.
+    let outer_vd_count: usize = items
+        .iter()
+        .filter(|i| {
+            matches!(i, Expr::ValDef(vd) if shape_signature(&vd.expr.rhs) == TARGET_SHAPE)
+        })
+        .count();
+    if outer_vd_count == 0 {
+        return Expr::BlockValue(Spanned {
+            source_span: s.source_span,
+            expr: BlockValue {
+                items,
+                result: result.into(),
+            },
+        });
+    }
+
+    let mut extracted: Vec<Expr> = Vec::new();
+
+    let processed_items: Vec<Expr> = items
+        .into_iter()
+        .map(|item| match item {
+            Expr::ValDef(vd) => {
+                let rhs = *vd.expr.rhs;
+                // Leave existing outer extractions intact: walk into their
+                // children but skip the rhs root.
+                let new_rhs = if shape_signature(&rhs) == TARGET_SHAPE {
+                    rhs
+                } else {
+                    extract_inline_shape(rhs, TARGET_SHAPE, next_id, &mut extracted)
+                };
+                Expr::ValDef(Spanned {
+                    source_span: vd.source_span,
+                    expr: ValDef {
+                        id: vd.expr.id,
+                        rhs: new_rhs.into(),
+                    },
+                })
+            }
+            other => extract_inline_shape(other, TARGET_SHAPE, next_id, &mut extracted),
+        })
+        .collect();
+    let new_result = extract_inline_shape(result, TARGET_SHAPE, next_id, &mut extracted);
+
+    if extracted.is_empty() {
+        return Expr::BlockValue(Spanned {
+            source_span: s.source_span,
+            expr: BlockValue {
+                items: processed_items,
+                result: new_result.into(),
+            },
+        });
+    }
+
+    let mut combined = processed_items;
+    combined.extend(extracted);
+    let final_items = topo_order_valdefs(combined);
+
+    Expr::BlockValue(Spanned {
+        source_span: s.source_span,
+        expr: BlockValue {
+            items: final_items,
+            result: new_result.into(),
+        },
+    })
+}
+
+/// Helper for `promote_branch_emerged_s2`. Recursively walks `expr`. When a
+/// sub-expression's shape signature matches `target_shape`, replace it with
+/// a fresh `ValUse(new_id, T)` and append the original as a new ValDef to
+/// `extracted`. Otherwise recurse into children.
+///
+/// Skips nested BlockValue / FuncValue boundaries — those are separate
+/// scopes; extracting across them would break ValUse scoping.
+#[allow(dead_code)]
+fn extract_inline_shape(
+    expr: Expr,
+    target_shape: &str,
+    next_id: &mut u32,
+    extracted: &mut Vec<Expr>,
+) -> Expr {
+    if shape_signature(&expr) == target_shape {
+        if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
+            eprintln!(
+                "[PROMOTE_S2] extracting shape={} expr={}",
+                target_shape,
+                short_expr(&expr)
+            );
+        }
+        let tpe = expr.tpe();
+        let new_id = ValId(*next_id);
+        *next_id += 1;
+        extracted.push(Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: new_id,
+                rhs: expr.into(),
+            },
+        }));
+        return Expr::ValUse(ValUse {
+            val_id: new_id,
+            tpe,
+        });
+    }
+    match expr {
+        // FuncValue: don't cross lambda boundary (free var concerns).
+        Expr::FuncValue(_) => expr,
+        other => map_children_extract_shape(other, target_shape, next_id, extracted),
+    }
+}
+
+/// Mirror of `map_children_with_id_mut` but threading the additional
+/// `target_shape: &str` + `extracted: &mut Vec<Expr>` captures needed by
+/// `extract_inline_shape`. Hand-coded because fn-pointer-based
+/// `map_children_with_id_mut` can't capture additional state.
+#[allow(dead_code)]
+fn map_children_extract_shape(
+    expr: Expr,
+    target_shape: &str,
+    next_id: &mut u32,
+    extracted: &mut Vec<Expr>,
+) -> Expr {
+    macro_rules! r {
+        ($e:expr) => {
+            extract_inline_shape($e, target_shape, next_id, extracted)
+        };
+    }
+    match expr {
+        Expr::BlockValue(s) => Expr::BlockValue(Spanned {
+            source_span: s.source_span,
+            expr: BlockValue {
+                items: s.expr.items.into_iter().map(|i| r!(i)).collect(),
+                result: r!(*s.expr.result).into(),
+            },
+        }),
+        Expr::ValDef(s) => Expr::ValDef(Spanned {
+            source_span: s.source_span,
+            expr: ValDef {
+                id: s.expr.id,
+                rhs: r!(*s.expr.rhs).into(),
+            },
+        }),
+        Expr::BinOp(s) => Expr::BinOp(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::bin_op::BinOp {
+                kind: s.expr.kind,
+                left: r!(*s.expr.left).into(),
+                right: r!(*s.expr.right).into(),
+            },
+        }),
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: r!(*bts.input).into(),
+            })
+        }
+        Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
+            condition: r!(*if_op.condition).into(),
+            true_branch: r!(*if_op.true_branch).into(),
+            false_branch: r!(*if_op.false_branch).into(),
+        }),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: r!(*so.input).into(),
+        }),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: r!(*ea.input).into(),
+            })
+        }
+        Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::property_call::PropertyCall {
+                obj: r!(*s.expr.obj).into(),
+                method: s.expr.method,
+            },
+        }),
+        Expr::SigmaAnd(sa) => {
+            let items: Vec<Expr> = sa.items.into_iter().map(|i| r!(i)).collect();
+            Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
+                items: items.try_into().expect("SigmaAnd >= 2"),
+            })
+        }
+        Expr::SigmaOr(so) => {
+            let items: Vec<Expr> = so.items.into_iter().map(|i| r!(i)).collect();
+            Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr {
+                items: items.try_into().expect("SigmaOr >= 2"),
+            })
+        }
+        Expr::And(a) => Expr::And(Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: r!(*a.expr.input).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: r!(*o.expr.input).into(),
+            },
+        }),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items.into_iter().map(|i| r!(i)).collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
+        Expr::Tuple(t) => {
+            let items: Vec<Expr> = t.items.into_iter().map(|i| r!(i)).collect();
+            Expr::Tuple(ergotree_ir::mir::tuple::Tuple {
+                items: items.try_into().expect("Tuple >= 2"),
+            })
+        }
+        Expr::ByIndex(s) => {
+            let input = r!(*s.expr.input);
+            let index = r!(*s.expr.index);
+            let default = s.expr.default.map(|d| Box::new(r!(*d)));
+            ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
+                .expect("ByIndex::new in extract_inline_shape")
+        }
+        Expr::OptionGet(og) => {
+            let input = r!(*og.expr.input);
+            ergotree_ir::mir::option_get::OptionGet::try_build(input)
+                .map(|x| {
+                    Expr::OptionGet(Spanned {
+                        source_span: og.source_span,
+                        expr: x,
+                    })
+                })
+                .expect("OptionGet in extract_inline_shape")
+        }
+        Expr::OptionGetOrElse(s) => {
+            let input = r!(*s.expr.input);
+            let default = r!(*s.expr.default);
+            ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
+                .map(|x| {
+                    Expr::OptionGetOrElse(Spanned {
+                        source_span: s.source_span,
+                        expr: x,
+                    })
+                })
+                .expect("OptionGetOrElse in extract_inline_shape")
+        }
+        Expr::OptionIsDefined(s) => {
+            let input = r!(*s.expr.input);
+            ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(input)
+                .map(|x| {
+                    Expr::OptionIsDefined(Spanned {
+                        source_span: s.source_span,
+                        expr: x,
+                    })
+                })
+                .expect("OptionIsDefined in extract_inline_shape")
+        }
+        Expr::ExtractRegisterAs(s) => {
+            let input = r!(*s.expr.input);
+            ergotree_ir::mir::extract_reg_as::ExtractRegisterAs::new(
+                input,
+                s.expr.register_id,
+                ergotree_ir::types::stype::SType::SOption(s.expr.elem_tpe),
+            )
+            .map(|x| {
+                Expr::ExtractRegisterAs(Spanned {
+                    source_span: s.source_span,
+                    expr: x,
+                })
+            })
+            .expect("ExtractRegisterAs in extract_inline_shape")
+        }
+        Expr::ExtractScriptBytes(es) => {
+            Expr::ExtractScriptBytes(ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::ExtractBytes(es) => {
+            Expr::ExtractBytes(ergotree_ir::mir::extract_bytes::ExtractBytes {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::ExtractBytesWithNoRef(es) => Expr::ExtractBytesWithNoRef(
+            ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef {
+                input: r!(*es.input).into(),
+            },
+        ),
+        Expr::ExtractId(es) => {
+            Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::ExtractCreationInfo(es) => {
+            Expr::ExtractCreationInfo(ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::SelectField(s) => {
+            let input = r!(*s.expr.input);
+            ergotree_ir::mir::select_field::SelectField::new(input, s.expr.field_index)
+                .map(|sf| {
+                    Expr::SelectField(Spanned {
+                        source_span: s.source_span,
+                        expr: sf,
+                    })
+                })
+                .expect("SelectField in extract_inline_shape")
+        }
+        Expr::LogicalNot(ln) => Expr::LogicalNot(Spanned {
+            source_span: ln.source_span,
+            expr: ergotree_ir::mir::logical_not::LogicalNot {
+                input: r!(*ln.expr.input).into(),
+            },
+        }),
+        Expr::Negation(n) => Expr::Negation(Spanned {
+            source_span: n.source_span,
+            expr: ergotree_ir::mir::negation::Negation {
+                input: r!(*n.expr.input).into(),
+            },
+        }),
+        Expr::CreateProveDlog(cpd) => {
+            Expr::CreateProveDlog(ergotree_ir::mir::create_provedlog::CreateProveDlog {
+                input: r!(*cpd.input).into(),
+            })
+        }
+        Expr::SigmaPropBytes(sp) => {
+            Expr::SigmaPropBytes(ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes {
+                input: r!(*sp.input).into(),
+            })
+        }
+        Expr::DecodePoint(dp) => Expr::DecodePoint(ergotree_ir::mir::decode_point::DecodePoint {
+            input: r!(*dp.input).into(),
+        }),
+        Expr::CalcSha256(c) => Expr::CalcSha256(ergotree_ir::mir::calc_sha256::CalcSha256 {
+            input: r!(*c.input).into(),
+        }),
+        Expr::CalcBlake2b256(c) => {
+            Expr::CalcBlake2b256(ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 {
+                input: r!(*c.input).into(),
+            })
+        }
+        Expr::Append(s) => Expr::Append(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::coll_append::Append {
+                input: r!(*s.expr.input).into(),
+                col_2: r!(*s.expr.col_2).into(),
+            },
+        }),
+        Expr::Slice(s) => Expr::Slice(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::coll_slice::Slice {
+                input: r!(*s.expr.input).into(),
+                from: r!(*s.expr.from).into(),
+                until: r!(*s.expr.until).into(),
+            },
+        }),
+        Expr::Upcast(u) => {
+            let tpe = u.tpe.clone();
+            Expr::Upcast(
+                ergotree_ir::mir::upcast::Upcast::new(r!(*u.input), tpe).expect("Upcast in extract"),
+            )
+        }
+        Expr::Downcast(d) => {
+            let tpe = d.tpe.clone();
+            Expr::Downcast(
+                ergotree_ir::mir::downcast::Downcast::new(r!(*d.input), tpe)
+                    .expect("Downcast in extract"),
+            )
+        }
+        // Leaves and unhandled compound types: leave intact. The hand-coded
+        // recursion above covers every variant reachable from sigmao's
+        // post-stage-03 root; expansion welcome when other fixtures land.
+        leaf => leaf,
     }
 }
 
