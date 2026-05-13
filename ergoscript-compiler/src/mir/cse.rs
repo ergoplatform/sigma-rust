@@ -7513,6 +7513,33 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         eprintln!("=== end branch dump ===\n");
     }
 
+    // S12 PROBE — env-gated narrow-predicate falsification (QB Session 12).
+    // Tests whether suppressing branch-local CSE extraction of
+    // `Expr::BinOp(_, Relation(_), _)` and `Expr::ValUse(_)` RHS shapes
+    // (the two unique-to-gluon B2 RHS classes per S5/S12 cross-fixture
+    // inventory) moves gluon Δ +102 without regressing 12 MATCH fixtures.
+    //
+    // Per Probe 0 (re-anchored at HEAD): Scala has NO `apply_cse_within_branches`
+    // analog; sibling-equal sym extraction-vs-inline is decided at graph-construction
+    // time by `findGlobalDefinition` (first-DFS-construction scope claim) — not
+    // observable from post-CSE Expr tree. Per S22, HC=1 makes identical decisions
+    // on gluon's 8 B2 groups, ruling out the scope-chain layer.
+    //
+    // This filter removes the matching shapes from `dag_usages` before
+    // `process_ast_graph_impl` would extract them. If MATCH fixtures hold
+    // → narrow predicate works. If MATCH fixtures regress → P2.3
+    // (same architectural class as sigmao, confirmed; surgical surface empty).
+    if std::env::var("CSE_PROBE_S12").is_ok() {
+        dag_usages.retain(|(cand, _)| {
+            !matches!(cand, Expr::ValUse(_))
+                && !matches!(
+                    cand,
+                    Expr::BinOp(b) if matches!(b.expr.kind,
+                        ergotree_ir::mir::bin_op::BinOpKind::Relation(_))
+                )
+        });
+    }
+
     if hash_cons_enabled() {
         process_ast_graph_hash_cons(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
     } else {
