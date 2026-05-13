@@ -5462,6 +5462,162 @@ fn trace_slot_shift(stage: &str, expr: &Expr) {
             }
         }
     }
+    // QB-SESSION-13 / sig-15 gluon S7 — B2 trajectory probe.
+    // Emits a per-stage tally of structurally-equal sibling-only ValDef
+    // groups (B2 class) so we can localize WHICH pipeline stage first
+    // produces gluon's 8 B2 sibling pairs. Per the S33 reframe, the
+    // observed final B2 shape may be created at any of:
+    //   - stage 00 (HIR→MIR lowering preserving user-source val replication)
+    //   - stage 02 (`cse_expr` root extraction + replace_all sub-tree embedding)
+    //   - stage 03 (`apply_cse_within_branches` per-branch extraction)
+    //   - post-CSE renumbering / reordering (stages 05a..12)
+    // The flag is env-gated (`CSE_TRACE_B2_TRAJECTORY=1`); default
+    // behavior unchanged. Output per stage:
+    //   [B2_TRAJ] stage=<name> total_vd=<N> b1=<X> b2=<Y> b3=<Z> same=<S>
+    //   [B2_TRAJ]   group=<idx> count=<N> sib=<S> anc=<A> shape=<sig> depths=[...]
+    if std::env::var("CSE_TRACE_B2_TRAJECTORY").is_ok() {
+        let mut entries: Vec<(Vec<String>, u32, Expr)> = Vec::new();
+        let mut path: Vec<String> = Vec::new();
+        collect_valdefs_with_paths(expr, &mut path, &mut entries);
+        let total = entries.len();
+        let mut visited = vec![false; total];
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        for i in 0..total {
+            if visited[i] {
+                continue;
+            }
+            let mut g = vec![i];
+            visited[i] = true;
+            for j in (i + 1)..total {
+                if !visited[j] && entries[i].2 == entries[j].2 {
+                    g.push(j);
+                    visited[j] = true;
+                }
+            }
+            groups.push(g);
+        }
+        let mut b1 = 0usize;
+        let mut b2 = 0usize;
+        let mut b3 = 0usize;
+        let mut same = 0usize;
+        let mut b2_groups: Vec<(usize, &Vec<usize>, usize, usize)> = Vec::new();
+        for (gi, g) in groups.iter().enumerate() {
+            if g.len() < 2 {
+                continue;
+            }
+            let mut anc = 0usize;
+            let mut sib = 0usize;
+            for ai in 0..g.len() {
+                for bi in (ai + 1)..g.len() {
+                    let pa = &entries[g[ai]].0;
+                    let pb = &entries[g[bi]].0;
+                    if pa == pb {
+                        // same scope (already-dedup'd, ignore)
+                    } else if path_is_prefix(pa, pb) || path_is_prefix(pb, pa) {
+                        anc += 1;
+                    } else {
+                        sib += 1;
+                    }
+                }
+            }
+            if sib > 0 && anc > 0 {
+                b3 += 1;
+            } else if sib > 0 {
+                b2 += 1;
+                b2_groups.push((gi, g, sib, anc));
+            } else if anc > 0 {
+                b1 += 1;
+            } else {
+                same += 1;
+            }
+        }
+        eprintln!(
+            "[B2_TRAJ] stage={:36} total_vd={:>3} b1={} b2={} b3={} same={}",
+            stage, total, b1, b2, b3, same
+        );
+        for (gi, g, sib, anc) in &b2_groups {
+            let shape = shape_signature(&entries[g[0]].2);
+            let depths: Vec<usize> = g.iter().map(|&i| entries[i].0.len()).collect();
+            eprintln!(
+                "[B2_TRAJ]   g={:>2} count={} sib={} anc={} shape={} depths={:?}",
+                gi,
+                g.len(),
+                sib,
+                anc,
+                shape,
+                depths,
+            );
+        }
+    }
+}
+
+/// QB-SESSION-13 / sig-15 gluon S7 — durable trajectory-probe helper.
+///
+/// Walks the expression tree depth-first, recording for every `ValDef` node
+/// (a) its structural scope-path (sequence of string fragments naming each
+/// container encountered), (b) its declared `id`, and (c) a structural clone
+/// of its `rhs`. Used by both `trace_slot_shift`'s `CSE_TRACE_B2_TRAJECTORY`
+/// hook (per-stage B2 tally) and any future probe needing sibling-redundancy
+/// inventory at intermediate pipeline stages. Mirrors the `walk` helper inside
+/// `compiler.rs::probe_sig15_sibling_redundancy` but with a more compact
+/// fragment encoding suitable for shipping in the CSE pipeline (the test-
+/// only probe uses verbose discriminant strings for debugging output).
+#[allow(dead_code)]
+fn collect_valdefs_with_paths(
+    expr: &Expr,
+    path: &mut Vec<String>,
+    out: &mut Vec<(Vec<String>, u32, Expr)>,
+) {
+    use ergotree_ir::traversable::Traversable;
+    match expr {
+        Expr::ValDef(s) => {
+            let vd = &s.expr;
+            out.push((path.clone(), vd.id.0, (*vd.rhs).clone()));
+            path.push("VD.rhs".to_string());
+            collect_valdefs_with_paths(&vd.rhs, path, out);
+            path.pop();
+        }
+        Expr::BlockValue(s) => {
+            let bv = &s.expr;
+            for (i, it) in bv.items.iter().enumerate() {
+                path.push(format!("BV.item[{}]", i));
+                collect_valdefs_with_paths(it, path, out);
+                path.pop();
+            }
+            path.push("BV.result".to_string());
+            collect_valdefs_with_paths(&bv.result, path, out);
+            path.pop();
+        }
+        Expr::If(s) => {
+            path.push("If.cond".to_string());
+            collect_valdefs_with_paths(&s.condition, path, out);
+            path.pop();
+            path.push("If.true".to_string());
+            collect_valdefs_with_paths(&s.true_branch, path, out);
+            path.pop();
+            path.push("If.false".to_string());
+            collect_valdefs_with_paths(&s.false_branch, path, out);
+            path.pop();
+        }
+        Expr::FuncValue(fv) => {
+            path.push("Fn.body".to_string());
+            collect_valdefs_with_paths(fv.body(), path, out);
+            path.pop();
+        }
+        other => {
+            let tag = format!("{:?}", std::mem::discriminant(other));
+            for (i, c) in <Expr as Traversable>::children(other).enumerate() {
+                path.push(format!("{}.c[{}]", tag, i));
+                collect_valdefs_with_paths(c, path, out);
+                path.pop();
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn path_is_prefix(a: &[String], b: &[String]) -> bool {
+    a.len() <= b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y)
 }
 
 /// QB-SESSION-08 / Cohort B s2 post-stage-03 promotion.
