@@ -4422,6 +4422,20 @@ fn is_graph_shared(expr: &Expr) -> bool {
         // coupled A1 + Cohort B (architectural) and is deferred per QB-SESSION-05
         // §4.4 P2.4-on-target. F1-F7 axes all green during the probe (sig-15
         // 12/15, F.2 563/575, lib 251/251, conformance 164/164, ecosystem 11/14).
+        //
+        // Sigmao S28 (2026-05-13, Cohort A1+A3 COUPLED / Session 7 of
+        // QB-HANDOFF-15-OF-15). Re-applied this A1 suppression simultaneously
+        // with S27's A3 `dag_count` override at process_ast_graph_impl (the
+        // rule-#2 measurement from S26/S27 archives). Result: sigmao LOCAL
+        // 1124 → 1118 (Δ -24 → -30) — EXACT simple sum of A1-alone (-4B) and
+        // A3-alone (-2B); NO CASCADE fired. SHAPE diff improves dramatically
+        // (common-multiset 38→42, L-only 7→2, N-only 8→4) but byte-direction
+        // is wrong. Cross-fixture clean (12 MATCH + paideia +2 + gluon +102 +
+        // F.2 563/575 + lib 251/251 + conformance 164/164 + collisions OK).
+        // Empirically closes the "single OR coupled Scala-faithful structural
+        // fix" class for sigmao; Session 8 pivots to Cohort B byte-ADDING
+        // attacks (s2/s3/s6/s9 promotion). 28th falsification fingerprint
+        // instance. Reverted; doc-comment durable.
         Expr::ExtractScriptBytes(esb) => is_input_stable(&esb.input),
         Expr::ExtractBytes(eb) => is_input_stable(&eb.input),
         Expr::ExtractId(ei) => is_input_stable(&ei.input),
@@ -6795,6 +6809,17 @@ fn process_ast_graph_impl(
         // existing extraction is empirically correct for current LOCAL state
         // — the fix can only land coupled with the partner extraction that
         // closes the offsetting gap." F1-F7 axes all green during the probe.
+        //
+        // Sigmao S28 (2026-05-13, Cohort A1+A3 COUPLED / Session 7 of
+        // QB-HANDOFF-15-OF-15). Re-applied this A3 override simultaneously
+        // with S26's A1 narrow `is_graph_shared` suppression. Result: sigmao
+        // LOCAL 1124 → 1118 (Δ -24 → -30) — EXACT simple sum (no cascade).
+        // SHAPE diff dramatic improvement (common 38→42, L-only 7→2, N-only
+        // 8→4) but byte-direction wrong. Cross-fixture clean (12 MATCH +
+        // F.2 563/575 + plateaus held + ecosystem 11/14). Empirically closes
+        // the single-and-coupled Scala-faithful structural fix class for
+        // sigmao; Session 8 pivots to Cohort B byte-ADDING attacks. 28th
+        // falsification fingerprint instance. Reverted; doc-comment durable.
         if dag_count >= 2 {
             // Reject candidates whose RHS references a ValId defined only
             // inside a deeper-If arm — hoisting them here would create a
