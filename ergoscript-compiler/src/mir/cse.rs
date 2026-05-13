@@ -188,6 +188,53 @@ pub fn apply_cse(expr: Expr) -> Expr {
             // incompatibility, not the predicate itself.
             // (Pass call REMOVED to preserve sig-15 12/15 + collisions OK
             //  baseline. Re-enable for renumbering-pipeline-rewrite probes.)
+            //
+            // QB-SESSION-11 / WS-G sig-15 sigmao S32 — Session 11 Probe 2
+            // FALSIFIED both closure-path (b) implementation strategies:
+            //
+            // Strategy I (recursive free-var lift): under `CSE_PROBE_S31_S2=1
+            //   CSE_S32_LIFT=1`, `promote_branch_emerged_s2` computes the
+            //   transitive orphan closure (sigmao: 2 ValDefs — 60 + 61, where
+            //   ValDef(61) = PropertyCall(ValUse(60), tokens) and ValDef(60)
+            //   = ByIndex(Outputs, Const(2: SInt))) and LIFTS the closure
+            //   to outer scope, removing the bindings from inner BlockValues.
+            //   Empirical result: VALID IR (segregation OK, constants_len
+            //   61/61) but LOCAL 1124B → 1128B = Δ -24 → -20 (REGRESS +4B).
+            //   Outer ValDef count went 45 → 48 (NODE has 46). +1 outer s2
+            //   ValDef matches NODE but +2 from the lifted closure is net
+            //   over-extraction. The structural fix works but byte-arithmetic
+            //   is wrong direction. Same P2.5 compensating-extraction class
+            //   as S26/S27 (#26 / #27).
+            //
+            // Strategy II (recursive inline): replacing orphan ValUse refs in
+            //   the matched shape with `inner_bindings[id].body` (recursive
+            //   until self-contained) was NOT implemented in code due to
+            //   invasive scaffolding cost AND a Probe-0 byte-arithmetic
+            //   estimate predicting WORSE regression than Strategy I: the
+            //   self-contained body becomes ByIdx(PropertyCall(ByIndex(
+            //   Outputs, Const(2:SInt)), tokens), K(2), VU(?)) ≈ 25-30B; 2
+            //   inline occurrences each save 8B (10B shape → 2B ValUse) =
+            //   ~16B saved; new ValDef cost ~28B; predicted net ≈ +12B
+            //   regression (worse than Strategy I's +4B).
+            //
+            // Closure path (b) FULL FALSIFICATION — both Strategy I empirical
+            // and Strategy II analytical falsified by the SAME mechanism:
+            // compensating-extraction. ANY structural fix that hoists orphan
+            // refs to outer scope adds outer ValDef bytes faster than it
+            // saves inline-occurrence bytes (sigmao's specific arithmetic).
+            // 32nd falsification fingerprint instance.
+            //
+            // Closure path (a) (insert at LOCAL scope) was already falsified
+            // in S31 (loses cross-scope CSE benefit; net zero byte movement).
+            // Closure path (c) (accept plateau and pivot) remains open.
+            //
+            // Strategy I helpers (`collect_inner_valdefs`, `collect_match_orphans`,
+            // `remove_valdefs_in_blocks`, `map_children_remove`) + `extract_inline_shape`
+            // scope-soundness gate retained `#[allow(dead_code)]` as durable
+            // artifact. Pass call remains REMOVED — closure-path (b) attack
+            // surface for sigmao is empirically EXHAUSTED at the current code
+            // surface; closure requires WS-G architectural rewrite per
+            // QB-HANDOFF-15-OF-15 §0.
             let flattened = flatten_nested_blocks(deduped);
             trace_slot_shift("07-flatten_nested_blocks", &flattened);
             // sig-15 paideia_stake_state S5: post-PAG chain-rewrite for
@@ -5501,7 +5548,168 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
         })
         .collect();
 
-    let mut extracted: Vec<Expr> = Vec::new();
+    // QB-SESSION-11 / S32 Probe 1.2: closure-trace diagnostic. When
+    // CSE_TRACE_S32_CLOSURE=1, walk all inner BlockValues to build
+    // (id → body) map of inner ValDef bindings, then for each item +
+    // result, collect orphan refs the gate would reject and print the
+    // recursive closure of orphan-bound ValDef bodies. Pure diagnostic;
+    // doesn't change extraction behavior.
+    if std::env::var("CSE_TRACE_S32_CLOSURE").is_ok() {
+        let mut inner_valdefs: std::collections::HashMap<u32, Expr> = Default::default();
+        collect_inner_valdefs(&result, &outer_scope, &mut inner_valdefs);
+        for item in &items {
+            collect_inner_valdefs(item, &outer_scope, &mut inner_valdefs);
+        }
+        let mut all_match_orphans: Vec<u32> = Vec::new();
+        for item in &items {
+            collect_match_orphans(item, TARGET_SHAPE, &outer_scope, &mut all_match_orphans);
+        }
+        collect_match_orphans(&result, TARGET_SHAPE, &outer_scope, &mut all_match_orphans);
+        all_match_orphans.sort();
+        all_match_orphans.dedup();
+        eprintln!(
+            "[S32_CLOSURE] outer_scope_size={} inner_vd_map_size={} match_orphans={:?}",
+            outer_scope.len(),
+            inner_valdefs.len(),
+            all_match_orphans
+        );
+        let mut closure: Vec<u32> = Vec::new();
+        let mut worklist: Vec<u32> = all_match_orphans.clone();
+        while let Some(id) = worklist.pop() {
+            if closure.contains(&id) {
+                continue;
+            }
+            closure.push(id);
+            if let Some(body) = inner_valdefs.get(&id) {
+                eprintln!(
+                    "[S32_CLOSURE]   ValDef({}).body :: {}",
+                    id,
+                    short_expr(body)
+                );
+                let mut deeper: Vec<u32> = Vec::new();
+                collect_orphan_ids(body, &outer_scope, &mut deeper);
+                deeper.sort();
+                deeper.dedup();
+                eprintln!(
+                    "[S32_CLOSURE]   ValDef({}).orphans_against_outer={:?}",
+                    id, deeper
+                );
+                for d in deeper {
+                    worklist.push(d);
+                }
+            } else {
+                eprintln!(
+                    "[S32_CLOSURE]   ValDef({}) NOT FOUND in inner_valdefs (deeper than walker can reach)",
+                    id
+                );
+            }
+        }
+    }
+
+    // QB-SESSION-11 / S32 Strategy I: recursive free-var lift. Under
+    // `CSE_S32_LIFT=1`, BEFORE running the extraction pass, walk the outer
+    // block to find every TARGET_SHAPE match site's orphan closure (orphan
+    // ValDef bodies in inner BlockValue scopes), compute the transitive
+    // dependency set, and LIFT those ValDefs to outer scope. Remove them
+    // from their inner BlockValue items[]. Inner ValUse refs to lifted IDs
+    // will resolve to the outer ValDef via the inner→outer scope-chain
+    // walk in `disambiguate_val_ids`. After lift, the previously-orphaned
+    // match sites become safe to hoist (their free refs are all in the
+    // expanded outer scope).
+    // Collect inner_valdefs map for BOTH Strategy I (lift) and Strategy II
+    // (inline) so the lift logic and the inline-substitution logic can share
+    // it. Idempotent build; pure-read inside the branches below.
+    let mut inner_valdefs_for_strategy: std::collections::HashMap<u32, Expr> = Default::default();
+    if std::env::var("CSE_S32_LIFT").is_ok() || std::env::var("CSE_S32_INLINE").is_ok() {
+        for item in &items {
+            collect_inner_valdefs(item, &outer_scope, &mut inner_valdefs_for_strategy);
+        }
+        collect_inner_valdefs(&result, &outer_scope, &mut inner_valdefs_for_strategy);
+    }
+
+    let (items, result, mut extracted, outer_scope) = if std::env::var("CSE_S32_LIFT").is_ok() {
+        let inner_valdefs = &inner_valdefs_for_strategy;
+
+        let mut match_orphans: Vec<u32> = Vec::new();
+        for item in &items {
+            collect_match_orphans(item, TARGET_SHAPE, &outer_scope, &mut match_orphans);
+        }
+        collect_match_orphans(&result, TARGET_SHAPE, &outer_scope, &mut match_orphans);
+        match_orphans.sort();
+        match_orphans.dedup();
+
+        let mut closure_set: HashSet<u32> = Default::default();
+        let mut worklist: Vec<u32> = match_orphans.clone();
+        let mut unreachable = false;
+        while let Some(id) = worklist.pop() {
+            if closure_set.contains(&id) {
+                continue;
+            }
+            if let Some(body) = inner_valdefs.get(&id) {
+                closure_set.insert(id);
+                let mut deeper: Vec<u32> = Vec::new();
+                collect_orphan_ids(body, &outer_scope, &mut deeper);
+                for d in deeper {
+                    worklist.push(d);
+                }
+            } else {
+                unreachable = true;
+                break;
+            }
+        }
+
+        if unreachable || closure_set.is_empty() {
+            if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
+                eprintln!(
+                    "[PROMOTE_S2/lift] BAIL unreachable={} closure_size={} match_orphans={:?}",
+                    unreachable, closure_set.len(), match_orphans
+                );
+            }
+            (items, result, Vec::new(), outer_scope)
+        } else {
+            let mut closure_ids: Vec<u32> = closure_set.iter().copied().collect();
+            closure_ids.sort();
+            let lifted: Vec<Expr> = closure_ids
+                .iter()
+                .filter_map(|id| {
+                    inner_valdefs.get(id).map(|body| {
+                        Expr::ValDef(Spanned {
+                            source_span: SourceSpan::empty(),
+                            expr: ValDef {
+                                id: ValId(*id),
+                                rhs: body.clone().into(),
+                            },
+                        })
+                    })
+                })
+                .collect();
+
+            if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
+                eprintln!(
+                    "[PROMOTE_S2/lift] lifting closure_ids={:?} (size={})",
+                    closure_ids,
+                    closure_ids.len()
+                );
+            }
+
+            let items_lifted: Vec<Expr> = items
+                .into_iter()
+                .map(|i| remove_valdefs_in_blocks(i, &closure_set))
+                .collect();
+            let result_lifted = remove_valdefs_in_blocks(result, &closure_set);
+
+            let mut new_outer_scope = outer_scope;
+            for id in &closure_ids {
+                new_outer_scope.insert(*id);
+            }
+            // Lift goes into pre-extracted accumulator so it lands BEFORE
+            // the new s2 ValDef in final items[]. topo_order_valdefs at
+            // the bottom reorders to dependency-before-dependent.
+            (items_lifted, result_lifted, lifted, new_outer_scope)
+        }
+    } else {
+        (items, result, Vec::new(), outer_scope)
+    };
 
     let processed_items: Vec<Expr> = items
         .into_iter()
@@ -6065,6 +6273,265 @@ fn collect_orphan_paths<'a>(
                 collect_orphan_paths(child, scope, path, out);
             }
             path.pop();
+        }
+    }
+}
+
+/// QB-SESSION-11 / S32 Strategy I helper. Recursively walks `expr` and
+/// removes any `Expr::ValDef` whose id is in `to_remove` from BlockValue
+/// items[] (and from any further nested BlockValues). If a BlockValue's
+/// items becomes empty after removal, it is replaced by its result.
+/// Used to lift inner-scope orphan ValDefs to outer scope.
+#[allow(dead_code)]
+fn remove_valdefs_in_blocks(expr: Expr, to_remove: &HashSet<u32>) -> Expr {
+    match expr {
+        Expr::BlockValue(s) => {
+            let new_items: Vec<Expr> = s
+                .expr
+                .items
+                .into_iter()
+                .filter_map(|item| match &item {
+                    Expr::ValDef(vd) if to_remove.contains(&vd.expr.id.0) => None,
+                    _ => Some(remove_valdefs_in_blocks(item, to_remove)),
+                })
+                .collect();
+            let new_result = remove_valdefs_in_blocks(*s.expr.result, to_remove);
+            if new_items.is_empty() {
+                new_result
+            } else {
+                Expr::BlockValue(Spanned {
+                    source_span: s.source_span,
+                    expr: BlockValue {
+                        items: new_items,
+                        result: new_result.into(),
+                    },
+                })
+            }
+        }
+        Expr::ValDef(s) => Expr::ValDef(Spanned {
+            source_span: s.source_span,
+            expr: ValDef {
+                id: s.expr.id,
+                rhs: remove_valdefs_in_blocks(*s.expr.rhs, to_remove).into(),
+            },
+        }),
+        other => map_children_remove(other, to_remove),
+    }
+}
+
+/// Hand-coded child-map for `remove_valdefs_in_blocks` (captures `to_remove`,
+/// so the fn-pointer-based `map_children_with_id_mut` is unsuitable).
+/// Recurses into shapes that may carry nested BlockValue.
+#[allow(dead_code)]
+fn map_children_remove(expr: Expr, to_remove: &HashSet<u32>) -> Expr {
+    macro_rules! r {
+        ($e:expr) => {
+            remove_valdefs_in_blocks($e, to_remove)
+        };
+    }
+    match expr {
+        Expr::BinOp(s) => Expr::BinOp(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::bin_op::BinOp {
+                kind: s.expr.kind,
+                left: r!(*s.expr.left).into(),
+                right: r!(*s.expr.right).into(),
+            },
+        }),
+        Expr::BoolToSigmaProp(bts) => {
+            Expr::BoolToSigmaProp(ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp {
+                input: r!(*bts.input).into(),
+            })
+        }
+        Expr::If(if_op) => Expr::If(ergotree_ir::mir::if_op::If {
+            condition: r!(*if_op.condition).into(),
+            true_branch: r!(*if_op.true_branch).into(),
+            false_branch: r!(*if_op.false_branch).into(),
+        }),
+        Expr::SizeOf(so) => Expr::SizeOf(ergotree_ir::mir::coll_size::SizeOf {
+            input: r!(*so.input).into(),
+        }),
+        Expr::ExtractAmount(ea) => {
+            Expr::ExtractAmount(ergotree_ir::mir::extract_amount::ExtractAmount {
+                input: r!(*ea.input).into(),
+            })
+        }
+        Expr::PropertyCall(s) => Expr::PropertyCall(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::property_call::PropertyCall {
+                obj: r!(*s.expr.obj).into(),
+                method: s.expr.method,
+            },
+        }),
+        Expr::SigmaAnd(sa) => {
+            let items: Vec<Expr> = sa.items.into_iter().map(|i| r!(i)).collect();
+            Expr::SigmaAnd(ergotree_ir::mir::sigma_and::SigmaAnd {
+                items: items.try_into().expect("SigmaAnd >= 2"),
+            })
+        }
+        Expr::SigmaOr(so) => {
+            let items: Vec<Expr> = so.items.into_iter().map(|i| r!(i)).collect();
+            Expr::SigmaOr(ergotree_ir::mir::sigma_or::SigmaOr {
+                items: items.try_into().expect("SigmaOr >= 2"),
+            })
+        }
+        Expr::And(a) => Expr::And(Spanned {
+            source_span: a.source_span,
+            expr: ergotree_ir::mir::and::And {
+                input: r!(*a.expr.input).into(),
+            },
+        }),
+        Expr::Or(o) => Expr::Or(Spanned {
+            source_span: o.source_span,
+            expr: ergotree_ir::mir::or::Or {
+                input: r!(*o.expr.input).into(),
+            },
+        }),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { elem_tpe, items } => {
+                let new_items: Vec<Expr> = items.into_iter().map(|i| r!(i)).collect();
+                Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+                    elem_tpe,
+                    items: new_items,
+                })
+            }
+            other => Expr::Collection(other),
+        },
+        Expr::Tuple(t) => {
+            let items: Vec<Expr> = t.items.into_iter().map(|i| r!(i)).collect();
+            Expr::Tuple(ergotree_ir::mir::tuple::Tuple {
+                items: items.try_into().expect("Tuple >= 2"),
+            })
+        }
+        Expr::ByIndex(s) => {
+            let input = r!(*s.expr.input);
+            let index = r!(*s.expr.index);
+            let default = s.expr.default.map(|d| Box::new(r!(*d)));
+            ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
+                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span, expr: bi }))
+                .expect("ByIndex in remove_valdefs_in_blocks")
+        }
+        Expr::OptionGet(og) => {
+            let input = r!(*og.expr.input);
+            ergotree_ir::mir::option_get::OptionGet::try_build(input)
+                .map(|x| Expr::OptionGet(Spanned { source_span: og.source_span, expr: x }))
+                .expect("OptionGet in remove_valdefs_in_blocks")
+        }
+        Expr::OptionGetOrElse(s) => {
+            let input = r!(*s.expr.input);
+            let default = r!(*s.expr.default);
+            ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
+                .map(|x| Expr::OptionGetOrElse(Spanned { source_span: s.source_span, expr: x }))
+                .expect("OptionGetOrElse in remove_valdefs_in_blocks")
+        }
+        Expr::OptionIsDefined(s) => {
+            let input = r!(*s.expr.input);
+            ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(input)
+                .map(|x| Expr::OptionIsDefined(Spanned { source_span: s.source_span, expr: x }))
+                .expect("OptionIsDefined in remove_valdefs_in_blocks")
+        }
+        Expr::ExtractRegisterAs(s) => {
+            let input = r!(*s.expr.input);
+            ergotree_ir::mir::extract_reg_as::ExtractRegisterAs::new(
+                input,
+                s.expr.register_id,
+                ergotree_ir::types::stype::SType::SOption(s.expr.elem_tpe),
+            )
+            .map(|x| Expr::ExtractRegisterAs(Spanned { source_span: s.source_span, expr: x }))
+            .expect("ExtractRegisterAs in remove_valdefs_in_blocks")
+        }
+        Expr::ExtractScriptBytes(es) => {
+            Expr::ExtractScriptBytes(ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::ExtractBytes(es) => {
+            Expr::ExtractBytes(ergotree_ir::mir::extract_bytes::ExtractBytes {
+                input: r!(*es.input).into(),
+            })
+        }
+        Expr::ExtractBytesWithNoRef(es) => Expr::ExtractBytesWithNoRef(
+            ergotree_ir::mir::extract_bytes_with_no_ref::ExtractBytesWithNoRef {
+                input: r!(*es.input).into(),
+            },
+        ),
+        Expr::ExtractId(es) => Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+            input: r!(*es.input).into(),
+        }),
+        // For other shapes that may carry nested BlockValues, fall back
+        // via map_children_with_id_mut with an identity transform (which
+        // descends into structures and lets us not propagate `to_remove`
+        // into shapes that don't host BlockValue items[] anyway). The
+        // shapes hand-coded above cover the sigmao_option AST surface
+        // observed at S29; if additional fixtures trigger the lift path
+        // we'll widen this dispatch.
+        other => other,
+    }
+}
+
+/// Diagnostic helper for `CSE_TRACE_S32_CLOSURE`. Walks `expr` and collects
+/// every nested ValDef whose id is NOT in `outer_scope` (i.e. an inner-scope
+/// binding) into `out[id → body]`. Children of FuncValue/BlockValue are
+/// walked too. Pure-diagnostic; not used by extraction logic.
+#[allow(dead_code)]
+fn collect_inner_valdefs(
+    expr: &Expr,
+    outer_scope: &HashSet<u32>,
+    out: &mut std::collections::HashMap<u32, Expr>,
+) {
+    match expr {
+        Expr::ValDef(s) => {
+            let id = s.expr.id.0;
+            if !outer_scope.contains(&id) {
+                out.insert(id, (*s.expr.rhs).clone());
+            }
+            collect_inner_valdefs(&s.expr.rhs, outer_scope, out);
+        }
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                collect_inner_valdefs(item, outer_scope, out);
+            }
+            collect_inner_valdefs(&s.expr.result, outer_scope, out);
+        }
+        Expr::FuncValue(fv) => {
+            collect_inner_valdefs(fv.body(), outer_scope, out);
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_inner_valdefs(child, outer_scope, out);
+            }
+        }
+    }
+}
+
+/// Diagnostic helper for `CSE_TRACE_S32_CLOSURE`. Walks `expr` looking for
+/// sub-expressions whose shape signature matches `target_shape`. For each
+/// match, computes free ValUse refs against `outer_scope` and appends them
+/// to `out`. Pure-diagnostic.
+#[allow(dead_code)]
+fn collect_match_orphans(
+    expr: &Expr,
+    target_shape: &str,
+    outer_scope: &HashSet<u32>,
+    out: &mut Vec<u32>,
+) {
+    if shape_signature(expr) == target_shape {
+        collect_orphan_ids(expr, outer_scope, out);
+        return;
+    }
+    match expr {
+        Expr::FuncValue(_) => {}
+        Expr::ValDef(s) => collect_match_orphans(&s.expr.rhs, target_shape, outer_scope, out),
+        Expr::BlockValue(s) => {
+            for item in &s.expr.items {
+                collect_match_orphans(item, target_shape, outer_scope, out);
+            }
+            collect_match_orphans(&s.expr.result, target_shape, outer_scope, out);
+        }
+        other => {
+            for child in direct_children(other) {
+                collect_match_orphans(child, target_shape, outer_scope, out);
+            }
         }
     }
 }
