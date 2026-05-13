@@ -6762,6 +6762,39 @@ fn process_ast_graph_impl(
             .find(|(e, _)| e == node)
             .map(|(_, c)| *c)
             .unwrap_or(0);
+        // sig-15 sigmao S27 (Cohort A3 / Session 6 of QB-HANDOFF-15-OF-15,
+        // 2026-05-12, FALSIFIED at Probe 2 with 27th falsification fingerprint
+        // instance — SECOND CONSECUTIVE compensating-extraction class after
+        // S26 / Cohort A1 at HEAD `a1c9b8c0`). Probed shape-narrow override
+        //     if matches!(node, Expr::CreateProveDlog(cpd)
+        //         if matches!(&*cpd.input, Expr::DecodePoint(_)))
+        //         && dag_count < 2
+        //     { dag_count = count_occurrences(&expr, node); }
+        // to mirror Scala's `globalUsagesOf` semantics for the chain shape.
+        // Cross-fixture pre-flight CLEAN (12 MATCH sig-15 + F.2 563/575 + lib
+        // 251/251 + Lilium SaleLP MATCH + ecosystem 11/14 all preserved; the
+        // shape predicate is structurally inert for all non-sigmao fixtures).
+        // SHAPE diff IMPROVES (common-multiset 38→40, L-only 7→5, N-only 8→6)
+        // — LOCAL emits `PDlog[DecPt[ByIdx]]` (matches NODE d9) + `SPBytes[VU]`
+        // (matches NODE d13) as separate outer ValDefs, exactly the structural
+        // split Scala's bottom-up sym construction produces.
+        // BUT sigmao BYTES REGRESS Δ -24 → -26 (LOCAL 1124 → 1122). Root cause
+        // per `feedback_falsification_fingerprint` rule #1: LOCAL's pre-fix
+        // shape `SPBytes[PDlog[DecPt[VU]]]` (one nested ValDef + one inline at
+        // line 239 inside SigmaAnd thunk) was a compensating-extraction —
+        // larger nested inline at the &&-chain held bytes UP toward NODE size.
+        // Splitting into two ValDefs saves ~2B inline (smaller ValUse refs at
+        // both sites) but the SAVED inline bytes were exactly what was
+        // OFFSETTING the gap. Same byte-direction failure as S26 / Cohort A1
+        // `ExtractScriptBytes(SELF)` suppression. Reverted. Closure of sigmao
+        // -24 plateau requires the A3 chain split COUPLED with a partner fix
+        // that ADDS LOCAL bytes (one of: A1 ExScript[Self] suppression coupled
+        // with B Cohort, OR Cohort B extractions s2/s3/s6/s9 standalone, OR
+        // architectural WS-G per-thunk-distinct sym construction). Per
+        // fingerprint rule #1: "if SHAPE-correct fix BYTE-regresses, the
+        // existing extraction is empirically correct for current LOCAL state
+        // — the fix can only land coupled with the partner extraction that
+        // closes the offsetting gap." F1-F7 axes all green during the probe.
         if dag_count >= 2 {
             // Reject candidates whose RHS references a ValId defined only
             // inside a deeper-If arm — hoisting them here would create a
