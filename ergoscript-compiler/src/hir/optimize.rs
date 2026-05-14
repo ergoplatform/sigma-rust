@@ -1088,7 +1088,15 @@ fn hir_kind_eq(a: &ExprKind, b: &ExprKind) -> bool {
         (ExprKind::ValUse(a), ExprKind::ValUse(b)) => a == b,
         (ExprKind::Context, ExprKind::Context) => true,
         (ExprKind::Binary(a), ExprKind::Binary(b)) => {
-            a.op == b.op && hir_expr_eq(&a.lhs, &b.lhs) && hir_expr_eq(&a.rhs, &b.rhs)
+            // Compare BinaryOp by node only; Spanned's derived PartialEq
+            // includes the source span, which would make structurally-equal
+            // ops at different source positions compare unequal and block
+            // legitimate CSE merges (S16: gluon Pair 2 cross-branch SInt nDays
+            // diverged solely on op-span polluting equality after the H3
+            // in-pass ValUse substitution unified the inner ValUse IDs).
+            a.op.node == b.op.node
+                && hir_expr_eq(&a.lhs, &b.lhs)
+                && hir_expr_eq(&a.rhs, &b.rhs)
         }
         (ExprKind::FieldAccess(a), ExprKind::FieldAccess(b)) => {
             a.field == b.field && a.type_args == b.type_args && hir_expr_eq(&a.object, &b.object)
@@ -2316,9 +2324,12 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                         break;
                     } else if trace_reject && i_decl == *j_decl {
                         eprintln!(
-                            "[S15_REJECT] same-tpe diff-rhs i=({},vid={}) j=({},vid={}) tpe={:?}\n  i.rhs={:?}\n  j.rhs={:?}",
-                            i, i_id, j, j_id, i_decl, &i_rhs.kind, &j_rhs.kind
+                            "[S15_REJECT] same-tpe diff-rhs i=({},vid={}) j=({},vid={}) tpe={:?}",
+                            i, i_id, j, j_id, i_decl
                         );
+                        if std::env::var("CSE_TRACE_S15_REJECT_VERBOSE").is_ok() {
+                            eprintln!("  i.rhs={:#?}\n  j.rhs={:#?}", &i_rhs, j_rhs);
+                        }
                     }
                 }
             }
@@ -2326,6 +2337,8 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                 let new_id = *next_id;
                 *next_id += 1;
                 let span = i_rhs.span;
+                let cand_tpe = i_decl.clone();
+                let removals_clone = group_removals.clone();
                 candidates.push(Cand {
                     new_id,
                     tpe: i_decl,
@@ -2334,6 +2347,40 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                     removals: group_removals,
                 });
                 used[i][vi] = true;
+
+                // H3 (Session 16): in-pass substitution. After committing this
+                // merge group, subsequent same-pass comparisons must see the
+                // canonical new_id rather than the stale old per-branch IDs.
+                // Without this, downstream pair candidates (e.g. gluon Pair 2:
+                // SInt nDays at vid=146/187 referencing inner ValUse IDs that
+                // an earlier same-pass commit unified) reject under hir_expr_eq.
+                let opt_disable = std::env::var("CSE_PROBE_S16_INPASS_SUB_OFF").is_ok();
+                if !opt_disable && !std::env::var("CSE_PROBE_S14_HIR_MERGE_OFF").is_ok() {
+                    let replacement = Expr {
+                        kind: ExprKind::ValUse(ValUse {
+                            id: new_id,
+                            tpe: cand_tpe.clone().unwrap_or(SType::SAny),
+                        }),
+                        span,
+                        tpe: cand_tpe,
+                    };
+                    let mut subs: HashMap<u32, Expr> = HashMap::new();
+                    for (_, _, old_id) in &removals_clone {
+                        subs.insert(*old_id, replacement.clone());
+                    }
+                    if std::env::var("CSE_TRACE_S16_INPASS").is_ok() {
+                        eprintln!(
+                            "[S16_INPASS] post-commit new_id={} subs={:?}",
+                            new_id,
+                            subs.keys().collect::<Vec<_>>()
+                        );
+                    }
+                    for branch in tail_vals.iter_mut() {
+                        for entry in branch.iter_mut() {
+                            entry.2 = substitute_val_uses(entry.2.clone(), &subs);
+                        }
+                    }
+                }
             }
         }
     }
