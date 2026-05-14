@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::{
     Apply, Binary, BinaryOp, Expr, ExprKind, FieldAccessExpr, IfExprHir, LambdaExpr, Literal,
-    Spanned, ValDef,
+    Spanned, ValDef, ValUse,
 };
 use ergotree_ir::types::stype::SType;
 
@@ -17,8 +17,19 @@ pub fn optimize(expr: Expr) -> Expr {
     trace_const_counts_hir("hir-02-constant_fold", &expr);
     let expr = inline_single_use_vals(expr);
     trace_const_counts_hir("hir-03-inline_single_use_vals", &expr);
-    let res = eliminate_negation(expr);
-    trace_const_counts_hir("hir-04-eliminate_negation", &res);
+    let expr = eliminate_negation(expr);
+    trace_const_counts_hir("hir-04-eliminate_negation", &expr);
+    // QB-HANDOFF-15-OF-15 Session 14 — gluon stage-00 sibling-val merger.
+    // Hoists structurally-equal pure-evaluable ValDefs from sibling If-chain
+    // branches into the enclosing Block. Approximates Scala's IR-construction
+    // hash-cons effect for sibling thunks. `CSE_PROBE_S14_HIR_MERGE_OFF=1`
+    // disables for empirical comparison.
+    let res = if std::env::var("CSE_PROBE_S14_HIR_MERGE_OFF").is_ok() {
+        expr
+    } else {
+        merge_sibling_vals_across_if(expr)
+    };
+    trace_const_counts_hir("hir-05-merge_sibling_vals", &res);
     res
 }
 
@@ -1978,6 +1989,425 @@ fn eliminate_negation_inner(expr: Expr, scope: &HashMap<u32, Expr>) -> Expr {
         | ExprKind::ValUse(_)
         | ExprKind::Context => expr,
     }
+}
+
+// ---------------------------------------------------------------------------
+// QB-HANDOFF-15-OF-15 Session 14 — HIR sibling-val merger (Path a)
+//
+// Hoists structurally-equal pure-evaluable ValDefs from sibling If-chain
+// branches into the enclosing Block. Approximates Scala's IR-construction
+// hash-cons effect for sibling thunks (per S34 BIMODAL trajectory localizing
+// 4 stage-00 B2 pairs to user-source val replication across If branches).
+//
+// Env-gated `CSE_PROBE_S14_HIR_MERGE=1` until validated.
+// ---------------------------------------------------------------------------
+
+fn merge_sibling_vals_across_if(expr: Expr) -> Expr {
+    let mut next_id = max_val_id(&expr) + 1;
+    walk_merge(expr, &mut next_id)
+}
+
+fn max_val_id(expr: &Expr) -> u32 {
+    let mut m: u32 = 0;
+    walk_collect_max_id(expr, &mut m);
+    m
+}
+
+fn walk_collect_max_id(expr: &Expr, m: &mut u32) {
+    match &expr.kind {
+        ExprKind::ValDef(vd) => {
+            if let Some(id) = vd.id {
+                if id > *m {
+                    *m = id;
+                }
+            }
+            walk_collect_max_id(&vd.rhs, m);
+        }
+        ExprKind::ValUse(vu) => {
+            if vu.id > *m {
+                *m = vu.id;
+            }
+        }
+        ExprKind::Binary(bin) => {
+            walk_collect_max_id(&bin.lhs, m);
+            walk_collect_max_id(&bin.rhs, m);
+        }
+        ExprKind::Block(items) | ExprKind::Tuple(items) => {
+            for i in items {
+                walk_collect_max_id(i, m);
+            }
+        }
+        ExprKind::Apply(app) => {
+            walk_collect_max_id(&app.func, m);
+            for a in &app.args {
+                walk_collect_max_id(a, m);
+            }
+        }
+        ExprKind::FieldAccess(fa) => walk_collect_max_id(&fa.object, m),
+        ExprKind::If(if_e) => {
+            walk_collect_max_id(&if_e.condition, m);
+            walk_collect_max_id(&if_e.then_branch, m);
+            walk_collect_max_id(&if_e.else_branch, m);
+        }
+        ExprKind::Lambda(lam) => {
+            for pid in &lam.param_ids {
+                if *pid > *m {
+                    *m = *pid;
+                }
+            }
+            walk_collect_max_id(&lam.body, m);
+        }
+        ExprKind::LogicalNot(inner)
+        | ExprKind::Negation(inner)
+        | ExprKind::BitInversion(inner) => walk_collect_max_id(inner, m),
+        ExprKind::Literal(_)
+        | ExprKind::Ident(_)
+        | ExprKind::GlobalVars(_)
+        | ExprKind::Context => {}
+    }
+}
+
+/// Recursive walker. At each Block, look at If children and hoist
+/// sibling-equal pure ValDefs from their branch tails.
+fn walk_merge(expr: Expr, next_id: &mut u32) -> Expr {
+    match expr.kind {
+        ExprKind::Block(items) => {
+            // Recurse into each item first.
+            let processed: Vec<Expr> = items
+                .into_iter()
+                .map(|i| walk_merge(i, next_id))
+                .collect();
+            // Now for each If item, hoist mergeable vals into this Block.
+            let mut out: Vec<Expr> = Vec::with_capacity(processed.len());
+            for item in processed {
+                if matches!(item.kind, ExprKind::If(_)) {
+                    let (hoisted, rewritten) = hoist_from_if_chain(item, next_id);
+                    out.extend(hoisted);
+                    out.push(rewritten);
+                } else {
+                    out.push(item);
+                }
+            }
+            Expr {
+                kind: ExprKind::Block(out),
+                ..expr
+            }
+        }
+        ExprKind::If(if_e) => {
+            // Recurse into branches; can't hoist out since not in a Block scope.
+            let cond = walk_merge(*if_e.condition, next_id);
+            let then_b = walk_merge(*if_e.then_branch, next_id);
+            let else_b = walk_merge(*if_e.else_branch, next_id);
+            Expr {
+                kind: ExprKind::If(IfExprHir {
+                    condition: Box::new(cond),
+                    then_branch: Box::new(then_b),
+                    else_branch: Box::new(else_b),
+                }),
+                ..expr
+            }
+        }
+        ExprKind::ValDef(vd) => {
+            let new_rhs = walk_merge(*vd.rhs, next_id);
+            Expr {
+                kind: ExprKind::ValDef(ValDef {
+                    name: vd.name,
+                    id: vd.id,
+                    tpe: vd.tpe,
+                    rhs: Box::new(new_rhs),
+                }),
+                ..expr
+            }
+        }
+        ExprKind::Binary(bin) => {
+            let lhs = walk_merge(*bin.lhs, next_id);
+            let rhs = walk_merge(*bin.rhs, next_id);
+            Expr {
+                kind: ExprKind::Binary(Binary {
+                    op: bin.op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }),
+                ..expr
+            }
+        }
+        ExprKind::Apply(app) => {
+            let func = walk_merge(*app.func, next_id);
+            let args: Vec<Expr> = app.args.into_iter().map(|a| walk_merge(a, next_id)).collect();
+            Expr {
+                kind: ExprKind::Apply(Apply {
+                    func: Box::new(func),
+                    args,
+                    type_arg: app.type_arg,
+                }),
+                ..expr
+            }
+        }
+        ExprKind::FieldAccess(fa) => {
+            let obj = walk_merge(*fa.object, next_id);
+            Expr {
+                kind: ExprKind::FieldAccess(FieldAccessExpr {
+                    object: Box::new(obj),
+                    field: fa.field,
+                    type_args: fa.type_args,
+                }),
+                ..expr
+            }
+        }
+        ExprKind::Lambda(lam) => {
+            let body = walk_merge(*lam.body, next_id);
+            Expr {
+                kind: ExprKind::Lambda(LambdaExpr {
+                    params: lam.params,
+                    param_ids: lam.param_ids,
+                    body: Box::new(body),
+                }),
+                ..expr
+            }
+        }
+        ExprKind::Tuple(items) => {
+            let new_items: Vec<Expr> = items.into_iter().map(|i| walk_merge(i, next_id)).collect();
+            Expr {
+                kind: ExprKind::Tuple(new_items),
+                ..expr
+            }
+        }
+        ExprKind::LogicalNot(inner) => {
+            let inner = walk_merge(*inner, next_id);
+            Expr {
+                kind: ExprKind::LogicalNot(Box::new(inner)),
+                ..expr
+            }
+        }
+        ExprKind::Negation(inner) => {
+            let inner = walk_merge(*inner, next_id);
+            Expr {
+                kind: ExprKind::Negation(Box::new(inner)),
+                ..expr
+            }
+        }
+        ExprKind::BitInversion(inner) => {
+            let inner = walk_merge(*inner, next_id);
+            Expr {
+                kind: ExprKind::BitInversion(Box::new(inner)),
+                ..expr
+            }
+        }
+        _ => expr,
+    }
+}
+
+/// Determine whether an expression is safe to hoist out of a guarded branch.
+/// Conservative: refuses Lambda (would change closure semantics). Allows
+/// everything else — matches Scala's hash-cons which merges by structure
+/// regardless of evaluation-cost (the canonical reference).
+fn is_pure_evaluable(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Lambda(_) => false,
+        ExprKind::Literal(_) | ExprKind::ValUse(_) | ExprKind::Context => true,
+        ExprKind::GlobalVars(_) => true,
+        ExprKind::Ident(_) => false, // shouldn't appear post-binder; refuse
+        ExprKind::Binary(bin) => is_pure_evaluable(&bin.lhs) && is_pure_evaluable(&bin.rhs),
+        ExprKind::Apply(app) => {
+            is_pure_evaluable(&app.func) && app.args.iter().all(is_pure_evaluable)
+        }
+        ExprKind::FieldAccess(fa) => is_pure_evaluable(&fa.object),
+        ExprKind::Tuple(items) => items.iter().all(is_pure_evaluable),
+        ExprKind::LogicalNot(i) | ExprKind::Negation(i) | ExprKind::BitInversion(i) => {
+            is_pure_evaluable(i)
+        }
+        // ValDef inside a Block, If, raw Block — refuse for safety; merger
+        // works on the RHS expression of a ValDef, not these wrappers.
+        ExprKind::ValDef(_) | ExprKind::Block(_) | ExprKind::If(_) => false,
+    }
+}
+
+/// Collect mutable references to the `Block(items)` tail of each branch in
+/// an If chain. For `if(c1){A} else if(c2){B} else{C}`, returns &mut [A, B, C]
+/// (only branches whose tail is a Block). Else-of-If chains the walk.
+fn collect_branch_tails<'a>(if_e: &'a mut IfExprHir, tails: &mut Vec<&'a mut Vec<Expr>>) {
+    // then-branch
+    if let ExprKind::Block(ref mut items) = if_e.then_branch.kind {
+        tails.push(items);
+    }
+    // else-branch: may be another If, a Block, or other Expr
+    match &mut if_e.else_branch.kind {
+        ExprKind::If(inner) => collect_branch_tails(inner, tails),
+        ExprKind::Block(items) => tails.push(items),
+        _ => {}
+    }
+}
+
+/// Given an If chain (top-level `If` expression as a Block child), find pairs
+/// of top-level ValDefs across distinct branch tails whose RHS is structurally
+/// equal AND pure-evaluable; hoist a fresh ValDef into the returned Vec,
+/// rewrite the branches to remove the duplicates and remap ValUses.
+fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
+    let mut if_expr = if_expr;
+    let if_kind = match &mut if_expr.kind {
+        ExprKind::If(inner) => inner,
+        _ => return (vec![], if_expr),
+    };
+
+    // Collect mutable refs to all branch-tail Block-items.
+    let mut tails: Vec<&mut Vec<Expr>> = Vec::new();
+    collect_branch_tails(if_kind, &mut tails);
+    if tails.len() < 2 {
+        return (vec![], if_expr);
+    }
+
+    // Find merge candidates: for each pair (tail_i, vd_i), (tail_j, vd_j)
+    // with i<j, where both are ValDef with structurally-equal pure RHS,
+    // record candidate. Each ValDef participates in at most one merge.
+
+    #[derive(Clone)]
+    struct Cand {
+        new_id: u32,
+        tpe: Option<SType>,
+        rhs: Expr,
+        span: text_size::TextRange,
+        // per-tail: (tail_idx, item_idx, old_val_id)
+        removals: Vec<(usize, usize, u32)>,
+    }
+
+    // Snapshot ValDefs per tail: (idx, id, rhs, declared_tpe).
+    let mut tail_vals: Vec<Vec<(usize, u32, Expr, Option<SType>)>> =
+        Vec::with_capacity(tails.len());
+    for tail in tails.iter() {
+        let mut vs: Vec<(usize, u32, Expr, Option<SType>)> = Vec::new();
+        for (idx, item) in tail.iter().enumerate() {
+            if let ExprKind::ValDef(vd) = &item.kind {
+                if let Some(id) = vd.id {
+                    if is_pure_evaluable(&vd.rhs) {
+                        vs.push((idx, id, (*vd.rhs).clone(), vd.tpe.clone()));
+                    }
+                }
+            }
+        }
+        tail_vals.push(vs);
+    }
+
+    // Used flag per ValDef (so each participates in at most one merge).
+    let mut used: Vec<Vec<bool>> = tail_vals
+        .iter()
+        .map(|v| vec![false; v.len()])
+        .collect();
+    let mut candidates: Vec<Cand> = Vec::new();
+
+    // For each tail i, each unused val, find matching unused vals in other tails j>i.
+    // Match requires structural RHS equality AND identical declared val type.
+    for i in 0..tail_vals.len() {
+        for vi in 0..tail_vals[i].len() {
+            if used[i][vi] {
+                continue;
+            }
+            let (i_idx, i_id, i_rhs, i_decl) = tail_vals[i][vi].clone();
+            let mut group_removals: Vec<(usize, usize, u32)> = vec![(i, i_idx, i_id)];
+            for j in (i + 1)..tail_vals.len() {
+                for vj in 0..tail_vals[j].len() {
+                    if used[j][vj] {
+                        continue;
+                    }
+                    let (j_idx, j_id, ref j_rhs, ref j_decl) = tail_vals[j][vj];
+                    if i_decl == *j_decl && hir_expr_eq(&i_rhs, j_rhs) {
+                        group_removals.push((j, j_idx, j_id));
+                        used[j][vj] = true;
+                        break;
+                    }
+                }
+            }
+            if group_removals.len() >= 2 {
+                let new_id = *next_id;
+                *next_id += 1;
+                let span = i_rhs.span;
+                candidates.push(Cand {
+                    new_id,
+                    tpe: i_decl,
+                    rhs: i_rhs.clone(),
+                    span,
+                    removals: group_removals,
+                });
+                used[i][vi] = true;
+            }
+        }
+    }
+
+    if candidates.is_empty() {
+        return (vec![], if_expr);
+    }
+
+    // Optional trace
+    if std::env::var("CSE_TRACE_S14_HIR_MERGE").is_ok() {
+        for c in &candidates {
+            eprintln!(
+                "[S14_MERGE] new_id={} tpe={:?} branches={:?}",
+                c.new_id,
+                c.tpe,
+                c.removals.iter().map(|(t, _, id)| (*t, *id)).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    // Build per-tail removal-index sets + per-tail id remaps.
+    let n_tails = tail_vals.len();
+    let mut remove_indices: Vec<Vec<usize>> = vec![Vec::new(); n_tails];
+    let mut remaps: Vec<HashMap<u32, Expr>> = vec![HashMap::new(); n_tails];
+    let mut hoisted_vals: Vec<Expr> = Vec::with_capacity(candidates.len());
+
+    for cand in &candidates {
+        // Hoisted ValDef
+        let hoisted_vd = ValDef {
+            name: format!("__hoisted_{}", cand.new_id),
+            id: Some(cand.new_id),
+            tpe: cand.tpe.clone(),
+            rhs: Box::new(cand.rhs.clone()),
+        };
+        let hoisted_expr = Expr {
+            kind: ExprKind::ValDef(hoisted_vd),
+            span: cand.span,
+            tpe: cand.tpe.clone(),
+        };
+        hoisted_vals.push(hoisted_expr);
+
+        let replacement = Expr {
+            kind: ExprKind::ValUse(ValUse {
+                id: cand.new_id,
+                tpe: cand
+                    .tpe
+                    .clone()
+                    .unwrap_or(SType::SAny),
+            }),
+            span: cand.span,
+            tpe: cand.tpe.clone(),
+        };
+        for (t_idx, item_idx, old_id) in &cand.removals {
+            remove_indices[*t_idx].push(*item_idx);
+            remaps[*t_idx].insert(*old_id, replacement.clone());
+        }
+    }
+
+    // Apply per-tail rewrites: remove items at removed indices, remap ValUses
+    // in surviving items.
+    for (t_idx, tail) in tails.into_iter().enumerate() {
+        let removed: std::collections::HashSet<usize> =
+            remove_indices[t_idx].iter().copied().collect();
+        let remap = &remaps[t_idx];
+        let original = std::mem::take(tail);
+        let mut rewritten: Vec<Expr> = Vec::with_capacity(original.len() - removed.len());
+        for (idx, item) in original.into_iter().enumerate() {
+            if removed.contains(&idx) {
+                continue;
+            }
+            if remap.is_empty() {
+                rewritten.push(item);
+            } else {
+                rewritten.push(substitute_val_uses(item, remap));
+            }
+        }
+        *tail = rewritten;
+    }
+
+    (hoisted_vals, if_expr)
 }
 
 #[cfg(test)]
