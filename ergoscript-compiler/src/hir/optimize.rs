@@ -2296,6 +2296,7 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
 
     // For each tail i, each unused val, find matching unused vals in other tails j>i.
     // Match requires structural RHS equality AND identical declared val type.
+    let trace_reject = std::env::var("CSE_TRACE_S15_REJECT").is_ok();
     for i in 0..tail_vals.len() {
         for vi in 0..tail_vals[i].len() {
             if used[i][vi] {
@@ -2313,6 +2314,11 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                         group_removals.push((j, j_idx, j_id));
                         used[j][vj] = true;
                         break;
+                    } else if trace_reject && i_decl == *j_decl {
+                        eprintln!(
+                            "[S15_REJECT] same-tpe diff-rhs i=({},vid={}) j=({},vid={}) tpe={:?}\n  i.rhs={:?}\n  j.rhs={:?}",
+                            i, i_id, j, j_id, i_decl, &i_rhs.kind, &j_rhs.kind
+                        );
                     }
                 }
             }
