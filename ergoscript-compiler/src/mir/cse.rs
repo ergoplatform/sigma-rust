@@ -8574,7 +8574,38 @@ fn process_ast_graph_hash_cons(
         // ADMIT-AT-ROOT, not REJECT-AT-BRANCH.
         let pure_const_root_ok =
             !owned_at_root && mode == ScopeMode::Root && is_pure_const_shape(node);
-        if !owned_at_root && !main_scope_ok && !pure_const_root_ok {
+        // S20 D-A paideia continuation — SelectField-on-dag-shared LCA Root
+        // fallback.
+        //
+        // Probe 1 (Session 20, HEAD `6976d446`) trace-diff revealed that
+        // HC=0's 18 paideia Root extracts vs HC=1's 14 (S19 post-pure-const
+        // fallback) differ at exactly 4 ids: HC=0 ids 79/80/81/83 are all
+        // `SelectField(ByIndex(...))` shapes (dag_count 4/4/2/3) admitted
+        // by HC=0's `is_select_field_on_dag_shared` LCA-aware predicate
+        // (`appears_outside_if_branches || count_distinct_top_level_containers >= 2`).
+        // Strict `appears_in_main_scope` rejects them at HC=1 Root because
+        // all uses sit inside `validStakeTx || validEmitTx || validUnstakeTx`
+        // arms; the LCA-permissive check admits them because they appear
+        // in 2+ distinct top-level container positions.
+        //
+        // Mirror HC=0's gate at HC=1 Root only, restricted to the dag-shared
+        // non-ValUse SelectField class. The companion `is_select_field_on_val_use`
+        // case is the sigmao HC=1 -28 driver (val_ids 5/7 SelectField on
+        // VU(STuple([SColl(SByte), SColl(SByte)]))) — its admission is
+        // already handled by Scala-mirrored branch-extraction and must NOT
+        // be touched by this fallback.
+        //
+        // Cross-fixture pre-flight (Probe 1): sigmao's SelectField root
+        // candidates have ValUse input (not dag-shared non-VU), so this
+        // predicate is shape-orthogonal to sigmao's -28 dependency.
+        let is_select_field_on_dag_shared_root = !owned_at_root
+            && mode == ScopeMode::Root
+            && matches!(node, Expr::SelectField(s)
+                if !matches!(&*s.expr.input, Expr::ValUse(_))
+                && dag_usages.iter().any(|(e, c)| *c >= 2 && e == &*s.expr.input))
+            && (appears_outside_if_branches(&expr, node)
+                || count_distinct_top_level_containers(&expr, node) >= 2);
+        if !owned_at_root && !main_scope_ok && !pure_const_root_ok && !is_select_field_on_dag_shared_root {
             if trace {
                 eprintln!(
                     "[HC/{:?}] reject reason=not-owned-at-root dag_count={} :: {}",
@@ -8596,6 +8627,19 @@ fn process_ast_graph_hash_cons(
         if trace && !owned_at_root && !main_scope_ok && pure_const_root_ok {
             eprintln!(
                 "[HC/{:?}] admit reason=pure-const-root-fallback dag_count={} :: {}",
+                mode,
+                dag_count,
+                short_expr(node)
+            );
+        }
+        if trace
+            && !owned_at_root
+            && !main_scope_ok
+            && !pure_const_root_ok
+            && is_select_field_on_dag_shared_root
+        {
+            eprintln!(
+                "[HC/{:?}] admit reason=select-field-on-dag-shared-root-fallback dag_count={} :: {}",
                 mode,
                 dag_count,
                 short_expr(node)
