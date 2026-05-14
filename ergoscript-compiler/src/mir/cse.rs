@@ -8501,8 +8501,34 @@ fn process_ast_graph_hash_cons(
         // it lives at root (the current driver scope is `root` per our
         // intern walk; sub-thunks created during the walk are unreachable
         // from `st.find(_, root)`).
+        //
+        // S18 duckpools D-B reconciliation: strict `owned_at_root` rejects
+        // candidates whose occurrences all sit inside `&&`/`||` right-arm
+        // sub-thunks even when the LEFT arm of an inner `&&` (which Scala
+        // counts as "eager / main-scope-for-this-Thunk") contains one of
+        // the uses. HC=0's `appears_in_main_scope` walker resets the
+        // `in_and_thunk` flag on every recursive left-arm descent, so it
+        // returns true whenever any path reaches the target through a
+        // left-arm-only suffix. The strict scope-id walker in
+        // `intern_walk` instead inherits the parent scope on left-arm
+        // descent — same scope-id passes through, so the sym is stamped
+        // with the OUTER (sub-thunk) scope rather than root.
+        //
+        // Surgical fallback (mode == Root only): when `owned_at_root` is
+        // false but `appears_in_main_scope` returns true, the candidate is
+        // semantically root-eligible per HC=0 semantics. Admit. Branch mode
+        // keeps the strict ownership check unchanged.
+        //
+        // Empirical signature: duckpools_child_interest `SizeOf(VU(13))`
+        // dag_count=3 — all 3 occurrences inside `&&` right-arm scopes
+        // 5/6/7, but at least one sits in an inner left-arm reachable via
+        // a left-reset path. HC=0 extracts at id=53; HC=1 (pre-fallback)
+        // rejected → −2B regression vs NODE.
         let owned_at_root = st.find(node, root).is_some();
-        if !owned_at_root {
+        let main_scope_ok = !owned_at_root
+            && mode == ScopeMode::Root
+            && appears_in_main_scope(&expr, node);
+        if !owned_at_root && !main_scope_ok {
             if trace {
                 eprintln!(
                     "[HC/{:?}] reject reason=not-owned-at-root dag_count={} :: {}",
@@ -8512,6 +8538,14 @@ fn process_ast_graph_hash_cons(
                 );
             }
             continue;
+        }
+        if trace && !owned_at_root && main_scope_ok {
+            eprintln!(
+                "[HC/{:?}] admit reason=main-scope-fallback dag_count={} :: {}",
+                mode,
+                dag_count,
+                short_expr(node)
+            );
         }
 
         if trace {
