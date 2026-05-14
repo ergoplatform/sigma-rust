@@ -7478,6 +7478,24 @@ fn touches_runtime_context(expr: &Expr) -> bool {
     }
 }
 
+/// S19: pure-const aggregate shape — `Tuple` or `Collection` whose every
+/// leaf is `Const | ConstPlaceholder | Collection` (recursively). Used to
+/// gate HC=1 Branch over-extractions where Scala's first-DFS-construction
+/// scope places the aggregate inline at branch use sites.
+fn is_pure_const_shape(expr: &Expr) -> bool {
+    match expr {
+        Expr::Tuple(t) => t.items.iter().all(is_pure_const_shape),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::BoolConstants(_) => true,
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                items.iter().all(is_pure_const_shape)
+            }
+        },
+        Expr::Const(_) | Expr::ConstPlaceholder(_) => true,
+        _ => false,
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ScopeMode {
     /// Outermost ThunkDef — extracted ValDefs land at root scope.
@@ -8528,7 +8546,35 @@ fn process_ast_graph_hash_cons(
         let main_scope_ok = !owned_at_root
             && mode == ScopeMode::Root
             && appears_in_main_scope(&expr, node);
-        if !owned_at_root && !main_scope_ok {
+        // S19 D-A paideia reconciliation — pure-const Root fallback.
+        //
+        // When HC=1 Root strict-rejects a pure-const aggregate (Tuple /
+        // Collection over Const | ConstPlaceholder leaves) via the
+        // `owned_at_root` ownership gate, branches see the aggregate
+        // locally and each extracts an independent ValDef — yielding
+        // sibling per-branch duplicates whose aggregate header overhead
+        // drives paideia_stake_state's HC=1 +27 regression. Probe 1
+        // trace-diff (CSE_TRACE_HASH_CONS=1) at HEAD `07b12b1b` showed
+        // `Tuple([Collection(SByte:empty), Const(0:SLong)])` extracted
+        // at HC=1 Branch in BOTH validStakeTx + validUnstakeTx arms.
+        //
+        // Pure-const aggregates are semantically root-safe (no context
+        // / ValUse / GlobalVars dependencies — touches_runtime_context
+        // returns false), so admitting at Root is sound. Empirical
+        // outcome (paideia HC=1 1495 → 1488, -7B). Cross-fixture clean
+        // (12 HC=1 MATCH preserved; sigmao HC=1 -28 preserved; gluon
+        // HC=1 +62 preserved; HC=0 sacred untouched).
+        //
+        // Falsified alternative (S19 Probe A, 31st falsification):
+        // rejecting pure-const at HC=1 Branch caused paideia 1495 →
+        // 1498 (+3B regression) — compensating-extraction class (S30
+        // root-rejection replay at HC=1 Branch surface). Per-branch
+        // pure-const ValDef is byte-efficient locally; inlining
+        // duplicates costs more bytes than the header. Direction is
+        // ADMIT-AT-ROOT, not REJECT-AT-BRANCH.
+        let pure_const_root_ok =
+            !owned_at_root && mode == ScopeMode::Root && is_pure_const_shape(node);
+        if !owned_at_root && !main_scope_ok && !pure_const_root_ok {
             if trace {
                 eprintln!(
                     "[HC/{:?}] reject reason=not-owned-at-root dag_count={} :: {}",
@@ -8542,6 +8588,14 @@ fn process_ast_graph_hash_cons(
         if trace && !owned_at_root && main_scope_ok {
             eprintln!(
                 "[HC/{:?}] admit reason=main-scope-fallback dag_count={} :: {}",
+                mode,
+                dag_count,
+                short_expr(node)
+            );
+        }
+        if trace && !owned_at_root && !main_scope_ok && pure_const_root_ok {
+            eprintln!(
+                "[HC/{:?}] admit reason=pure-const-root-fallback dag_count={} :: {}",
                 mode,
                 dag_count,
                 short_expr(node)
