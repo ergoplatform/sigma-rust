@@ -7573,7 +7573,9 @@ fn short_expr(e: &Expr) -> String {
 fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
     let dag_usages = count_dag_usages(&expr);
     let schedule = dfs_schedule(&expr);
-    if hash_cons_enabled() {
+    if hash_cons_v2_enabled() {
+        process_ast_graph_hash_cons_v2(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
+    } else if hash_cons_enabled() {
         process_ast_graph_hash_cons(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
     } else {
         process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Root)
@@ -7768,7 +7770,9 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         });
     }
 
-    if hash_cons_enabled() {
+    if hash_cons_v2_enabled() {
+        process_ast_graph_hash_cons_v2(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
+    } else if hash_cons_enabled() {
         process_ast_graph_hash_cons(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
     } else {
         process_ast_graph_impl(expr, global_max_id, dag_usages, schedule, ScopeMode::Branch)
@@ -8750,6 +8754,398 @@ fn process_ast_graph_hash_cons(
     // (lines 6486–6580). Preserved verbatim so byte-divergence under
     // CSE_HASH_CONS=1 is attributable to the extraction-gate change, not
     // a different rewrite shape.
+    let mut result = expr;
+    let mut final_env: Vec<(Expr, u32)> = Vec::new();
+    let mut env = env;
+    let mut i = 0;
+    while i < env.len() {
+        let (ref node, val_id) = env[i];
+        let tree_count = count_occurrences(&result, node);
+        if tree_count < 2 {
+            i += 1;
+            continue;
+        }
+        let node = node.clone();
+        let val_use = Expr::ValUse(ValUse {
+            val_id: ValId(val_id),
+            tpe: expr_type(&node),
+        });
+        result = replace_all(&result, &node, &val_use);
+        for entry in env.iter_mut().skip(i + 1) {
+            let (ref mut env_expr, _) = entry;
+            *env_expr = replace_all(env_expr, &node, &val_use);
+        }
+        final_env.push((node, val_id));
+        i += 1;
+    }
+    let env = final_env;
+
+    if env.is_empty() {
+        return result;
+    }
+
+    let val_defs: Vec<Expr> = env
+        .iter()
+        .map(|(node, val_id)| {
+            let rhs = build_value_recurse(node, &env);
+            Expr::ValDef(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: ValDef {
+                    id: ValId(*val_id),
+                    rhs: rhs.into(),
+                },
+            })
+        })
+        .collect();
+
+    let post_next_id = val_defs
+        .iter()
+        .filter_map(|vd| {
+            if let Expr::ValDef(s) = vd {
+                Some(s.expr.id.0)
+            } else {
+                None
+            }
+        })
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(next_id);
+    let (val_defs, result, _) = lambda_rescue_post_pass(val_defs, result, post_next_id);
+
+    match result {
+        Expr::BlockValue(spanned) => {
+            let mut items = val_defs;
+            items.extend(spanned.expr.items);
+            let items = topo_order_valdefs(items);
+            Expr::BlockValue(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: BlockValue {
+                    items,
+                    result: spanned.expr.result,
+                },
+            })
+        }
+        other => Expr::BlockValue(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: BlockValue {
+                items: topo_order_valdefs(val_defs),
+                result: other.into(),
+            },
+        }),
+    }
+}
+
+/// WS-G QB1 Phase 3.1 — Session 23 — runtime gate for the construction-time
+/// hash-cons driver (`process_ast_graph_hash_cons_v2`). Default OFF.
+///
+/// QB0 (S17–S22) plateau-confirmation: D-C count-arithmetic surface is
+/// empirically exhausted (S30 + S22 cross-mode +7B byte-arithmetic exact
+/// replay). The `_v2` driver replaces the top-down `intern_walk` +
+/// schedule-walk + per-fallback gate decisions of v1 with bottom-up
+/// per-thunk construction-time hash-cons, mirroring Scala's
+/// `findOrCreateDefinition` + `Thunks::ThunkScope` semantics.
+fn hash_cons_v2_enabled() -> bool {
+    std::env::var("CSE_HC_V2").as_deref() == Ok("1")
+}
+
+/// WS-G QB1 Phase 3.1 — bottom-up construction-time hash-cons driver.
+/// Parallel-path implementation behind `CSE_HC_V2=1`. v1
+/// (`process_ast_graph_hash_cons`) and `process_ast_graph_impl` are
+/// preserved untouched — F1 (HC=0 default sig-15 ≥ 12/15) is sacred until
+/// the final flip.
+///
+/// Algorithm (per QB1 §2 + §3.1):
+///   1. Bottom-up DFS of `expr`: visit children before parents, with a
+///      `thunk_stack` push at every Scala-equivalent thunk boundary
+///      (If true/false branch, &&/|| right arm, FuncValue body).
+///   2. For each sub-expression `e` (post-order): `find_or_intern(e,
+///      current_scope)` against the existing `SymTable` primitive
+///      (`find` walks current → parent → root, never visiting sibling
+///      scopes — produces per-thunk-distinct syms by construction).
+///      - First encounter: fresh sym in current scope's bodyDefs; record
+///        (sym → expr) in `sym_expr` for emission, push onto
+///        `sym_order`, count = 1.
+///      - Subsequent encounter in same or descendant scope: returns the
+///        existing sym; increment `sym_counts[sym]`.
+///   3. After full traversal, walk `sym_order` (post-order ⇒ children
+///      before parents — same topo invariant `dfs_schedule` provides
+///      v1's schedule). For each sym with `count > 1` AND `is_extractable`
+///      AND `is_graph_shared` AND `!references_locally_defined`:
+///        push `(expr, val_id)` into env.
+///   4. Identical replace_all / build_value_recurse / topo-sort tail as
+///      v1 (verbatim).
+///
+/// Differences from v1 (`process_ast_graph_hash_cons`):
+///   - v1 does a top-down intern walk producing one global `SymTable`,
+///     then walks an externally-computed `schedule` and uses gate
+///     predicates (`owned_at_root` + `appears_in_main_scope` fallback +
+///     `is_pure_const_shape` fallback + `is_select_field_on_dag_shared`
+///     fallback) to decide extraction. The construction is correct but
+///     the schedule + count come from the global `dag_usages` (parent-
+///     edge walk) — same as `process_ast_graph_impl`. v1 IS gate-tuning
+///     over the existing tree-position CSE architecture.
+///   - v2 derives counts FROM the bottom-up construction itself:
+///     `sym_counts[sym]` is the number of times `find_or_intern` resolved
+///     to `sym` from any scope in its visibility chain. Sibling scopes
+///     can't see each other's syms (the SymTable enforces this in
+///     `find`), so a pure-const aggregate appearing in two sibling
+///     thunks intern as two distinct syms (each count 1) rather than
+///     one sym (count 2). This is the construction-time per-thunk-
+///     distinct sym semantics the QB1 handoff calls for.
+///
+/// Stop condition for Session 23 (per QB1 §3.1): v2 compiles and runs on
+/// at least 1 fixture without panic. Diag-only OK. No correctness
+/// target yet. Sessions 24–25 iterate on MATCH parity + plateau closure.
+///
+/// Instrumentation: `CSE_TRACE_HC_V2=1` logs every find_or_intern visit
+/// (scope, sym, new/found, post-count) and every extract / skip
+/// decision. `CSE_TRACE_SCOPE_CHAIN` from SymTable still works.
+///
+/// Pre-stated falsification: the construction-time semantics may produce
+/// fewer extractions than Scala if our scope-push set is incomplete (e.g.
+/// Scala wraps additional bodies in Thunks that we don't), or more
+/// extractions if `find_or_intern` under-collapses (unlikely — SymTable
+/// has 8 passing unit tests). v2 emitting on a fixture without panic
+/// satisfies the S23 stop condition regardless of byte parity.
+#[allow(clippy::too_many_arguments)]
+fn process_ast_graph_hash_cons_v2(
+    expr: Expr,
+    global_max_id: u32,
+    _dag_usages: Vec<(Expr, usize)>,
+    _schedule: Vec<Expr>,
+    mode: ScopeMode,
+) -> Expr {
+    use sym_table::{ScopeId, SymId, SymTable};
+
+    let trace = std::env::var("CSE_TRACE_HC_V2").is_ok();
+    let mut st = SymTable::new();
+    let root: ScopeId = 0;
+
+    // Per-sym use count. SymId N is interned exactly once (at first
+    // encounter); subsequent finds in descendant scopes resolve to N and
+    // bump `sym_counts[N]`. v2's gate is `count > 1` (Scala's
+    // `hasManyUsagesGlobal`).
+    let mut sym_counts: HashMap<SymId, u32> = HashMap::new();
+    // First-construction expr per sym (for ValDef emission).
+    let mut sym_expr: HashMap<SymId, Expr> = HashMap::new();
+    // Post-order interning order — children before parents — preserves
+    // the topo invariant `dfs_schedule` provides to v1.
+    let mut sym_order: Vec<SymId> = Vec::new();
+
+    #[allow(clippy::too_many_arguments)]
+    fn visit(
+        e: &Expr,
+        st: &mut SymTable,
+        scope: ScopeId,
+        sym_counts: &mut HashMap<SymId, u32>,
+        sym_expr: &mut HashMap<SymId, Expr>,
+        sym_order: &mut Vec<SymId>,
+        trace: bool,
+    ) {
+        // Bottom-up: visit children first with the appropriate scope
+        // push at every Scala-equivalent thunk boundary.
+        match e {
+            Expr::If(if_op) => {
+                visit(
+                    &if_op.condition,
+                    st,
+                    scope,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_t = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv2/scope] parent={} child={} (If.true)", scope, s_t);
+                }
+                visit(
+                    &if_op.true_branch,
+                    st,
+                    s_t,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_f = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv2/scope] parent={} child={} (If.false)", scope, s_f);
+                }
+                visit(
+                    &if_op.false_branch,
+                    st,
+                    s_f,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+            }
+            Expr::BinOp(s)
+                if matches!(
+                    s.expr.kind,
+                    ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                        ergotree_ir::mir::bin_op::LogicalOp::And
+                            | ergotree_ir::mir::bin_op::LogicalOp::Or
+                    )
+                ) =>
+            {
+                visit(
+                    &s.expr.left,
+                    st,
+                    scope,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_r = st.new_scope(scope);
+                if trace {
+                    eprintln!(
+                        "[HCv2/scope] parent={} child={} (&&/|| right)",
+                        scope, s_r
+                    );
+                }
+                visit(
+                    &s.expr.right,
+                    st,
+                    s_r,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+            }
+            Expr::FuncValue(fv) => {
+                let s_b = st.new_scope(scope);
+                if trace {
+                    eprintln!(
+                        "[HCv2/scope] parent={} child={} (FuncValue body)",
+                        scope, s_b
+                    );
+                }
+                visit(fv.body(), st, s_b, sym_counts, sym_expr, sym_order, trace);
+            }
+            _ => {
+                for c in direct_children(e) {
+                    visit(c, st, scope, sym_counts, sym_expr, sym_order, trace);
+                }
+            }
+        }
+        // Post-order: intern THIS expression after its children.
+        let (sym, is_new) = st.find_or_intern(e, scope);
+        if is_new {
+            sym_expr.insert(sym, e.clone());
+            sym_order.push(sym);
+            sym_counts.insert(sym, 1);
+        } else {
+            *sym_counts.entry(sym).or_insert(0) += 1;
+        }
+        if trace {
+            eprintln!(
+                "[HCv2/visit] scope={} sym={} new={} count={} :: {}",
+                scope,
+                sym,
+                is_new,
+                sym_counts[&sym],
+                short_expr(e)
+            );
+        }
+    }
+
+    // Span-strip the intern-walk input (ExprKey relies on PartialEq on
+    // span-stripped Expr). `apply_cse` strips spans at pipeline entry;
+    // this is defensive parity with v1.
+    let expr_for_walk = strip_source_spans(expr.clone());
+    visit(
+        &expr_for_walk,
+        &mut st,
+        root,
+        &mut sym_counts,
+        &mut sym_expr,
+        &mut sym_order,
+        trace,
+    );
+
+    let branch_local_ids = collect_branch_local_val_ids(&expr);
+    let mut env: Vec<(Expr, u32)> = Vec::new();
+    let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
+
+    for sym in &sym_order {
+        let count = *sym_counts.get(sym).unwrap_or(&0);
+        if count < 2 {
+            if trace {
+                eprintln!(
+                    "[HCv2/{:?}] skip count={} sym={} :: {}",
+                    mode,
+                    count,
+                    sym,
+                    short_expr(&sym_expr[sym])
+                );
+            }
+            continue;
+        }
+        let node = &sym_expr[sym];
+        if !is_extractable(node) {
+            if trace {
+                eprintln!(
+                    "[HCv2/{:?}] skip-not-extractable count={} sym={} :: {}",
+                    mode,
+                    count,
+                    sym,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+        if !is_graph_shared(node) {
+            if trace {
+                eprintln!(
+                    "[HCv2/{:?}] skip-not-shared count={} sym={} :: {}",
+                    mode,
+                    count,
+                    sym,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+        if references_locally_defined(node, &branch_local_ids) {
+            if trace {
+                eprintln!(
+                    "[HCv2/{:?}] skip-branch-local count={} sym={} :: {}",
+                    mode,
+                    count,
+                    sym,
+                    short_expr(node)
+                );
+            }
+            continue;
+        }
+        if trace {
+            eprintln!(
+                "[HCv2/{:?}] extract id={} sym={} count={} :: {}",
+                mode,
+                next_id,
+                sym,
+                count,
+                short_expr(node)
+            );
+        }
+        env.push((node.clone(), next_id));
+        next_id += 1;
+    }
+
+    if env.is_empty() {
+        return expr;
+    }
+
+    // Replacement tail — verbatim from `process_ast_graph_hash_cons` /
+    // `process_ast_graph_impl`. Preserving this verbatim keeps any
+    // byte-divergence under `CSE_HC_V2=1` attributable to the
+    // extraction-decision change (the v2 algorithm), not to a different
+    // rewrite shape.
     let mut result = expr;
     let mut final_env: Vec<(Expr, u32)> = Vec::new();
     let mut env = env;
