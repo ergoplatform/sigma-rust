@@ -11220,6 +11220,14 @@ mod sym_table {
         /// Per-scope structural-equality maps:
         /// `scope_defs[scope_id][ExprKey] = SymId`.
         scope_defs: Vec<HashMap<ExprKey, SymId>>,
+        /// QB Session 21 — Probe 2 instrumentation for the handoff §3.2
+        /// per-thunk-distinct-sym implementation sketch. `sym_scope[id]`
+        /// records the scope where SymId `id` was first interned. Used by
+        /// `find_or_intern` to detect (and count) sibling-thunk lookup
+        /// attempts. The post-`find` `is_ancestor` gate that the handoff
+        /// prescribed is empirically a no-op because `find` already walks
+        /// current→parent→root only.
+        sym_scope: Vec<ScopeId>,
         /// Counter for fresh sym IDs.
         next_sym: SymId,
     }
@@ -11230,8 +11238,16 @@ mod sym_table {
             Self {
                 scope_parents: vec![None],
                 scope_defs: vec![HashMap::new()],
+                sym_scope: Vec::new(),
                 next_sym: 0,
             }
+        }
+
+        /// QB Session 21 — accessor for the scope where SymId `sym` was
+        /// first interned. See `sym_scope` field documentation.
+        #[allow(dead_code)]
+        pub fn scope_of(&self, sym: SymId) -> ScopeId {
+            self.sym_scope[sym as usize]
         }
 
         /// Create a new child scope under `parent`. Returns the new scope id.
@@ -11290,14 +11306,44 @@ mod sym_table {
             let id = self.next_sym;
             self.next_sym += 1;
             self.scope_defs[scope].insert(ExprKey(expr.clone()), id);
+            debug_assert_eq!(self.sym_scope.len(), id as usize);
+            self.sym_scope.push(scope);
             id
         }
 
         /// Combined `find` + `intern`. Returns `(sym_id, is_new)` where
         /// `is_new = true` on first encounter.
+        ///
+        /// QB Session 21 — Probe 2 literal implementation of handoff §3.2
+        /// per-thunk-distinct-sym semantics. The handoff prescribed
+        /// `is_ancestor(scope_of(sym), scope)` check after `find` returns
+        /// `Some`. EMPIRICALLY this gate is a no-op: `find` already walks
+        /// current→parent→root only, never visiting sibling scope_defs, so
+        /// any sym it returns has `scope_of(sym)` in the current ancestor
+        /// chain by construction. The diagnostic `CSE_TRACE_SIBLING_SCAN=1`
+        /// emits `visible=true|false` for each call; in 33rd falsification
+        /// fingerprint run on sig-15, `visible=false` count is 0.
         pub fn find_or_intern(&mut self, expr: &Expr, scope: ScopeId) -> (SymId, bool) {
+            let trace = std::env::var("CSE_TRACE_SIBLING_SCAN").is_ok();
             match self.find(expr, scope) {
-                Some(sym_id) => (sym_id, false),
+                Some(sym_id) => {
+                    let sym_home = self.sym_scope[sym_id as usize];
+                    let visible = self.is_ancestor(sym_home, scope);
+                    if trace {
+                        eprintln!(
+                            "[HC/sibling-scan] sym={} sym_scope={} lookup_scope={} visible={}",
+                            sym_id, sym_home, scope, visible
+                        );
+                    }
+                    if visible {
+                        (sym_id, false)
+                    } else {
+                        // Handoff §3.2 fall-through: fresh intern in current
+                        // scope. Empirically unreachable — see method doc.
+                        let new_id = self.intern(expr, scope);
+                        (new_id, true)
+                    }
+                }
                 None => {
                     let sym_id = self.intern(expr, scope);
                     (sym_id, true)
