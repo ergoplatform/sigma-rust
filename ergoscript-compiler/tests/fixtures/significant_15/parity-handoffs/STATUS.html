@@ -80,8 +80,8 @@
 <h1>sigma-rust ergoscript-compiler — parity status</h1>
 <div class="header-meta">
   <span>branch <code>workstream-f</code></span>
-  <span>HEAD <code>12dcbea7</code></span>
-  <span>updated 2026-05-09</span>
+  <span>HEAD <code>46451e9d</code></span>
+  <span>updated 2026-05-11</span>
   <span>local-only · gitignored</span>
 </div>
 
@@ -89,9 +89,9 @@
 <div class="grid grid-3" style="margin-top: 20px;">
   <div class="panel">
     <div class="stat-label">Sig-15 LOCAL byte-match</div>
-    <div class="stat"><span class="stat-num">12</span><span class="stat-label">/ 15</span></div>
+    <div class="stat"><span class="stat-num">12</span><span class="stat-label">/ 15 → <strong style="color: var(--accent);">15</strong></span></div>
     <div class="progress"><div class="progress-bar" style="width: 80%"></div></div>
-    <div class="stat-sub">3 plateaus diagnosed; oracle + duckpools restored from <code>6e559e1f</code> cascade</div>
+    <div class="stat-sub">3 plateaus converged on one code surface; WS-G.2.4c probe is next. Target: <strong>15/15, no off-ramp</strong></div>
   </div>
   <div class="panel">
     <div class="stat-label">F.2 differential fuzz corpus</div>
@@ -110,7 +110,7 @@
 <div class="grid grid-3" style="margin-top: 16px;">
   <div class="panel tight">
     <div class="stat-label">Lib unit tests</div>
-    <div class="stat"><span class="stat-num">233</span><span class="stat-label">/ 233</span></div>
+    <div class="stat"><span class="stat-num">251</span><span class="stat-label">/ 251</span></div>
   </div>
   <div class="panel tight">
     <div class="stat-label">Conformance</div>
@@ -118,15 +118,28 @@
   </div>
   <div class="panel tight">
     <div class="stat-label">Falsification fingerprint instances</div>
-    <div class="stat"><span class="stat-num">10</span><span class="stat-label">methodology rule</span></div>
+    <div class="stat"><span class="stat-num">35</span><span class="stat-label">methodology rule</span></div>
   </div>
 </div>
 
 <!-- GOAL -->
-<h2>Goal</h2>
+<h2>Goal — 15/15. No off-ramp.</h2>
 <div class="panel">
-  <strong>Compile-anything-deploy with bounded categorical risk</strong> — produce ErgoTree bytecode in pure Rust that is byte-identical to the Scala reference compiler (Ergo node v6.1.2) for all keystone contracts, with diagnosed plateaus where exact match requires structural CSE-pass invariant work.
-  <div class="footnote">Long-arc deliverables: AVL IR fix (Lithos/Etcha/Machina Finance), DuckPools BigInt polynomial CSE stack overflow, unified CSE-pass workstream (3 plateaus → 13/15 or 15/15).</div>
+  <strong>Ship sig-15 at 15/15 LOCAL byte-MATCH</strong>, then wave-2 PR. 3 plateaus remain: <strong>paideia +2, sigmao -24, gluon +91</strong>. <strong>A2 closed +2B</strong> on sigmao via S25; <strong>S35 closed -11B on gluon</strong> via HIR sibling-val merger (Path a) — first real movement on gluon plateau since 64dc94ce. Three plateaus = three distinct mechanism layers (sigmao compensating-extraction at construction-time scope-claim; paideia DAG-identity hash-cons; gluon BIMODAL HIR + renumber). Realistic gluon target now ≈ +75 (per-pair savings ≈ 3.7B not ~12B per S34 prediction; full bimodal closure ceiling ≈ 32B).
+  <div class="footnote">Plan: Session 16 = intra-pass coupling fix in `hoist_from_if_chain` (S36 H3 diagnosis — substitute new_id into pending tail_vals after each commit). See <code>QB-HANDOFF-15-OF-15.md</code> + <code>QB-SESSION-16-GLUON-INTRA-PASS-COUPLING-FIX-HANDOFF.md</code>.</div>
+</div>
+
+<!-- WS-G STATUS -->
+<h2>Hash-cons workstream (WS-G) — built, parked behind flag</h2>
+<div class="panel">
+  <ul class="compact">
+    <li><strong><code>SymTable</code> primitive</strong> (<code>e1ff86ae</code>) — 8 unit tests pass; structural <code>ExprKey</code> + scope-tree + 5 methods.</li>
+    <li><strong><code>process_ast_graph_hash_cons</code> driver</strong> (<code>3b56db63</code>) — parallel-path behind <code>CSE_HASH_CONS=1</code>; no panics on any fixture.</li>
+    <li><strong>Walker-completeness</strong> (3 walkers complete) — <code>replace_all</code> 7 arms, <code>contains_val_use</code> 1-line direct_children, <code>direct_children</code> 10 arms + <code>walker_completeness_probe</code> permanent gate.</li>
+    <li><strong>Pre-integration audits 1.B + 1.C</strong> (<code>a58efea3</code>) — perf and renumber-interface both PASS.</li>
+    <li><strong>S22 scope-chain probe verdict (D4):</strong> <code>SymTable::find_or_intern</code> semantically MATCHES Scala's <code>_globalDefs.put</code> + <code>ThunkScope.findDef</code>. Scope-chain layer is empirically correct — closes ≤4B of ~130B residual on sigmao under HC=1. Architectural blocker is elsewhere.</li>
+    <li><strong>Default-flag state</strong>: sig-15 12/15 (sigmao -24 / paideia +2 / gluon +102). <strong>Flag-on state</strong>: 10/15. <strong>Identified blockers (S26-S30)</strong>: compensating-extraction class + renumbering-pipeline-crash class.</li>
+  </ul>
 </div>
 
 <!-- SIG-15 BREAKDOWN -->
@@ -153,61 +166,133 @@
 </table>
 </div>
 
-<h3>Open — 3 fixtures (all PLATEAU)</h3>
+<h3>Open — 3 fixtures (architectural-gate-convergence per S29)</h3>
 <div class="panel">
 <table>
-<thead><tr><th>Fixture</th><th>Δ bytes</th><th>Status</th><th>Class</th><th>Path forward</th></tr></thead>
+<thead><tr><th>Fixture</th><th>Δ bytes</th><th>Status</th><th>Class (S22-S30 empirical)</th><th>Path forward</th></tr></thead>
 <tbody>
 <tr>
   <td>paideia_stake_state</td>
   <td class="num">+2</td>
-  <td><span class="pill yellow">PLATEAU</span></td>
-  <td>Cross-branch coordination (5 sessions, 5 falsifications)</td>
-  <td>Unified CSE-pass workstream — shared sym across sibling thunks</td>
+  <td><span class="pill orange">COMPENSATING-EXTRACTION</span></td>
+  <td>Pure-const <code>Tup[Coll(empty),Const(0:SLong)]</code> over-hoist at root; S30 narrow suppression byte-regresses +7B (exact S7 1477B replay) — LOCAL extraction is compensating for cross-thunk distinct-sym semantics</td>
+  <td>Coupled with byte-adding partner OR scoped WS-G per-thunk sym distinction</td>
 </tr>
 <tr>
   <td>gluon_box_guard</td>
-  <td class="num">−153</td>
-  <td><span class="pill yellow">PLATEAU</span></td>
-  <td>Post-CSE AST-consistency emit-bug</td>
-  <td>CSE invariant: every <code>ValUse(id, tpe)</code> must have matching <code>ValDef(id, _: tpe)</code> in scope chain</td>
+  <td class="num">+91</td>
+  <td><span class="pill green">S35 ✓ -11B (Path a)</span></td>
+  <td><strong>S35 closed -11B</strong> via HIR `merge_sibling_vals_across_if`. <strong>S36 trajectory re-probe (`b57719ce`):</strong> stage-00 b2 dropped 4→2 (1 cross-branch + 1 within-Fission-only); stage-12 b2 GREW 4→6 (S14 hoist released `apply_cse_within_branches` capacity). Path b ceiling now ~22B (not 16B). 4th pair forensics: H1 + H2 both FALSIFIED — diagnosis is <strong>H3 intra-pass merge coupling</strong>: snapshot RHS has inner ValUse IDs (144/185) that S14 unifies POST-snapshot to new_id=224, but `tail_vals` snapshot is taken once at pass entry, never refreshed.</td>
+  <td>S16 = surgical in-pass substitution of new_id into pending tail_vals (predict ~-4B closure for Pair 2); S17+ Path b with refined ~22B ceiling</td>
 </tr>
 <tr>
   <td>sigmao_option</td>
-  <td class="num">−32</td>
-  <td><span class="pill yellow">PLATEAU</span></td>
-  <td>Renumbering pipeline rewrite required</td>
-  <td><code>mir/cse.rs</code> module-level refactor: <code>dfs_reassign_val_ids</code> → <code>reorder_valdefs</code> → <code>sequential_renumber</code></td>
+  <td class="num">−24</td>
+  <td><span class="pill green">A2 ✓ +2B (S25)</span></td>
+  <td><strong>S25 closed +2B</strong> via HIR <code>eliminate_negation</code> through-ValUse rewrite (<code>e35a127a</code>). Remaining -24 mapped: 5 Cohort A shapes (compensating-extraction class S26/S27/S28) + 4 Cohort B shapes (S29 segregation FAIL → <strong>S31 reframe: extraction-predicate-soundness, NOT renumbering pipeline</strong>; hoisted body refs inner-scope binding)</td>
+  <td>S11 = recursive free-var lift (option b per S31) — lift inner ValDef chain alongside matched shape OR inline-resolve orphan refs</td>
 </tr>
 </tbody>
 </table>
+<div class="footnote" style="margin-top: 8px;"><strong>S29 finding REFRAMED by S31 (<code>ea033d53</code>):</strong> the "renumbering-pipeline-crash" framing was post-hoc — symptom (constants_len 61→0, segregation FAIL) was correctly observed but attributed to wrong layer. <strong>Actual gate is extraction-predicate-soundness:</strong> Probe 1 orphan-trace shows hoisted shape `ByIndex(ValUse(61),...)` carries free `ValUse(61)` where `ValDef(61)` lives in INNER scope — outer-scope ValDef body refs inner-scope binding produces structurally invalid IR; bytecode reader does scope-local resolution and can't reach inner bindings from outer refs regardless of ID assignment. NO renumbering fix works. Durable scope-aware `extract_inline_shape` at HEAD refuses unsound hoists empirically (both sigmao candidates refused). <strong>Two blockers identified:</strong> <strong>compensating-extraction</strong> (S26 A1, S27 A3, S28 A1+A3 exact-sum, S30 paideia Tup) + <strong>extraction-predicate-soundness</strong> (S29 sigmao Cohort B; resolved via S31 scope-aware gate). Closure path: recursive free-var lift (S11) — lift inner ValDef chain alongside matched shape.</div>
 </div>
 
-<!-- NEXT STEPS -->
-<h2>Next steps — priority order</h2>
+<!-- QB HANDOFF -->
+<h2>Active plan — QB-HANDOFF-15-OF-15</h2>
+<div class="panel" style="border-color: var(--accent);">
+  See <code>parity-handoffs/QB-HANDOFF-15-OF-15.md</code> for the multi-session plan. QB role is coordinator (write handoffs, update state docs); single sessions invoked via <code>/audit-fixture-session</code> do implementation.
+</div>
+
+<h2>Sessions completed — Sessions 1-9 of QB plan</h2>
 <ol class="priorities">
 <li>
-  <div class="title">Resolve parked lint edits</div>
-  <div class="meta">housekeeping · sub-session · do before any GitHub push</div>
-  <div class="body">Working tree carries <code>diff_fuzz.rs</code> + <code>diff_fuzz_gen.rs</code> modifications "parked unrelated" across 10+ sessions, plus untracked <code>SIGNIFICANT-15-PLAN.md</code>. Review → commit, revert, or stash. Don't ship wave-2 with stale uncommitted work.</div>
+  <div class="title">S22 ✓ — WS-G.2.4c scope-chain probe (D4 verdict, 25th falsification)</div>
+  <div class="meta">commit <code>cc962e9f</code> · diag-only · scope-chain layer matches Scala (Probe 0 metals confirmed)</div>
+  <div class="body">Scope-chain semantically correct vs Scala (closes ≤4B of 130B residual). All 3 plateaus DOWNSTREAM of scope-chain layer.</div>
 </li>
 <li>
-  <div class="title">Wave-2 push to GitHub</div>
-  <div class="meta">milestone closure · needs explicit user approval (per <code>feedback_no_push_before_test</code>)</div>
-  <div class="body">PR against <code>main</code> covering per-fixture session commits + framework v1 + 2026-05-09 oracle/duckpools restoration. Clean story: "production-parity 12/15 keystone contracts + diagnostic methodology that produced them."</div>
+  <div class="title">S23/S24 ✓ — sigmao shape evolution + cohort classification (diag-only)</div>
+  <div class="meta">commits <code>3a955f1f</code> + <code>a2b72e92</code> · 9 NODE-only shapes enumerated · Cohort A/B split</div>
+  <div class="body">L=45/N=46/common=37/L-only=8/N-only=9. Cohort A (5 shapes never in LOCAL's MIR) + Cohort B (4 shapes inline-once, +1 in NODE). Durable <code>expr_shape</code> + <code>CSE_TRACE_SHAPE_EVOLUTION</code> instrumentation.</div>
 </li>
 <li>
-  <div class="title">Pick one of four directions</div>
-  <div class="meta">post-push · depends on what you want next</div>
-  <div class="body">
-    <ul class="compact">
-      <li><strong>MCP impl</strong> (~½ day) — force multiplier; 3 Rust-side tools per <code>docs/sigma-audit-mcp-design.md</code>. Pick if expecting ≥3 more audit sessions.</li>
-      <li><strong>Unified CSE-pass workstream</strong> (3-5 sessions) — close paideia/gluon/sigmao plateaus together. Sig-15 → 13/15 or 15/15. Higher risk, methodology-class win.</li>
-      <li><strong>AVL IR fix</strong> (~3-4 sessions) — <code>CreateAvlTree::value_length</code> shape mismatch unblocks Lithos/Etcha/Machina Finance. Separate from sig-15.</li>
-      <li><strong>DuckPools BigInt polynomial CSE stack overflow</strong> (2-3 sessions) — closes the 1 sig-15 fixture currently <code>--ignored</code>. Lowest priority of the four.</li>
-    </ul>
-    <div class="footnote" style="margin-top: 8px;"><strong>Recommendation:</strong> 1 → 2 → 3, then 4-MCP. Reasoning: MCP investment amortizes across the next 5+ sessions whether they're CSE-workstream or AVL.</div>
-  </div>
+  <div class="title">S25 ✓ — Cohort A2 closed +2B (HIR rewrite-through-ValUse cascade)</div>
+  <div class="meta">commit <code>e35a127a</code> · sigmao Δ -26 → -24 · cascade hypothesis empirically validated</div>
+  <div class="body">HIR <code>eliminate_negation_inner(expr, &amp;HashMap&lt;u32, Expr&gt;)</code> threaded scoped val-body table. <code>If[...,BO&lt;&amp;&amp;&gt;[VU,Not[VU]]]</code> → <code>If[...,BO&lt;&amp;&amp;&gt;[VU,BO&lt;&lt;=&gt;[VU,VU]]]</code> matches NODE. Narrow BOTH-operands-non-Literal gate protects paideia/gluon plateaus from orphan-ValDef cascade.</div>
+</li>
+<li>
+  <div class="title">S26/S27/S28 — Cohort A1 / A3 / A1+A3 compensating-extraction class (falsifications #26/#27/#28)</div>
+  <div class="meta">commits <code>a1c9b8c0</code> + <code>a9544a77</code> + <code>de6b9e32</code> · SHAPE-correct but byte-wrong direction</div>
+  <div class="body">A1 alone -4B (Δ -24→-28). A3 alone -2B (Δ -24→-26). Coupled -6B exact simple sum (no cascade fires). ALL of LOCAL's existing structurally-different sigmao shapes are compensating-extractions. Reverted; durable doc-comments at <code>mir/cse.rs:4397+/6766+/4425+/6809+</code>.</div>
+</li>
+<li>
+  <div class="title">S29 — Cohort B s2 promotion: architectural-gate-convergence (29th falsification)</div>
+  <div class="meta">commit <code>4e2c5d12</code> · SHAPE-correct (s2 5→6 NODE parity) BUT segregation FAIL · class identified</div>
+  <div class="body">Promotion at stage 05c: <code>constants_len 61→0</code>, LOCAL 1124→1005, <code>probe_sig15_collisions</code> FAIL. Renumbering-pipeline + ConstantStore segregation can't consume new outer ValDef with inner-scope ValUse refs. Same crash class as S5/S6/#11/#12. <strong>Architectural-gate-convergence:</strong> Cohort A byte-shrinking AND Cohort B byte-adding both hit SAME gate. Durable helpers <code>promote_branch_emerged_s2</code> / <code>extract_inline_shape</code> / <code>map_children_extract_shape</code> retained under <code>#[allow(dead_code)]</code>.</div>
+</li>
+<li>
+  <div class="title">S30 — paideia pure-const Tup root-suppression (30th falsification)</div>
+  <div class="meta">commit <code>029a9376</code> · paideia Δ +2 → +9 (exact S7 1477B replay) · compensating-extraction confirmed for paideia</div>
+  <div class="body">Narrow <code>is_pure_const_tuple</code> predicate suppression at root regresses paideia +7B. No segregation FAIL (distinct from S29 class). Cross-fixture clean. Paideia surgical surface in same class as sigmao A1/A3.</div>
+</li>
+<li>
+  <div class="title">S31 — Renumbering-pipeline FRAMING falsified; durable scope-aware extract_inline_shape (31st falsification)</div>
+  <div class="meta">commit <code>ea033d53</code> · NEW METHODOLOGY CLASS: post-hoc-framing-of-downstream-symptom</div>
+  <div class="body">Probe 0 metals: Scala has NO renumbering pass (per-scope serial curId during DFS). Probe 1 orphan-trace: hoisted body carries free <code>ValUse(61)</code> where <code>ValDef(61)</code> is in inner scope; `disambiguate_val_ids` FAILS to resolve; segregation FAIL is downstream SYMPTOM. Probe 2: scope-soundness gate via <code>collect_orphan_ids</code>; both sigmao candidates REFUSED. <strong>Actual gate is extraction-predicate-soundness.</strong></div>
+</li>
+<li>
+  <div class="title">S32 — Recursive free-var lift FALSIFIED both strategies (32nd falsification; 5th compensating-extraction instance)</div>
+  <div class="meta">commit <code>7a21e6f9</code> · sigmao -24 → -20 (Strategy I empirical +4B regress) · closure-path (b) EXHAUSTED</div>
+  <div class="body">Probe 1 closure-trace: orphan closure for sigmao s2 = 2 ValDefs (P1.1 implementable). Probe 2 Strategy I empirical: VALID IR (segregation OK) BUT LOCAL 1124→1128 = +4B WRONG direction. Probe 2 Strategy II analytical: predicted +12B regress. All sigmao closure paths exhausted at current code surface.</div>
+</li>
+<li>
+  <div class="title">S33 — Gluon `apply_cse_within_branches` framing FALSIFIED (33rd falsification; predicate-inert subclass; MAJOR REFRAME)</div>
+  <div class="meta">commit <code>36f11d15</code> · gluon +102 unchanged · <strong>three plateaus = three distinct mechanism layers</strong></div>
+  <div class="body">Probe 2 narrow predicate (ValUse + BinOp(Relation) filter at branch dag_usages): INERT. `is_collectible` already excludes ValUse; BinOp(Relation) never reaches branch dag_usages. Gluon's mechanism is OUTSIDE branch-local CSE.</div>
+</li>
+<li>
+  <div class="title">S34 — Gluon B2 trajectory: BIMODAL EMERGENCE (34th falsification; measurement-hypothesis class)</div>
+  <div class="meta">commit <code>80208077</code> · gluon +102 unchanged · <strong>BIMODAL: 4 stage-00 HIR + 4 stage-12 renumber</strong></div>
+  <div class="body">`CSE_TRACE_B2_TRAJECTORY=1` durable probe across 12 stages: 4 pairs emerge at stage 00 (HIR-emit) from user-source `val v = E` replication; 4 emerge at stage 12 (sequential_renumber per-branch ID reset). MATCH fixtures confined to stage 03 (no stage-00 or stage-12 B2). Handoff's P1.1 ≥6-at-stage-00 hypothesis FALSIFIED (only 4). NEITHER half fixable by single-stage narrow predicate.</div>
+</li>
+<li>
+  <div class="title">S35 ✓ — Gluon HIR sibling-val merger lands -11B (Path a partial close, P2.1)</div>
+  <div class="meta">commit <code>2bb8881c</code> · gluon Δ +102 → +91 · <strong>FIRST real movement on gluon plateau since 64dc94ce 2026-05-10</strong></div>
+  <div class="body">New HIR pre-CSE pass `merge_sibling_vals_across_if` (+ 5 helpers, ~280 LOC). 3 merges fire (BetaDecayPlus+Minus branches; new_ids 224/225/226 with types SLong/SBigInt/SBigInt). Byte-arithmetic-overestimate refinement: per-pair ≈ 3.7B not ~12B. 4th pair deferred. F1-F7 all green.</div>
+</li>
+<li>
+  <div class="title">S36 — Gluon trajectory re-probe + H3 diagnosis (35th falsification; intra-pass-coupling NEW class)</div>
+  <div class="meta">commit <code>b57719ce</code> · gluon +91 unchanged · <strong>H1+H2 falsified; H3 diagnosed via reject-trace forensics</strong></div>
+  <div class="body">Re-probed B2 trajectory at HEAD: stage-00 b2 4→2 (S14 hoisted 3); stage-12 b2 4→6 GREW (cascade released `apply_cse_within_branches` capacity). 4th-pair forensics: Pair 1 within-Fission only (NOT cross-branch target — merger correctly skips); Pair 2 cross-branch SInt `nDays`/`getNDaysPreFilteredValue` with same types + top-level positions = H1+H2 inapplicable. <strong>H3 NEW class — intra-pass merge coupling:</strong> Pair 2 RHS differs ONLY in inner ValUse IDs (144 / 185) that S14's merger unifies to new_id=224 POST-snapshot, but `tail_vals` snapshot taken once at pass entry never refreshes. Fixed-point top-level iteration also falsified (re-call regenerates fresh snapshot). Fix must be in-pass substitution after each commit. Durable: `CSE_TRACE_S15_REJECT=1` reject-trace in `hoist_from_if_chain`.</div>
+</li>
+</ol>
+
+<h2>Next steps — sessions to 15/15</h2>
+<ol class="priorities">
+<li>
+  <div class="title">Session 16 — Intra-pass coupling fix (H3 surgical)</div>
+  <div class="meta">handoff: <code>QB-SESSION-16-GLUON-INTRA-PASS-COUPLING-FIX-HANDOFF.md</code> · small surgical fix · target: +1 merge for Pair 2</div>
+  <div class="body">Per S36 H3 diagnosis: in `hoist_from_if_chain` candidate-finding loop, after each `group_removals.len() >= 2` commit, substitute `ValUse(old_*) → ValUse(new_id)` in remaining `tail_vals[*][*].2` RHS fields before continuing the i-loop. Predicted: Pair 2 (`nDays` SInt cross-branch) merges → gluon +91 → ~+87 (-4B). Cross-fixture pre-flight: re-run reject trace on paideia to ensure no sympathetic candidates emerge (S30 compensating-extraction risk). Watch for cascade reducing stage-12 inventory.</div>
+</li>
+<li>
+  <div class="title">Session 17+ — Path b stage-12 origin attack (~22B ceiling per S36 trajectory)</div>
+  <div class="meta">depends on S16 outcome · post-stage-12 sibling-merge with S31 scope-soundness safety</div>
+  <div class="body">Per S36 re-probe: stage-12 b2 now 6 (not 4) — Path b ceiling now ~22B. Attempt post-stage-12 sibling-merge with S31 scope-soundness gate as safety check. Target: gluon +87 → ~+65 if all 6 pairs merge cleanly. HIGH risk per S29 architectural-gate-convergence class — promotion at stage 12 may produce ValDefs referencing inner-scope IDs (segregation FAIL). May require S32-style recursive lift OR pre-stage-12 detection.</div>
+</li>
+<li>
+  <div class="title">Conditional — WS-G scoped architectural slice</div>
+  <div class="meta">if gluon also exhausts surgical surface · scoped to ONE specific architectural change (not wholesale framework)</div>
+  <div class="body">Per S22-S32 cumulative evidence: WS-G hash-cons migration is the only path that may close sigmao -24 (and possibly paideia/gluon). 11 prior 0-byte sessions on this surface — substantial empirical history. Would need targeted scoped slice (e.g., construction-time per-thunk sym distinction) with clear stop conditions.</div>
+</li>
+<li>
+  <div class="title">Conditional — honest 12/15 ship close-out</div>
+  <div class="meta">empirically vindicated · wave-2 PR draft</div>
+  <div class="body">12 LOCAL byte-MATCH + 3 USED-NODE (functionally valid via Scala fallback) + 97.9% F.2 + 11/14 ecosystem is genuinely strong production state. 32 documented falsifications across surgical attack surface provide complete methodology audit trail for future maintainers.</div>
+</li>
+<li>
+  <div class="title">Final Session — Flip default + remove old path</div>
+  <div class="meta">trigger: sig-15 at 15/15 under flag + cross-fixture stable</div>
+  <div class="body">Make <code>CSE_HASH_CONS=1</code> default (if applicable). Full battery; bytes match. Remove <code>process_ast_graph_impl</code> as dead code. <strong>15/15 shipped.</strong> Wave-2 PR draft next.</div>
 </li>
 </ol>
 
@@ -218,9 +303,9 @@
 <div class="panel">
   <h3>User-global (<code>~/.claude/</code>)</h3>
   <ul class="compact">
-    <li><code>/audit-fixture-session</code> skill — encodes per-fixture arc cadence (Probe 0 metals BLOCKING, Probe 1 empirical IR, Probe 2 falsification, commit/archive)</li>
-    <li><code>/audit-residual-classify</code> skill — given fixture + Δ, classifies into 8 known methodology classes</li>
-    <li>11 memory rules — including <code>feedback_metals_first</code>, <code>feedback_falsification_fingerprint</code> (10 instances), <code>project_collisions_are_legitimate_parser_bug_class</code></li>
+    <li><code>/audit-fixture-session</code> skill — encodes per-fixture arc cadence</li>
+    <li><code>/audit-residual-classify</code> skill — classifies residual into 8 known methodology classes</li>
+    <li>Memory rules: <code>feedback_metals_first</code>, <code>feedback_probe_before_third_speculation</code>, <code>feedback_falsification_fingerprint</code> (35 instances), <code>feedback_handoff_premise_reanchor</code>, <code>project_walker_completeness_dominant_cse_bug_class</code></li>
   </ul>
 </div>
 
@@ -228,18 +313,23 @@
   <h3>Project-local (in repo)</h3>
   <ul class="compact">
     <li><code>AUDIT-FRAMEWORK-GUIDE.md</code> — collaborator-facing user guide</li>
+    <li><code>QB-HANDOFF-15-OF-15.md</code> — coordinator handoff for 15/15 plan</li>
     <li><code>docs/sigma-audit-mcp-design.md</code> — MCP MVP spec (3 tools, ~½ day impl)</li>
     <li><code>debug_&lt;fixture&gt;</code> helpers per sig-15 fixture in <code>compiler.rs</code></li>
-    <li><code>probe_sig15_collisions</code> + <code>probe_gluon_scopes</code> — forward-pace metrics</li>
-    <li>F.1 ecosystem harness, F.2 typed-AST generator, CSE_TRACE instrumentation</li>
-    <li>Cluster archives (~30) under <code>target/diff_fuzz/clusters/closed/</code> (gitignored, local audit trail)</li>
+    <li>6 committed probes: <code>walker_completeness_probe</code>, <code>probe_sig15_collisions</code>, <code>probe_gluon_scopes</code>, <code>probe_gluon_sibling_redundancy</code>, <code>probe_sig15_sibling_redundancy</code>, <code>audit_1b_*</code> benches</li>
+    <li>9 env-gated trace flags: <code>CSE_TRACE_EXTRACT</code>, <code>SLOT_SHIFT</code>, <code>VU_PATH</code>, <code>VD_FOR</code>, <code>CONST_COUNTS</code>, <code>PRE_EXTRACT</code>, <code>STRUCT_PARENTS</code>, <code>SCOPE_CHAIN</code> (S22), <code>SHAPE_EVOLUTION</code> (S24)</li>
+    <li>Shape-diff helpers (S23/S24/S29 durable): <code>expr_shape</code> + <code>print_outer_valdef_shape_diff</code> in <code>compiler.rs</code>; <code>shape_signature</code> + <code>count_shape_tree</code> + <code>count_shape_outer_vd</code> + <code>SIGMAO_NODE_ONLY_SHAPES</code> + <code>promote_branch_emerged_s2</code> in <code>mir/cse.rs</code> (<code>#[allow(dead_code)]</code>)</li>
+    <li>Doc-comment artifacts preventing falsified-fix re-attempts: <code>mir/cse.rs:4397+</code> (A1), <code>6766+</code> (A3), <code>4425+/6809+</code> (A1+A3 coupled), <code>7406+</code> (paideia Tup)</li>
+    <li>F.1 ecosystem harness, F.2 typed-AST generator</li>
+    <li>Hash-cons primitive + driver (parked behind <code>CSE_HASH_CONS=1</code> flag)</li>
+    <li>Cluster archives (~50) under <code>target/diff_fuzz/clusters/closed/</code> (gitignored)</li>
   </ul>
 </div>
 </div>
 
 <div class="panel" style="margin-top: 16px;">
   <h3>External dependency</h3>
-  <strong>Metals MCP</strong> wired against <code>/home/cq/sigmastate-interpreter</code> (commit <code>755deb3</code> on master). 27 build targets including <code>scJVM</code>. Workhorse: <code>get-source(fqcn=..., module="scJVM", detailed=true)</code> returns full Scala bodies in one call. <span class="warn">5 of 10 falsifications resulted from skipping metals queries</span> — now memorialized as top-level feedback rule.
+  <strong>Metals MCP</strong> wired against <code>/home/cq/sigmastate-interpreter</code> (commit <code>755deb3</code> on master). 27 build targets including <code>scJVM</code>. Workhorse: <code>get-source(fqcn=..., module="scJVM", detailed=true)</code> returns full Scala bodies in one call. <span class="warn">Multiple falsifications resulted from skipping metals queries</span> — now memorialized as top-level feedback rule.
 </div>
 
 <!-- METHODOLOGY ARTIFACTS -->
@@ -247,7 +337,7 @@
 
 <div class="grid grid-2">
 <div class="panel">
-  <h3>8 residual classes</h3>
+  <h3>12 residual classes</h3>
   <ol class="compact" style="padding-left: 18px;">
     <li>Constant-fold per-arm/per-shape</li>
     <li>Walker-arm completeness</li>
@@ -257,6 +347,10 @@
     <li>Alias-ValDef HIR/MIR seam</li>
     <li>AST-consistency emitter-layer (gluon plateau)</li>
     <li>Cross-branch coordination (paideia plateau)</li>
+    <li><strong>Compensating-extraction</strong> (S26/S27/S28/S30) — Scala-faithful suppression byte-regresses because existing extraction is byte-economically holding bytes</li>
+    <li><strong>Extraction-predicate-soundness</strong> (S29 → S31 reframe) — outer-scope hoist of subtree with inner-scope free vars produces structurally invalid IR; pipeline can't rescue</li>
+    <li><strong>Architectural-gate-convergence</strong> (S29) — both byte directions hit the same architectural gate (originally framed as renumbering-pipeline; S31 reframed as extraction-predicate-soundness)</li>
+    <li><strong>Post-hoc-framing-of-downstream-symptom</strong> (S31) — when an archive blames a code surface, install boundary-invariant checks AT that surface BEFORE committing to a fix; symptom and cause may live on different layers</li>
   </ol>
 </div>
 
@@ -271,26 +365,39 @@
 </div>
 
 <!-- FALSIFICATION LEDGER -->
-<h2>Falsification fingerprint — 10 instances</h2>
+<h2>Falsification fingerprint — 35 instances</h2>
 <details>
-<summary>Show ledger</summary>
+<summary>Show ledger (35 instances; recent first)</summary>
 <div class="panel">
 <table>
 <thead><tr><th>#</th><th>Date</th><th>Falsified prediction</th><th>Lesson</th></tr></thead>
 <tbody>
-<tr><td>1</td><td>2026-05-05</td><td>A4 LongLit→BigInt fold (per-arm uniformity)</td><td>Per-shape asymmetry: standalone YES, val-bound NO; HIR can't distinguish</td></tr>
-<tr><td>2</td><td>2026-05-07</td><td>S4 paideia Bug A required for coupling</td><td>NODE encoding-level prefers extracted Tuple regardless of locality</td></tr>
-<tr><td>3</td><td>2026-05-08</td><td>S5 paideia ByIndex re-classification post-cascade</td><td>Only 1 inline occurrence; re-classification can't manufacture a 2nd</td></tr>
-<tr><td>4</td><td>2026-05-08</td><td>S6 paideia Bug B = LCA-aware branch extraction</td><td>Per-branch dag_count produces 2 ValDefs vs NODE's 1</td></tr>
-<tr><td>5</td><td>2026-05-08</td><td>S7 paideia B-medium HashSet cross-branch suppression</td><td>Wrong-branch suppression: true_branch wins ValDef, false_branch inlines 3 copies</td></tr>
-<tr><td>6</td><td>2026-05-08</td><td>S2 gluon Level A global ValId counter</td><td>Scala emits colliding IDs legitimately; 2 currently-MATCH fixtures regress</td></tr>
-<tr><td>7</td><td>2026-05-08</td><td>S3 gluon Level B scope-aware parser</td><td>AST is internally inconsistent; no parser change can recover missing binding</td></tr>
-<tr><td>8</td><td>2026-05-08</td><td>S3 sigmao stale-S2-plan superseded by <code>d6ba8d82</code></td><td>Cascades shift the residual class; bisect-pre-flight before executing stale plans</td></tr>
-<tr><td>9</td><td>2026-05-08</td><td>S4 sigmao re-confirms S2 with Bug 1 isolation matching prediction</td><td>Coupled diagnosis genuine; renumbering pipeline rewrite is structural blocker</td></tr>
-<tr><td>10</td><td>2026-05-09</td><td>S1 oracle/duckpools — first Negation(Literal)+min/max widen attempt covers source-literal cases but misses <code>max(min(...), 0)</code> Apply-arg shape</td><td>Apply-arg widening is not a universal rule; only <code>min</code>/<code>max</code> lower to a binary numeric op and need pair-widening; sigmausd's <code>max(min(bcReserveIn, bcReserveNeededIn), 0)</code> falsified the &quot;BinOp-only widening is sufficient&quot; assumption mid-fix</td></tr>
+<tr><td>35</td><td>2026-05-13</td><td>S36 gluon S9 / Session 15 — H1 declared-type + H2 nested-If hypotheses for 4th stage-00 pair</td><td>NEW CLASS: <strong>intra-pass-coupling subclass</strong>. Reject-trace forensics show 4th pair (cross-branch SInt `nDays`/`getNDaysPreFilteredValue`) has matching declared types AND top-level positions, BUT RHS differs in inner ValUse IDs (144/185) that S14's merger unifies to new_id=224 POST-snapshot. `tail_vals` snapshot taken once at pass entry never refreshes. Fixed-point top-level iteration also falsified. Fix must be in-pass substitution. Rule: install reject-trace BEFORE drafting gate relaxation — 5-min probe replaces hypothesized H1/H2 with deeper diagnosis.</td></tr>
+<tr><td>34</td><td>2026-05-13</td><td>S34 gluon S7 / Session 13 — B2 trajectory probe hypothesis "≥6 at stage 00"</td><td>NEW CLASS: <strong>BIMODAL-EMERGENCE measurement-hypothesis</strong>. Only 4 (not ≥6) at stage 00; ANOTHER 4 emerge at stage 12 (sequential_renumber per-branch ID reset). Bimodal origin invalidates single-stage-dominant framing. Rule: install per-stage instrumentation covering ALL boundary stages (HIR-exit + each CSE pass + final-emit), not just hypothesized critical region. Durable <code>CSE_TRACE_B2_TRAJECTORY=1</code> + `collect_valdefs_with_paths` helper at HEAD.</td></tr>
+<tr><td>33</td><td>2026-05-13</td><td>S33 gluon S6 / Session 12 — `apply_cse_within_branches.dag_usages` narrow-predicate</td><td>NEW CLASS: <strong>predicate-inert subclass</strong>. Filter targeted ValUse + BinOp(Relation) at branch-local dag_usages — `is_collectible` already excludes ValUse; BinOp(Relation) never reaches branch dag_usages. Predicate INERT (byte-identical with ON vs OFF). <strong>MAJOR REFRAME:</strong> 3 plateaus = 3 distinct mechanism layers (sigmao/paideia/gluon different). Rule: structural inventory describes final shape, NOT upstream mechanism — validate predicate TARGETING via filter-ON vs filter-OFF inertness check.</td></tr>
+<tr><td>32</td><td>2026-05-13</td><td>S32 sigmao closure-path (b) recursive free-var lift (both strategies)</td><td>5th compensating-extraction instance. Strategy I empirical: VALID IR + +4B wrong direction (outer 45→48 vs NODE 46). Strategy II analytical: predicted +12B regress. Closure paths (a)+(b) exhausted; (c) plateau remains or WS-G architectural. Durable <code>CSE_TRACE_S32_CLOSURE=1</code> + lift helpers retained.</td></tr>
+<tr><td>31</td><td>2026-05-13</td><td>S31 sigmao S29-framed "renumbering-pipeline-crash" attribution</td><td>NEW CLASS: <strong>post-hoc-framing-of-downstream-symptom</strong>. Probe 1 orphan trace shows S29's segregation FAIL was downstream symptom; actual cause is extraction-predicate-soundness (outer ValDef body refs inner-scope binding). 5-minute trace falsified the entire S29-derived "renumbering pipeline rewrite" trajectory. Durable scope-aware <code>extract_inline_shape</code> gate at HEAD.</td></tr>
+<tr><td>30</td><td>2026-05-13</td><td>S30 paideia <code>is_pure_const_tuple</code> root-suppression</td><td>Paideia +2→+9 (exact S7 1477B replay). Paideia surgical surface = same compensating-extraction class as sigmao A1/A3. No segregation FAIL — distinct from S29 class</td></tr>
+<tr><td>29</td><td>2026-05-13</td><td>S29 sigmao Cohort B s2 byte-ADDING promotion</td><td>NEW CLASS: <strong>architectural-gate-convergence</strong>. Cohort A byte-shrinking AND Cohort B byte-adding hit SAME renumbering-pipeline-crash class regardless of direction. SHAPE-correct + segregation FAIL (constants_len 61→0)</td></tr>
+<tr><td>28</td><td>2026-05-13</td><td>S28 sigmao A1+A3 coupled cascade hypothesis</td><td>EXACT simple sum (-6B = A1's -4B + A3's -2B). Zero interaction surface. Empirically closes "single OR coupled Scala-faithful structural fix" class for sigmao</td></tr>
+<tr><td>27</td><td>2026-05-12</td><td>S27 sigmao A3 chain-split (<code>SPBytes[PDlog[DecPt[ByIdx]]]</code>)</td><td>2nd consecutive compensating-extraction. SHAPE-correct (LOCAL d10/d15 = NODE d9/d13) BUT byte-regress Δ -24→-26. Pre-fix nested chain held bytes up</td></tr>
+<tr><td>26</td><td>2026-05-12</td><td>S26 sigmao A1 <code>ExtractScriptBytes(SELF)</code> suppression</td><td>NEW CLASS: <strong>compensating-extraction</strong>. SHAPE-correct (common 38→40, L-only 7→4) BUT byte-regress Δ -24→-28. Existing LOCAL extraction offsets missing Cohort B extractions</td></tr>
+<tr><td>25</td><td>2026-05-12</td><td>S22 WS-G.2.4c "unified scope-chain fix closes all 3 plateaus"</td><td>D4-for-closure: scope-chain layer empirically MATCHES Scala (Probe 0 metals). Closes only ≤4B of ~130B residual. 3 plateaus require DISTINCT downstream fixes</td></tr>
+<tr><td>24</td><td>2026-05-11</td><td>S13 sigmao BISECT-A5 pool-order subclassification</td><td>A5.1/A5.2/A5.3 all collapse to same WS-G class — bisection methodology converged with architectural class on sigmao</td></tr>
+<tr><td>23</td><td>2026-05-11</td><td>S9 sigmao BISECT-A handoff-premise carried conditional-state as baseline</td><td>NEW RULE: re-anchor handoff-cited syms/numbers via <code>CSE_TRACE_EXTRACT</code> at HEAD (~30s) BEFORE building bucket frameworks</td></tr>
+<tr><td>22</td><td>2026-05-11</td><td>S8 sigmao Inversion C — amortization-threshold cost-model</td><td>Probe 0 metals shows Scala gate has no size/shape/amortization predicate; just <code>count > 1</code></td></tr>
+<tr><td>21</td><td>2026-05-11</td><td>S5 gluon Inversion B — post-CSE sibling-merge pass</td><td>NEW RULE: post-pass hypothesis requires cross-fixture pre-flight; MATCH fixtures contained same B2 pattern Scala doesn't merge</td></tr>
+<tr><td>20</td><td>2026-05-10</td><td>S20 paideia Inversion A — surgical Row-2 fix-space</td><td>Row 2 confirmed (cross-thunk), but Row-2 small fixes already falsified by S7/S8; surgical converges with architectural</td></tr>
+<tr><td>17-19</td><td>2026-05-10</td><td>WS-G.2.3 driver bidirectional divergence; G.2.4 LCA scope-handoff; G.2.4b Path C source-order pipeline reorder</td><td>Hash-cons gate over-permissive in one direction AND under-permissive in another; pipeline-order reframe also wrong</td></tr>
+<tr><td>16</td><td>2026-05-10</td><td>WS-G.1 LCA-of-uses hypothesis</td><td>NEW CLASS: Probe-0-layer falsification. Scala has NO LCA primitive; places at first-DFS-construction-scope via <code>ThunkScope.findDef</code></td></tr>
+<tr><td>15</td><td>2026-05-10</td><td>S9 paideia walker-completeness lens for placement class</td><td>Walker-completeness dominant for count/emission/slot-shift; architectural diagnoses correct for placement/scheduling. 3-for-3 streak broken at 2-for-3</td></tr>
+<tr><td>13-14</td><td>2026-05-09/10</td><td>S7 sigmao + S4 gluon "renumbering / post-CSE invariant" framings</td><td>NEW CLASS: framing-falsification at implementation-probe level. Both turned out to be 1-line walker-completeness fixes via <code>direct_children</code></td></tr>
+<tr><td>11-12</td><td>2026-05-09</td><td>S5/S6 sigmao Fix A blast-radius + S6 surgical strict-subset</td><td>Fix A cascade-sensitive (regresses spectrum); narrow gate still tied to renumbering prereq</td></tr>
+<tr><td>10</td><td>2026-05-09</td><td>S1 oracle/duckpools — BinOp-only widening sufficient</td><td>min/max Apply args also need pair-widening (lower to binary numeric op at MIR)</td></tr>
+<tr><td>1-9</td><td>2026-05-05 → 2026-05-08</td><td>Paideia / gluon / sigmao surgical fixes at extraction-decision-time across S4-S8</td><td>Each falsification eliminated a hypothesis class; converged on architectural diagnosis</td></tr>
 </tbody>
 </table>
-<div class="footnote">Pattern is now empirical methodology, not coincidence. Treat next-session predictions as hypotheses with measurable falsification axes, not recipes.</div>
+<div class="footnote">Pattern is now empirical methodology. Each next-session prediction is a hypothesis with measurable falsification axes, not a recipe. Pre-stating expected outcomes is normalized.</div>
 </div>
 </details>
 
@@ -300,16 +407,14 @@
 <table>
 <thead><tr><th>File</th><th>Status</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td class="mono">ergoscript-compiler/tests/diff_fuzz.rs</td><td><span class="pill muted">parked</span></td><td>Pre-existing lint edits — review then commit/revert/stash</td></tr>
-<tr><td class="mono">ergoscript-compiler/tests/diff_fuzz_gen.rs</td><td><span class="pill muted">parked</span></td><td>Same as above</td></tr>
-<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/SIGNIFICANT-15-PLAN.md</td><td><span class="pill muted">untracked</span></td><td>Decide if needed; commit or remove</td></tr>
-<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/SIGMA-AUDIT-MCP-DESIGN.md</td><td><span class="pill muted">orphan</span></td><td>Canonical version now at <code>docs/sigma-audit-mcp-design.md</code> — remove the duplicate</td></tr>
+<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/STATUS.html</td><td><span class="pill muted">parked</span></td><td>This file — auto-regenerated; gitignored</td></tr>
+<tr><td class="mono">ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/QB-HANDOFF-15-OF-15.md + per-session handoffs</td><td><span class="pill muted">local-only</span></td><td>Gitignored per <code>project_handoffs_are_local_only</code></td></tr>
 </tbody>
 </table>
 </div>
 
 <div class="footnote" style="margin-top: 24px; text-align: center;">
-  Generated 2026-05-09 from current HEAD <code>12dcbea7</code> · file: <code>ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/STATUS.html</code> (gitignored)
+  Generated 2026-05-13 from current HEAD <code>b57719ce</code> · file: <code>ergoscript-compiler/tests/fixtures/significant_15/parity-handoffs/STATUS.html</code> (gitignored)
 </div>
 
 </div>

@@ -5548,6 +5548,60 @@ fn trace_slot_shift(stage: &str, expr: &Expr) {
                 depths,
             );
         }
+        // QB-SESSION-23 / sig-15 gluon S23 — Probe 1.2 hoist-safety extension.
+        // For each B2 group, compute the orphan-ID set of the first
+        // occurrence's RHS against the ROOT-block outer scope (top-level
+        // BlockValue items). Reports whether hoisting that RHS to root scope
+        // would create orphan ValUse refs (S31 gate would refuse). Gated on
+        // CSE_TRACE_B2_HOIST_SAFETY=1; pure read.
+        //
+        // S23 empirical finding (35th falsification fingerprint instance, NEW
+        // BIMODAL-EMERGENCE-YIELD-FALSIFIED-AT-HOIST-SAFETY subclass): post-S37
+        // cascade gluon stage-12 inventory is 4 b2 pairs (down from S36
+        // prediction of 6). Of those 4, only 1 is a real pre-renumber sibling
+        // pair (g=61 stage-11 vd_ids=[73,76] trampoline rhs=ValUse(68)
+        // referring to outer-scope ValDef). The other 3 (stage-12 g=73, g=78,
+        // g=79 with vd_ids=[61,61] / [61,61] / [62,62]) are
+        // sequential_renumber's per-branch counter-reset artifacts — their
+        // inner ValUse refs are to semantically distinct bindings that
+        // coincidentally share post-renumber IDs. Hoisting them would violate
+        // scope semantics; the S31 orphan-id gate refuses them by construction
+        // (orphan refs vs outer scope). Path B post-stage-12 merge yield
+        // ceiling thus ~3-4B (1 trampoline pair), NOT the ~22B / 6-pair
+        // handoff §0 prediction. Diag-only commit. See cluster archive
+        // PENDING_S23_sig15-gluon-path-b-stage12-yield-falsified.md.
+        if std::env::var("CSE_TRACE_B2_HOIST_SAFETY").is_ok() && !b2_groups.is_empty() {
+            let root_scope: HashSet<u32> = if let Expr::BlockValue(bv) = expr {
+                bv.expr
+                    .items
+                    .iter()
+                    .filter_map(|i| match i {
+                        Expr::ValDef(vd) => Some(vd.expr.id.0),
+                        _ => None,
+                    })
+                    .collect()
+            } else {
+                HashSet::new()
+            };
+            for (gi, g, _sib, _anc) in &b2_groups {
+                let rhs = &entries[g[0]].2;
+                let mut orphans: Vec<u32> = Vec::new();
+                collect_orphan_ids(rhs, &root_scope, &mut orphans);
+                orphans.sort();
+                orphans.dedup();
+                let ids: Vec<u32> = g.iter().map(|&i| entries[i].1).collect();
+                let safe = orphans.is_empty();
+                eprintln!(
+                    "[B2_TRAJ/SAFETY]   g={:>2} stage={} vd_ids={:?} root_orphans={:?} safe_to_root_hoist={} rhs={}",
+                    gi,
+                    stage,
+                    ids,
+                    orphans,
+                    safe,
+                    short_expr(rhs)
+                );
+            }
+        }
     }
 }
 
