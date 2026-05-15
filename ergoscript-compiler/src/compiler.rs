@@ -5437,6 +5437,150 @@ fn debug_gluon() {
     }
 }
 
+/// Local-only probe (Session 24, QB1 Phase 3.2): for each sig-15 fixture,
+/// compile locally and emit hex + length. No node call. Set `SIG15_FILTER=NAME`
+/// to limit. Used to compare HC=0 vs CSE_HC_V2=1 byte-output offline (no live
+/// node needed since the 12 MATCH fixtures' HC=0 LOCAL output is by definition
+/// equal to NODE's).
+///
+/// Run: cargo test -p ergoscript-compiler probe_sig15_local_hex -- --ignored --nocapture
+/// Also: CSE_HC_V2=1 cargo test -p ergoscript-compiler probe_sig15_local_hex -- --ignored --nocapture
+#[test]
+#[ignore]
+fn probe_sig15_local_hex() {
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    let dummy_token =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\")";
+    let dummy_token2 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
+    let dummy_token3 =
+        "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
+
+    let fixtures: &[(&str, String)] = &[
+        ("chaincash_reserve.es", String::new()),
+        ("dexy_bank_full.es", String::new()),
+        ("duckpools_child_interest.es", String::new()),
+        ("oracle_refresh.es", String::new()),
+        ("rosen_event_trigger.es", String::new()),
+        ("sigmao_option.es", String::new()),
+        ("skyharbor_v1_erg.es", String::new()),
+        ("spectrum_n2t_pool.es", String::new()),
+        (
+            "ergomixer_fullmix.es",
+            format!(
+                "val tokenId: Coll[Byte] = {dummy_token};\n\
+                 val feeEmissionScriptHash: Coll[Byte] = {dummy_token2};\n",
+            ),
+        ),
+        (
+            "ergoraffle_active.es",
+            format!(
+                "val ticketScriptHash: Coll[Byte] = {dummy_token};\n\
+                 val winnerScriptHash: Coll[Byte] = {dummy_token2};\n\
+                 val redeemScriptHash: Coll[Byte] = {dummy_token3};\n\
+                 val randomBoxToken: Coll[Byte] = {dummy_token};\n\
+                 val fee: Long = 1000000L;\n",
+            ),
+        ),
+        (
+            "gluon_box_guard.es",
+            format!(
+                "val _MinFee: Long = 1000000L;\n\
+                 val _GluonWNFTId: Coll[Byte] = {dummy_token};\n\
+                 val _OracleBuybackNFT: Coll[Byte] = {dummy_token2};\n\
+                 val _OraclePoolNFT: Coll[Byte] = {dummy_token3};\n\
+                 val _GLUONW_BOX: Coll[Byte] = {dummy_token};\n\
+                 val _GLUONW_NEUTRONS_TOKEN: Coll[Byte] = {dummy_token2};\n\
+                 val _GLUONW_PROTONS_TOKEN: Coll[Byte] = {dummy_token3};\n\
+                 val _BOX: Coll[Byte] = {dummy_token};\n\
+                 val _OracleFeePk: Coll[Byte] = {dummy_addr};\n\
+                 val _MULTISIG: SigmaProp = {dummy_pk};\n\
+                 val _TOTAL_SUPPLY: Long = 1000000000000000L;\n\
+                 val _TOTAL_SUPPLY_REGISTER: Long = 1000000000000000L;\n\
+                 val _DEV_FEE_THRESHOLD: Long = 1000000L;\n\
+                 val _MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _ASSET_MAX_DEV_FEE_THRESHOLD: Long = 100000000L;\n\
+                 val _DEV_FEE_REPAID: Long = 0L;\n\
+                 val _FEE_REPAID: Long = 0L;\n\
+                 val _Per_volume_bucket: Long = 720L;\n\
+                 val _PER_VOLUME_BUCKET: Long = 720L;\n",
+            ),
+        ),
+        (
+            "phoenix_hodlerg_bank_full.es",
+            format!("val phoenixFeeContractBytesHash: Coll[Byte] = {dummy_token};\n",),
+        ),
+        (
+            "paideia_stake_state.es",
+            format!(
+                "val _stakedTokenID: Coll[Byte] = {dummy_token};\n\
+                 val _stakePoolNFT: Coll[Byte] = {dummy_token2};\n\
+                 val _emissionNFT: Coll[Byte] = {dummy_token3};\n\
+                 val _stakeContractHash: Coll[Byte] = {dummy_addr};\n",
+            ),
+        ),
+        (
+            "sigmausd_bank.es",
+            format!(
+                "val oraclePoolNFT: Coll[Byte] = {dummy_token};\n\
+                 val updateNFT: Coll[Byte] = {dummy_token2};\n\
+                 val minReserveRatioPercent: Long = 400L;\n\
+                 val defaultMaxReserveRatioPercent: Long = 800L;\n",
+            ),
+        ),
+        (
+            "spectrum_t2t_pool.es",
+            String::from("val InitiallyLockedLP: Long = 9223372036854775807L;\n"),
+        ),
+    ];
+    let _ = dummy_pk;
+
+    let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("significant_15");
+
+    let filter = std::env::var("SIG15_FILTER").ok();
+    let hc_v2 = std::env::var("CSE_HC_V2").as_deref() == Ok("1");
+    let mode = if hc_v2 { "CSE_HC_V2=1" } else { "HC=0 default" };
+    eprintln!("\n=== Sig-15 LOCAL hex probe (mode: {}) ===", mode);
+
+    for (fixture, prelude) in fixtures {
+        if let Some(ref f) = filter {
+            if !fixture.contains(f.as_str()) {
+                continue;
+            }
+        }
+        let path = fixtures_dir.join(fixture);
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let source = if prelude.is_empty() {
+            raw.clone()
+        } else if let Some(idx) = raw.find('{') {
+            let mut s = String::with_capacity(raw.len() + prelude.len());
+            s.push_str(&raw[..=idx]);
+            s.push('\n');
+            s.push_str(prelude);
+            s.push_str(&raw[idx + 1..]);
+            s
+        } else {
+            raw.clone()
+        };
+        match compile(&source, ScriptEnv::new()) {
+            Ok(tree) => match tree.sigma_serialize_bytes() {
+                Ok(bytes) => {
+                    let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+                    eprintln!("  {:32} {:>5}B  {}", fixture, bytes.len(), hex);
+                }
+                Err(e) => eprintln!("  {:32} SERIALIZE ERROR {:?}", fixture, e),
+            },
+            Err(e) => eprintln!("  {:32} COMPILE ERROR {:?}", fixture, e),
+        }
+    }
+}
+
 /// Local-only probe: for each sig-15 fixture, compile locally and report
 /// post-CSE ValId collision count + whether segregation roundtrip succeeds.
 /// No node call, no byte comparison; pure structural diagnostic.

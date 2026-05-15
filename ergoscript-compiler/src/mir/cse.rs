@@ -9086,6 +9086,35 @@ fn process_ast_graph_hash_cons_v2(
             }
             continue;
         }
+        // QB1 Phase 3.2 / S24 architectural gate: only emit syms whose
+        // creation scope is the dispatch's entry scope (root = 0). Syms
+        // created inside a thunk (If branch / &&/|| right arm / FuncValue
+        // body) belong to that sub-scope's bodyDefs in Scala's mechanism;
+        // emitting them at this dispatch level over-extracts. The Branch-
+        // mode dispatch (via `apply_cse_within_branches`) re-traverses
+        // each thunk subtree with its own SymTable and extracts those
+        // syms at branch scope.
+        //
+        // Empirical falsification at S23 cross-fixture baseline: WITHOUT
+        // this gate, v2 over-extracts on phoenix (+1 ValDef) /
+        // spectrum_n2t (+4B) / spectrum_t2t (+4B) / ergoraffle (-69) /
+        // paideia (-67) / sigmao (-30) / gluon (-185). With the gate,
+        // these syms get filtered at root and (modulo branch-mode
+        // re-traversal) approach HC=0 byte parity.
+        let sym_home = st.scope_of(*sym);
+        if sym_home != root {
+            if trace {
+                eprintln!(
+                    "[HCv2/{:?}] skip-sub-scope count={} sym={} sym_scope={} :: {}",
+                    mode,
+                    count,
+                    sym,
+                    sym_home,
+                    short_expr(&sym_expr[sym])
+                );
+            }
+            continue;
+        }
         let node = &sym_expr[sym];
         if !is_extractable(node) {
             if trace {
