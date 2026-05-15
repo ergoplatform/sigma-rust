@@ -8574,6 +8574,35 @@ fn process_ast_graph_hash_cons(
         // ADMIT-AT-ROOT, not REJECT-AT-BRANCH.
         let pure_const_root_ok =
             !owned_at_root && mode == ScopeMode::Root && is_pure_const_shape(node);
+        // S22 D-C paideia HC=1 — `!appears_in_main_scope` guard on
+        // `pure_const_root_ok` FALSIFIED (Path A per QB-HANDOFF-15-OF-15 /
+        // S21 reframe). Probe 2 at HEAD `0db5b483`:
+        // paideia HC=1 1470 → **1477B** (Δ +2 → +9, **+7B REGRESSION**) —
+        // EXACT BYTE-ARITHMETIC REPLAY of S30's HC=0 surface
+        // (`is_pure_const_tuple` predicate added to `needs_check`,
+        // `029a9376` 2026-05-13). Two distinct code paths (HC=0
+        // `process_ast_graph_impl::needs_check` vs HC=1
+        // `process_ast_graph_hash_cons::pure_const_root_ok`); same
+        // downstream branch-CSE driver re-extracts `Tup[Coll[Byte](),0L]`
+        // independently in validStakeTx + validUnstakeTx sibling thunks
+        // (each sees local `dag_count >= 2` post-suppression), yielding
+        // 2 sibling per-branch ValDefs whose aggregate header overhead
+        // (~7B) exceeds the saved root-inline body bytes.
+        //
+        // Cross-fixture pre-flight (Probe 1 at HEAD): 0 admissions of
+        // `pure-const-root-fallback` on the 12 currently-MATCH HC=1
+        // fixtures + sigmao + gluon — guard is shape-orthogonal
+        // cross-fixture, but the paideia-narrow regression alone forces
+        // revert. Class label: cross-mode compensating-extraction
+        // confirmation (6th cumulative compensating-extraction instance,
+        // 34th falsification fingerprint).
+        //
+        // Reframe for Session 23: per-thunk-scope `count_dag_usages`
+        // (Path B, ~80-120 LOC architectural rewrite) is the only
+        // remaining surgical surface for paideia +2 closure. The S30+S22
+        // pair structurally proves that local gate-tuning at the
+        // pure_const-admit-decision layer cannot net-zero without
+        // coupled per-thunk branch-CSE count semantics.
         // S20 D-A paideia continuation — SelectField-on-dag-shared LCA Root
         // fallback.
         //
