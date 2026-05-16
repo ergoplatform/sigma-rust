@@ -7499,6 +7499,45 @@ fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
                 false_branch: false_final.into(),
             })
         }
+        // QB1 Phase 3.4b / S27 — Sub-scope dispatch on &&/|| right arms when
+        // v2 hash-cons enabled. Mirrors Scala's processAstGraph recursion
+        // into the right-arm ThunkDef of And/Or (left arm is eager, same
+        // scope as parent). v2's per-sym `count >= 2 AND sym_home == root`
+        // gate at the branch dispatch's fresh SymTable extracts syms whose
+        // sym_home is that thunk's bodyDefs — what S26 metals identified as
+        // Scala's behaviour (hasManyUsagesGlobal per-sym at sub-scope
+        // BlockValue).
+        //
+        // Gated to v2: HC=0 default sig-15 12/15 must stay sacred. v1's
+        // existing branch-CSE only dispatches into If arms; extending it
+        // unconditionally would re-shape HC=0 extraction.
+        Expr::BinOp(s)
+            if hash_cons_v2_enabled()
+                && matches!(
+                    s.expr.kind,
+                    ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                        ergotree_ir::mir::bin_op::LogicalOp::And
+                            | ergotree_ir::mir::bin_op::LogicalOp::Or
+                    )
+                ) =>
+        {
+            let span = s.source_span;
+            let kind = s.expr.kind;
+            let left = *s.expr.left;
+            let right = *s.expr.right;
+            let left_final = apply_cse_within_branches(left, global_max);
+            let right_cse = process_ast_graph_branch(right, global_max);
+            let new_max = global_max.max(find_max_val_id(&right_cse));
+            let right_final = apply_cse_within_branches(right_cse, new_max);
+            Expr::BinOp(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::bin_op::BinOp {
+                    kind,
+                    left: left_final.into(),
+                    right: right_final.into(),
+                },
+            })
+        }
         // Recurse into all other expression types using the generic child mapper
         other => map_children_with_id(other, global_max, apply_cse_within_branches),
     }
