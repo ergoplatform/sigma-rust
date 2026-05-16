@@ -9183,6 +9183,47 @@ fn process_ast_graph_hash_cons_v2(
         next_id += 1;
     }
 
+    // QB Session 26 — read-only canonical dump (Probe 1.2). Consumes the
+    // S25-preserved SymTable.canonical / canonical_counts / canonical_scopes
+    // accessors. For each canonical SymId observed across the whole graph,
+    // emit `csym / count / sym_home / LCA(scopes) / scopes / extracted?`
+    // so dexy/paideia/chaincash/ergoraffle can be cross-referenced against
+    // HC=0 ValDefs. Independently confirms the metals finding that Scala
+    // counts per-sym (not aggregate-canonical) via `mainG.usageMap`.
+    if std::env::var("CSE_TRACE_CANONICAL").is_ok() {
+        let extracted: std::collections::HashSet<SymId> = sym_order
+            .iter()
+            .copied()
+            .filter(|s| {
+                let cnt = *sym_counts.get(s).unwrap_or(&0);
+                cnt >= 2 && st.scope_of(*s) == root
+            })
+            .collect();
+        for c_sym in st.canonical_syms() {
+            let count = st.canonical_count(c_sym);
+            let scopes = st.canonical_scopes_for(c_sym);
+            let lca = st.lca_of_scopes(scopes);
+            let sym_home = st.scope_of(c_sym);
+            let local_count = *sym_counts.get(&c_sym).unwrap_or(&0);
+            let expr_dbg = sym_expr
+                .get(&c_sym)
+                .map(|e| short_expr(e))
+                .unwrap_or_else(|| "<not-in-this-dispatch>".to_string());
+            eprintln!(
+                "[HCv2/{:?}/canonical] csym={} ccount={} local_count={} sym_home={} lca={} scopes={:?} extracted_root_gate={} :: {}",
+                mode,
+                c_sym,
+                count,
+                local_count,
+                sym_home,
+                lca,
+                scopes,
+                extracted.contains(&c_sym),
+                expr_dbg
+            );
+        }
+    }
+
     if env.is_empty() {
         return expr;
     }
@@ -11820,6 +11861,20 @@ mod sym_table {
                 .get(&sym)
                 .map(|v| v.as_slice())
                 .unwrap_or(&[])
+        }
+
+        /// QB Session 26 — read-only enumerator of canonical SymIds. Returns
+        /// sorted Vec for deterministic dump ordering. Consumer is the
+        /// `CSE_TRACE_CANONICAL=1` diagnostic at the v2 emission gate; the
+        /// dump cross-references aggregate canonical state against the per-
+        /// dispatch `sym_counts` + S24 `sym_home==root` emission decision to
+        /// surface the dexy-extracted-by-Scala vs chaincash-rejected-by-Scala
+        /// shape distinction the S25 β.1 falsification exposed.
+        #[allow(dead_code)]
+        pub fn canonical_syms(&self) -> Vec<SymId> {
+            let mut v: Vec<SymId> = self.canonical_counts.keys().copied().collect();
+            v.sort();
+            v
         }
 
         /// β.1 — Lowest common ancestor of a non-empty set of scopes. Returns
