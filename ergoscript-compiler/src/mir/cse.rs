@@ -9101,6 +9101,23 @@ fn process_ast_graph_hash_cons_v2(
         // paideia (-67) / sigmao (-30) / gluon (-185). With the gate,
         // these syms get filtered at root and (modulo branch-mode
         // re-traversal) approach HC=0 byte parity.
+        //
+        // QB1 Phase 3.3 / S25 — β.1 canonical-count + LCA-at-root gate
+        // attempted, FALSIFIED (42nd cumulative fingerprint). Replacing
+        // this filter with `canonical_count >= 2 AND LCA(canonical_scopes)
+        // == root` recovered dexy MATCH (+44 → MATCH) + sigmao MATCH
+        // (-6 → MATCH) + paideia direction-flip (+10 → -86) BUT broke 5
+        // S24-MATCH-held fixtures: chaincash +7 / ergoraffle -116 /
+        // phoenix +2 / rosen -10 / skyharbor -16. Class: aggregate
+        // canonical_count over-counts cross-sibling occurrences relative
+        // to Scala's per-sym `usageMap` counting. Scala creates DISTINCT
+        // syms per sibling thunk (Thunks.scala) and counts uses per-sym;
+        // structurally-equal cross-sibling shapes have separate counts
+        // and do NOT aggregate under `hasManyUsagesGlobal`. SymTable's
+        // `canonical` / `canonical_counts` / `canonical_scopes` fields
+        // remain in tree as durable diagnostic infrastructure for S26+
+        // (likely candidate α — Scala-faithful `_globalDefs` fallback —
+        // pending metals re-read of Thunks.scala `findOrCreateDefinition`).
         let sym_home = st.scope_of(*sym);
         if sym_home != root {
             if trace {
@@ -11736,6 +11753,24 @@ mod sym_table {
         /// prescribed is empirically a no-op because `find` already walks
         /// current→parent→root only.
         sym_scope: Vec<ScopeId>,
+        /// QB Session 25 — β.1 canonical ExprKey count (mirror of Scala's
+        /// `_globalDefs` hash-cons table + `mainG.hasManyUsagesGlobal` use
+        /// count). `canonical[ExprKey]` = the FIRST SymId interned for that
+        /// structural form across ALL scopes. Sibling scopes that intern the
+        /// same shape get DISTINCT SymIds (per Thunks.scala semantics; see
+        /// G.2.1 sibling-independence test) but all map to the same canonical
+        /// SymId here. The emission gate at Root dispatch uses
+        /// `canonical_count >= 2` (not per-sym count) and `LCA(canonical_scopes)
+        /// == root` to mirror Scala's `hasManyUsagesGlobal` + first-use-scope
+        /// placement.
+        canonical: HashMap<ExprKey, SymId>,
+        /// β.1 — count per canonical SymId (incremented on every
+        /// `find_or_intern` regardless of which sibling sym was returned).
+        canonical_counts: HashMap<SymId, u32>,
+        /// β.1 — list of scopes where each canonical SymId was encountered.
+        /// LCA of this list determines emission placement (root for cross-
+        /// sibling-shared; sub-scope for ancestor/descendant-only sharing).
+        canonical_scopes: HashMap<SymId, Vec<ScopeId>>,
         /// Counter for fresh sym IDs.
         next_sym: SymId,
     }
@@ -11747,6 +11782,9 @@ mod sym_table {
                 scope_parents: vec![None],
                 scope_defs: vec![HashMap::new()],
                 sym_scope: Vec::new(),
+                canonical: HashMap::new(),
+                canonical_counts: HashMap::new(),
+                canonical_scopes: HashMap::new(),
                 next_sym: 0,
             }
         }
@@ -11756,6 +11794,76 @@ mod sym_table {
         #[allow(dead_code)]
         pub fn scope_of(&self, sym: SymId) -> ScopeId {
             self.sym_scope[sym as usize]
+        }
+
+        /// QB Session 25 — β.1 — canonical SymId for an Expr (the first sym
+        /// ever interned for this structural form across all scopes). Returns
+        /// None if `expr` was never interned. Expects span-stripped input
+        /// (mirrors `find` / `find_or_intern` conventions).
+        #[allow(dead_code)]
+        pub fn canonical_for(&self, expr: &Expr) -> Option<SymId> {
+            self.canonical.get(&ExprKey(expr.clone())).copied()
+        }
+
+        /// β.1 — aggregate count for a canonical SymId. Returns 0 if `sym`
+        /// is not a canonical representative.
+        #[allow(dead_code)]
+        pub fn canonical_count(&self, sym: SymId) -> u32 {
+            self.canonical_counts.get(&sym).copied().unwrap_or(0)
+        }
+
+        /// β.1 — scope list for a canonical SymId. Returns empty slice if
+        /// not a canonical rep.
+        #[allow(dead_code)]
+        pub fn canonical_scopes_for(&self, sym: SymId) -> &[ScopeId] {
+            self.canonical_scopes
+                .get(&sym)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[])
+        }
+
+        /// β.1 — Lowest common ancestor of a non-empty set of scopes. Returns
+        /// 0 (root) for empty input or when no closer common ancestor exists.
+        /// Algorithm: collect ancestors of `scopes[0]` into a set, then for
+        /// each subsequent scope walk parents until hitting that set.
+        #[allow(dead_code)]
+        pub fn lca_of_scopes(&self, scopes: &[ScopeId]) -> ScopeId {
+            if scopes.is_empty() {
+                return 0;
+            }
+            let mut acc = scopes[0];
+            for &s in &scopes[1..] {
+                acc = self.lca_pair(acc, s);
+                if acc == 0 {
+                    return 0;
+                }
+            }
+            acc
+        }
+
+        fn lca_pair(&self, a: ScopeId, b: ScopeId) -> ScopeId {
+            // Collect a's ancestors (incl. self) into a set.
+            let mut a_chain: std::collections::HashSet<ScopeId> =
+                std::collections::HashSet::new();
+            let mut cur = a;
+            loop {
+                a_chain.insert(cur);
+                match self.scope_parents[cur] {
+                    Some(p) => cur = p,
+                    None => break,
+                }
+            }
+            // Walk b's ancestor chain; first hit is the LCA.
+            let mut cur = b;
+            loop {
+                if a_chain.contains(&cur) {
+                    return cur;
+                }
+                match self.scope_parents[cur] {
+                    Some(p) => cur = p,
+                    None => return cur,
+                }
+            }
         }
 
         /// Create a new child scope under `parent`. Returns the new scope id.
@@ -11833,7 +11941,7 @@ mod sym_table {
         /// fingerprint run on sig-15, `visible=false` count is 0.
         pub fn find_or_intern(&mut self, expr: &Expr, scope: ScopeId) -> (SymId, bool) {
             let trace = std::env::var("CSE_TRACE_SIBLING_SCAN").is_ok();
-            match self.find(expr, scope) {
+            let result = match self.find(expr, scope) {
                 Some(sym_id) => {
                     let sym_home = self.sym_scope[sym_id as usize];
                     let visible = self.is_ancestor(sym_home, scope);
@@ -11856,7 +11964,23 @@ mod sym_table {
                     let sym_id = self.intern(expr, scope);
                     (sym_id, true)
                 }
-            }
+            };
+            // QB Session 25 — β.1: establish/update canonical-form tracking.
+            // The canonical SymId is the FIRST sym ever interned for this
+            // ExprKey across ALL scopes (including sibling scopes that the
+            // scope-chain `find` cannot see). On every lookup-or-intern we
+            // bump the canonical count and record the scope, so the emission
+            // pass can apply Scala's `hasManyUsagesGlobal` semantics (count
+            // across the whole graph, not just the visible ancestor chain).
+            let (sym_id, _is_new) = result;
+            let key = ExprKey(expr.clone());
+            let canonical_sym = *self.canonical.entry(key).or_insert(sym_id);
+            *self.canonical_counts.entry(canonical_sym).or_insert(0) += 1;
+            self.canonical_scopes
+                .entry(canonical_sym)
+                .or_default()
+                .push(scope);
+            result
         }
 
         /// Is `ancestor` an ancestor of (or equal to) `scope`? Used to
