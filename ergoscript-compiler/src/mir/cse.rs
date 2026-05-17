@@ -7479,6 +7479,13 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
 /// `process_ast_graph` on each branch independently with the current
 /// `global_max` to avoid ID conflicts with outer-scope vals.
 fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
+    // QB1 Phase 4 / S31+ — v3 does single-pass scope-aware placement during
+    // process_ast_graph_hash_cons_v3. The apply_cse_within_branches cascade
+    // is a v1/v2 mechanism for re-dispatching at sub-scope boundaries;
+    // v3 has no use for it. Short-circuit to identity to avoid double-CSE.
+    if hash_cons_v3_enabled() {
+        return expr;
+    }
     match expr {
         Expr::If(if_op) => {
             // Apply branch-level CSE to each branch using scope-aware dag counting
@@ -7613,6 +7620,104 @@ fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
         // sub-scope dispatch; further metals adds nothing without a
         // distinct mechanism question.
         //
+        // QB1 Phase 3.4b / S30 — DIAG-ONLY (44th falsification fingerprint).
+        // Handoff (ATTACK-PAIDEIA.md) prescribed β.1's outer-LCA promotion
+        // with a NARROW shape predicate that fires on paideia's 4 bug syms
+        // and the dexy/duckpools cousins while skipping all 53 MATCH-held
+        // candidates β.1 (S25 / 42nd) over-admitted. Two empirical probes
+        // were executed; both falsify the predicate-existence premise:
+        //
+        // PROBE 1 — Cross-fixture census per handoff §"census command"
+        // across 8 fixtures (3 bug + 5 MATCH-held) with `CSE_TRACE_CANONICAL=1`
+        // filtered to `sym_home>=1 && local_count>=2`. 248 canonical entries
+        // cataloged; 32 candidate entries with `sym_home>0 && lca==root &&
+        // distinct(scopes)>=2`. Side-by-side comparison — BUG class and
+        // MATCH-held class share IDENTICAL canonical signatures:
+        //
+        //   paideia BUG  B-csym=14 sh=1 lca=0 ccount=6 scopes=[1,1,1,2,2,2]
+        //                            ByIndex(ValUse(77:SColl(STuple)), 1)
+        //   ergoraffle MATCH B-csym=58 sh=1 lca=0 ccount=4 scopes=[1,1,2,2]
+        //                            ByIndex(ValUse(32:SColl(STuple)), 1)
+        //   paideia BUG  B-csym=15 sh=1 lca=0 ccount=4 scopes=[1,1,2,2]
+        //                            SelectField(ByIndex(VU(77),1),0)
+        //   rosen MATCH  B-csym=5  sh=1 lca=0 ccount=4 scopes=[1,1,2,2]
+        //                            Const("0:SInt")   <-- Const excluded
+        //
+        // STRUCTURAL IDENTITY: paideia csym=14 and ergoraffle csym=58 are
+        // both `ByIndex(ValUse(N), Const(1:SInt))` in Branch dispatch at
+        // sym_home=1 lca=0. Scala emits paideia at outer-LCA but ergoraffle
+        // at sub-scope — the differentiator is Scala's first-DFS-
+        // construction-scope ownership, not any field present in the v2
+        // SymTable trace.
+        //
+        // PROBE 2 — empirical β.2 hoist implementation at the v2 emission
+        // gate with narrowest practical predicate (sym_home>0 ∧ lca==root
+        // ∧ distinct(scopes)>=2 ∧ canonical_count>=2 ∧ all_distinct_scopes_
+        // count>=2 ∧ !Const ∧ is_extractable ∧ is_graph_shared ∧
+        // !references_locally_defined). Cross-fixture measurement under
+        // `CSE_HC_V2=1`:
+        //
+        //   paideia 1477 → 1438  Δ -39B (over-shrunk; target was -6B → 1471)
+        //   dexy    327  → 327   unchanged (per-scope-count=1 excluded by gate)
+        //   duckpools 600 → 600  unchanged (same)
+        //   ergoraffle 931 → 866 Δ -65B  ← BROKE F5 MATCH-held (β.1 echo)
+        //   chaincash/oracle/rosen/skyharbor/ergomixer/phoenix/sigmausd: held
+        //
+        // Probe 2 EMPIRICALLY CONFIRMS β.1's regression class at the
+        // narrowest-feasible-predicate level. The `all_ge_2` narrowing
+        // (each sibling sub-scope has count>=2) excludes dexy's spread
+        // pattern (per-sub-scope count=1) — so dexy doesn't even close.
+        // ergoraffle's csym=45/50/53/58/95 fire identically to paideia's
+        // csym=14/15/38/39/48/49 (paideia hoists 4 expected + 4 false
+        // positives = 8 total = 39B savings; target was 1-2 hoists = 6B).
+        //
+        // 44th cumulative falsification fingerprint: SHAPE-NARROW-PREDICATE-
+        // SEARCH-SPACE-EMPTY-AT-V2-TRACE-RESOLUTION-CONVERGES-WITH-WS-G-
+        // MIGRATION-EMPIRICAL-β.2-CONFIRMS-β.1-REGRESSION-CLASS.
+        //
+        // S30 finding: paideia +6 / dexy +18 / duckpools +2 = +26B residual
+        // closure requires first-DFS-construction-scope-aware sym placement
+        // — i.e., the WS-G QB1 full hash-cons migration. v2's per-dispatch
+        // fresh SymTable + post-hoc canonical aggregation does NOT carry
+        // the information needed to distinguish hoist vs sub-scope
+        // placement at Scala parity. Census + probe artifacts preserved
+        // at target/diff_fuzz/clusters/closed for future reference.
+        //
+        // QB1 Phase 4 / S31 — v3 hash-cons migration PROTOTYPE landed
+        // (`process_ast_graph_hash_cons_v3` at the file end, gated by
+        // `CSE_HC_V3=1`). v3 replaces v2's per-dispatch fresh SymTable +
+        // post-hoc sub-dispatch extraction with single-pass global hash-
+        // cons: one SymTable, one visit pass, LCA-of-uses placement per
+        // canonical sym, scope-aware BlockValue wrapping during rebuild.
+        // Matches Scala's `mainG.hasManyUsagesGlobal + findGlobalDefinition`
+        // + parent.findDef hoisting mechanism architecturally.
+        //
+        // EMPIRICAL S31 BASELINE (CSE_HC_V3=1 on sig-15):
+        //   sig-15 MATCH: oracle/rosen/ergomixer = 3/15 (vs v2's 8/15,
+        //                 HC=0's 12/15)
+        //   paideia: 1477B unchanged at +6B (NOT closed)
+        //   ergoraffle: 931 → 867 (-64B REGRESS, over-extraction)
+        //   chaincash: 611 → 632 (+21B)
+        //   sigmao: 1118 → 1187 (+69B)
+        //   dexy: 327 → 307 (-2B, under-shrunk)
+        //   Multiple per-fixture regressions in both directions.
+        //
+        // Diagnosis: v3's placement gate (count >= 2 ∧ is_extractable ∧
+        // is_graph_shared ∧ !references_locally_defined) is too permissive
+        // vs Scala's `hasManyUsagesGlobal ∧ !IsContextProperty ∧
+        // !IsInternalDef ∧ !IsConstantDef`. v3 hoists ~55 candidates per
+        // paideia run vs v2's ~10-15; the surplus over-extracts non-bug
+        // shapes. Closing v3 to Scala parity requires gate refinement
+        // across multiple sessions: IsConstantDef analog, usageMap count
+        // semantics (excluding uses inside ValDef bodies), and empirical
+        // pattern-matching against v1's HC=0 heuristics that approximate
+        // Scala well in 12/15 fixtures.
+        //
+        // S31 disposition: v3 LANDED as durable foundation for future
+        // sessions; HC=0 default 12/15 sacred preserved (v3 only fires
+        // under CSE_HC_V3=1). Closure of paideia/dexy/duckpools remains
+        // pending iterative refinement of v3's emission gates.
+        //
         // Recurse into all other expression types using the generic child mapper
         other => map_children_with_id(other, global_max, apply_cse_within_branches),
     }
@@ -7685,6 +7790,9 @@ fn short_expr(e: &Expr) -> String {
 /// Port of the Scala compiler's `processAstGraph` — full-tree variant.
 /// Used for root-scope CSE where the entire tree is one ThunkDef.
 fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
+    if hash_cons_v3_enabled() {
+        return process_ast_graph_hash_cons_v3(expr, global_max_id);
+    }
     let dag_usages = count_dag_usages(&expr);
     let schedule = dfs_schedule(&expr);
     if hash_cons_v2_enabled() {
@@ -7711,6 +7819,13 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
 /// cross-branch candidate whose RHS references a ValDef defined inside a
 /// deeper-If's arm (forward-ref guard).
 fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
+    // QB1 Phase 4 / S31+ — v3 single-pass driver already handled all scopes
+    // during Root dispatch; the Branch entry point should never re-process
+    // when v3 is active (apply_cse_within_branches short-circuits, but
+    // defense in depth here).
+    if hash_cons_v3_enabled() {
+        return expr;
+    }
     // Schedule = scope-restricted: only expressions first-created at this
     // scope's main level (mirroring Scala's `subG.flatSchedule`).
     let mut schedule = dfs_schedule_scope(&expr);
@@ -9422,6 +9537,416 @@ fn process_ast_graph_hash_cons_v2(
             source_span: SourceSpan::empty(),
             expr: BlockValue {
                 items: topo_order_valdefs(val_defs),
+                result: other.into(),
+            },
+        }),
+    }
+}
+
+// -----------------------------------------------------------------------
+// WS-G QB1 Phase 4 / S31+ — v3 hash-cons driver (single-SymTable LCA-of-uses placement)
+// -----------------------------------------------------------------------
+
+/// Runtime gate for v3 (CSE_HC_V3=1). When set, the apply_cse pipeline
+/// invokes `process_ast_graph_hash_cons_v3` instead of v2/v1/legacy.
+fn hash_cons_v3_enabled() -> bool {
+    std::env::var("CSE_HC_V3").as_deref() == Ok("1")
+}
+
+/// State threaded through the v3 rebuild recursion via thread-local
+/// (since `map_children_with_id` requires `fn` pointers, not closures).
+struct V3Ctx {
+    next_scope: sym_table::ScopeId,
+    canonical_to_vid: HashMap<sym_table::ExprKey, u32>,
+    placement: HashMap<sym_table::SymId, (sym_table::ScopeId, u32)>,
+    by_scope: HashMap<sym_table::ScopeId, Vec<sym_table::SymId>>,
+    canonical_node: HashMap<sym_table::SymId, Expr>,
+}
+
+thread_local! {
+    static V3_CTX: std::cell::RefCell<Option<V3Ctx>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Replace `target` with `replacement` only at the FIRST positions reached
+/// in a top-down walk: if `expr` itself matches `target`, return
+/// `replacement` and stop. Otherwise recurse into children.
+/// Different from the catch-all v2 `replace_all` because we don't replace
+/// inside an already-extracted sub-expression — v3's emission is
+/// scope-aware and inner replacements happen during rebuild_v3 at the
+/// child boundary.
+///
+/// process_ast_graph_hash_cons_v3 — full migration to Scala-faithful
+/// first-DFS-construction-scope ownership + LCA-of-uses placement.
+///
+/// Mechanism:
+///   1. Single visit pass over the entire expression with one SymTable.
+///      Scope pushes at If branches / BinOp(Logical) right-arms /
+///      FuncValue bodies — same boundaries as Scala's `Thunks::ThunkScope`.
+///   2. After visit, compute for each canonical sym (count >= 2 + extractable):
+///      lca = LCA(canonical_scopes); place ValDef at lca's BlockValue.
+///   3. Rebuild expression scope-aware: at each scope boundary, wrap the
+///      sub-expression in BlockValue containing ValDefs for canonicals
+///      placed at that scope. Replace all occurrences of placed canonicals
+///      with ValUse(N).
+///
+/// This matches Scala's `mainG.hasManyUsagesGlobal + findGlobalDefinition`
+/// + `parent.findDef` walk-to-common-ancestor mechanism. v2's split per-
+/// dispatch fresh SymTable + post-hoc sub-dispatch extraction is replaced
+/// by single-pass global hash-cons.
+///
+/// Pre-stated falsification axes (S31):
+///   - F1 sacred: HC=0 default 12/15 unchanged (v3 only fires under CSE_HC_V3=1).
+///   - F5 paideia +6 / dexy +18 / duckpools +2: closure target.
+///   - F5 8 v2-MATCH-held: chaincash/oracle/rosen/skyharbor/ergomixer/
+///     ergoraffle/phoenix/sigmausd — MUST hold under v3 (else regression
+///     class = "Rust v3 over-hoists vs Scala first-DFS").
+fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
+    use sym_table::{ExprKey, ScopeId, SymId, SymTable};
+
+    let trace = std::env::var("CSE_TRACE_HC_V3").is_ok();
+    let mut st = SymTable::new();
+    let root: ScopeId = 0;
+    let mut sym_counts: HashMap<SymId, u32> = HashMap::new();
+    let mut sym_expr: HashMap<SymId, Expr> = HashMap::new();
+    let mut sym_order: Vec<SymId> = Vec::new();
+
+    #[allow(clippy::too_many_arguments)]
+    fn visit(
+        e: &Expr,
+        st: &mut SymTable,
+        scope: ScopeId,
+        sym_counts: &mut HashMap<SymId, u32>,
+        sym_expr: &mut HashMap<SymId, Expr>,
+        sym_order: &mut Vec<SymId>,
+        trace: bool,
+    ) {
+        match e {
+            Expr::If(if_op) => {
+                visit(
+                    &if_op.condition,
+                    st,
+                    scope,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_t = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv3/scope] parent={} child={} (If.true)", scope, s_t);
+                }
+                visit(
+                    &if_op.true_branch,
+                    st,
+                    s_t,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_f = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv3/scope] parent={} child={} (If.false)", scope, s_f);
+                }
+                visit(
+                    &if_op.false_branch,
+                    st,
+                    s_f,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+            }
+            Expr::BinOp(s)
+                if matches!(
+                    s.expr.kind,
+                    ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                        ergotree_ir::mir::bin_op::LogicalOp::And
+                            | ergotree_ir::mir::bin_op::LogicalOp::Or
+                    )
+                ) =>
+            {
+                visit(
+                    &s.expr.left,
+                    st,
+                    scope,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+                let s_r = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv3/scope] parent={} child={} (&&/|| right)", scope, s_r);
+                }
+                visit(
+                    &s.expr.right,
+                    st,
+                    s_r,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    trace,
+                );
+            }
+            Expr::FuncValue(fv) => {
+                let s_b = st.new_scope(scope);
+                if trace {
+                    eprintln!("[HCv3/scope] parent={} child={} (FuncValue body)", scope, s_b);
+                }
+                visit(fv.body(), st, s_b, sym_counts, sym_expr, sym_order, trace);
+            }
+            _ => {
+                for c in direct_children(e) {
+                    visit(c, st, scope, sym_counts, sym_expr, sym_order, trace);
+                }
+            }
+        }
+        let (sym, is_new) = st.find_or_intern(e, scope);
+        if is_new {
+            sym_expr.insert(sym, e.clone());
+            sym_order.push(sym);
+            sym_counts.insert(sym, 1);
+        } else {
+            *sym_counts.entry(sym).or_insert(0) += 1;
+        }
+    }
+
+    let expr_stripped = strip_source_spans(expr.clone());
+    visit(
+        &expr_stripped,
+        &mut st,
+        root,
+        &mut sym_counts,
+        &mut sym_expr,
+        &mut sym_order,
+        trace,
+    );
+
+    // Determine first-DFS-encounter index per canonical sym (for topo ordering)
+    let mut canonical_first_idx: HashMap<SymId, usize> = HashMap::new();
+    for (idx, sym) in sym_order.iter().enumerate() {
+        let canonical = st
+            .canonical_for(&sym_expr[sym])
+            .unwrap_or(*sym);
+        canonical_first_idx.entry(canonical).or_insert(idx);
+    }
+    let mut canonical_order: Vec<SymId> = canonical_first_idx.keys().copied().collect();
+    canonical_order.sort_by_key(|c| canonical_first_idx[c]);
+
+    // Decide placement for each canonical with count >= 2 + extractable
+    let branch_local_ids = collect_branch_local_val_ids(&expr);
+    let mut placement: HashMap<SymId, (ScopeId, u32)> = HashMap::new();
+    let mut canonical_node: HashMap<SymId, Expr> = HashMap::new();
+    let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
+
+    for &csym in &canonical_order {
+        let count = st.canonical_count(csym);
+        if count < 2 {
+            continue;
+        }
+        let Some(node) = sym_expr.get(&csym).cloned() else {
+            continue;
+        };
+        if !is_extractable(&node) {
+            continue;
+        }
+        if !is_graph_shared(&node) {
+            continue;
+        }
+        if references_locally_defined(&node, &branch_local_ids) {
+            continue;
+        }
+        let scopes = st.canonical_scopes_for(csym);
+        let lca = st.lca_of_scopes(scopes);
+        canonical_node.insert(csym, node.clone());
+        placement.insert(csym, (lca, next_id));
+        if trace {
+            eprintln!(
+                "[HCv3/place] csym={} count={} lca={} vid={} :: {}",
+                csym,
+                count,
+                lca,
+                next_id,
+                short_expr(&node)
+            );
+        }
+        next_id += 1;
+    }
+
+    // Group placements by scope
+    let mut by_scope: HashMap<ScopeId, Vec<SymId>> = HashMap::new();
+    for (&csym, &(scope, _)) in &placement {
+        by_scope.entry(scope).or_default().push(csym);
+    }
+    for syms in by_scope.values_mut() {
+        syms.sort_by_key(|c| canonical_first_idx[c]);
+    }
+
+    // Build ExprKey -> vid map for replacement lookup
+    let canonical_to_vid: HashMap<ExprKey, u32> = placement
+        .iter()
+        .map(|(&csym, &(_, vid))| (ExprKey(canonical_node[&csym].clone()), vid))
+        .collect();
+
+    let ctx = V3Ctx {
+        next_scope: 1,
+        canonical_to_vid,
+        placement,
+        by_scope,
+        canonical_node,
+    };
+    V3_CTX.with(|c| *c.borrow_mut() = Some(ctx));
+
+    let rebuilt = rebuild_v3_walk(expr_stripped, root as u32);
+    let final_expr = wrap_with_valdefs_v3(rebuilt, root);
+
+    V3_CTX.with(|c| *c.borrow_mut() = None);
+    final_expr
+}
+
+/// Per-node rebuild step: check canonical match (replace with ValUse),
+/// else recurse into children. Scope-pushing variants (If, BinOp(Logical),
+/// FuncValue) get explicit handling that advances the scope counter and
+/// wraps each sub-tree with its own BlockValue ValDefs. Everything else
+/// falls through to `map_children_with_id` at the same scope.
+fn rebuild_v3_walk(expr: Expr, scope_u32: u32) -> Expr {
+    // Step 1 — canonical replacement
+    let key = sym_table::ExprKey(expr.clone());
+    if let Some(vid) = V3_CTX.with(|c| {
+        c.borrow()
+            .as_ref()
+            .and_then(|ctx| ctx.canonical_to_vid.get(&key).copied())
+    }) {
+        return Expr::ValUse(ValUse {
+            val_id: ValId(vid),
+            tpe: expr_type(&expr),
+        });
+    }
+    // Step 2 — scope-aware handling for the three scope-pushing variants
+    match expr {
+        Expr::If(if_op) => {
+            let cond = rebuild_v3_walk(*if_op.condition, scope_u32);
+            let s_t = V3_CTX.with(|c| {
+                let mut c = c.borrow_mut();
+                let ctx = c.as_mut().unwrap();
+                let n = ctx.next_scope;
+                ctx.next_scope += 1;
+                n
+            });
+            let true_b = rebuild_v3_walk(*if_op.true_branch, s_t as u32);
+            let true_b = wrap_with_valdefs_v3(true_b, s_t);
+            let s_f = V3_CTX.with(|c| {
+                let mut c = c.borrow_mut();
+                let ctx = c.as_mut().unwrap();
+                let n = ctx.next_scope;
+                ctx.next_scope += 1;
+                n
+            });
+            let false_b = rebuild_v3_walk(*if_op.false_branch, s_f as u32);
+            let false_b = wrap_with_valdefs_v3(false_b, s_f);
+            Expr::If(ergotree_ir::mir::if_op::If {
+                condition: cond.into(),
+                true_branch: true_b.into(),
+                false_branch: false_b.into(),
+            })
+        }
+        Expr::BinOp(s)
+            if matches!(
+                s.expr.kind,
+                ergotree_ir::mir::bin_op::BinOpKind::Logical(
+                    ergotree_ir::mir::bin_op::LogicalOp::And
+                        | ergotree_ir::mir::bin_op::LogicalOp::Or
+                )
+            ) =>
+        {
+            let left = rebuild_v3_walk(*s.expr.left, scope_u32);
+            let s_r = V3_CTX.with(|c| {
+                let mut c = c.borrow_mut();
+                let ctx = c.as_mut().unwrap();
+                let n = ctx.next_scope;
+                ctx.next_scope += 1;
+                n
+            });
+            let right = rebuild_v3_walk(*s.expr.right, s_r as u32);
+            let right = wrap_with_valdefs_v3(right, s_r);
+            Expr::BinOp(Spanned {
+                source_span: s.source_span,
+                expr: ergotree_ir::mir::bin_op::BinOp {
+                    kind: s.expr.kind,
+                    left: left.into(),
+                    right: right.into(),
+                },
+            })
+        }
+        Expr::FuncValue(fv) => {
+            let args = fv.args().to_vec();
+            let s_b = V3_CTX.with(|c| {
+                let mut c = c.borrow_mut();
+                let ctx = c.as_mut().unwrap();
+                let n = ctx.next_scope;
+                ctx.next_scope += 1;
+                n
+            });
+            let body = rebuild_v3_walk(fv.body().clone(), s_b as u32);
+            let body = wrap_with_valdefs_v3(body, s_b);
+            Expr::FuncValue(FuncValue::new(args, body))
+        }
+        other => map_children_with_id(other, scope_u32, rebuild_v3_walk),
+    }
+}
+
+fn wrap_with_valdefs_v3(body: Expr, scope: sym_table::ScopeId) -> Expr {
+    let syms = V3_CTX.with(|c| {
+        c.borrow()
+            .as_ref()
+            .and_then(|ctx| ctx.by_scope.get(&scope).cloned())
+            .unwrap_or_default()
+    });
+    if syms.is_empty() {
+        return body;
+    }
+    let (canonical_node_owned, placement_owned) = V3_CTX.with(|c| {
+        let c = c.borrow();
+        let ctx = c.as_ref().unwrap();
+        (ctx.canonical_node.clone(), ctx.placement.clone())
+    });
+    // Each ValDef body is built with replacement env that includes earlier
+    // ValDefs at this scope. This ensures dependency chains within the
+    // BlockValue items are properly substituted (e.g. SelectField's body
+    // uses ValUse(N) for an earlier ByIndex ValDef).
+    let mut env_for_inner: Vec<(Expr, u32)> = Vec::new();
+    let mut items: Vec<Expr> = Vec::new();
+    for csym in &syms {
+        let (_, vid) = placement_owned[csym];
+        let raw = canonical_node_owned[csym].clone();
+        let rhs = build_value_recurse(&raw, &env_for_inner);
+        let valdef = Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: ValId(vid),
+                rhs: rhs.into(),
+            },
+        });
+        items.push(valdef);
+        env_for_inner.push((raw, vid));
+    }
+    match body {
+        Expr::BlockValue(spanned) => {
+            items.extend(spanned.expr.items);
+            Expr::BlockValue(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: BlockValue {
+                    items: topo_order_valdefs(items),
+                    result: spanned.expr.result,
+                },
+            })
+        }
+        other => Expr::BlockValue(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: BlockValue {
+                items: topo_order_valdefs(items),
                 result: other.into(),
             },
         }),
