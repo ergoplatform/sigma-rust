@@ -9773,6 +9773,23 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        // IsConstantDef analog (S33): Scala's `processAstGraph` extraction gate
+        // excludes Defs whose RHS is structurally a constant — `Const`,
+        // `ConstPlaceholder`, or recursive `Collection` / `Tuple` of consts.
+        // v3 over-extracts these (e.g. paideia csym=157 `Collection(SByte,[])`
+        // and csym=159 `Tuple([Coll(SByte,[]), Const(0:SLong)])`); Scala
+        // inlines them at every use site so they never receive a ValDef.
+        if is_pure_const_shape(&node) {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=is_constant_def count={} :: {}",
+                    csym,
+                    count,
+                    short_expr(&node)
+                );
+            }
+            continue;
+        }
         if !is_graph_shared(&node) {
             if trace {
                 eprintln!(
