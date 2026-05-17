@@ -7565,6 +7565,54 @@ fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
             let body_final = apply_cse_within_branches(body_cse, new_max);
             Expr::FuncValue(FuncValue::new(args, body_final))
         }
+        // QB1 Phase 3.4b / S29 — DIAG-ONLY (43rd falsification fingerprint).
+        // Handoff §0 hypothesised paideia +6B / dexy +18B / duckpools +2B
+        // need a B.i-A2 "recursive sub-sub-scope" arm (re-invoking
+        // process_ast_graph_branch INTO nested ThunkDefs of each per-arm
+        // fresh SymTable). Probe 0 metals on TreeBuilding.processAstGraph
+        // confirmed Scala does (a) recursive invocation (subG → buildValue →
+        // processAstGraph on nested Lambda / ThunkDef) — so the architectural
+        // shape is sound. BUT Probe 1.2 + Probe 1.3 (CSE_TRACE_CANONICAL +
+        // CSE_TRACE_HC_V2 on paideia/dexy at HEAD c3112b34) EMPIRICALLY
+        // PRE-FALSIFY the under-extraction framing:
+        //
+        //   - 9 of 15 dispatches per paideia run already fire recursively
+        //     via the If / BinOp(Logical) / FuncValue arms above; each
+        //     per-thunk fresh SymTable extracts the candidate set at
+        //     sym_home=0 of that sub-dispatch with `[HCv2/Branch] extract`
+        //     trace lines confirming actual ValDef emission.
+        //   - Paideia's csym=12/14/15/19 land at sym_home=1/2 in the OUTER
+        //     BinOp right-arm dispatch (skipped by S24 gate) AND at sym_home=0
+        //     with extracted_root_gate=true in Dispatch 4 + Dispatch 5
+        //     (the inner If true/false branch sub-dispatches). They are
+        //     emitted TWICE — once per sibling sub-scope — instead of ONCE
+        //     at the cross-sibling LCA (Dispatch 2 root).
+        //   - Dexy's csym=22-26 chain (sym_home=3, scopes=[3,4,6,7]) has
+        //     the same shape across 4-5 sibling sub-scopes → ~4× ValDef
+        //     replication → +18B accounts.
+        //   - Duckpools's csym=8/9/15 (S28 Probe 1.3) is the smaller cousin.
+        //
+        // Class synthesis: dexy/paideia/duckpools v2 residuals are a UNIFIED
+        // OVER-extraction class — per-sub-scope dispatch emits one ValDef
+        // per sibling sub-scope where Scala's mainG.hasManyUsagesGlobal +
+        // findGlobalDefinition emits ONE ValDef at LCA-of-uses (the cross-
+        // sibling common ancestor). NOT under-extraction; NOT recursive-
+        // dispatch under-coverage. The β.1 outer-LCA promotion attempt
+        // (S25, 42nd falsification) is the right direction architecturally
+        // but its cross-fixture cost is large (5-of-8 MATCH-held regressed)
+        // — closure requires Scala's full first-DFS-construction-scope
+        // hash-cons (WS-G QB1 full migration), not an incremental gate.
+        //
+        // S30+ disposition: NO B.i-A2 arm landed (premise falsified at probe).
+        // Pivot to (i) characterising the cross-sibling LCA-of-uses set
+        // empirically per fixture without coupling to MATCH-held regressions,
+        // or (ii) accepting the three v2 residuals (+6 / +18 / +2 = +26B
+        // total across 15 fixtures) as a permanent plateau under v2 until
+        // the full hash-cons migration. The metals envelope (5 reads
+        // through TreeBuilding/Thunks/AstGraphs/Base) is exhaustive for
+        // sub-scope dispatch; further metals adds nothing without a
+        // distinct mechanism question.
+        //
         // Recurse into all other expression types using the generic child mapper
         other => map_children_with_id(other, global_max, apply_cse_within_branches),
     }
