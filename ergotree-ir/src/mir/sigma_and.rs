@@ -1,7 +1,5 @@
 //! AND conjunction for sigma propositions
 
-use core::convert::TryInto;
-
 use alloc::vec::Vec;
 
 use crate::serialization::op_code::OpCode;
@@ -10,7 +8,6 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializeResult;
-use crate::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::traversable::impl_traversable_expr;
 use crate::types::stype::SType;
 
@@ -22,7 +19,7 @@ use crate::has_opcode::HasStaticOpCode;
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SigmaAnd {
     /// Collection of SSigmaProp
-    pub items: SigmaConjectureItems<Expr>,
+    pub items: Vec<Expr>,
 }
 
 impl SigmaAnd {
@@ -37,9 +34,7 @@ impl SigmaAnd {
             .iter()
             .all(|tpe| matches!(tpe, SType::SSigmaProp))
         {
-            Ok(Self {
-                items: items.try_into()?,
-            })
+            Ok(Self { items })
         } else {
             Err(InvalidArgumentError(format!(
                 "Sigma conjecture: expected all items be of type SSigmaProp, got {:?},\n items: {:?}",
@@ -64,7 +59,9 @@ impl SigmaSerializable for SigmaAnd {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        Ok(Self::new(Vec::<Expr>::sigma_parse(r)?)?)
+        Ok(Self {
+            items: Vec::<Expr>::sigma_parse(r)?,
+        })
     }
 }
 
@@ -89,9 +86,7 @@ mod arbitrary {
                     items: constants
                         .into_iter()
                         .map(|c| c.into())
-                        .collect::<Vec<Expr>>()
-                        .try_into()
-                        .unwrap(),
+                        .collect::<Vec<Expr>>(),
                 })
                 .boxed()
         }

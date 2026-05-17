@@ -41,16 +41,7 @@ impl Evaluable for Exists {
             ))),
         };
         let normalized_input_vals: Vec<Value> = match input_v {
-            Value::Coll(coll) => {
-                if coll.elem_tpe() != &*self.elem_tpe {
-                    return Err(EvalError::UnexpectedValue(format!(
-                        "expected Exists input element type to be {0:?}, got: {1:?}",
-                        self.elem_tpe,
-                        coll.elem_tpe()
-                    )));
-                };
-                Ok(coll.as_vec())
-            }
+            Value::Coll(coll) => Ok(coll.as_vec()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Map input to be Value::Coll, got: {0:?}",
                 input_v

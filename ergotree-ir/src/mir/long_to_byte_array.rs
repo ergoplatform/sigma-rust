@@ -43,9 +43,12 @@ impl OneArgOpTryBuild for LongToByteArray {
         Self: Sized,
     {
         input.check_post_eval_tpe(&SType::SLong)?;
-        Ok(LongToByteArray {
+        Ok(Self::build_unchecked(input))
+    }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
             input: input.into(),
-        })
+        }
     }
 }
 

@@ -38,9 +38,12 @@ impl OneArgOp for LogicalNot {
 impl OneArgOpTryBuild for LogicalNot {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBoolean)?;
-        Ok(Self {
+        Ok(Self::build_unchecked(input))
+    }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
             input: input.into(),
-        })
+        }
     }
 }
 

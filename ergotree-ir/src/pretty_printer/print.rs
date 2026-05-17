@@ -64,7 +64,6 @@ use crate::mir::sigma_prop_bytes::SigmaPropBytes;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::tuple::Tuple;
-use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::upcast::Upcast;
 use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
@@ -452,7 +451,7 @@ impl Print for ExtractRegisterAs {
             source_span: SourceSpan { offset, length },
             expr: ExtractRegisterAs::new(
                 input,
-                self.register_id,
+                u8::from(self.register_id) as i8,
                 SType::SOption(self.elem_tpe.clone()),
             )
             .unwrap(),
@@ -539,7 +538,7 @@ impl Print for OptionGet {
         #[allow(clippy::unwrap_used)] // we only added spans
         Ok(Spanned {
             source_span: SourceSpan { offset, length },
-            expr: OptionGet::try_build(input).unwrap(),
+            expr: OptionGet::new(input).unwrap(),
         }
         .into())
     }
@@ -571,15 +570,19 @@ impl Print for Tuple {
 impl Print for SigmaAnd {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         writeln!(w, "allOf(")?;
-        let items = self.items.try_mapped_ref(|i| -> Result<Expr, PrintError> {
-            w.inc_ident();
-            w.print_indent()?;
-            let item = i.print(w)?;
-            write!(w, ", ")?;
-            writeln!(w)?;
-            w.dec_ident();
-            Ok(item)
-        })?;
+        let items = self
+            .items
+            .iter()
+            .map(|i| -> Result<Expr, PrintError> {
+                w.inc_ident();
+                w.print_indent()?;
+                let item = i.print(w)?;
+                write!(w, ", ")?;
+                writeln!(w)?;
+                w.dec_ident();
+                Ok(item)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         w.print_indent()?;
         write!(w, ")")?;
         Ok(SigmaAnd { items }.into())
@@ -589,15 +592,19 @@ impl Print for SigmaAnd {
 impl Print for SigmaOr {
     fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
         writeln!(w, "anyOf(")?;
-        let items = self.items.try_mapped_ref(|i| -> Result<Expr, PrintError> {
-            w.inc_ident();
-            w.print_indent()?;
-            let item = i.print(w)?;
-            write!(w, ", ")?;
-            writeln!(w)?;
-            w.dec_ident();
-            Ok(item)
-        })?;
+        let items = self
+            .items
+            .iter()
+            .map(|i| -> Result<Expr, PrintError> {
+                w.inc_ident();
+                w.print_indent()?;
+                let item = i.print(w)?;
+                write!(w, ", ")?;
+                writeln!(w)?;
+                w.dec_ident();
+                Ok(item)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         w.print_indent()?;
         write!(w, ")")?;
         Ok(SigmaOr { items }.into())

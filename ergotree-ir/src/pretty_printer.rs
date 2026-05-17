@@ -216,14 +216,14 @@ mod tests {
                   val v2 = INPUTS(0)
                   val v3 = INPUTS.filter({
                       (v3: Box) => 
-                        if (v3.getReg(6).isDefined()) v3.creationInfo._1 >= v1 && v3.tokens(0)._1 == "2a472d4a614e645267556b58703273357638792f423f4528482b4d6250655368" && v3.getReg(5).get == v2.getReg(5).get else false
+                        if (v3.getReg(R6).isDefined()) v3.creationInfo._1 >= v1 && v3.tokens(0)._1 == "2a472d4a614e645267556b58703273357638792f423f4528482b4d6250655368" && v3.getReg(R5).get == v2.getReg(R5).get else false
                       }
                     )
                   val v4 = v3.size
                   val v5 = v3.fold((, 1, (, true, 0)))({
                       (v5: ((Long, (Boolean, Long)), Box)) => 
                         {
-                          val v7 = v5._2.getReg(6).get
+                          val v7 = v5._2.getReg(R6).get
                           val v8 = v5._1
                           val v9 = v8._2
                           (, v7, (, v9._1 && v8._1 <= v7, v9._2 + v7))
@@ -257,14 +257,14 @@ mod tests {
                                               allOf(
                                                 allOf(
                                                   allOf(
-                                                    proveDlog(v3(getVar(0).get).getReg(4).get), 
+                                                    proveDlog(v3(getVar(0).get).getReg(R4).get), 
                                                     sigmaProp(v2.creationInfo._1 < v1), 
                                                   ), 
                                                   sigmaProp(v4 >= 4), 
                                                 ), 
                                                 sigmaProp(v6._1), 
                                               ), 
-                                              sigmaProp(v7 - v3(0).getReg(6).get <= v7 * upcast(5) / 100), 
+                                              sigmaProp(v7 - v3(0).getReg(R6).get <= v7 * upcast(5) / 100), 
                                             ), 
                                             sigmaProp(v9._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57"), 
                                           ), 
@@ -276,9 +276,9 @@ mod tests {
                                     ), 
                                     sigmaProp(v11.size == v8.size), 
                                   ), 
-                                  sigmaProp(v10.getReg(4).get == v6._2 / upcast(v4)), 
+                                  sigmaProp(v10.getReg(R4).get == v6._2 / upcast(v4)), 
                                 ), 
-                                sigmaProp(v10.getReg(5).get == v2.getReg(5).get + 1), 
+                                sigmaProp(v10.getReg(R5).get == v2.getReg(R5).get + 1), 
                               ), 
                               sigmaProp(v10.propBytes == v2.propBytes), 
                             ), 
@@ -315,13 +315,13 @@ mod tests {
                   val v8 = v7._1
                   val v9 = v7._2
                   val v10 = v2(1)
-                  sigmaProp(v3._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v3 == v5(0) && v1.value == v4.value && v1.getReg(4) == v4.getReg(4) && v1.getReg(5) == v4.getReg(5) && !v4.getReg(6).isDefined() && v6.tokens == SELF.tokens && v6.propBytes == SELF.propBytes && v6.value >= SELF.value && v6.creationInfo._1 > SELF.creationInfo._1 && !v6.getReg(4).isDefined() && INPUTS.filter({
+                  sigmaProp(v3._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v3 == v5(0) && v1.value == v4.value && v1.getReg(R4) == v4.getReg(R4) && v1.getReg(R5) == v4.getReg(R5) && !v4.getReg(R6).isDefined() && v6.tokens == SELF.tokens && v6.propBytes == SELF.propBytes && v6.value >= SELF.value && v6.creationInfo._1 > SELF.creationInfo._1 && !v6.getReg(R4).isDefined() && INPUTS.filter({
                       (v11: Box) => 
                         {
                           val v13 = v11.tokens
                           if (v13.size > 0) {
-                            val v14 = v11.getReg(7)
-                            v13(0)._1 == "3f4428472d4b6150645367566b5970337336763979244226452948404d625165" && v11.getReg(5).get == SELF.creationInfo._1 && v11.getReg(6).get == blake2b256(v4.propBytes) && if (v14.isDefined() && v11.getReg(8).isDefined()) v14.get == v8 && v11.getReg(8).get == v9 else v10._1 == v8 && v10._2 == v9
+                            val v14 = v11.getReg(R7)
+                            v13(0)._1 == "3f4428472d4b6150645367566b5970337336763979244226452948404d625165" && v11.getReg(R5).get == SELF.creationInfo._1 && v11.getReg(R6).get == blake2b256(v4.propBytes) && if (v14.isDefined() && v11.getReg(R8).isDefined()) v14.get == v8 && v11.getReg(R8).get == v9 else v10._1 == v8 && v10._2 == v9
                           }
                  else false
                         }
@@ -345,12 +345,12 @@ mod tests {
             ergo_tree.proposition().unwrap(),
             expect![[r#"
                 {
-                  val v1 = SELF.getReg(4).get
+                  val v1 = SELF.getReg(R4).get
                   val v2 = OUTPUTS(getVar(0).get)
-                  val v3 = v2.getReg(4)
+                  val v3 = v2.getReg(R4)
                   anyOf(
                     proveDlog(v1), 
-                    sigmaProp(v3.isDefined() && v2.propBytes == SELF.propBytes && v2.tokens == SELF.tokens && v2.value >= 10000000 && INPUTS.size > 1 && INPUTS(1).tokens.size > 0 && INPUTS(1).tokens(0)._1 == "6251655468576d5a7134743777217a25432a462d4a404e635266556a586e3272" && v3.get == v1 && v2.value >= SELF.value && !v2.getReg(5).isDefined()), 
+                    sigmaProp(v3.isDefined() && v2.propBytes == SELF.propBytes && v2.tokens == SELF.tokens && v2.value >= 10000000 && INPUTS.size > 1 && INPUTS(1).tokens.size > 0 && INPUTS(1).tokens(0)._1 == "6251655468576d5a7134743777217a25432a462d4a404e635266556a586e3272" && v3.get == v1 && v2.value >= SELF.value && !v2.getReg(R5).isDefined()), 
                   )
                 }
             "#]],
@@ -368,12 +368,12 @@ mod tests {
                   val v1 = OUTPUTS(getVar(0).get)
                   val v2 = v1.tokens
                   val v3 = SELF.tokens
-                  val v4 = SELF.getReg(4).get
+                  val v4 = SELF.getReg(R4).get
                   allOf(
-                    sigmaProp(v2(0) == v3(0) && v1.propBytes == SELF.propBytes && v1.getReg(4).isDefined() && v1.value >= 10000000), 
+                    sigmaProp(v2(0) == v3(0) && v1.propBytes == SELF.propBytes && v1.getReg(R4).isDefined() && v1.value >= 10000000), 
                     anyOf(
                       proveDlog(v4), 
-                      sigmaProp(INPUTS(0).tokens(0)._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v2(1)._1 == v3(1)._1 && v2(1)._2 > v3(1)._2 && v1.getReg(4).get == v4 && v1.value >= SELF.value && !v1.getReg(5).isDefined()), 
+                      sigmaProp(INPUTS(0).tokens(0)._1 == "472b4b6250655368566d597133743677397a24432646294a404d635166546a57" && v2(1)._1 == v3(1)._1 && v2(1)._2 > v3(1)._2 && v1.getReg(R4).get == v4 && v1.value >= SELF.value && !v1.getReg(R5).isDefined()), 
                     ), 
                   )
                 }
@@ -410,17 +410,17 @@ mod tests {
                     val v15 = v9(0)
                     val v16 = v15._2
                     val v17 = v14 != v16
-                    val v18 = SELF.getReg(5).get
-                    val v19 = v4.getReg(5).get
-                    val v20 = SELF.getReg(4).get
-                    val v21 = v4.getReg(4).get
+                    val v18 = SELF.getReg(R5).get
+                    val v19 = v4.getReg(R5).get
+                    val v20 = SELF.getReg(R4).get
+                    val v21 = v4.getReg(R4).get
                     val v22 = OUTPUTS(1)
-                    val v23 = v22.getReg(4).get
+                    val v23 = v22.getReg(R4).get
                     val v24 = if (v12) 0 else v23
                     val v25 = if (v12) v23 else 0
                     val v26 = SELF.value
-                    val v27 = v22.getReg(5).get
-                    val v28 = v2.getReg(4).get / 100
+                    val v27 = v22.getReg(R5).get
+                    val v28 = v2.getReg(R4).get / 100
                     val v29 = v26 min v20 * v28 max 0
                     val v30 = if (v17) v28 min if (v20 == 0) 9223372036854775807 else v29 / v20 * v24 else {
                       val v30 = v26 - v29
@@ -455,11 +455,11 @@ mod tests {
                   val v3 = OUTPUTS(1)
                   val v4 = SELF.id
                   val v5 = OUTPUTS(0)
-                  sigmaProp(v2.size == 3 && v2(2)._1 == "7d672d1def471720ca5782fd6473e47e796d9ac0c138d9911346f118b2f6d9d9" && v2 == v3.tokens && v1.value == v3.value && v1.getReg(4).get == v3.getReg(4).get && v1.getReg(5).get == v3.getReg(5).get && v4 == INPUTS(0).id && SELF.tokens == v5.tokens && SELF.propBytes == v5.propBytes && v5.value >= SELF.value && INPUTS.filter({
+                  sigmaProp(v2.size == 3 && v2(2)._1 == "7d672d1def471720ca5782fd6473e47e796d9ac0c138d9911346f118b2f6d9d9" && v2 == v3.tokens && v1.value == v3.value && v1.getReg(R4).get == v3.getReg(R4).get && v1.getReg(R5).get == v3.getReg(R5).get && v4 == INPUTS(0).id && SELF.tokens == v5.tokens && SELF.propBytes == v5.propBytes && v5.value >= SELF.value && INPUTS.filter({
                       (v6: Box) => 
                         {
                           val v8 = v6.tokens
-                          v8.size > 0 && v8(0)._1 == "f7995f212216fcf21854f56df7a9a0a9fc9b7ae4c0f1cc40f5b406371286a5e0" && v6.getReg(6).get == v4 && v6.getReg(7).get == blake2b256(v3.propBytes)
+                          v8.size > 0 && v8(0)._1 == "f7995f212216fcf21854f56df7a9a0a9fc9b7ae4c0f1cc40f5b406371286a5e0" && v6.getReg(R6).get == v4 && v6.getReg(R7).get == blake2b256(v3.propBytes)
                         }
 
                       }
@@ -485,12 +485,12 @@ mod tests {
             expect![[r#"
                 {
                   val v1 = OUTPUTS(INPUTS.indexOf(SELF0))
-                  val v2 = SELF.getReg(4).get
+                  val v2 = SELF.getReg(R4).get
                   allOf(
-                    sigmaProp(v1.getReg(4).get == v2 && v1.propBytes == SELF.propBytes && v1.tokens == SELF.tokens && v1.value >= SELF.value), 
+                    sigmaProp(v1.getReg(R4).get == v2 && v1.propBytes == SELF.propBytes && v1.tokens == SELF.tokens && v1.value >= SELF.value), 
                     anyOf(
                       proveDlog(v2), 
-                      sigmaProp(INPUTS(0).tokens(0)._1 == "239c170b7e82f94e6b05416f14b8a2a57e0bfff0e3c93f4abbcd160b6a5b271a" && !v1.getReg(7).isDefined()), 
+                      sigmaProp(INPUTS(0).tokens(0)._1 == "239c170b7e82f94e6b05416f14b8a2a57e0bfff0e3c93f4abbcd160b6a5b271a" && !v1.getReg(R7).isDefined()), 
                     ), 
                   )
                 }
@@ -582,17 +582,17 @@ mod tests {
                   val v1 = OUTPUTS(0)
                   val v2 = SELF.tokens(0)
                   val v3 = v2._1
-                  val v4 = SELF.getReg(4).get
-                  val v5 = SELF.getReg(5).get
-                  val v6 = SELF.getReg(6).get
+                  val v4 = SELF.getReg(R4).get
+                  val v5 = SELF.getReg(R5).get
+                  val v6 = SELF.getReg(R6).get
                   val v7 = OUTPUTS(1)
                   val v8 = v7.tokens
-                  val v9 = v7.getReg(6).get
+                  val v9 = v7.getReg(R6).get
                   val v10 = v5._2
                   val v11 = v5._1
-                  val v12 = v7.getReg(5).get
-                  val v13 = v7.getReg(7).get
-                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v1.tokens(0) == (, v3, v2._2 - 1) && v1.getReg(4).get == v4 && v1.getReg(5).get == v5 && v1.getReg(6).get == v6 && v7.getReg(4).get == v4 && v7.getReg(8).get == v6 && v8(1)._1 == v3 && v8(0) == (, SELF.id, 1000000000000000000) && v9._1 * v10 == v9._2 * v11 * v12 && v13._1 * v10 == v13._2 * v11 * v12 + 1)
+                  val v12 = v7.getReg(R5).get
+                  val v13 = v7.getReg(R7).get
+                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v1.tokens(0) == (, v3, v2._2 - 1) && v1.getReg(R4).get == v4 && v1.getReg(R5).get == v5 && v1.getReg(R6).get == v6 && v7.getReg(R4).get == v4 && v7.getReg(R8).get == v6 && v8(1)._1 == v3 && v8(0) == (, SELF.id, 1000000000000000000) && v9._1 * v10 == v9._2 * v11 * v12 && v13._1 * v10 == v13._2 * v11 * v12 + 1)
                 }
             "#]],
         )
@@ -612,16 +612,16 @@ mod tests {
                   val v1 = OUTPUTS(0)
                   val v2 = v1.tokens
                   val v3 = SELF.tokens
-                  val v4 = v1.getReg(5).get
-                  val v5 = v1.getReg(6).get
+                  val v4 = v1.getReg(R5).get
+                  val v5 = v1.getReg(R6).get
                   val v6 = v2(3)
                   val v7 = v6._2
                   val v8 = upcast(v7)
-                  val v9 = v1.getReg(7).get
+                  val v9 = v1.getReg(R7).get
                   val v10 = upcast(v9)
                   val v11 = v2(2)
                   val v12 = v3(0)
-                  sigmaProp(true && v1.value >= SELF.value && v2(0) == (, SELF.id, 1) && v2(1) == (, v3(1)._1, 1) && v1.getReg(4).get == SELF.getReg(4).get && v4 == SELF.getReg(6).get && v5 == SELF.getReg(7).get && (, v6._1, v2(4)._1) == SELF.getReg(8).get && v8 * v8 == v10 * v10 && if (v11._1 == v12._1) v11._2 else 0 >= v12._2 - v9 && v7 * upcast(v4._2) >= v7 * upcast(v4._1) && v7 * upcast(v5._2) < v7 * upcast(v5._1))
+                  sigmaProp(true && v1.value >= SELF.value && v2(0) == (, SELF.id, 1) && v2(1) == (, v3(1)._1, 1) && v1.getReg(R4).get == SELF.getReg(R4).get && v4 == SELF.getReg(R6).get && v5 == SELF.getReg(R7).get && (, v6._1, v2(4)._1) == SELF.getReg(R8).get && v8 * v8 == v10 * v10 && if (v11._1 == v12._1) v11._2 else 0 >= v12._2 - v9 && v7 * upcast(v4._2) >= v7 * upcast(v4._1) && v7 * upcast(v5._2) < v7 * upcast(v5._1))
                 }
             "#]],
         )
@@ -647,9 +647,9 @@ mod tests {
                   val v7 = v3(3)
                   val v8 = v2(4)
                   val v9 = v3(4)
-                  val v10 = SELF.getReg(4).get
-                  val v11 = SELF.getReg(5).get
-                  val v12 = SELF.getReg(6).get
+                  val v10 = SELF.getReg(R4).get
+                  val v11 = SELF.getReg(R5).get
+                  val v12 = SELF.getReg(R6).get
                   val v13 = 1000000000000000000 - v5._2
                   val v14 = 1000000000000000000 - v4._2 - v13
                   val v15 = v6._2
@@ -669,7 +669,7 @@ mod tests {
                   val v29 = upcast(v26)
                   val v30 = upcast(v13)
                   val v31 = upcast(v14) / v30
-                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v2(0) == v3(0) && v2(1) == v3(1) && v4._1 == v5._1 && v6._1 == v7._1 && v8._1 == v9._1 && v1.getReg(4).get == v10 && v1.getReg(5).get == v11 && v1.getReg(6).get == v12 && if (v14 == 0) if (v22) v24 * v25 * upcast(v10) >= upcast(-v26) * v27 * upcast(v28) + upcast(v21 * upcast(v10)) else v27 * v29 * upcast(v10) >= upcast(-v21) * v24 * upcast(v28) + upcast(v26 * upcast(v10)) && v19 else if (v22 && v26 > 0) upcast(-v14) <= v25 * v30 / v27 min v29 * v30 / v24 && v19 else v25 >= v31 * v27 && v29 >= v31 * v24)
+                  sigmaProp(v1.propBytes == SELF.propBytes && v1.value >= SELF.value && v2(0) == v3(0) && v2(1) == v3(1) && v4._1 == v5._1 && v6._1 == v7._1 && v8._1 == v9._1 && v1.getReg(R4).get == v10 && v1.getReg(R5).get == v11 && v1.getReg(R6).get == v12 && if (v14 == 0) if (v22) v24 * v25 * upcast(v10) >= upcast(-v26) * v27 * upcast(v28) + upcast(v21 * upcast(v10)) else v27 * v29 * upcast(v10) >= upcast(-v21) * v24 * upcast(v28) + upcast(v26 * upcast(v10)) && v19 else if (v22 && v26 > 0) upcast(-v14) <= v25 * v30 / v27 min v29 * v30 / v24 && v19 else v25 >= v31 * v27 && v29 >= v31 * v24)
                 }
             "#]],
         )
@@ -688,7 +688,7 @@ mod tests {
                 {
                   val v1 = OUTPUTS(0)
                   val v2 = CONTEXT.preHeader.timestamp
-                  val v3 = SELF.getReg(7).get
+                  val v3 = SELF.getReg(R7).get
                   val v4 = SELF.tokens
                   val v5 = v4.size
                   val v6 = v5 == 1
@@ -698,14 +698,14 @@ mod tests {
                       }
 
                     val v8 = v7(SELF)
-                    val v9 = SELF.getReg(6).get
-                    val v10 = SELF.getReg(8).get
+                    val v9 = SELF.getReg(R6).get
+                    val v10 = SELF.getReg(R8).get
                     val v11 = Coll[Coll[Byte]]()
                     val v12 = OUTPUTS(1)
-                    val v13 = SELF.getReg(5).get
-                    val v14 = SELF.getReg(4).get
+                    val v13 = SELF.getReg(R5).get
+                    val v14 = SELF.getReg(R4).get
                     val v15 = CONTEXT.dataInputs(0)
-                    val v16 = v15.getReg(8).get
+                    val v16 = v15.getReg(R8).get
                     sigmaProp(v1.value >= SELF.value && v2 < v3 && v1.tokens(0) == v4(0) && {
                       val v17 = v7(v1)
                       v17 >= v8 + v9 || v10 != -1 && v17 >= v10
@@ -718,14 +718,14 @@ mod tests {
                           (v17: Box) => 
                             if (v6) v11 else v17.tokens(1)._1
                           }
-                (v1) && v12.propBytes == v13 && v7(v12) >= v8 && v1.getReg(4).get == v14 && v1.getReg(5).get.size > 0 && v1.getReg(6).get == v9 && v1.getReg(7).get == if (v3 - v2 <= v16(0)) v3 + v16(1) else v3 && v1.getReg(8).get == v10 && v1.getReg(9) == SELF.getReg(9) || if (OUTPUTS.size == 5) {
+                (v1) && v12.propBytes == v13 && v7(v12) >= v8 && v1.getReg(R4).get == v14 && v1.getReg(R5).get.size > 0 && v1.getReg(R6).get == v9 && v1.getReg(R7).get == if (v3 - v2 <= v16(0)) v3 + v16(1) else v3 && v1.getReg(R8).get == v10 && v1.getReg(R9) == SELF.getReg(R9) || if (OUTPUTS.size == 5) {
                           val v17 = OUTPUTS(2)
-                          val v18 = v8 / upcast(v15.getReg(4).get)
+                          val v18 = v8 / upcast(v15.getReg(R4).get)
                           val v19 = v4(0)
-                          val v20 = v8 / upcast(v15.getReg(6).get)
+                          val v20 = v8 / upcast(v15.getReg(R6).get)
                           val v21 = OUTPUTS(3)
-                          val v22 = v21.getReg(4).get
-                          v2 >= v3 || v8 >= v10 && v10 != -1 && v7(v17) >= v18 && v17.propBytes == v15.getReg(5).get && v1.tokens(0) == v19 && v1.propBytes == v13 && v7(v12) >= v8 - v18 - v20 - if (v6) v15.getReg(7).get * 2 else 0 && v12.propBytes == v14 && blake2b256(v22.bytes) == v19._1 && v7(v21) >= v20 && v21.propBytes == v22.propBytes
+                          val v22 = v21.getReg(R4).get
+                          v2 >= v3 || v8 >= v10 && v10 != -1 && v7(v17) >= v18 && v17.propBytes == v15.getReg(R5).get && v1.tokens(0) == v19 && v1.propBytes == v13 && v7(v12) >= v8 - v18 - v20 - if (v6) v15.getReg(R7).get * 2 else 0 && v12.propBytes == v14 && blake2b256(v22.bytes) == v19._1 && v7(v21) >= v20 && v21.propBytes == v22.propBytes
                         }
                  else false)
                       }

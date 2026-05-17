@@ -2,12 +2,12 @@
 
 extern crate derive_more;
 
+use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use derive_more::From;
 use derive_more::TryInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 
 use crate::sigma_protocol::unproven_tree::CandUnproven;
 use crate::sigma_protocol::unproven_tree::UnprovenConjecture;
@@ -136,7 +136,7 @@ pub(crate) enum ConjectureType {
 
 pub(crate) trait ProofTreeConjecture {
     fn conjecture_type(&self) -> ConjectureType;
-    fn children(&self) -> SigmaConjectureItems<ProofTree>;
+    fn children(&self) -> Vec<ProofTree>;
 }
 
 pub(crate) enum ProofTreeKind<'a> {
@@ -150,16 +150,20 @@ pub(crate) fn rewrite_bu<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverE
 where
     F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
 {
-    let cast_to_ust = |children: SigmaConjectureItems<ProofTree>| {
-        children.try_mapped(|c| {
-            if let ProofTree::UncheckedTree(ust) = c {
-                Ok(ust)
-            } else {
-                Err(ProverError::Unexpected(
-                    "rewrite: expected UncheckedSigmaTree got UnprovenTree",
-                ))
-            }
-        })
+    let cast_to_ust = |children: &[ProofTree]| {
+        children
+            .iter()
+            .cloned()
+            .map(|c| {
+                if let ProofTree::UncheckedTree(ust) = c {
+                    Ok(ust)
+                } else {
+                    Err(ProverError::Unexpected(
+                        "rewrite: expected UncheckedSigmaTree got UnprovenTree",
+                    ))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()
     };
 
     let tree_with_updated_children = match &tree {
@@ -168,14 +172,24 @@ where
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CandUnproven(CandUnproven {
-                        children: cand.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        children: cand
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_bu(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cand.clone()
                     }),
                 )
                 .into(),
                 UnprovenConjecture::CorUnproven(cor) => {
                     UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
-                        children: cor.children.clone().try_mapped(|c| rewrite_bu(c, f))?,
+                        children: cor
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_bu(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cor.clone()
                     }))
                     .into()
@@ -196,9 +210,12 @@ where
                     challenge,
                     children,
                 } => {
-                    let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                    let rewritten_children = children
+                        .iter()
+                        .cloned()
+                        .map(|c| rewrite_bu(c.into(), f))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let casted_children = cast_to_ust(&rewritten_children)?;
                     UncheckedConjecture::CandUnchecked {
                         children: casted_children,
                         challenge: challenge.clone(),
@@ -209,9 +226,12 @@ where
                     challenge,
                     children,
                 } => {
-                    let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                    let rewritten_children = children
+                        .iter()
+                        .cloned()
+                        .map(|c| rewrite_bu(c.into(), f))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let casted_children = cast_to_ust(&rewritten_children)?;
                     UncheckedConjecture::CorUnchecked {
                         children: casted_children,
                         challenge: challenge.clone(),
@@ -224,11 +244,14 @@ where
                     k,
                     polynomial: polynomial_opt,
                 } => {
-                    let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_bu(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                    let rewritten_children = children
+                        .iter()
+                        .cloned()
+                        .map(|c| rewrite_bu(c.into(), f))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let casted_children = cast_to_ust(&rewritten_children)?;
                     UncheckedConjecture::CthresholdUnchecked {
-                        children: casted_children,
+                        children: casted_children.try_into()?,
                         challenge: challenge.clone(),
                         k: *k,
                         polynomial: polynomial_opt.clone(),
@@ -247,16 +270,20 @@ pub(crate) fn rewrite_td<F>(tree: ProofTree, f: &F) -> Result<ProofTree, ProverE
 where
     F: Fn(&ProofTree) -> Result<Option<ProofTree>, ProverError>,
 {
-    let cast_to_ust = |children: SigmaConjectureItems<ProofTree>| {
-        children.try_mapped(|c| {
-            if let ProofTree::UncheckedTree(ust) = c {
-                Ok(ust)
-            } else {
-                Err(ProverError::Unexpected(
-                    "rewrite: expected UncheckedSigmaTree got UnprovenTree",
-                ))
-            }
-        })
+    let cast_to_ust = |children: &[ProofTree]| {
+        children
+            .iter()
+            .cloned()
+            .map(|c| {
+                if let ProofTree::UncheckedTree(ust) = c {
+                    Ok(ust)
+                } else {
+                    Err(ProverError::Unexpected(
+                        "rewrite: expected UncheckedSigmaTree got UnprovenTree",
+                    ))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()
     };
 
     let rewritten_tree = f(&tree)?.unwrap_or(tree);
@@ -266,14 +293,24 @@ where
             UnprovenTree::UnprovenConjecture(conj) => match conj {
                 UnprovenConjecture::CandUnproven(cand) => UnprovenTree::UnprovenConjecture(
                     UnprovenConjecture::CandUnproven(CandUnproven {
-                        children: cand.children.clone().try_mapped(|c| rewrite_td(c, f))?,
+                        children: cand
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_td(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cand.clone()
                     }),
                 )
                 .into(),
                 UnprovenConjecture::CorUnproven(cor) => {
                     UnprovenTree::UnprovenConjecture(UnprovenConjecture::CorUnproven(CorUnproven {
-                        children: cor.children.clone().try_mapped(|c| rewrite_td(c, f))?,
+                        children: cor
+                            .children
+                            .iter()
+                            .cloned()
+                            .map(|c| rewrite_td(c, f))
+                            .collect::<Result<Vec<_>, _>>()?,
                         ..cor.clone()
                     }))
                     .into()
@@ -294,9 +331,12 @@ where
                     challenge,
                     children,
                 } => {
-                    let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                    let rewritten_children = children
+                        .iter()
+                        .cloned()
+                        .map(|c| rewrite_td(c.into(), f))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let casted_children = cast_to_ust(&rewritten_children)?;
                     UncheckedConjecture::CandUnchecked {
                         children: casted_children,
                         challenge: challenge.clone(),
@@ -307,9 +347,12 @@ where
                     challenge,
                     children,
                 } => {
-                    let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                    let rewritten_children = children
+                        .iter()
+                        .cloned()
+                        .map(|c| rewrite_td(c.into(), f))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let casted_children = cast_to_ust(&rewritten_children)?;
                     UncheckedConjecture::CorUnchecked {
                         children: casted_children,
                         challenge: challenge.clone(),
@@ -323,10 +366,11 @@ where
                     polynomial: polynomial_opt,
                 } => {
                     let rewritten_children =
-                        children.clone().try_mapped(|c| rewrite_td(c.into(), f))?;
-                    let casted_children = cast_to_ust(rewritten_children)?;
+                        children.try_mapped_ref(|c| rewrite_td(c.clone().into(), f))?;
+                    let casted_children = cast_to_ust(rewritten_children.as_slice())?;
                     UncheckedConjecture::CthresholdUnchecked {
-                        children: casted_children,
+                        #[allow(clippy::unwrap_used)] // casted_children.len() == children.len(), so conversion can't to BoundedVec can't fail
+                        children: casted_children.try_into().unwrap(),
                         challenge: challenge.clone(),
                         k: *k,
                         polynomial: polynomial_opt.clone(),

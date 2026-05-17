@@ -44,9 +44,12 @@ impl OneArgOpTryBuild for Negation {
                 post_eval_tpe
             )));
         }
-        Ok(Self {
+        Ok(Self::build_unchecked(input))
+    }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
             input: input.into(),
-        })
+        }
     }
 }
 

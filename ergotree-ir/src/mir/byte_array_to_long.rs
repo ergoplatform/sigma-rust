@@ -41,9 +41,13 @@ impl OneArgOp for ByteArrayToLong {
 impl OneArgOpTryBuild for ByteArrayToLong {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Arc::new(SType::SByte)))?;
-        Ok(ByteArrayToLong {
-            input: Box::new(input),
-        })
+        Ok(Self::build_unchecked(input))
+    }
+
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
     }
 }
 

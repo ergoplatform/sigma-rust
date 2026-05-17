@@ -1,4 +1,5 @@
 //! Simple box selection algorithms
+use bounded_vec::NonEmptyBoundedVec;
 use ergo_lib::ergotree_ir::chain;
 use ergo_lib::wallet;
 use ergo_lib::wallet::box_selector::BoxSelector;
@@ -9,7 +10,6 @@ use crate::ergo_box::BoxValue;
 use crate::ergo_box::ErgoBoxAssetsDataList;
 use crate::error_conversion::to_js;
 use crate::token::Tokens;
-use bounded_vec::BoundedVec;
 
 extern crate derive_more;
 use derive_more::{From, Into};
@@ -29,7 +29,7 @@ impl BoxSelection {
         Ok(BoxSelection(wallet::box_selector::BoxSelection::<
             ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox,
         > {
-            boxes: BoundedVec::<_, 1, _>::from_vec(boxes.clone().into()).map_err(to_js)?,
+            boxes: NonEmptyBoundedVec::from_vec(boxes.clone().into()).map_err(to_js)?,
             change_boxes: change.clone().into(),
         }))
     }

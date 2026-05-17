@@ -1,7 +1,5 @@
 //! Serialization of proof tree signatures
 
-use core::convert::TryInto;
-
 use super::gf2_192::gf2_192poly_from_byte_array;
 use super::prover::ProofBytes;
 use super::unchecked_tree::UncheckedConjecture;
@@ -18,6 +16,8 @@ use crate::sigma_protocol::UncheckedSchnorr;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+
+use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -49,7 +49,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     node: &UncheckedTree,
     w: &mut W,
     write_challenges: bool,
-) -> Result<(), core2::io::Error> {
+) -> Result<(), no_std_io2::io::Error> {
     if write_challenges {
         node.challenge().sigma_serialize(w)?;
     }
@@ -81,7 +81,13 @@ fn sig_write_bytes<W: SigmaByteWrite>(
                 children,
             } => {
                 // don't write last child's challenge -- it's computed by the verifier via XOR
-                let (last, elements) = children.split_last();
+                let (last, elements) = children.split_last().ok_or_else(|| {
+                    #[allow(clippy::io_other_error)]
+                    no_std_io2::io::Error::new(
+                        no_std_io2::io::ErrorKind::Other,
+                        "CorUnchecked has 0 children",
+                    )
+                })?;
                 for child in elements {
                     sig_write_bytes(child, w, true)?;
                 }
@@ -175,9 +181,11 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
             SigmaConjecture::Cand(cand) => {
                 // Verifier Step 2: If the node is AND, then all of its children get e_0 as
                 // the challenge
-                let children = cand.items.try_mapped_ref(|it| {
-                    parse_sig_compute_challenges_reader(it, r, Some(challenge.clone()))
-                })?;
+                let children = cand
+                    .items
+                    .iter()
+                    .map(|it| parse_sig_compute_challenges_reader(it, r, Some(challenge.clone())))
+                    .collect::<Result<Vec<_>, _>>()?;
                 Ok(UncheckedConjecture::CandUnchecked {
                     challenge,
                     children,
@@ -192,7 +200,10 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 // Read all the children but the last and compute the XOR of all the challenges including e_0
                 let mut children: Vec<UncheckedTree> = Vec::with_capacity(cor.items.len());
 
-                let (last, rest) = cor.items.split_last();
+                let (last, rest) = cor
+                    .items
+                    .split_last()
+                    .ok_or(SigParsingError::Misc("Cor.items is empty"))?;
                 for it in rest {
                     children.push(parse_sig_compute_challenges_reader(it, r, None)?);
                 }
@@ -205,10 +216,9 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                     parse_sig_compute_challenges_reader(last, r, Some(xored_challenge))?;
                 children.push(last_child);
 
-                #[allow(clippy::unwrap_used)] // since quantity is preserved unwrap is safe here
                 Ok(UncheckedConjecture::CorUnchecked {
                     challenge,
-                    children: children.try_into().unwrap(),
+                    children,
                 }
                 .into())
             }
@@ -284,12 +294,18 @@ pub enum SigParsingError {
 
     #[error("Error: {0:?} for top level exp: {1:?}")]
     TopLevelExpWrap(Box<SigParsingError>, SigmaBoolean),
+
+    #[error("BoundedVec out of bounds: {0}")]
+    BoundedVecOutOfBounds(#[from] BoundedVecOutOfBounds),
+
+    #[error("Misc error: {0}")]
+    Misc(&'static str),
 }
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod test {
-    use core2::io::Cursor;
+    use no_std_io2::io::Cursor;
 
     use ergotree_ir::serialization::{
         constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,

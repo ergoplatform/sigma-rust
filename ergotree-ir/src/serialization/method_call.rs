@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 
 use crate::mir::expr::Expr;
 use crate::mir::method_call::MethodCall;
+use crate::soft_fork::SoftForkError;
 use crate::types::smethod::MethodId;
 use crate::types::smethod::SMethod;
 use crate::types::stype::SType;
@@ -36,12 +37,9 @@ impl SigmaSerializable for MethodCall {
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
         let arg_types = args.iter().map(|arg| arg.tpe()).collect();
-        let method = SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types)?;
+        let method = SMethod::from_ids(type_id, method_id)?;
         if r.tree_version() < method.method_raw.min_version {
-            return Err(SigmaParsingError::UnknownMethodId(
-                method_id,
-                type_id.value(),
-            ));
+            return Err(SoftForkError::UnknownMethodId(method_id, type_id.value()).into());
         }
         let explicit_type_args = method
             .method_raw
@@ -51,12 +49,14 @@ impl SigmaSerializable for MethodCall {
             .zip(core::iter::from_fn(|| Some(SType::sigma_parse(r))))
             .map(|(tpe, res)| -> Result<(STypeVar, SType), SigmaParsingError> { Ok((tpe, res?)) })
             .collect::<Result<HashMap<STypeVar, SType>, _>>()?;
-        Ok(MethodCall::with_type_args(
-            obj,
-            method,
+        Ok(MethodCall {
+            method: method
+                .with_concrete_types(&explicit_type_args)
+                .specialize_for(obj.tpe(), arg_types)?,
+            obj: obj.into(),
             args,
             explicit_type_args,
-        )?)
+        })
     }
 }
 

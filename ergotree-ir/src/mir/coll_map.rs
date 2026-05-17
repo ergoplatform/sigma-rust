@@ -50,6 +50,21 @@ impl Map {
         }
     }
 
+    fn build_unchecked(input: Expr, mapper: Expr) -> Result<Self, InvalidArgumentError> {
+        // The reference implementation only checks if mapper is of type SFunc when deserializing
+        match mapper.tpe() {
+            SType::SFunc(sfunc) => Ok(Map {
+                input: input.into(),
+                mapper: mapper.into(),
+                mapper_sfunc: sfunc,
+            }),
+            _ => Err(InvalidArgumentError(format!(
+                "Invalid mapper tpe: {0:?}",
+                mapper.tpe()
+            ))),
+        }
+    }
+
     /// Type
     pub fn tpe(&self) -> SType {
         SType::SColl(self.mapper_sfunc.t_range.clone().into())
@@ -74,7 +89,7 @@ impl SigmaSerializable for Map {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let mapper = Expr::sigma_parse(r)?;
-        Ok(Map::new(input, mapper)?)
+        Ok(Map::build_unchecked(input, mapper)?)
     }
 }
 

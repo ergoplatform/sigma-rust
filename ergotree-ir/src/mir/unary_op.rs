@@ -21,6 +21,8 @@ pub trait OneArgOp {
 pub trait OneArgOpTryBuild: Sized {
     /// Create new IR node, returns an error if any of the requirements failed
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError>;
+    /// Create new IR node, without checking that the type of the input meets the requirements
+    fn build_unchecked(input: Expr) -> Self;
 }
 
 impl<T: OneArgOp + OneArgOpTryBuild> SigmaSerializable for T {
@@ -30,7 +32,7 @@ impl<T: OneArgOp + OneArgOpTryBuild> SigmaSerializable for T {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
-        let r = T::try_build(input)?;
+        let r = T::build_unchecked(input);
         Ok(r)
     }
 }

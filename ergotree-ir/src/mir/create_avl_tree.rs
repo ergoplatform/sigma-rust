@@ -71,7 +71,12 @@ impl SigmaSerializable for CreateAvlTree {
         let digest = Expr::sigma_parse(r)?;
         let key_length = Expr::sigma_parse(r)?;
         let value_length = Option::<Box<Expr>>::sigma_parse(r)?;
-        Ok(Self::new(flags, digest, key_length, value_length)?)
+        Ok(Self {
+            flags: flags.into(),
+            digest: digest.into(),
+            key_length: key_length.into(),
+            value_length,
+        })
     }
 
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {

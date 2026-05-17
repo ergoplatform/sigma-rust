@@ -1,4 +1,6 @@
 use alloc::boxed::Box;
+use alloc::vec::Vec;
+use bounded_vec::NonEmptyVec;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::sigma_and::SigmaAnd;
 use ergotree_ir::mir::value::Value;
@@ -16,8 +18,13 @@ impl Evaluable for SigmaAnd {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        let items_v_res = self.items.try_mapped_ref(|it| it.eval(env, ctx));
-        let items_sigmabool = items_v_res?
+        let items_v: NonEmptyVec<_> = self
+            .items
+            .iter()
+            .map(|it| it.eval(env, ctx))
+            .collect::<Result<Vec<_>, _>>()?
+            .try_into()?;
+        let items_sigmabool = items_v
             .try_mapped(|it| it.try_extract_into::<SigmaProp>())?
             .mapped(|it| it.value().clone());
         Ok(Value::SigmaProp(Box::new(SigmaProp::new(
@@ -31,7 +38,6 @@ impl Evaluable for SigmaAnd {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use core::convert::TryInto;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 
@@ -58,7 +64,7 @@ mod tests {
             let expected_sb: Vec<SigmaBoolean> = sigmaprops.into_iter().map(|sp| sp.into()).collect();
             prop_assert!(matches!(res.clone().into(), SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(_))));
             if let SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {items: actual_sb})) = res.into() {
-                prop_assert_eq!(actual_sb, expected_sb.try_into().unwrap());
+                prop_assert_eq!(actual_sb, expected_sb);
             }
         }
     }

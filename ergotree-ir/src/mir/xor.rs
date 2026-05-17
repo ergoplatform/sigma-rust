@@ -65,7 +65,10 @@ impl SigmaSerializable for Xor {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let left = Expr::sigma_parse(r)?;
         let right = Expr::sigma_parse(r)?;
-        Ok(Xor::new(left, right)?)
+        Ok(Xor {
+            left: left.into(),
+            right: right.into(),
+        })
     }
 }
 

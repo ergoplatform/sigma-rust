@@ -74,7 +74,10 @@ impl SigmaSerializable for Append {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let input = Expr::sigma_parse(r)?;
         let col_2 = Expr::sigma_parse(r)?;
-        Ok(Append::new(input, col_2)?)
+        Ok(Append {
+            input: input.into(),
+            col_2: col_2.into(),
+        })
     }
 }
 

@@ -50,6 +50,11 @@ impl OneArgOpTryBuild for OptionIsDefined {
             ))),
         }
     }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
+    }
 }
 
 #[cfg(test)]

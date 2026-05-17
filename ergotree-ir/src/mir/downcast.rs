@@ -33,6 +33,10 @@ impl Downcast {
                 target_tpe
             )));
         }
+        Self::build_unchecked(input, target_tpe)
+    }
+
+    fn build_unchecked(input: Expr, target_tpe: SType) -> Result<Self, InvalidArgumentError> {
         let post_eval_tpe = input.post_eval_tpe();
         if post_eval_tpe.is_numeric() {
             Ok(Self {
@@ -64,9 +68,9 @@ impl SigmaSerializable for Downcast {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let input = Expr::sigma_parse(r)?.into();
+        let input = Expr::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
-        Ok(Downcast { input, tpe })
+        Ok(Self::build_unchecked(input, tpe)?)
     }
 }
 

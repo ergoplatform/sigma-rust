@@ -6,6 +6,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::types::TypeCode;
 use crate::serialization::SigmaParsingError;
+use crate::soft_fork::SoftForkError;
 use core::convert::TryFrom;
 use hashbrown::HashMap;
 
@@ -15,18 +16,20 @@ use super::stype_companion::STypeCompanion;
 use super::stype_param::STypeVar;
 use super::type_unify::unify_many;
 use super::type_unify::TypeUnificationError;
-use crate::serialization::SigmaParsingError::UnknownMethodId;
 
 /// Method id unique among the methods of the same object
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct MethodId(pub u8);
 
 impl MethodId {
-    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> core2::io::Result<()> {
+    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> no_std_io2::io::Result<()> {
         w.put_u8(self.0)
     }
 
-    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> core2::io::Result<Self> {
+    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> no_std_io2::io::Result<Self> {
         Ok(Self(r.get_u8()?))
     }
 }
@@ -56,7 +59,7 @@ impl SMethod {
         let obj_type = STypeCompanion::try_from(type_id)?;
         match obj_type.method_by_id(&method_id) {
             Some(m) => Ok(m),
-            None => Err(UnknownMethodId(method_id, type_id.value())),
+            None => Err(SoftForkError::UnknownMethodId(method_id, type_id.value()).into()),
         }
     }
 

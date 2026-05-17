@@ -40,9 +40,13 @@ impl OneArgOp for CalcBlake2b256 {
 impl OneArgOpTryBuild for CalcBlake2b256 {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SColl(Arc::new(SType::SByte)))?;
-        Ok(CalcBlake2b256 {
-            input: Box::new(input),
-        })
+        Ok(Self::build_unchecked(input))
+    }
+
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
     }
 }
 

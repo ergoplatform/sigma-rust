@@ -30,6 +30,12 @@ pub struct Cthreshold {
 }
 
 impl Cthreshold {
+    fn new(k: u8, children: SigmaConjectureItems<SigmaBoolean>) -> Result<Self, &'static str> {
+        if k as usize > children.len() {
+            return Err("k > children.len()");
+        }
+        Ok(Self { k, children })
+    }
     /// Reduce all possible TrivialProps in the tree
     pub fn reduce(k: u8, children: SigmaConjectureItems<SigmaBoolean>) -> SigmaBoolean {
         if k == 0 {
@@ -73,9 +79,11 @@ impl Cthreshold {
         // should be 2 or more so unwrap is safe here
         #[allow(clippy::unwrap_used)]
         let sigmas: SigmaConjectureItems<SigmaBoolean> = res.try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        // 1 < sigmas.len() <= 255, so converting to NonEmptyVec never fails
         match curr_k as usize {
-            1 => Cor::normalized(sigmas),
-            ch if ch == children_left => Cand::normalized(sigmas),
+            1 => Cor::normalized(sigmas.to_vec().try_into().unwrap()),
+            ch if ch == children_left => Cand::normalized(sigmas.to_vec().try_into().unwrap()),
             _ => SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
                 k: curr_k,
                 children: sigmas,
@@ -119,9 +127,6 @@ impl SigmaSerializable for Cthreshold {
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
         }
-        Ok(Cthreshold {
-            k,
-            children: items.try_into()?,
-        })
+        Cthreshold::new(k, items.try_into()?).map_err(|e| SigmaParsingError::Misc(e.to_string()))
     }
 }

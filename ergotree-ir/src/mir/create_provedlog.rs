@@ -43,6 +43,11 @@ impl OneArgOpTryBuild for CreateProveDlog {
             input: input.into(),
         })
     }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
+            input: input.into(),
+        }
+    }
 }
 
 #[cfg(test)]

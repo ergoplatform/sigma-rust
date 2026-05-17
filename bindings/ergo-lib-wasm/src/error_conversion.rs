@@ -18,6 +18,7 @@ use ergo_lib::ergotree_ir::chain::address::AddressError;
 use ergo_lib::ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergo_lib::ergotree_ir::chain::ergo_box::RegisterValueError;
 use ergo_lib::ergotree_ir::chain::token::TokenAmountError;
+use ergo_lib::ergotree_ir::soft_fork::SoftForkError;
 use ergo_lib::wallet::derivation_path::ChildIndexError;
 use ergo_lib::wallet::derivation_path::DerivationPathError;
 use ergo_lib::wallet::ext_pub_key::ExtPubKeyError;
@@ -99,6 +100,7 @@ from_error_to_wrap!(TransactionContextError);
 from_error_to_wrap!(TxValidationError);
 from_error_to_wrap!(RegisterValueError);
 from_error_to_wrap!(String);
+from_error_to_wrap!(SoftForkError);
 
 macro_rules! from_error_to_wrap_via_debug {
     ($t:ident) => {

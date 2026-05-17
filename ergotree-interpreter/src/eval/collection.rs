@@ -24,6 +24,15 @@ impl Evaluable for Collection {
             Collection::Exprs { elem_tpe, items } => {
                 let items_v: Result<Arc<[Value]>, EvalError> =
                     items.iter().map(|i| i.eval(env, ctx)).collect();
+                if let Some(tpe) = items
+                    .iter()
+                    .map(|item| item.tpe())
+                    .find(|tpe| tpe != elem_tpe)
+                {
+                    return Err(EvalError::UnexpectedExpr(format!(
+                        "Collection: expected value of type {elem_tpe:?}, found {tpe:?}"
+                    )));
+                }
                 match elem_tpe {
                     SType::SByte => {
                         let bytes: Result<Arc<[i8]>, TryExtractFromError> = items_v?

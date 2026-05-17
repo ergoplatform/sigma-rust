@@ -39,9 +39,12 @@ impl OneArgOp for ExtractBytesWithNoRef {
 impl OneArgOpTryBuild for ExtractBytesWithNoRef {
     fn try_build(input: Expr) -> Result<Self, InvalidArgumentError> {
         input.check_post_eval_tpe(&SType::SBox)?;
-        Ok(ExtractBytesWithNoRef {
+        Ok(Self::build_unchecked(input))
+    }
+    fn build_unchecked(input: Expr) -> Self {
+        Self {
             input: input.into(),
-        })
+        }
     }
 }
 

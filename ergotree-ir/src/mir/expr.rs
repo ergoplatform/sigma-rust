@@ -17,6 +17,7 @@ use crate::serialization::sigma_byte_reader;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::soft_fork::SoftForkError;
 use crate::source_span::Spanned;
 use crate::traversable::Traversable;
 use crate::types::stype::LiftIntoSType;
@@ -442,7 +443,14 @@ impl Expr {
                             .transpose()?
                             .or(default.as_deref().cloned());
                         match expr {
-                            Some(expr) => (tpe, expr),
+                            Some(expr) if expr.tpe() == *tpe => (tpe, expr),
+                            // Unlike DeserializeContext, type mismatches in DeserializeRegister are not soft-forkable errors
+                            Some(expr) => {
+                                return Err(SubstDeserializeError::ExprTpeError {
+                                    expected: tpe.clone().into(),
+                                    actual: expr.tpe().into(),
+                                })
+                            }
                             None => return Ok(()), // When script in register is not found, and default is not defined, leave DeserializeRegisterNode unchanged, which will error on evaluation
                         }
                     }
@@ -450,10 +458,7 @@ impl Expr {
                     _ => unreachable!(),
                 };
                 if parsed_expr.tpe() != *tpe {
-                    return Err(SubstDeserializeError::ExprTpeError {
-                        expected: tpe.clone(),
-                        actual: parsed_expr.tpe(),
-                    });
+                    return Err(SoftForkError::DeserializedScriptError.into());
                 }
                 *expr = parsed_expr;
                 Ok(())
@@ -685,8 +690,13 @@ pub enum SubstDeserializeError {
     RegisterValueError(#[from] RegisterValueError),
     #[error("Error while parsing Expr from bytes: {0}")]
     ExprParsingError(#[from] SigmaParsingError),
+    #[error("{0}")]
+    SoftForkError(#[from] SoftForkError),
     #[error("Expected tpe {expected}, found {actual}")]
-    ExprTpeError { expected: SType, actual: SType },
+    ExprTpeError {
+        expected: Box<SType>,
+        actual: Box<SType>,
+    },
 }
 
 impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
