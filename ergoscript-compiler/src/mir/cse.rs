@@ -7538,6 +7538,33 @@ fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
                 },
             })
         }
+        // QB1 Phase 3.4b / S28 Arc A — FuncValue body sub-scope dispatch when
+        // v2 hash-cons enabled. Mirrors Scala's `buildValue` Lambda arm which
+        // invokes `processAstGraph(...lam...)` on the Lambda's sub-AstGraph,
+        // emitting ValDefs at the FuncValue body's BlockValue for syms first-
+        // constructed inside the body (sym_home == this_lambda_subscope) with
+        // hasManyUsagesGlobal ≥ 2. sigma-rust FuncValue.body: Box<Expr>
+        // accepts BlockValue (verified via Probe 0 metals); no IR invariant
+        // blocks the wrap.
+        //
+        // S28 Probe 1.2 finding: dexy / paideia / duckpools — the three v2
+        // residual fixtures — contain ZERO FuncValue nodes (validated by
+        // grepping their .es sources for fold/forall/exists/map/=>). Arc A
+        // is therefore null-target for the S27 residuals. Its function in
+        // S28 is soundness validation across lambda-containing fixtures
+        // (chaincash / ergomixer / ergoraffle / oracle / rosen / sigmausd /
+        // skyharbor — 7 of 8 MATCH-held; phoenix has no lambda). MATCH-held
+        // preservation under FuncValue dispatch documents the architectural
+        // primitive as sound at the lambda boundary; S29 can then layer
+        // recursive sub-sub-scope dispatch on it (paideia +6B class).
+        Expr::FuncValue(fv) if hash_cons_v2_enabled() => {
+            let args = fv.args().to_vec();
+            let body = fv.body().clone();
+            let body_cse = process_ast_graph_branch(body, global_max);
+            let new_max = global_max.max(find_max_val_id(&body_cse));
+            let body_final = apply_cse_within_branches(body_cse, new_max);
+            Expr::FuncValue(FuncValue::new(args, body_final))
+        }
         // Recurse into all other expression types using the generic child mapper
         other => map_children_with_id(other, global_max, apply_cse_within_branches),
     }
