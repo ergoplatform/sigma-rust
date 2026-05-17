@@ -9741,6 +9741,11 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     let mut canonical_node: HashMap<SymId, Expr> = HashMap::new();
     let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
 
+    // PASS 1 — Tentative-extract set: every canonical that passes the structural
+    // gates (count>=2 / extractable / !is_constant_def / graph-shared / !refs_local).
+    // The β.1 recount in PASS 2 then narrows this set using Scala's
+    // `hasManyUsagesGlobal` semantics.
+    let mut tentative: Vec<SymId> = Vec::new();
     for &csym in &canonical_order {
         let count = st.canonical_count(csym);
         if count < 2 {
@@ -9776,9 +9781,6 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         // IsConstantDef analog (S33): Scala's `processAstGraph` extraction gate
         // excludes Defs whose RHS is structurally a constant — `Const`,
         // `ConstPlaceholder`, or recursive `Collection` / `Tuple` of consts.
-        // v3 over-extracts these (e.g. paideia csym=157 `Collection(SByte,[])`
-        // and csym=159 `Tuple([Coll(SByte,[]), Const(0:SLong)])`); Scala
-        // inlines them at every use site so they never receive a ValDef.
         if is_pure_const_shape(&node) {
             if trace {
                 eprintln!(
@@ -9812,15 +9814,119 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        tentative.push(csym);
+    }
+
+    // PASS 2 — β.1 post-extraction recount (S34) per Scala
+    // `AstGraphs.allNodes = buildUsageMap(flatSchedule, usingDeps=false)`
+    // semantics. v3's `canonical_count(X)` is the raw textual occurrence
+    // count in the original tree; Scala's `usagesOf` counts uses in the
+    // POST-EXTRACTION flat schedule — each unique Def's body lives once,
+    // and references INSIDE another tentative-extract's body live inside
+    // THAT body (not at the calling sites where outer's pattern occurs).
+    //
+    // Compute the substituted count: walk root + each tentative outer's
+    // body, but at every tentative subterm boundary, treat the subterm as
+    // opaque (count 1 use of target if subterm matches target, then stop
+    // recursing into its body). Sum across root + all outers = the count
+    // Scala sees. Re-gate on `adjusted >= 2`.
+    //
+    // The simpler `raw - K*(M-1)` formula (where K = nested count, M =
+    // outer_count) over-attributes because `count_occurrences` walks
+    // transitively through inner-extracts — a sibling outer that contains
+    // X via a nested tentative path would falsely subtract from X even
+    // though that path is opaque under substitution. (S34 first attempt
+    // regressed paideia 1477 → 1537, sigmao 1187 → 1198 from this.)
+    let tentative_keys: std::collections::HashSet<ExprKey> = tentative
+        .iter()
+        .filter_map(|s| sym_expr.get(s).map(|e| ExprKey(e.clone())))
+        .collect();
+
+    fn subst_count(
+        node: &Expr,
+        target_key: &ExprKey,
+        tentative_keys: &std::collections::HashSet<ExprKey>,
+    ) -> usize {
+        let node_key = ExprKey(node.clone());
+        if tentative_keys.contains(&node_key) {
+            return if &node_key == target_key { 1 } else { 0 };
+        }
+        let mut count = if &node_key == target_key { 1 } else { 0 };
+        for child in direct_children(node) {
+            count += subst_count(child, target_key, tentative_keys);
+        }
+        count
+    }
+
+    fn subst_count_children(
+        node: &Expr,
+        target_key: &ExprKey,
+        tentative_keys: &std::collections::HashSet<ExprKey>,
+    ) -> usize {
+        let mut count = 0;
+        for child in direct_children(node) {
+            count += subst_count(child, target_key, tentative_keys);
+        }
+        count
+    }
+
+    let mut adjusted_count: HashMap<SymId, u32> = HashMap::new();
+    for &csym in &tentative {
+        let Some(target_expr) = sym_expr.get(&csym) else { continue; };
+        let target_key = ExprKey(target_expr.clone());
+        let root_uses = subst_count(&expr_stripped, &target_key, &tentative_keys) as u32;
+        let mut body_uses: u32 = 0;
+        for &outer in &tentative {
+            if outer == csym {
+                continue;
+            }
+            let Some(outer_body) = sym_expr.get(&outer) else { continue; };
+            body_uses = body_uses
+                .saturating_add(subst_count_children(outer_body, &target_key, &tentative_keys) as u32);
+        }
+        let raw = st.canonical_count(csym);
+        let adj = root_uses.saturating_add(body_uses);
+        adjusted_count.insert(csym, adj);
+        if trace {
+            eprintln!(
+                "[HCv3/recount] csym={} raw={} root_uses={} body_uses={} adjusted={}",
+                csym, raw, root_uses, body_uses, adj
+            );
+        }
+    }
+
+    // PASS 3 — Place each tentative canonical whose adjusted count still ≥ 2.
+    for &csym in &canonical_order {
+        if !adjusted_count.contains_key(&csym) {
+            continue;
+        }
+        let raw = st.canonical_count(csym);
+        let adj = adjusted_count.get(&csym).copied().unwrap_or(raw);
+        if adj < 2 {
+            if trace {
+                if let Some(n) = sym_expr.get(&csym) {
+                    eprintln!(
+                        "[HCv3/reject] csym={} reason=usagemap_recount raw={} adjusted={} :: {}",
+                        csym,
+                        raw,
+                        adj,
+                        short_expr(n)
+                    );
+                }
+            }
+            continue;
+        }
+        let node = sym_expr.get(&csym).cloned().unwrap();
         let scopes = st.canonical_scopes_for(csym);
         let lca = st.lca_of_scopes(scopes);
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
         if trace {
             eprintln!(
-                "[HCv3/place] csym={} count={} lca={} scopes={:?} vid={} :: {}",
+                "[HCv3/place] csym={} count={} adj={} lca={} scopes={:?} vid={} :: {}",
                 csym,
-                count,
+                raw,
+                adj,
                 lca,
                 scopes,
                 next_id,
@@ -9845,6 +9951,15 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         .map(|(&csym, &(_, vid))| (ExprKey(canonical_node[&csym].clone()), vid))
         .collect();
 
+    if trace {
+        eprintln!(
+            "[HCv3/summary] tentative={} placement.len={} by_scope.len={} canonical_to_vid.len={}",
+            tentative.len(),
+            placement.len(),
+            by_scope.len(),
+            canonical_to_vid.len()
+        );
+    }
     let ctx = V3Ctx {
         next_scope: 1,
         canonical_to_vid,
