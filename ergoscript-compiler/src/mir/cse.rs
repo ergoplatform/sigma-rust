@@ -9744,18 +9744,55 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     for &csym in &canonical_order {
         let count = st.canonical_count(csym);
         if count < 2 {
+            if trace {
+                if let Some(n) = sym_expr.get(&csym) {
+                    eprintln!(
+                        "[HCv3/reject] csym={} reason=count<2 count={} :: {}",
+                        csym,
+                        count,
+                        short_expr(n)
+                    );
+                }
+            }
             continue;
         }
         let Some(node) = sym_expr.get(&csym).cloned() else {
+            if trace {
+                eprintln!("[HCv3/reject] csym={} reason=no-expr", csym);
+            }
             continue;
         };
         if !is_extractable(&node) {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=!extractable count={} :: {}",
+                    csym,
+                    count,
+                    short_expr(&node)
+                );
+            }
             continue;
         }
         if !is_graph_shared(&node) {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=!graph_shared count={} :: {}",
+                    csym,
+                    count,
+                    short_expr(&node)
+                );
+            }
             continue;
         }
         if references_locally_defined(&node, &branch_local_ids) {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=refs_local count={} :: {}",
+                    csym,
+                    count,
+                    short_expr(&node)
+                );
+            }
             continue;
         }
         let scopes = st.canonical_scopes_for(csym);
@@ -9764,10 +9801,11 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         placement.insert(csym, (lca, next_id));
         if trace {
             eprintln!(
-                "[HCv3/place] csym={} count={} lca={} vid={} :: {}",
+                "[HCv3/place] csym={} count={} lca={} scopes={:?} vid={} :: {}",
                 csym,
                 count,
                 lca,
+                scopes,
                 next_id,
                 short_expr(&node)
             );
