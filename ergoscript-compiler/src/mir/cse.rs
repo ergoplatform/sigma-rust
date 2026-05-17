@@ -10063,7 +10063,241 @@ fn rebuild_v3_walk(expr: Expr, scope_u32: u32) -> Expr {
             let body = wrap_with_valdefs_v3(body, s_b);
             Expr::FuncValue(FuncValue::new(args, body))
         }
-        other => map_children_with_id(other, scope_u32, rebuild_v3_walk),
+        other => {
+            // WS-G sig-15 QB1 Phase 4 S35 — `CSE_HC_V3_FULL_SUBST=1` env gate
+            // for the comprehensive child walker. Default OFF preserves the
+            // v3 baseline byte-for-byte. Setting the gate activates the
+            // walker-completeness fix that lets v3 canonical substitution
+            // reach through ByIndex / SelectField / Extract* / PropertyCall
+            // / etc. wrappers. Empirical S35 trace (`CSE_HC_V3=1
+            // CSE_HC_V3_FULL_SUBST=1`):
+            //   - dexy_bank_full 307B → 309B = NODE MATCH (+1 v3 MATCH)
+            //   - rosen_event_trigger 374B (MATCH) → 336B (NOT MATCH, -38B)
+            //   - paideia_stake_state 1477B (+6 plateau) → 1420B (-51 from NODE)
+            //   - sigmao_option 1187B → 1176B (closer to NODE 1124)
+            //   - phoenix/sigmausd/spectrum_n2t/spectrum_t2t shift closer.
+            // The walker fix is mechanically correct (every canonical
+            // placed by v3 now substitutes at every occurrence, no longer
+            // DCE'd by `reorder_valdefs`) but exposes underlying v3
+            // PLACEMENT divergence: v3's `count_dag_usages` /
+            // `appears_in_main_scope` analogs over-extract on rosen's
+            // top-level-If structure and under-extract on paideia's
+            // cross-thunk distribution. Closing all 15 requires
+            // refining the placement gate, not the substitution walker.
+            //
+            // Default-OFF protects HARD ABORT criteria from the handoff
+            // mandate (v3 MATCH oracle/rosen/ergomixer preserved). The
+            // walker stays as a durable artifact for S36+ placement-
+            // refinement sessions to switch on alongside their gate work.
+            if std::env::var("CSE_HC_V3_FULL_SUBST").is_ok() {
+                rebuild_v3_walk_children(other, scope_u32)
+            } else {
+                map_children_with_id(other, scope_u32, rebuild_v3_walk)
+            }
+        }
+    }
+}
+
+/// WS-G sig-15 QB1 Phase 4 S35 — v3-specific comprehensive child walker for
+/// `rebuild_v3_walk`. The previous fallthrough through `map_children_with_id`
+/// was incomplete: it lacked arms for ByIndex / SelectField / Extract* /
+/// PropertyCall / etc., so v3 canonical substitution silently never reached
+/// children of those nodes. Empirical evidence (dexy_bank_full):
+/// `[HCv3/place] csym=9 ... vid=11 :: PropertyCall(SelfBox, tokens)` was
+/// placed at root but rebuild_v3_walk only matched csym=26 (vid=12) — the
+/// only canonical that happened to appear at a TOP-LEVEL eq comparison.
+/// PropertyCall(SelfBox, tokens) occurrences lived inside `ByIndex(_, _, _)`
+/// wrappers, which the incomplete walker silently skipped, leaving inline
+/// `db6308a7` byte sequences in the body. Downstream `reorder_valdefs` DCE'd
+/// the resulting dead ValDef → dexy emitted 3 outer ValDefs instead of
+/// NODE's 4 (off by -2B).
+///
+/// This helper is intentionally LOCAL to rebuild_v3_walk so existing
+/// `apply_cse_within_branches` (also a `map_children_with_id` caller)
+/// behavior on v0/v1/v2/HC=0 paths is preserved byte-for-byte. Cross-fixture
+/// pre-flight confirmed that broadening `map_children_with_id` itself
+/// regressed v3 rosen_event_trigger 374→361 (MATCH lost); isolating to
+/// rebuild_v3_walk avoids that path.
+fn rebuild_v3_walk_children(expr: Expr, scope: u32) -> Expr {
+    match expr {
+        // Single-input wrappers commonly host canonical-matching children.
+        Expr::ByIndex(s) => {
+            let span = s.source_span;
+            let input = rebuild_v3_walk(*s.expr.input, scope);
+            let index = rebuild_v3_walk(*s.expr.index, scope);
+            let default = s.expr.default.map(|d| Box::new(rebuild_v3_walk(*d, scope)));
+            Expr::ByIndex(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
+                    .expect("ByIndex::new in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::SelectField(s) => {
+            let span = s.source_span;
+            let field_index = s.expr.field_index;
+            let input = rebuild_v3_walk(*s.expr.input, scope);
+            Expr::SelectField(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::select_field::SelectField::new(input, field_index)
+                    .expect("SelectField::new in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::PropertyCall(s) => {
+            let span = s.source_span;
+            let method = s.expr.method;
+            let obj = rebuild_v3_walk(*s.expr.obj, scope);
+            Expr::PropertyCall(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::property_call::PropertyCall {
+                    obj: obj.into(),
+                    method,
+                },
+            })
+        }
+        Expr::MethodCall(s) => {
+            let span = s.source_span;
+            let method = s.expr.method.clone();
+            let explicit_type_args = s.expr.explicit_type_args.clone();
+            let new_obj = rebuild_v3_walk(*s.expr.obj, scope);
+            let new_args: Vec<Expr> = s.expr.args.into_iter().map(|a| rebuild_v3_walk(a, scope)).collect();
+            Expr::MethodCall(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::method_call::MethodCall::with_type_args(
+                    new_obj,
+                    method,
+                    new_args,
+                    explicit_type_args,
+                )
+                .expect("MethodCall::with_type_args in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::ExtractScriptBytes(esb) => Expr::ExtractScriptBytes(
+            ergotree_ir::mir::extract_script_bytes::ExtractScriptBytes {
+                input: rebuild_v3_walk(*esb.input, scope).into(),
+            },
+        ),
+        Expr::ExtractRegisterAs(s) => {
+            let span = s.source_span;
+            let register_id = s.expr.register_id;
+            let elem_tpe = s.expr.elem_tpe;
+            Expr::ExtractRegisterAs(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::extract_reg_as::ExtractRegisterAs {
+                    input: rebuild_v3_walk(*s.expr.input, scope).into(),
+                    register_id,
+                    elem_tpe,
+                },
+            })
+        }
+        Expr::ExtractCreationInfo(eci) => Expr::ExtractCreationInfo(
+            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
+                input: rebuild_v3_walk(*eci.input, scope).into(),
+            },
+        ),
+        Expr::ExtractBytes(eb) => Expr::ExtractBytes(
+            ergotree_ir::mir::extract_bytes::ExtractBytes {
+                input: rebuild_v3_walk(*eb.input, scope).into(),
+            },
+        ),
+        Expr::ExtractId(ei) => Expr::ExtractId(
+            ergotree_ir::mir::extract_id::ExtractId {
+                input: rebuild_v3_walk(*ei.input, scope).into(),
+            },
+        ),
+        Expr::OptionGet(s) => {
+            let span = s.source_span;
+            let input = rebuild_v3_walk(*s.expr.input, scope);
+            Expr::OptionGet(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::option_get::OptionGet::try_build(input)
+                    .expect("OptionGet::try_build in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::OptionIsDefined(s) => Expr::OptionIsDefined(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::option_is_defined::OptionIsDefined {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+            },
+        }),
+        Expr::OptionGetOrElse(s) => {
+            let span = s.source_span;
+            let input = rebuild_v3_walk(*s.expr.input, scope);
+            let default = rebuild_v3_walk(*s.expr.default, scope);
+            Expr::OptionGetOrElse(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
+                    .expect("OptionGetOrElse::new in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::LogicalNot(s) => Expr::LogicalNot(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::logical_not::LogicalNot {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+            },
+        }),
+        Expr::Negation(s) => Expr::Negation(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::negation::Negation {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+            },
+        }),
+        Expr::Upcast(uc) => Expr::Upcast(ergotree_ir::mir::upcast::Upcast {
+            input: rebuild_v3_walk(*uc.input, scope).into(),
+            tpe: uc.tpe,
+        }),
+        Expr::CalcBlake2b256(cb) => Expr::CalcBlake2b256(
+            ergotree_ir::mir::calc_blake2b256::CalcBlake2b256 {
+                input: rebuild_v3_walk(*cb.input, scope).into(),
+            },
+        ),
+        Expr::SigmaPropBytes(spb) => Expr::SigmaPropBytes(
+            ergotree_ir::mir::sigma_prop_bytes::SigmaPropBytes {
+                input: rebuild_v3_walk(*spb.input, scope).into(),
+            },
+        ),
+        Expr::Tuple(t) => {
+            let new_items: Vec<Expr> = t.items.into_iter().map(|i| rebuild_v3_walk(i, scope)).collect();
+            Expr::Tuple(
+                ergotree_ir::mir::tuple::Tuple::new(new_items)
+                    .expect("Tuple::new in rebuild_v3_walk_children"),
+            )
+        }
+        Expr::Slice(s) => Expr::Slice(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::coll_slice::Slice {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+                from: rebuild_v3_walk(*s.expr.from, scope).into(),
+                until: rebuild_v3_walk(*s.expr.until, scope).into(),
+            },
+        }),
+        Expr::Append(s) => {
+            let span = s.source_span;
+            let input = rebuild_v3_walk(*s.expr.input, scope);
+            let col_2 = rebuild_v3_walk(*s.expr.col_2, scope);
+            Expr::Append(Spanned {
+                source_span: span,
+                expr: ergotree_ir::mir::coll_append::Append::new(input, col_2)
+                    .expect("Append::new in rebuild_v3_walk_children"),
+            })
+        }
+        Expr::CreateProveDlog(cpd) => Expr::CreateProveDlog(
+            ergotree_ir::mir::create_provedlog::CreateProveDlog {
+                input: rebuild_v3_walk(*cpd.input, scope).into(),
+            },
+        ),
+        Expr::DecodePoint(dp) => Expr::DecodePoint(
+            ergotree_ir::mir::decode_point::DecodePoint {
+                input: rebuild_v3_walk(*dp.input, scope).into(),
+            },
+        ),
+        // Fall back to map_children_with_id for the remaining variants
+        // (covers BinOp / BlockValue / ValDef / SigmaAnd / SigmaOr /
+        // BoolToSigmaProp / Filter / Exists / ForAll / SizeOf /
+        // ExtractAmount / Atleast / And / Or / Collection — already in
+        // map_children_with_id's existing arms). Leaves / Const /
+        // GlobalVars / ValUse / FuncValue / etc. pass through unchanged
+        // via map_children_with_id's `other => other`.
+        other => map_children_with_id(other, scope, rebuild_v3_walk),
     }
 }
 
