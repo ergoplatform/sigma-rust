@@ -11,6 +11,7 @@ use ergo_avltree_rust::batch_avl_verifier::BatchAVLVerifier;
 use ergo_avltree_rust::batch_node::AVLTree;
 use ergo_avltree_rust::batch_node::Node;
 use ergo_avltree_rust::batch_node::NodeHeader;
+use ergo_avltree_rust::operation::Digest32;
 use ergo_avltree_rust::operation::KeyValue;
 use ergo_avltree_rust::operation::Operation;
 use ergo_chain_types::ADDigest;
@@ -113,7 +114,7 @@ pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         &starting_digest,
         &proof,
         AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
             avl_tree_data.key_length as usize,
             avl_tree_data
                 .value_length_opt
@@ -161,7 +162,7 @@ pub(crate) static GET_MANY_EVAL_FN: EvalFn =
             &starting_digest,
             &proof,
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 avl_tree_data.key_length as usize,
                 avl_tree_data
                     .value_length_opt
@@ -228,7 +229,7 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
             &starting_digest,
             &proof,
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 avl_tree_data.key_length as usize,
                 avl_tree_data
                     .value_length_opt
@@ -293,7 +294,7 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
             &starting_digest,
             &proof,
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 avl_tree_data.key_length as usize,
                 avl_tree_data
                     .value_length_opt
@@ -349,7 +350,7 @@ pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         &starting_digest,
         &proof,
         AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
             avl_tree_data.key_length as usize,
             avl_tree_data
                 .value_length_opt
@@ -397,7 +398,7 @@ pub(crate) static UPDATE_EVAL_FN: EvalFn =
             &starting_digest,
             &proof,
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 avl_tree_data.key_length as usize,
                 avl_tree_data
                     .value_length_opt
@@ -456,7 +457,7 @@ pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args
         &starting_digest,
         &proof,
         AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
             avl_tree_data.key_length as usize,
             avl_tree_data
                 .value_length_opt
@@ -666,7 +667,7 @@ mod tests {
         // This example taken from `ergo_avltree_rust` README
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 1,
                 None,
             ),
@@ -772,7 +773,7 @@ mod tests {
     fn eval_avl_insert_or_update() {
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 1,
                 None,
             ),
@@ -1188,7 +1189,7 @@ mod tests {
     fn populate_tree(entries: Vec<(Vec<u8>, Vec<u8>)>) -> BatchAVLProver {
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 1,
                 None,
             ),
