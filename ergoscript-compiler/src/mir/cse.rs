@@ -4711,6 +4711,76 @@ fn contains_func_value(expr: &Expr) -> bool {
         Expr::ByteArrayToBigInt(s) => contains_func_value(&s.expr.input),
         Expr::CalcBlake2b256(cb) => contains_func_value(&cb.input),
         Expr::SigmaPropBytes(spb) => contains_func_value(&spb.input),
+        // WS-G sig-15 QB1 Phase 4 S36 — missing arms cause incomplete
+        // walker-completeness. Without these, lambda-containing top-level
+        // expressions (like rosen's `OUTPUTS.filter{...}.slice(...)`) get
+        // contains_func_value=false and route through process_ast_graph
+        // (= v3 path) instead of the lambda-aware savings-based branch.
+        // Under S35's `CSE_HC_V3_FULL_SUBST=1` walker fix, this routing
+        // mismatch surfaces as segregation FAIL on rosen (csym=51 = box.tokens(0)
+        // placed inside FuncValue body but ValDef wrap interaction breaks).
+        Expr::Slice(s) => {
+            contains_func_value(&s.expr.input)
+                || contains_func_value(&s.expr.from)
+                || contains_func_value(&s.expr.until)
+        }
+        Expr::Append(s) => {
+            contains_func_value(&s.expr.input) || contains_func_value(&s.expr.col_2)
+        }
+        Expr::Tuple(t) => t.items.iter().any(contains_func_value),
+        Expr::And(a) => contains_func_value(&a.expr.input),
+        Expr::Or(o) => contains_func_value(&o.expr.input),
+        Expr::Collection(c) => match c {
+            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                items.iter().any(contains_func_value)
+            }
+            _ => false,
+        },
+        Expr::Atleast(s) => contains_func_value(&s.bound) || contains_func_value(&s.input),
+        Expr::Apply(app) => {
+            contains_func_value(&app.func) || app.args.iter().any(contains_func_value)
+        }
+        Expr::TreeLookup(s) => {
+            contains_func_value(&s.expr.tree)
+                || contains_func_value(&s.expr.key)
+                || contains_func_value(&s.expr.proof)
+        }
+        Expr::OptionGetOrElse(s) => {
+            contains_func_value(&s.expr.input) || contains_func_value(&s.expr.default)
+        }
+        Expr::DecodePoint(s) => contains_func_value(&s.input),
+        Expr::MultiplyGroup(s) => contains_func_value(&s.left) || contains_func_value(&s.right),
+        Expr::Exponentiate(s) => contains_func_value(&s.left) || contains_func_value(&s.right),
+        Expr::CreateProveDhTuple(c) => {
+            contains_func_value(&c.g)
+                || contains_func_value(&c.h)
+                || contains_func_value(&c.u)
+                || contains_func_value(&c.v)
+        }
+        Expr::Downcast(d) => contains_func_value(&d.input),
+        Expr::Xor(x) => contains_func_value(&x.left) || contains_func_value(&x.right),
+        Expr::ByteArrayToLong(s) => contains_func_value(&s.expr.input),
+        Expr::LongToByteArray(s) => contains_func_value(&s.input),
+        Expr::CalcSha256(s) => contains_func_value(&s.input),
+        Expr::BitInversion(s) => contains_func_value(&s.input),
+        Expr::XorOf(s) => contains_func_value(&s.input),
+        Expr::ExtractBytesWithNoRef(s) => contains_func_value(&s.input),
+        Expr::SigmaPropIsProven(s) => contains_func_value(&s.input),
+        Expr::ZkProofBlock(s) => contains_func_value(&s.input),
+        Expr::SubstConstants(s) => {
+            contains_func_value(&s.expr.script_bytes)
+                || contains_func_value(&s.expr.positions)
+                || contains_func_value(&s.expr.new_values)
+        }
+        Expr::CreateAvlTree(s) => {
+            contains_func_value(&s.flags)
+                || contains_func_value(&s.digest)
+                || contains_func_value(&s.key_length)
+                || s.value_length.as_deref().is_some_and(contains_func_value)
+        }
+        Expr::DeserializeRegister(s) => {
+            s.default.as_deref().is_some_and(contains_func_value)
+        }
         _ => false,
     }
 }
@@ -10063,38 +10133,24 @@ fn rebuild_v3_walk(expr: Expr, scope_u32: u32) -> Expr {
             let body = wrap_with_valdefs_v3(body, s_b);
             Expr::FuncValue(FuncValue::new(args, body))
         }
-        other => {
-            // WS-G sig-15 QB1 Phase 4 S35 — `CSE_HC_V3_FULL_SUBST=1` env gate
-            // for the comprehensive child walker. Default OFF preserves the
-            // v3 baseline byte-for-byte. Setting the gate activates the
-            // walker-completeness fix that lets v3 canonical substitution
-            // reach through ByIndex / SelectField / Extract* / PropertyCall
-            // / etc. wrappers. Empirical S35 trace (`CSE_HC_V3=1
-            // CSE_HC_V3_FULL_SUBST=1`):
-            //   - dexy_bank_full 307B → 309B = NODE MATCH (+1 v3 MATCH)
-            //   - rosen_event_trigger 374B (MATCH) → 336B (NOT MATCH, -38B)
-            //   - paideia_stake_state 1477B (+6 plateau) → 1420B (-51 from NODE)
-            //   - sigmao_option 1187B → 1176B (closer to NODE 1124)
-            //   - phoenix/sigmausd/spectrum_n2t/spectrum_t2t shift closer.
-            // The walker fix is mechanically correct (every canonical
-            // placed by v3 now substitutes at every occurrence, no longer
-            // DCE'd by `reorder_valdefs`) but exposes underlying v3
-            // PLACEMENT divergence: v3's `count_dag_usages` /
-            // `appears_in_main_scope` analogs over-extract on rosen's
-            // top-level-If structure and under-extract on paideia's
-            // cross-thunk distribution. Closing all 15 requires
-            // refining the placement gate, not the substitution walker.
-            //
-            // Default-OFF protects HARD ABORT criteria from the handoff
-            // mandate (v3 MATCH oracle/rosen/ergomixer preserved). The
-            // walker stays as a durable artifact for S36+ placement-
-            // refinement sessions to switch on alongside their gate work.
-            if std::env::var("CSE_HC_V3_FULL_SUBST").is_ok() {
-                rebuild_v3_walk_children(other, scope_u32)
-            } else {
-                map_children_with_id(other, scope_u32, rebuild_v3_walk)
-            }
-        }
+        // WS-G sig-15 QB1 Phase 4 S36 — comprehensive child walker is now
+        // unconditional under v3. S35 landed it env-gated because of a rosen
+        // v3 374B (MATCH) → 336B (segregation FAIL) regression. S36 root-cause:
+        // `contains_func_value` was missing arms for Slice / Append / Tuple /
+        // And / Or / Collection / Atleast / Apply / TreeLookup / OptionGetOrElse
+        // / DecodePoint / MultiplyGroup / Exponentiate / CreateProveDhTuple /
+        // Downcast / Xor / ByteArrayToLong / LongToByteArray / CalcSha256 /
+        // BitInversion / XorOf / ExtractBytesWithNoRef / SigmaPropIsProven /
+        // ZkProofBlock / SubstConstants / CreateAvlTree / DeserializeRegister.
+        // Path to FuncValue in rosen is `BlockValue → ValDef → Slice → Filter
+        // → FuncValue` — Slice arm absence short-circuits the search, causing
+        // top-level cse_expr to misroute lambda-containing rosen through
+        // `process_ast_graph` (= v3 path) instead of the lambda-aware
+        // savings-based branch. With contains_func_value made comprehensive,
+        // rosen routes through has_lambdas correctly → segregation OK
+        // preserved, rosen 374B MATCH preserved, AND dexy_bank_full closes to
+        // 309B MATCH under the now-default-on walker.
+        other => rebuild_v3_walk_children(other, scope_u32),
     }
 }
 
