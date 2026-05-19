@@ -9966,6 +9966,12 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     }
 
     // PASS 3 — Place each tentative canonical whose adjusted count still ≥ 2.
+    // S37 — also reject `Upcast(ValUse, SBigInt)` at adj=2 where byte-cost
+    // arithmetic is non-positive (inline 4B, ValDef 5B + 2B×adj — savings only
+    // when adj >= 3). Closes phoenix_hodlerg_bank_full v3 +2B → MATCH. The
+    // narrow target (Upcast / SBigInt / adj=2) avoids cross-fixture regression
+    // on the more common Upcast<SLong> and higher-count Upcast<SBigInt>
+    // extractions which DO save bytes.
     for &csym in &canonical_order {
         if !adjusted_count.contains_key(&csym) {
             continue;
@@ -9987,6 +9993,22 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             continue;
         }
         let node = sym_expr.get(&csym).cloned().unwrap();
+        // S37 — narrow byte-savings gate: reject Upcast(ValUse, SBigInt) at
+        // adj=2 (inline 4B per use vs 5B ValDef + 2B×N ValUses → savings
+        // <= 0 when adj <= 2).
+        let upcast_vu_bigint = matches!(&node,
+            Expr::Upcast(uc) if matches!(*uc.input, Expr::ValUse(_))
+                && matches!(uc.tpe, ergotree_ir::types::stype::SType::SBigInt)
+        );
+        if upcast_vu_bigint && adj <= 2 {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=upcast_vu_bigint_low_count raw={} adj={} :: {}",
+                    csym, raw, adj, short_expr(&node)
+                );
+            }
+            continue;
+        }
         let scopes = st.canonical_scopes_for(csym);
         let lca = st.lca_of_scopes(scopes);
         canonical_node.insert(csym, node.clone());
