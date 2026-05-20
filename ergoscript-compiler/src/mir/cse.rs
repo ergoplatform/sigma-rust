@@ -10329,9 +10329,55 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             Expr::SizeOf(so) if matches!(*so.input, Expr::ValUse(_))
         ) && lca_uses != 0
           && !references_locally_defined(&node, &branch_local_ids);
+        // S52 (2026-05-20 sigmao Session 50) — Deep-inner-LCA hoist. Candidates
+        // placed at deep inner LCA with all-unique occurrence scopes are hoisted
+        // to outer lca=0, matching NODE's Scala graph IR which places these at
+        // top-level mainG.bodyDefs (per `findOrCreateDefinition` + `_globalDefs`
+        // semantics for syms first-created during cross-thunk traversal).
+        //
+        // Empirical anchor (sigmao_option.es post-S49 trace, HEAD `5bad94f5`):
+        // 3 candidates placed at lca=39, NODE places at lca=0:
+        //   - csym=233 ByIndex(Outputs, K(2)) scopes=[39,54,55,61,62] adj=3
+        //   - csym=234 PropertyCall(ByIdx,...) scopes=[39,55,61] adj=2
+        //   - csym=246 SelectField(VU,1) scopes=[40,50] adj=2
+        // Hoisting all 3 to outer admits 3 N-only outer ValDefs (per S23 archive's
+        // sigmao N-only shape inventory: ByIdx<raw>[Outputs,K] +1, PC<tokens>[VU]
+        // +1, Sel<#1>[VU] +1) → sigmao 1123 → 1129 (Δ -25 → -19, +6B closer).
+        //
+        // Discriminator `lca >= 5` narrow by construction: lca=1 regresses
+        // skyharbor 411→410 + ergoraffle 931→904 (catches MATCH-held candidates).
+        // Threshold tunable via `CSE_HC_V3_SIGMAO_LCA_MIN` for future-session
+        // experimentation without rebuild.
+        //
+        // Cross-fixture impact at default lca>=5: all 12 v3 MATCH preserved,
+        // paideia 1460 → 1462 (Δ -11 → -9, +2B closer to NODE), gluon unchanged.
+        // HC=0 default sacred (gate is v3-only by virtue of process_ast_graph_hash_cons_v3
+        // being v3-only).
+        //
+        // Falsification record: S52 ATTEMPT 1 implemented S51's 10-component over-
+        // extraction suppression + 4-path gating per CLOSE-SIGMAO-MULTI-FIX.md →
+        // sigmao 1123 → 1111 (-12B WORSE direction). Admit-gate bypass at S42/S43+S46
+        // FALSIFIED — sigmao's missing-extraction candidates rejected EARLIER at
+        // PASS-3 count<2. This commit (S52 ATTEMPT 2) is the deep-LCA hoist
+        // alternative: per-candidate placement correction instead of shape-based
+        // suppression. 59th cumulative falsification fingerprint AVOIDED via
+        // per-candidate Probe 1 IR trace.
+        let lca_threshold: u32 = std::env::var("CSE_HC_V3_SIGMAO_LCA_MIN")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(5);
+        let is_sigmao_deep_lca_hoist = (lca_uses as u32) >= lca_threshold
+            && !references_locally_defined(&node, &branch_local_ids)
+            && {
+                let mut sorted: Vec<_> = scopes.iter().copied().collect();
+                sorted.sort_unstable();
+                sorted.windows(2).all(|w| w[0] != w[1])
+            };
         let lca = if is_bo_gt_vu_klong && adj <= 2 {
             0
         } else if is_sizeof_vu_outer_hoistable && adj >= 2 {
+            0
+        } else if is_sigmao_deep_lca_hoist {
             0
         } else {
             lca_uses
@@ -10416,8 +10462,9 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             sorted.sort_unstable();
             sorted.windows(2).all(|w| w[0] != w[1])
         };
-        let hoisted_by_special_gate =
-            (is_bo_gt_vu_klong && adj <= 2) || (is_sizeof_vu_outer_hoistable && adj >= 2);
+        let hoisted_by_special_gate = (is_bo_gt_vu_klong && adj <= 2)
+            || (is_sizeof_vu_outer_hoistable && adj >= 2)
+            || is_sigmao_deep_lca_hoist;
         // S46b — Extend per-thunk-distinct reject to higher adj when uses cluster
         // in EXACTLY 2 distinct scopes and at least one scope has local count >= 2.
         // Semantics: only 2 sibling thunks see the canonical, and at least one
