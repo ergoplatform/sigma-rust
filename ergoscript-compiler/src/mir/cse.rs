@@ -10162,7 +10162,35 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         }
         let raw = st.canonical_count(csym);
         let adj = adjusted_count.get(&csym).copied().unwrap_or(raw);
-        if adj < 2 {
+        // S49 (2026-05-20 sigmao Session 47c) — SelectField(ValUse(_)) carve-out
+        // for PASS-2 recount gate. When a SelectField's input is a stable
+        // ValUse, the subst_count walker treats the SelectField as "absorbed"
+        // into a parent tentative canonical's body (subst_count_children counts
+        // occurrences in OTHER tentative bodies; if a parent canonical contains
+        // this SelectField, the recount drops adj from raw to raw - 1). Scala
+        // hash-cons creates ONE shared SelectField sym for all sibling-thunk
+        // references on the same stable input — `findOrCreateDefinition(
+        // SelectField, pairSym, fieldIdx)` returns the same sym, and
+        // `hasManyUsagesGlobal` counts all GLOBAL parents of that sym across
+        // both root and parent-canonical bodies. The recount-drop is a Rust-
+        // specific artifact (substitution-count walker doesn't see global
+        // sharing semantics).
+        //
+        // Empirical anchor (sigmao_option.es post-S48): csym=169
+        // `SelectField(ValUse(7, STuple([SColl(SByte), SLong])))` raw=2 → adj=1.
+        // NODE has 4 Sel<#1>[VU] outer ValDefs but LOCAL has 3 — the missing
+        // one is csym=169 (Sel<#1>[VU(7)]). Carve-out admits at raw value when
+        // input is ValUse, mirroring HC=0's `is_select_field_on_val_use`
+        // semantic at the recount layer.
+        let is_select_field_on_val_use_recount = sym_expr.get(&csym).map_or(false, |n|
+            matches!(n, Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_)))
+        );
+        let effective_adj = if is_select_field_on_val_use_recount && raw >= 2 {
+            raw
+        } else {
+            adj
+        };
+        if effective_adj < 2 {
             if trace {
                 if let Some(n) = sym_expr.get(&csym) {
                     eprintln!(
@@ -10176,6 +10204,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        let adj = effective_adj;
         let node = sym_expr.get(&csym).cloned().unwrap();
         // S37 — narrow byte-savings gate: reject Upcast(ValUse, SBigInt) at
         // adj=2 (inline 4B per use vs 5B ValDef + 2B×N ValUses → savings
