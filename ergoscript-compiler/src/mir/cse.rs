@@ -10493,10 +10493,40 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         };
         let two_scope_per_thunk_extractable =
             distinct_scope_count_with_count_ge_2.0 <= 2 && distinct_scope_count_with_count_ge_2.1;
+        // S52b (2026-05-20 sigmao Session 50 continuation) — Deep-scope admit
+        // carve-out for the S43+S46 per-thunk-distinct reject. When ALL occurrence
+        // scopes are deep (>= threshold), admit the candidate at root — these
+        // correspond to val-RHS lowered at top level in Scala's `_globalDefs`
+        // which produces a globally-shared sym even though no use is at scope 0.
+        //
+        // Empirical anchor: sigmao has 15 rejects at this gate with scope MINs
+        // ranging 16-53 (e.g., csym=133 SizeOf(Outputs) scopes=[16,19,38,68,87],
+        // csym=216 SizeOf(PC[ByIdx,tokens]) scopes=[33,53,58,76], csym=219
+        // ExtractAmount[ByIdx[Outputs,_]] scopes=[34,57,75]). Ergoraffle's S46-
+        // closed candidates have shallow scopes (e.g., scopes=[1,3,4]).
+        //
+        // Threshold sweep on default `lca_threshold=5`:
+        //   - 5: paideia 1462 → 1453 (-9B regression — admits paideia shapes)
+        //   - 7-18: sigmao 1130 (+1B), paideia 1462 ✓
+        //   - 20: sigmao 1132 (+3B), paideia 1462 ✓
+        //   - 25/30: sigmao 1134 (+5B), paideia 1462 ✓ — optimum
+        //   - 35: sigmao 1127 (-2B from S52 — over-narrow)
+        //
+        // Default 25 chosen empirically. Non-monotonic sweep (e.g., threshold 35
+        // < threshold 25 for sigmao) suggests cascade interactions between
+        // admitted candidates; lower thresholds admit byte-negative candidates
+        // that net against byte-positive ones.
+        let deep_admit_threshold: usize = std::env::var("CSE_HC_V3_SIGMAO_DEEP_ADMIT_MIN")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(25);
+        let min_scope = scopes.iter().copied().min().unwrap_or(0);
+        let is_sigmao_deep_scope_admit = min_scope >= deep_admit_threshold;
         if !hoisted_by_special_gate
             && lca == 0
             && !scopes.contains(&0)
             && !is_select_field_on_val_use_v3
+            && !is_sigmao_deep_scope_admit
             && (adj <= 2
                 || (adj == 3 && scopes_all_unique)
                 || two_scope_per_thunk_extractable)
