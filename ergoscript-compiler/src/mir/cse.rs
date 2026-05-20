@@ -7575,13 +7575,16 @@ fn build_value_recurse(expr: &Expr, env: &[(Expr, u32)]) -> Expr {
 /// `process_ast_graph` on each branch independently with the current
 /// `global_max` to avoid ID conflicts with outer-scope vals.
 fn apply_cse_within_branches(expr: Expr, global_max: u32) -> Expr {
-    // QB1 Phase 4 / S31+ — v3 does single-pass scope-aware placement during
-    // process_ast_graph_hash_cons_v3. The apply_cse_within_branches cascade
-    // is a v1/v2 mechanism for re-dispatching at sub-scope boundaries;
-    // v3 has no use for it. Short-circuit to identity to avoid double-CSE.
-    if hash_cons_v3_enabled() {
-        return expr;
-    }
+    // QB1 Phase 4 / S42 — v3 hash-cons PASS-3 places shared canonicals at
+    // LCA-of-uses. For inner-LCA sibling-only-shared candidates (lca != 0
+    // and lca ∉ scopes), PASS-3 now rejects via PROBE_Y_inner_sibling_only_lca
+    // (per-thunk-distinct sym semantic). Per-branch CSE then re-extracts
+    // those candidates within each branch where the local count >= 2.
+    // The legacy HC=0 process_ast_graph_branch cascade is the right fit
+    // for this — it iterates each If branch / BinOp(Logical) right-arm /
+    // FuncValue body and applies scope-restricted CSE. No more short-
+    // circuit under v3; the v3 root-pass + branch cascade together mirror
+    // Scala's processAstGraph(mainG) + processAstGraph(subG) recursion.
     match expr {
         Expr::If(if_op) => {
             // Apply branch-level CSE to each branch using scope-aware dag counting
@@ -7915,13 +7918,9 @@ fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
 /// cross-branch candidate whose RHS references a ValDef defined inside a
 /// deeper-If's arm (forward-ref guard).
 fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
-    // QB1 Phase 4 / S31+ — v3 single-pass driver already handled all scopes
-    // during Root dispatch; the Branch entry point should never re-process
-    // when v3 is active (apply_cse_within_branches short-circuits, but
-    // defense in depth here).
-    if hash_cons_v3_enabled() {
-        return expr;
-    }
+    // QB1 Phase 4 / S42 — re-enabled under v3 so per-branch CSE handles
+    // PROBE_Y_inner_sibling_only_lca rejections from PASS-3. See
+    // `apply_cse_within_branches` comment for the architectural rationale.
     // Schedule = scope-restricted: only expressions first-created at this
     // scope's main level (mirroring Scala's `subG.flatSchedule`).
     let mut schedule = dfs_schedule_scope(&expr);
@@ -10281,6 +10280,31 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         } else {
             lca_uses
         };
+        // S42 — Per-thunk-distinct sym semantic for inner-scope sibling-only
+        // candidates. When LCA is at an inner scope (lca != 0) and none of the
+        // occurrence scopes coincides with the LCA, Scala treats each sibling
+        // thunk's occurrence as a distinct sym (per-thunk count locally
+        // evaluated against `hasManyUsagesGlobal`). v3's LCA-of-uses placement
+        // hoists the canonical to the inner LCA scope, sharing across siblings;
+        // NODE re-extracts per-branch (or inlines per-branch). Reject the
+        // inner-LCA placement so `apply_cse_within_branches` can re-extract
+        // within each branch where local count >= 2. Closes skyharbor_v1_erg
+        // v3 over-extraction (398 → 411 byte-MATCH NODE).
+        //
+        // Hoist gates (`is_bo_gt_vu_klong`, `is_sizeof_vu_outer_hoistable`)
+        // already forced `lca=0` for their candidates; this gate's `lca != 0`
+        // check preserves them by construction. dexy_bank_full csym=26
+        // (SelectField scopes=[3,4,6,7]) also has lca=0 naturally and is
+        // preserved.
+        if lca != 0 && !scopes.contains(&lca) {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=inner_sibling_only_lca lca={} scopes={:?} :: {}",
+                    csym, lca, scopes, short_expr(&node)
+                );
+            }
+            continue;
+        }
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
         if trace {
