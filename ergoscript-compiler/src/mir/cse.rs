@@ -9912,10 +9912,37 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
-        // IsConstantDef analog (S33): Scala's `processAstGraph` extraction gate
-        // excludes Defs whose RHS is structurally a constant — `Const`,
-        // `ConstPlaceholder`, or recursive `Collection` / `Tuple` of consts.
-        if is_pure_const_shape(&node) {
+        // IsConstantDef analog (S33; narrowed S47 sigmao 2026-05-20):
+        // Scala's `IsConstantDef.unapply(d) = d match { case _: Const[_] => ... }`
+        // matches Const literals only — NOT `Tup(Const, Const)` (which is a Tup Def,
+        // not a Const). Scala's `processAstGraph` therefore extracts Tup-of-Const
+        // as ValDef when `mainG.hasManyUsagesGlobal(tupSym) > 1`. Empirical anchor
+        // (sigmao_option.es): NODE extracts d2 = `Tup[Coll[Byte](), 0L]` once and
+        // references it via VU 6× across `ByIdx<or>` defaults. The pre-S47 broad
+        // gate rejected csym=7 Tup with reason=is_constant_def (count=7) — a Scala-
+        // unfaithful over-broad classification.
+        //
+        // Carve-outs retained (Rust-specific compensation, NOT Scala-faithful):
+        // `Const`, `ConstPlaceholder`, and `Collection` whose every item is a
+        // Const-leaf. Rationale: Rust's `count_dag_usages` measures AST edge
+        // incidence (each empty Coll[Byte]() AST occurrence contributes 1 edge),
+        // while Scala's `hasManyUsagesGlobal` measures per-sym usage in the
+        // hash-cons graph. The empty Coll[Byte]() canonical has count=7 in Rust
+        // (one per Tup AST occurrence) but per-canonical-graph usage = 1 in Scala
+        // (one Tup sym references it). The Collection-of-pure-Const reject prevents
+        // over-extraction of these AST-over-counted constant-leaf containers.
+        // Tuples are admitted: a Tup-of-Const canonical's count IS its true global
+        // usage (Tup is the candidate, not a sub-container child).
+        let is_const_def_scala = matches!(&node, Expr::Const(_) | Expr::ConstPlaceholder(_))
+            || matches!(&node, Expr::Collection(c) if {
+                match c {
+                    ergotree_ir::mir::collection::Collection::BoolConstants(_) => true,
+                    ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+                        items.iter().all(|item| matches!(item, Expr::Const(_) | Expr::ConstPlaceholder(_)))
+                    }
+                }
+            });
+        if is_const_def_scala {
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=is_constant_def count={} :: {}",
