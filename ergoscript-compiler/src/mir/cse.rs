@@ -9874,6 +9874,14 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             continue;
         }
         if references_locally_defined(&node, &branch_local_ids) {
+            // S39 (sigmausd_bank +4B v3 audit) — unconditional lift of this
+            // gate FALSIFIED: paideia segregation FAIL + paideia -255B
+            // overshoot + sigmausd 37 vs NODE 36 ValDefs (size-MATCH /
+            // content-diff). The real fix is scope-aware: admit when
+            // LCA-of-uses is descendant-of-or-equal-to the defining scope of
+            // every locally-referenced ValDef. Tracked as 53rd cumulative
+            // falsification fingerprint class
+            // `V3-SINGLE-PASS-REFS-LOCAL-REJECTS-INNER-LCA-EXTRACTIONS`.
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=refs_local count={} :: {}",
