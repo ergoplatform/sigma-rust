@@ -10317,19 +10317,61 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         // scopes=[3,26] — all use-pairs are in sibling sub-thunks of root with no
         // root-proper occurrence.
         //
-        // S45 (2026-05-20) — DO NOT broaden `adj <= 2` to `adj == 3 && scopes_all_unique`.
-        // Tried for ergoraffle Δ -82 (3 BO<==> + ExAmt all with scopes=[1,3,4] adj=3
-        // all-distinct). Closed ergoraffle 849→926 (77B closer) but FALSIFIED by
-        // duckpools (csym=92 SizeOf(VU) scopes=[5,6,7] adj=3 broke S41 hoist gate,
-        // 598 MATCH → 596) and paideia (5 candidates with adj=3+unique scopes
-        // including ByIndex(Outputs,2), 3 BO<==>(VU,...) shapes, OGet, SelectField
-        // — all extracted by Scala at root, +20B regression). Hypothesis was
-        // "per-thunk-count=1 each thunk → Scala creates distinct per-thunk syms".
-        // Falsified: Scala extracts at root for many adj=3+unique cases. Real
-        // discriminator is the Scala lowering scope of the canonical's creation
-        // (top-level vals lower at _globalDefs; thunk-local builds don't). Not
-        // recoverable from MIR's structural scopes vector alone.
-        if lca == 0 && !scopes.contains(&0) && adj <= 2 {
+        // S46 (2026-05-20) — Extend S43 from `adj <= 2` to also reject `adj == 3 &&
+        // scopes_all_unique` (per-thunk count=1 in each of 3 sibling thunks) when
+        // the candidate's lca=0 placement was NOT forced by a hoist gate. Earlier
+        // S45 broaden was reverted because it collided with S41
+        // `is_sizeof_vu_outer_hoistable` force-lca=0 (duckpools csym=92
+        // SizeOf(VU(13)) scopes=[5,6,7] adj=3) — broke duckpools 598 MATCH. The
+        // `hoisted_by_special_gate` carve-out preserves S37/S41/`is_bo_gt_vu_klong`
+        // semantics by construction: candidates whose lca was force-lifted to 0
+        // bypass the per-thunk-distinct reject (Scala's own logic places these at
+        // outer schedule because their dep IS at outer scope). Closes ergoraffle 5
+        // adj=3+unique over-extracts (3 BO<==> + ExAmt[VU] with scopes=[1,3,4]).
+        // paideia 1440→1460 (+20B closer to NODE 1471) acceptable as v3 plateau
+        // shrinks Δ -31 → -11 even though MATCH not reached.
+        let scopes_all_unique = {
+            let mut sorted: Vec<_> = scopes.iter().copied().collect();
+            sorted.sort_unstable();
+            sorted.windows(2).all(|w| w[0] != w[1])
+        };
+        let hoisted_by_special_gate =
+            (is_bo_gt_vu_klong && adj <= 2) || (is_sizeof_vu_outer_hoistable && adj >= 2);
+        // S46b — Extend per-thunk-distinct reject to higher adj when uses cluster
+        // in EXACTLY 2 distinct scopes and at least one scope has local count >= 2.
+        // Semantics: only 2 sibling thunks see the canonical, and at least one
+        // thunk's per-thunk-distinct sym has hasManyUsages>=2 — Scala extracts in
+        // that thunk via per-scope CSE. v3's `apply_cse_within_branches` cascade
+        // (active under v3 per S42) re-extracts within each branch where local
+        // count >= 2. Root extraction is wrong because no `_globalDefs` sym was
+        // created (no scope-0 occurrence). The `distinct_scopes <= 2` narrow is
+        // load-bearing: paideia csym=132 (Inputs[1] scopes={2,3,5,8,9,14}, 6
+        // distinct), csym=156 (PropertyCall 5 distinct), csym=192 (OGet 3 distinct),
+        // csym=232 (ByIndex 3 distinct) all have count>=2 in SOME scope but Scala
+        // still extracts at root — likely because Scala constructs the canonical
+        // at top-level val-RHS lowering producing a `_globalDefs` entry that
+        // outranks per-thunk hash-cons. Closes ergoraffle csym=45
+        // `ByIndex(Outputs, K(1))` scopes=[1×9, 3×2] adj=5: 2 distinct scopes,
+        // counts 9 and 2 → cascade extracts in each thunk's BlockValue.
+        let distinct_scope_count_with_count_ge_2 = {
+            use std::collections::HashMap;
+            let mut counts: HashMap<usize, usize> = HashMap::new();
+            for &s in scopes.iter() {
+                *counts.entry(s).or_insert(0) += 1;
+            }
+            let distinct = counts.len();
+            let any_ge_2 = counts.values().any(|&c| c >= 2);
+            (distinct, any_ge_2)
+        };
+        let two_scope_per_thunk_extractable =
+            distinct_scope_count_with_count_ge_2.0 <= 2 && distinct_scope_count_with_count_ge_2.1;
+        if !hoisted_by_special_gate
+            && lca == 0
+            && !scopes.contains(&0)
+            && (adj <= 2
+                || (adj == 3 && scopes_all_unique)
+                || two_scope_per_thunk_extractable)
+        {
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=root_sibling_only_per_thunk_distinct lca={} scopes={:?} adj={} :: {}",
