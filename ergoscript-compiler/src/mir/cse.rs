@@ -10323,7 +10323,32 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         // check preserves them by construction. dexy_bank_full csym=26
         // (SelectField scopes=[3,4,6,7]) also has lca=0 naturally and is
         // preserved.
-        if lca != 0 && !scopes.contains(&lca) {
+        //
+        // S48 (2026-05-20) — Carve-out: `SelectField(ValUse(_, ...))` candidates
+        // bypass per-thunk-distinct rejects (both inner-LCA S42 and root-LCA
+        // S43+S46 below). Rationale: when the input is a stable ValUse, Scala's
+        // hash-cons creates ONE shared SelectField sym across all sibling thunks
+        // (per `mkSelectField(In(pair), N)` in `TreeBuilding.buildValue` First/
+        // Second arms — `pair` recurses to a globally-shared ValUse sym, and
+        // `findOrCreateDefinition(SelectField, pairSym, fieldIdx)` returns the
+        // same sym for every thunk's reference). hasManyUsagesGlobal counts the
+        // shared sym's usages → many → extracted. NOT per-thunk-distinct.
+        //
+        // This mirrors HC=0's `is_select_field_on_val_use` predicate at
+        // line 8524 which bypasses the `needs_check` scope gate. v3 PASS-3
+        // needs the analogous bypass at its per-thunk-distinct gates.
+        //
+        // Empirical motivation (sigmao_option.es post-S47 1aef3de9): csym=79/
+        // 163/244/285/290 are `SelectField(ValUse(_, STuple([SColl(SByte),
+        // SLong]))` — accessing `selfToken0._1` / `selfToken0._2` etc. on
+        // the post-S47 Tup-extracted source vals. The `ValUse(N, STuple)`
+        // refers to the user's `val selfToken0 = SELF.tokens.getOrElse(...)`
+        // (or `val output0Token1` etc.). Pre-S48 these are rejected as
+        // per-thunk-distinct; NODE extracts them via Scala's per-sym hash-cons.
+        let is_select_field_on_val_use_v3 = matches!(&node,
+            Expr::SelectField(s) if matches!(&*s.expr.input, Expr::ValUse(_))
+        );
+        if lca != 0 && !scopes.contains(&lca) && !is_select_field_on_val_use_v3 {
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=inner_sibling_only_lca lca={} scopes={:?} :: {}",
@@ -10395,6 +10420,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         if !hoisted_by_special_gate
             && lca == 0
             && !scopes.contains(&0)
+            && !is_select_field_on_val_use_v3
             && (adj <= 2
                 || (adj == 3 && scopes_all_unique)
                 || two_scope_per_thunk_extractable)
