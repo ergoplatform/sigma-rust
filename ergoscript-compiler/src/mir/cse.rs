@@ -1501,6 +1501,32 @@ fn references_locally_defined(
     }
 }
 
+/// Collect every `ValUse(id)` in `expr` whose id is in `locally_defined`.
+/// Used by v3's PASS 1 scope-aware refs_local admission (S40): a candidate
+/// that `references_locally_defined` can still be admitted at its
+/// LCA-of-uses iff that LCA is descendant-of-or-equal-to the defining
+/// scope of EVERY locally-referenced ValDef. Returns the list (may
+/// contain duplicates if the same id is referenced multiple times; the
+/// scope check uses `.iter().all(...)` so duplicates are harmless).
+fn collect_referenced_local_ids(
+    expr: &Expr,
+    locally_defined: &std::collections::HashSet<u32>,
+) -> Vec<u32> {
+    let mut result = Vec::new();
+    fn walk(expr: &Expr, locally_defined: &std::collections::HashSet<u32>, result: &mut Vec<u32>) {
+        if let Expr::ValUse(vu) = expr {
+            if locally_defined.contains(&vu.val_id.0) {
+                result.push(vu.val_id.0);
+            }
+        }
+        for c in direct_children(expr) {
+            walk(c, locally_defined, result);
+        }
+    }
+    walk(expr, locally_defined, &mut result);
+    result
+}
+
 fn inline_single_use_vals(expr: Expr) -> Expr {
     match expr {
         Expr::BlockValue(s) => {
@@ -9679,6 +9705,12 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     let mut sym_counts: HashMap<SymId, u32> = HashMap::new();
     let mut sym_expr: HashMap<SymId, Expr> = HashMap::new();
     let mut sym_order: Vec<SymId> = Vec::new();
+    // S40 — ValDef ID → defining scope. Populated during the visit pass; used
+    // by PASS 1's scope-aware refs_local admission (see comment at the
+    // references_locally_defined check) to admit candidates whose
+    // LCA-of-uses is descendant-of-or-equal-to every locally-referenced
+    // ValDef's defining scope (Scala's per-ThunkDef emission semantics).
+    let mut val_def_scope: HashMap<u32, ScopeId> = HashMap::new();
 
     #[allow(clippy::too_many_arguments)]
     fn visit(
@@ -9688,6 +9720,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         sym_counts: &mut HashMap<SymId, u32>,
         sym_expr: &mut HashMap<SymId, Expr>,
         sym_order: &mut Vec<SymId>,
+        val_def_scope: &mut HashMap<u32, ScopeId>,
         trace: bool,
     ) {
         match e {
@@ -9699,6 +9732,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_counts,
                     sym_expr,
                     sym_order,
+                    val_def_scope,
                     trace,
                 );
                 let s_t = st.new_scope(scope);
@@ -9712,6 +9746,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_counts,
                     sym_expr,
                     sym_order,
+                    val_def_scope,
                     trace,
                 );
                 let s_f = st.new_scope(scope);
@@ -9725,6 +9760,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_counts,
                     sym_expr,
                     sym_order,
+                    val_def_scope,
                     trace,
                 );
             }
@@ -9744,6 +9780,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_counts,
                     sym_expr,
                     sym_order,
+                    val_def_scope,
                     trace,
                 );
                 let s_r = st.new_scope(scope);
@@ -9757,6 +9794,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_counts,
                     sym_expr,
                     sym_order,
+                    val_def_scope,
                     trace,
                 );
             }
@@ -9765,11 +9803,37 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 if trace {
                     eprintln!("[HCv3/scope] parent={} child={} (FuncValue body)", scope, s_b);
                 }
-                visit(fv.body(), st, s_b, sym_counts, sym_expr, sym_order, trace);
+                visit(
+                    fv.body(),
+                    st,
+                    s_b,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    val_def_scope,
+                    trace,
+                );
+            }
+            Expr::ValDef(vd) => {
+                // S40 — record the scope where this ValDef is defined, so
+                // PASS 1's scope-aware refs_local admission can decide
+                // whether a candidate referencing this id is hoistable to
+                // its LCA-of-uses.
+                val_def_scope.insert(vd.expr.id.0, scope);
+                visit(
+                    &vd.expr.rhs,
+                    st,
+                    scope,
+                    sym_counts,
+                    sym_expr,
+                    sym_order,
+                    val_def_scope,
+                    trace,
+                );
             }
             _ => {
                 for c in direct_children(e) {
-                    visit(c, st, scope, sym_counts, sym_expr, sym_order, trace);
+                    visit(c, st, scope, sym_counts, sym_expr, sym_order, val_def_scope, trace);
                 }
             }
         }
@@ -9791,6 +9855,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         &mut sym_counts,
         &mut sym_expr,
         &mut sym_order,
+        &mut val_def_scope,
         trace,
     );
 
@@ -9874,23 +9939,83 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             continue;
         }
         if references_locally_defined(&node, &branch_local_ids) {
-            // S39 (sigmausd_bank +4B v3 audit) — unconditional lift of this
-            // gate FALSIFIED: paideia segregation FAIL + paideia -255B
-            // overshoot + sigmausd 37 vs NODE 36 ValDefs (size-MATCH /
-            // content-diff). The real fix is scope-aware: admit when
-            // LCA-of-uses is descendant-of-or-equal-to the defining scope of
-            // every locally-referenced ValDef. Tracked as 53rd cumulative
-            // falsification fingerprint class
-            // `V3-SINGLE-PASS-REFS-LOCAL-REJECTS-INNER-LCA-EXTRACTIONS`.
+            // S40 — scope-aware refs_local admission. v3's PASS 3 places
+            // candidates at LCA-of-uses; a candidate that references a
+            // ValDef defined inside an If-branch is hoistable iff (a) its
+            // LCA-of-uses is descendant-of-or-equal-to every locally-
+            // referenced ValDef's defining scope (scope visibility), AND
+            // (b) the LCA itself is one of the occurrence scopes (Scala's
+            // per-thunk-distinct sym semantics — siblings-only shared
+            // candidates are distinct syms in Scala's hash-cons, each with
+            // count=1, so neither extracts). This mirrors HC=0's
+            // `apply_cse_within_branches → process_ast_graph_branch`
+            // cascade which re-collects `branch_local_ids` at each inner
+            // scope and treats sibling thunks as separate sub-graphs;
+            // v3 short-circuits the cascade (line 7556 above) but
+            // achieves the same admission via the two checks below.
+            //
+            // Falsification record (S39, `6cef9cd0`): unconditional lift of
+            // this gate paideia FAIL'd segregation + over-extracted by 255B.
+            // Path A check (a) alone (scope visibility) still admitted
+            // csym=221 BinOp(Ge, VU(42), Const) at sibling-shared scopes=
+            // [39, 43] lca=37 — over-extracted by 1 ValDef vs NODE which
+            // inlines per-thunk-distinct semantics. Check (b) closes that
+            // gap. Per S26 metals memory (`feedback_falsification_fingerprint.md`
+            // 42-class): Scala's `_globalDefs` only holds top-level Defs;
+            // cross-sibling sharing requires the common ancestor to itself
+            // be in the bodyDefs path. Encoded here as `lca ∈ scopes`.
+            let scopes = st.canonical_scopes_for(csym);
+            let lca_uses = st.lca_of_scopes(scopes);
+            let local_refs = collect_referenced_local_ids(&node, &branch_local_ids);
+            let scope_visible = local_refs.iter().all(|id| {
+                val_def_scope
+                    .get(id)
+                    .map(|def_scope| st.is_ancestor(*def_scope, lca_uses))
+                    .unwrap_or(false)
+            });
+            // The candidate must (a) appear at the LCA scope itself (Scala's
+            // per-thunk-distinct sym semantics: sibling-only sharing produces
+            // distinct syms, not extracted), AND (b) have at least one
+            // occurrence at a strictly-deeper scope (the cross-scope save
+            // that justifies hoisting to LCA). Same-scope-only admissions
+            // are deferred to inner-block CSE which v3 doesn't replicate;
+            // forcing them here causes downstream orphan-VU patterns (paideia
+            // segregation FAIL observed at S39 unconditional lift).
+            let lca_in_scopes = scopes.contains(&lca_uses);
+            let spans_scopes = scopes.iter().any(|s| *s != lca_uses);
+            if !scope_visible || !lca_in_scopes || !spans_scopes {
+                if trace {
+                    let reason = if !scope_visible {
+                        "refs_local_lca_unreachable"
+                    } else if !lca_in_scopes {
+                        "refs_local_sibling_only_per_thunk_distinct"
+                    } else {
+                        "refs_local_same_scope_only_defer_to_inner_cse"
+                    };
+                    eprintln!(
+                        "[HCv3/reject] csym={} reason={} count={} lca={} scopes={:?} refs={:?} :: {}",
+                        csym,
+                        reason,
+                        count,
+                        lca_uses,
+                        scopes,
+                        local_refs,
+                        short_expr(&node)
+                    );
+                }
+                continue;
+            }
             if trace {
                 eprintln!(
-                    "[HCv3/reject] csym={} reason=refs_local count={} :: {}",
+                    "[HCv3/admit] csym={} reason=refs_local_lca_admissible count={} lca={} scopes={:?} refs={:?} :: {}",
                     csym,
                     count,
+                    lca_uses,
+                    scopes,
+                    local_refs,
                     short_expr(&node)
                 );
             }
-            continue;
         }
         tentative.push(csym);
     }
