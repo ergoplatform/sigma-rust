@@ -10116,6 +10116,20 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     // Together these close both spectrum fixtures while preserving phoenix
     // MATCH (phoenix's Upcast(Const(SLong),SBigInt) is type-discriminated
     // out of the gate). v3 sig-15: 5/15 → 7/15.
+    //
+    // S41 — pre-compute total ValUse(N) occurrences in input. Used by the
+    // S37 gate carve-out: when an `Upcast(VU(N), SBigInt) @ raw=2 adj=2`
+    // candidate has ALL its inner ValDef(N)'s ValUses wrapped in identical
+    // `Upcast(VU(N), SBigInt)` (i.e., `val_use_counts[N] == raw`), admit
+    // the extraction. NODE handles this via sym-interning: the inner BO<-
+    // sym has usage_count=1 (only the Upcast wraps it), so only the Upcast
+    // is hasManyUsagesGlobal=true. v3 preserves the source-level `val
+    // borrowed = BO<-` but the equivalent admission criterion is "all VU(N)
+    // uses are inside this Upcast canonical, so post-CSE inline_single_use
+    // collapses the inner ValDef and we're left with NODE's pattern".
+    // Closes duckpools_child_interest residual (A) at -2B.
+    let mut val_use_counts: HashMap<u32, usize> = HashMap::new();
+    count_val_uses_in(&expr_stripped, &mut val_use_counts);
     for &csym in &canonical_order {
         if !adjusted_count.contains_key(&csym) {
             continue;
@@ -10146,7 +10160,24 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         );
         // S38 — lift S37 gate for raw>=3 Upcast(VU, SBigInt) admits
         // (closes spectrum's missing 3 Up<BigInt>[VU] outer ValDefs).
-        if upcast_vu_bigint && adj <= 2 && raw < 3 {
+        // S41 — admit raw=2 adj=2 when the inner ValUse's val_id has
+        // total use count equal to raw (all uses wrapped in this Upcast,
+        // so post-CSE inline_single_use_vals collapses the inner val and
+        // we emit NODE's `Upcast(<inner_rhs>, SBigInt)` ValDef shape).
+        let upcast_vu_bigint_all_uses_wrapped = if upcast_vu_bigint {
+            if let Expr::Upcast(uc) = &node {
+                if let Expr::ValUse(vu) = uc.input.as_ref() {
+                    val_use_counts.get(&vu.val_id.0).copied().unwrap_or(0) == raw as usize
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if upcast_vu_bigint && adj <= 2 && raw < 3 && !upcast_vu_bigint_all_uses_wrapped {
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=upcast_vu_bigint_low_count raw={} adj={} :: {}",
@@ -10154,6 +10185,12 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 );
             }
             continue;
+        }
+        if upcast_vu_bigint && adj <= 2 && raw < 3 && upcast_vu_bigint_all_uses_wrapped && trace {
+            eprintln!(
+                "[HCv3/admit] csym={} reason=upcast_vu_bigint_all_uses_wrapped raw={} adj={} :: {}",
+                csym, raw, adj, short_expr(&node)
+            );
         }
         // S38 — reject `Upcast(Const(SInt), SBigInt)` at adj<=2 (mirror NODE's
         // IsConstantDef inline semantics; v3's hash-cons of Upcast(Const(SInt),
@@ -10192,6 +10229,26 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        // S41 — reject `SizeOf(ValUse(_))` at adj<=2 (NODE inlines; byte
+        // arithmetic for SizeOf(VU(_)) inline=3B per use vs ValDef header
+        // 5B + RHS 3B + 2B×N ValUses → extraction COSTS bytes until adj>=9).
+        // Empirical: duckpools NODE inlines `SizeOf(VU(3))` (finalIH.size)
+        // at adj=2 even though hasManyUsagesGlobal>1 — implies Scala's sym
+        // for the SizeOf doesn't live in mainG.schedule when both uses are
+        // inside sibling sub-thunks (no LCA at mainG level). NODE extracts
+        // `SizeOf(VU(6))` (IH.size) at adj=3 inside one sub-thunk.
+        let sizeof_vu = matches!(&node,
+            Expr::SizeOf(so) if matches!(*so.input, Expr::ValUse(_))
+        );
+        if sizeof_vu && adj <= 2 {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=sizeof_vu_low_count raw={} adj={} :: {}",
+                    csym, raw, adj, short_expr(&node)
+                );
+            }
+            continue;
+        }
         let scopes = st.canonical_scopes_for(csym);
         let lca_uses = st.lca_of_scopes(scopes);
         // S38 — hoist `BO<>>[VU, K(Long)] @ adj<=2` to outer LCA=0. NODE
@@ -10205,7 +10262,21 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 && matches!(*b.expr.left, Expr::ValUse(_))
                 && matches!(*b.expr.right, Expr::Const(ref c) if matches!(c.tpe, ergotree_ir::types::stype::SType::SLong))
         );
+        // S41 — hoist `SizeOf(VU(_))` to outer LCA=0 when its inner ValUse
+        // has all uses inside sibling sub-thunks (no ref to local-defined
+        // val). NODE places SizeOf at outer scope because Scala's mainG
+        // schedule includes the SizeOf sym (its dep is at outer scope, so
+        // the sym is hosted at outer schedule); v3's LCA-of-uses puts it at
+        // an inner sub-thunk scope, producing an inner BlockValue wrapper
+        // that costs +5B over inline. Closes duckpools_child_interest
+        // residual (B) — SizeOf(VU(13)) scopes=[5,6,7] lca=5 → lca=0.
+        let is_sizeof_vu_outer_hoistable = matches!(&node,
+            Expr::SizeOf(so) if matches!(*so.input, Expr::ValUse(_))
+        ) && lca_uses != 0
+          && !references_locally_defined(&node, &branch_local_ids);
         let lca = if is_bo_gt_vu_klong && adj <= 2 {
+            0
+        } else if is_sizeof_vu_outer_hoistable && adj >= 2 {
             0
         } else {
             lca_uses
