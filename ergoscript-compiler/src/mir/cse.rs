@@ -10682,6 +10682,47 @@ fn rebuild_v3_walk_children(expr: Expr, scope: u32) -> Expr {
                 input: rebuild_v3_walk(*dp.input, scope).into(),
             },
         ),
+        // WS-G sig-15 QB1 Phase 4 S44 — chaincash walker-completeness. NODE has
+        // 3 uses of csym=40 ByIndex(PC(VU(9),tokens),0) reachable via the
+        // properSignature chain: Exponentiate(ownerKey, ByteArrayToBigInt(
+        // CalcBlake2b256(Append(Append(aBytes, message), ownerKey.getEncoded))))
+        // where message = positionBytes ++ maxValueBytes ++ noteTokenId, and
+        // noteTokenId = SelectField(ByIndex(PC(VU(9),tokens),0), 1). Without
+        // these arms, `rebuild_v3_walk` falls through `other => other` at
+        // Exponentiate / MultiplyGroup / ByteArrayToBigInt / ByteArrayToLong
+        // / LongToByteArray (`map_children_with_id` lacks them too), never
+        // reaching the SelectField that wraps csym=40. One of three csym=40
+        // occurrences then survives inline, costing +9B. Companion to the
+        // S35/S36 contains_func_value walker-completeness lineage.
+        Expr::Exponentiate(e) => Expr::Exponentiate(
+            ergotree_ir::mir::exponentiate::Exponentiate {
+                left: rebuild_v3_walk(*e.left, scope).into(),
+                right: rebuild_v3_walk(*e.right, scope).into(),
+            },
+        ),
+        Expr::MultiplyGroup(m) => Expr::MultiplyGroup(
+            ergotree_ir::mir::multiply_group::MultiplyGroup {
+                left: rebuild_v3_walk(*m.left, scope).into(),
+                right: rebuild_v3_walk(*m.right, scope).into(),
+            },
+        ),
+        Expr::ByteArrayToBigInt(s) => Expr::ByteArrayToBigInt(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::byte_array_to_bigint::ByteArrayToBigInt {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+            },
+        }),
+        Expr::ByteArrayToLong(s) => Expr::ByteArrayToLong(Spanned {
+            source_span: s.source_span,
+            expr: ergotree_ir::mir::byte_array_to_long::ByteArrayToLong {
+                input: rebuild_v3_walk(*s.expr.input, scope).into(),
+            },
+        }),
+        Expr::LongToByteArray(lba) => Expr::LongToByteArray(
+            ergotree_ir::mir::long_to_byte_array::LongToByteArray {
+                input: rebuild_v3_walk(*lba.input, scope).into(),
+            },
+        ),
         // Fall back to map_children_with_id for the remaining variants
         // (covers BinOp / BlockValue / ValDef / SigmaAnd / SigmaOr /
         // BoolToSigmaProp / Filter / Exists / ForAll / SizeOf /
