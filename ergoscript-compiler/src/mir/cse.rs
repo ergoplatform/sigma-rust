@@ -10305,6 +10305,26 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        // S43 — Extend S42 per-thunk-distinct semantic to ROOT-LCA case.
+        // When lca==0 (root) but NO occurrence scope is at root proper, all uses
+        // live in sub-Thunks of root. Per Scala's GraphBuilding/findOrCreateDefinition,
+        // syms encountered separately in sibling Thunks become distinct per-Thunk
+        // syms (each with local count). hasManyUsagesGlobal is per-sym → false for
+        // each per-Thunk sym → no extraction. v3's hash-cons collapses to one
+        // canonical and counts uses across all Thunks → over-extracts at root.
+        // Empirical: chaincash csym=23 PropertyCall(SelfBox,R5) scopes=[1,3],
+        // csym=50 ExtractAmount(SelfBox) scopes=[3,26], csym=51 ExtractAmount(VU(5))
+        // scopes=[3,26] — all use-pairs are in sibling sub-thunks of root with no
+        // root-proper occurrence.
+        if lca == 0 && !scopes.contains(&0) && adj <= 2 {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=root_sibling_only_per_thunk_distinct lca={} scopes={:?} adj={} :: {}",
+                    csym, lca, scopes, adj, short_expr(&node)
+                );
+            }
+            continue;
+        }
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
         if trace {
