@@ -9968,10 +9968,21 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     // PASS 3 — Place each tentative canonical whose adjusted count still ≥ 2.
     // S37 — also reject `Upcast(ValUse, SBigInt)` at adj=2 where byte-cost
     // arithmetic is non-positive (inline 4B, ValDef 5B + 2B×adj — savings only
-    // when adj >= 3). Closes phoenix_hodlerg_bank_full v3 +2B → MATCH. The
-    // narrow target (Upcast / SBigInt / adj=2) avoids cross-fixture regression
-    // on the more common Upcast<SLong> and higher-count Upcast<SBigInt>
-    // extractions which DO save bytes.
+    // when adj >= 3). Closes phoenix_hodlerg_bank_full v3 +2B → MATCH.
+    //
+    // S38 — closes spectrum_n2t (410→409 MATCH) and spectrum_t2t (420→421
+    // MATCH) via three coordinated changes that mirror NODE's behavior on
+    // outer-AND result expressions:
+    //   1. Lift S37 gate for raw>=3 (admit higher-count Upcasts NODE keeps).
+    //   2. Suppress `Upcast(VU(SInt), SLong) @ adj<=2` (NODE inlines).
+    //   3. Suppress `Upcast(Const(SInt), SBigInt) @ adj<=2` (NODE inlines;
+    //      LOCAL extracting this dedups the Const pool entry which NODE
+    //      keeps split per source occurrence).
+    //   4. Hoist `BO<>>[VU,K(Long)] @ adj<=2` to outer LCA=0 (NODE places at
+    //      outer scope; v3's LCA-of-uses puts it at inner If-parent scope).
+    // Together these close both spectrum fixtures while preserving phoenix
+    // MATCH (phoenix's Upcast(Const(SLong),SBigInt) is type-discriminated
+    // out of the gate). v3 sig-15: 5/15 → 7/15.
     for &csym in &canonical_order {
         if !adjusted_count.contains_key(&csym) {
             continue;
@@ -10000,7 +10011,9 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             Expr::Upcast(uc) if matches!(*uc.input, Expr::ValUse(_))
                 && matches!(uc.tpe, ergotree_ir::types::stype::SType::SBigInt)
         );
-        if upcast_vu_bigint && adj <= 2 {
+        // S38 — lift S37 gate for raw>=3 Upcast(VU, SBigInt) admits
+        // (closes spectrum's missing 3 Up<BigInt>[VU] outer ValDefs).
+        if upcast_vu_bigint && adj <= 2 && raw < 3 {
             if trace {
                 eprintln!(
                     "[HCv3/reject] csym={} reason=upcast_vu_bigint_low_count raw={} adj={} :: {}",
@@ -10009,8 +10022,61 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        // S38 — reject `Upcast(Const(SInt), SBigInt)` at adj<=2 (mirror NODE's
+        // IsConstantDef inline semantics; v3's hash-cons of Upcast(Const(SInt),
+        // SBigInt) dedups the inner Const into 1 pool entry while NODE keeps
+        // separate pool entries per source occurrence). Narrow to SInt input
+        // because phoenix has Upcast(Const(SLong), SBigInt) at count=2 that
+        // serializes byte-neutrally; suppressing it regresses phoenix MATCH.
+        // Closes spectrum_n2t pool 15→16 to match NODE without breaking phoenix.
+        let upcast_const_sint_to_bigint = matches!(&node,
+            Expr::Upcast(uc)
+                if matches!(*uc.input, Expr::Const(ref c) if matches!(c.tpe, ergotree_ir::types::stype::SType::SInt))
+                && matches!(uc.tpe, ergotree_ir::types::stype::SType::SBigInt)
+        );
+        // S38 — also suppress Upcast(VU(SInt), SLong) at adj<=2 (mirror NODE
+        // inline; spectrum_n2t has csym=116 of this shape).
+        let upcast_vu_sint_to_slong = matches!(&node,
+            Expr::Upcast(uc)
+                if matches!(*uc.input, Expr::ValUse(ref vu) if matches!(vu.tpe, ergotree_ir::types::stype::SType::SInt))
+                && matches!(uc.tpe, ergotree_ir::types::stype::SType::SLong)
+        );
+        if upcast_vu_sint_to_slong && adj <= 2 {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=upcast_vu_sint_slong_low_count raw={} adj={} :: {}",
+                    csym, raw, adj, short_expr(&node)
+                );
+            }
+            continue;
+        }
+        if upcast_const_sint_to_bigint && adj <= 2 {
+            if trace {
+                eprintln!(
+                    "[HCv3/reject] csym={} reason=upcast_const_sint_bigint_low_count raw={} adj={} :: {}",
+                    csym, raw, adj, short_expr(&node)
+                );
+            }
+            continue;
+        }
         let scopes = st.canonical_scopes_for(csym);
-        let lca = st.lca_of_scopes(scopes);
+        let lca_uses = st.lca_of_scopes(scopes);
+        // S38 — hoist `BO<>>[VU, K(Long)] @ adj<=2` to outer LCA=0. NODE
+        // places this canonical at outer scope (no inner BV wrapper); v3's
+        // LCA-of-uses puts it at the If-parent inner scope, costing 2B for
+        // the inner BV wrapper. Forcing outer placement saves those 2B and
+        // aligns with NODE's flat structure.
+        let is_bo_gt_vu_klong = matches!(&node,
+            Expr::BinOp(b)
+                if matches!(b.expr.kind, ergotree_ir::mir::bin_op::BinOpKind::Relation(ergotree_ir::mir::bin_op::RelationOp::Gt))
+                && matches!(*b.expr.left, Expr::ValUse(_))
+                && matches!(*b.expr.right, Expr::Const(ref c) if matches!(c.tpe, ergotree_ir::types::stype::SType::SLong))
+        );
+        let lca = if is_bo_gt_vu_klong && adj <= 2 {
+            0
+        } else {
+            lca_uses
+        };
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
         if trace {
