@@ -10316,6 +10316,19 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         // csym=50 ExtractAmount(SelfBox) scopes=[3,26], csym=51 ExtractAmount(VU(5))
         // scopes=[3,26] — all use-pairs are in sibling sub-thunks of root with no
         // root-proper occurrence.
+        //
+        // S45 (2026-05-20) — DO NOT broaden `adj <= 2` to `adj == 3 && scopes_all_unique`.
+        // Tried for ergoraffle Δ -82 (3 BO<==> + ExAmt all with scopes=[1,3,4] adj=3
+        // all-distinct). Closed ergoraffle 849→926 (77B closer) but FALSIFIED by
+        // duckpools (csym=92 SizeOf(VU) scopes=[5,6,7] adj=3 broke S41 hoist gate,
+        // 598 MATCH → 596) and paideia (5 candidates with adj=3+unique scopes
+        // including ByIndex(Outputs,2), 3 BO<==>(VU,...) shapes, OGet, SelectField
+        // — all extracted by Scala at root, +20B regression). Hypothesis was
+        // "per-thunk-count=1 each thunk → Scala creates distinct per-thunk syms".
+        // Falsified: Scala extracts at root for many adj=3+unique cases. Real
+        // discriminator is the Scala lowering scope of the canonical's creation
+        // (top-level vals lower at _globalDefs; thunk-local builds don't). Not
+        // recoverable from MIR's structural scopes vector alone.
         if lca == 0 && !scopes.contains(&0) && adj <= 2 {
             if trace {
                 eprintln!(
