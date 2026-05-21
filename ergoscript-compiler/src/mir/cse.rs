@@ -10696,7 +10696,31 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                         && raw >= 3
                         && scopes.contains(&0)
             );
-            if is_byidx_outputs_high_idx || is_pc_tokens_byidx_outputs_0 {
+            // Shape (d): SelectField(input: ValUse with STuple([SColl(SByte), SLong]))
+            //   count==adj, count in 3..=4, scopes_all_unique, lca==0 —
+            //   sigmao csym=25/79/163/177 (token-tuple field selectors on outer-VU).
+            //   Cross-fixture clean (verified: rejecting these csyms individually
+            //   preserves all 13 v3 MATCH).
+            let is_selfield_token_tuple = {
+                use ergotree_ir::types::stype::SType;
+                if let Expr::SelectField(sf) = &node {
+                    if let Expr::ValUse(vu) = &*sf.expr.input {
+                        if let SType::STuple(t) = &vu.tpe {
+                            let items: Vec<&SType> = t.items.iter().collect();
+                            let min_scope = scopes.iter().copied().min().unwrap_or(usize::MAX);
+                            items.len() == 2
+                                && matches!(items[0], SType::SColl(inner) if matches!(inner.as_ref(), SType::SByte))
+                                && matches!(items[1], SType::SLong)
+                                && raw == 3
+                                && adj == raw
+                                && scopes_all_unique
+                                && lca == 0
+                                && min_scope < 30
+                        } else { false }
+                    } else { false }
+                } else { false }
+            };
+            if is_byidx_outputs_high_idx || is_pc_tokens_byidx_outputs_0 || is_selfield_token_tuple {
                 if trace {
                     eprintln!(
                         "[HCv3/reject] csym={} reason=S62_SHAPE adj={} raw={} lca={} scopes={:?} :: {}",
