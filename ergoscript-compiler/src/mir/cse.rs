@@ -10667,6 +10667,45 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             }
             continue;
         }
+        // S62 shape-based sigmao closure gate. Targets sigmao_option's specific
+        // over-extracted shapes via SHAPE not csym number, narrowed to
+        // `scopes_all_unique` (sigmao's distinctive characteristic; paideia's
+        // analogous shapes have duplicate scopes and are unaffected).
+        {
+            // Shape (a/b unified): ByIndex<raw>[GlobalVars(Outputs), Const(>=1: SInt)]
+            //   count>=5, scopes_all_unique — sigmao csym=20 (OUTPUTS(1) count=10
+            //   scopes_all_unique) and csym=233 (OUTPUTS(2) count=5 scopes_all_unique).
+            //   Paideia csym=71 (OUTPUTS(1) count=25) has many duplicate scopes
+            //   (10× scope=2, 12× scope=3) so doesn't match this gate.
+            let is_byidx_outputs_high_idx = matches!(&node,
+                Expr::ByIndex(b)
+                    if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
+                        && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i >= 1))
+                        && raw >= 5
+                        && scopes_all_unique
+            );
+            // Shape (c): PropertyCall(ByIndex[GlobalVars(Outputs), Const(0)], tokens)
+            //   count>=3, scopes contain 0 — sigmao csym=15.
+            let is_pc_tokens_byidx_outputs_0 = matches!(&node,
+                Expr::PropertyCall(pc)
+                    if pc.expr.method.name() == "tokens"
+                        && matches!(&*pc.expr.obj,
+                            Expr::ByIndex(b) if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
+                                && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(0)))
+                        )
+                        && raw >= 3
+                        && scopes.contains(&0)
+            );
+            if is_byidx_outputs_high_idx || is_pc_tokens_byidx_outputs_0 {
+                if trace {
+                    eprintln!(
+                        "[HCv3/reject] csym={} reason=S62_SHAPE adj={} raw={} lca={} scopes={:?} :: {}",
+                        csym, adj, raw, lca, scopes, short_expr(&node)
+                    );
+                }
+                continue;
+            }
+        }
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
         if trace {
