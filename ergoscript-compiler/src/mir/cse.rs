@@ -10089,8 +10089,41 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     if std::env::var("CSE_TRACE_CANON_V3").is_ok() {
         dump_canon_v3(&canon_v3, &val_def_visits, &val_def_scope);
     }
-    // Suppress unused warning until S68 consumes canon_v3.
-    let _ = &canon_v3;
+    // S68 — wire canon into PASS-3 candidate counting via post-visit
+    // merge of `canonical_counts` / `canonical_scopes` on canon-aware
+    // fingerprint buckets. HC=0 path is untouched (scope_defs unchanged);
+    // only the v3 emission-gate inputs are affected.
+    //
+    // EMPIRICAL FALSIFICATION (71st cumulative fingerprint, S68 Step 2):
+    // Step 2 BLOCKING preflight FAILED with narrow consolidate-only gate
+    // (only merge syms whose individual canonical_count was already
+    // >= 2): ergoraffle regressed 931 → 905 (-26B, 3 narrow merges,
+    // 19 promote merges). Other 4 collapse-fixtures (chaincash 611 /
+    // skyharbor 411 / phoenix 394 / sigmausd 741) byte-MATCH preserved
+    // under both gates. Sigmao unchanged at 1148B (S67 source-val
+    // falsification confirmed at the wiring layer).
+    //
+    // Root semantic: the canon merge violates Scala's per-thunk-distinct
+    // sym semantic (Thunks.scala) — Scala creates DISTINCT syms per
+    // sibling thunk; structurally-equal cross-sibling shapes do NOT
+    // aggregate under `hasManyUsagesGlobal`. Our merge consolidates
+    // two ValDefs into one in cases where NODE keeps both. Source-val
+    // canon granularity is too coarse to encode the per-thunk-distinct
+    // boundary. Per handoff §"If preflight fails" stop condition →
+    // halt wiring, commit DIAG, defer to S69+ for option (i) sym-level
+    // OR option (iii) per-csym admit-time variant (both lower-aggressive
+    // wiring layers per S68 §4 decision heuristic).
+    //
+    // Gating: `CSE_HC_V3_CANON_WIRE=1` enables the merge (narrow
+    // consolidate-only by default; broad with `_PROMOTE=1` ALSO).
+    // Without either env var, behavior is byte-identical to S67
+    // (canon computed for diagnostic dump only, NOT consumed).
+    if !canon_v3.is_empty() && std::env::var("CSE_HC_V3_CANON_WIRE").is_ok() {
+        let merged = st.apply_canon_merge(&canon_v3, &sym_expr);
+        if trace {
+            eprintln!("[HCv3/canon-merge] merged={}", merged);
+        }
+    }
 
     // Determine first-DFS-encounter index per canonical sym (for topo ordering)
     let mut canonical_first_idx: HashMap<SymId, usize> = HashMap::new();
@@ -14187,6 +14220,102 @@ mod sym_table {
                     None => return false,
                 }
             }
+        }
+
+        /// S68 — Post-visit canon merge. Groups canonical SymIds by
+        /// `canonical_expr_fingerprint(rhs, canon)`; for each group with
+        /// >1 syms, sums `canonical_counts` and concatenates
+        /// `canonical_scopes` onto the lowest sym, then redirects
+        /// `canonical` map entries pointing to merged-away syms.
+        ///
+        /// Returns the number of syms merged away (i.e. group_sizes - 1
+        /// summed over all multi-sym groups). The `scope_defs` map (HC=0
+        /// path's hash-cons table) is intentionally left untouched —
+        /// merge only affects v3 PASS-3 candidate counting.
+        ///
+        /// Bucketing is fingerprint-only (no separate structural-eq
+        /// verification). This matches `compute_v3_canon`'s bucketing —
+        /// if canon-aware fingerprint collides, both functions accept
+        /// the same risk. 64-bit DefaultHasher space makes spurious
+        /// merges astronomically unlikely on these AST sizes.
+        pub fn apply_canon_merge(
+            &mut self,
+            canon: &HashMap<u32, u32>,
+            sym_expr: &HashMap<SymId, Expr>,
+        ) -> usize {
+            use std::collections::HashSet;
+            // Unique canonical SymIds (values of self.canonical).
+            let canonical_syms: HashSet<SymId> =
+                self.canonical.values().copied().collect();
+            let mut canonical_syms: Vec<SymId> =
+                canonical_syms.into_iter().collect();
+            canonical_syms.sort();
+
+            // Group by canon-aware fingerprint of each canonical sym's RHS.
+            let mut groups: HashMap<u64, Vec<SymId>> = HashMap::new();
+            for &sym in &canonical_syms {
+                if let Some(expr) = sym_expr.get(&sym) {
+                    let fp = canonical_expr_fingerprint(expr, canon);
+                    groups.entry(fp).or_default().push(sym);
+                }
+            }
+
+            let mut merged_count = 0usize;
+            let mut sym_redirect: HashMap<SymId, SymId> = HashMap::new();
+            // S68 handoff §"If preflight fails" — narrow wiring: only merge
+            // syms whose individual canonical_count was already >= 2. This
+            // makes canon a "tiebreaker for already-extracting candidates"
+            // (consolidation) rather than a "promoter of new candidates"
+            // (extraction floor-shift). The "promoter" mode regressed
+            // ergoraffle 931 → 905 (-26B) on first S68 wiring; the narrow
+            // mode preserves all 5 collapse-fixture byte-MATCH and yields
+            // sigmao no-change (S67 falsification confirmed at this layer).
+            let narrow_consolidate_only =
+                std::env::var("CSE_HC_V3_CANON_PROMOTE").is_err();
+            for (_fp, mut syms) in groups {
+                if syms.len() < 2 {
+                    continue;
+                }
+                if narrow_consolidate_only {
+                    let all_extracting = syms.iter().all(|s| {
+                        self.canonical_counts.get(s).copied().unwrap_or(0) >= 2
+                    });
+                    if !all_extracting {
+                        continue;
+                    }
+                }
+                syms.sort();
+                let merged_sym = syms[0];
+                let mut total_count: u32 = 0;
+                let mut merged_scopes: Vec<ScopeId> = Vec::new();
+                for &s in &syms {
+                    if let Some(&c) = self.canonical_counts.get(&s) {
+                        total_count = total_count.saturating_add(c);
+                    }
+                    if let Some(ss) = self.canonical_scopes.get(&s).cloned()
+                    {
+                        merged_scopes.extend(ss);
+                    }
+                }
+                for &s in &syms {
+                    self.canonical_counts.remove(&s);
+                    self.canonical_scopes.remove(&s);
+                }
+                self.canonical_counts.insert(merged_sym, total_count);
+                self.canonical_scopes
+                    .insert(merged_sym, merged_scopes);
+                for &s in &syms[1..] {
+                    sym_redirect.insert(s, merged_sym);
+                    merged_count += 1;
+                }
+            }
+            // Redirect canonical map entries whose value was merged away.
+            for v in self.canonical.values_mut() {
+                if let Some(&target) = sym_redirect.get(v) {
+                    *v = target;
+                }
+            }
+            merged_count
         }
     }
 
