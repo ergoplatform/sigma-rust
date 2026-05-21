@@ -10984,18 +10984,54 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         // `scopes_all_unique` (sigmao's distinctive characteristic; paideia's
         // analogous shapes have duplicate scopes and are unaffected).
         {
-            // Shape (a/b unified): ByIndex<raw>[GlobalVars(Outputs), Const(>=1: SInt)]
-            //   count>=5, scopes_all_unique — sigmao csym=20 (OUTPUTS(1) count=10
-            //   scopes_all_unique) and csym=233 (OUTPUTS(2) count=5 scopes_all_unique).
-            //   Paideia csym=71 (OUTPUTS(1) count=25) has many duplicate scopes
-            //   (10× scope=2, 12× scope=3) so doesn't match this gate.
-            let is_byidx_outputs_high_idx = matches!(&node,
+            // Shape (a/b) — NARROWED at S74b 2026-05-21: reject only K==1
+            // (sigmao csym=20 / OUTPUTS(1) raw=10 — Scala doesn't extract
+            // per per-thunk-distinct sym semantic). K>=2 admitted because
+            // NODE IR DOES extract `OUTPUTS(2)` as a shared ValDef (verified
+            // line 9292 of /tmp/sigmao_v3_full.txt NODE IR dump).
+            //
+            // Historical (S62 lineage, pre-S74b): the gate rejected K>=1
+            // blanket. That over-rejected sigmao csym=233 (OUTPUTS(2) raw=5
+            // scopes_all_unique), forcing 2 downstream PC<tokens>[OUTPUTS(2)]
+            // ValDefs each with inline Const(SInt, 2). NODE's shape is
+            // OUTPUTS(2) → ValDef, then PC<tokens>[VU] downstream — 1 shared
+            // Const(SInt, 2) instead of 2 inline copies.
+            //
+            // S74b empirical result: sigmao 1148→1142B; pool count 63→61
+            // (matches NODE exactly); NODE-vs-LOCAL multiset deficit
+            // shrinks from 4 entries to 2 (Int(2) gap closes; +1 Int(1) /
+            // -1 Int(0) residual at one more pair of sites). Byte overlap
+            // 0.1%→1.3% (12B prefix + 2B suffix). All 13 v3 byte-MATCH
+            // preserved + all HC=0 sacred + no new lib/conformance regressions.
+            //
+            // Note paideia csym=71 (OUTPUTS(1) count=25) has duplicate
+            // scopes (10× scope=2, 12× scope=3) so its scopes_all_unique
+            // fails — it doesn't hit this gate.
+            let is_byidx_outputs_k_eq_1_or_high = matches!(&node,
+                Expr::ByIndex(b)
+                    if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
+                        && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i == 1))
+                        && raw >= 5
+                        && scopes_all_unique
+            );
+            // Legacy S62 blanket gate kept under env opt-in for falsification
+            // testing only (`CSE_HC_V3_S74B_LEGACY_AB_BLANKET=1`). Default OFF
+            // applies the narrowed S74b gate. Used to verify S74b improvement
+            // is reproducible and recover legacy behavior if a downstream
+            // regression is discovered.
+            let is_byidx_outputs_legacy_blanket = matches!(&node,
                 Expr::ByIndex(b)
                     if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
                         && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i >= 1))
                         && raw >= 5
                         && scopes_all_unique
             );
+            let is_byidx_outputs_high_idx =
+                if std::env::var("CSE_HC_V3_S74B_LEGACY_AB_BLANKET").is_ok() {
+                    is_byidx_outputs_legacy_blanket
+                } else {
+                    is_byidx_outputs_k_eq_1_or_high
+                };
             // Shape (c): PropertyCall(ByIndex[GlobalVars(Outputs), Const(0)], tokens)
             //   count>=3, scopes contain 0 — sigmao csym=15.
             let is_pc_tokens_byidx_outputs_0 = matches!(&node,
@@ -11007,6 +11043,36 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                         )
                         && raw >= 3
                         && scopes.contains(&0)
+            );
+            // Shape (c2) — S74 PROBE (env-gated, default OFF; hypothesis
+            // FALSIFIED 2026-05-21 — kept as durable diagnostic infra).
+            // PropertyCall(ByIndex[Outputs, Const(K>=1)], tokens).
+            //
+            // Hypothesis: LOCAL's 2× `PC<tokens>[ByIdx[Outputs,K(Int)]]` outer
+            // ValDefs (Δ L=2 N=0 in S64 dump) carry inline Const(SInt, K) and
+            // contribute to LOCAL's +2 Int(2) multiset deficit vs NODE.
+            // Rejecting them should shift the multiset toward NODE's.
+            //
+            // Measurement at HEAD `3e8600fa` with `CSE_HC_V3_S74_REJECT_PCTOK_OUTPUTS_K1=1`:
+            //   sigmao 1148 → 1150B (+2B regression — worse, not better)
+            //   pool count 63 (unchanged from HEAD)
+            //   NODE - S74 multiset: +1 Int(0), -2 Int(1), -1 Int(2)
+            //   byte overlap vs NODE: 0.1% (vs S72 ADMIT's 1.2%)
+            //
+            // FALSIFIED: reject merely re-inlines the PC<tokens>[OUTPUTS(K)]
+            // call into N use sites, each carrying its own Const(SInt, K),
+            // shifting the multiset distribution without shrinking the gap.
+            // The 2 extra Int(2)s in LOCAL are NOT located in these
+            // ValDef bodies. Probe retained as durable env-gated infra.
+            let is_pc_tokens_byidx_outputs_k1 = matches!(&node,
+                Expr::PropertyCall(pc)
+                    if pc.expr.method.name() == "tokens"
+                        && matches!(&*pc.expr.obj,
+                            Expr::ByIndex(b) if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
+                                && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i >= 1))
+                        )
+                        && raw >= 2
+                        && scopes_all_unique
             );
             // Shape (d): SelectField(input: ValUse with STuple([SColl(SByte), SLong]))
             //   count==adj, count in 3..=4, scopes_all_unique, lca==0 —
@@ -11066,10 +11132,15 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 .unwrap_or(0);
             let unrej_ab_applies =
                 unrej_ab && (unrej_ab_min_raw == 0 || raw >= unrej_ab_min_raw);
+            // S74 — env-gated PC<tokens>[OUTPUTS(K>=1)] reject extension.
+            // Default OFF preserves S72/S73 head bytes.
+            let s74_reject_pc_tokens_k1 =
+                std::env::var("CSE_HC_V3_S74_REJECT_PCTOK_OUTPUTS_K1").is_ok();
             let s62_reject =
                 (is_byidx_outputs_high_idx && !unrej_ab_applies)
                     || (is_pc_tokens_byidx_outputs_0 && !unrej_c)
-                    || (is_selfield_token_tuple && !unrej_d);
+                    || (is_selfield_token_tuple && !unrej_d)
+                    || (s74_reject_pc_tokens_k1 && is_pc_tokens_byidx_outputs_k1);
             if s62_reject {
                 if trace {
                     eprintln!(
