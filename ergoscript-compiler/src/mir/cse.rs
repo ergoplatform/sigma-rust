@@ -14272,6 +14272,8 @@ mod sym_table {
             // sigmao no-change (S67 falsification confirmed at this layer).
             let narrow_consolidate_only =
                 std::env::var("CSE_HC_V3_CANON_PROMOTE").is_err();
+            let trace_skip =
+                std::env::var("CSE_TRACE_CANON_MERGE_SKIP").is_ok();
             for (_fp, mut syms) in groups {
                 if syms.len() < 2 {
                     continue;
@@ -14283,6 +14285,33 @@ mod sym_table {
                     if !all_extracting {
                         continue;
                     }
+                }
+                // S69 — LCA-in-scopes narrow gate. Encodes Scala's
+                // per-thunk-distinct sym semantic (`Thunks.scala` /
+                // `ThunkScope.findDef` parent-only recursion) at the merge
+                // layer. A multi-sym group may merge ONLY if the LCA of
+                // its use-scope union is itself one of the use scopes —
+                // i.e. an ancestor-chain "real" use exists. Sibling-only
+                // groups (LCA outside the union) are kept distinct, since
+                // Scala's `findDef` never crosses thunks and produces
+                // distinct syms per sibling. Same predicate as S40 (sigmausd
+                // scope-aware refs_local) and S42 (skyharbor inner-LCA
+                // sibling-only reject), ported to canon-merge.
+                let mut all_scopes: Vec<ScopeId> = Vec::new();
+                for &s in &syms {
+                    if let Some(ss) = self.canonical_scopes.get(&s) {
+                        all_scopes.extend(ss.iter().copied());
+                    }
+                }
+                let merge_lca = self.lca_of_scopes(&all_scopes);
+                if !all_scopes.contains(&merge_lca) {
+                    if trace_skip {
+                        eprintln!(
+                            "[HCv3/canon-merge-skip] reason=sibling-only group={:?} lca={}",
+                            syms, merge_lca
+                        );
+                    }
+                    continue;
                 }
                 syms.sort();
                 let merged_sym = syms[0];
