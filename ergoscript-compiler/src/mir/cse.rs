@@ -11180,6 +11180,64 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 }
                 continue;
             }
+            // S76 — scope-aware wrapper reject (env-gated; closure target
+            // when paired with CSE_HC_V3_S75_ADMIT_OUTPUTS_K1=1).
+            //
+            // Probe 1 empirical anchor (handoff CLOSE-SIGMAO-S76-SCOPE-AWARE-WALKER.md
+            // Step 3): sigmao under S75 admit OVER-extracts csym=212 (`ExScript(
+            // BIdx(Outputs, 1))` scopes=[32, 74]) and csym=219 (`ExAmount(BIdx(
+            // Outputs, 1))` scopes=[34, 57, 75]) — both sibling-only deep
+            // (lca=0 ∧ !scopes.contains(&0)). Currently admitted via S52b's
+            // `is_sigmao_deep_scope_admit` (min_scope >= 25), overriding the
+            // S43/S46 per-thunk-distinct reject. NODE empirically does NOT
+            // extract these as root-level ValDefs (verified s_node_v75.txt
+            // top-level ValDef IDs 30-46 audit — only d30=PC<tokens>(VU(29))
+            // exists; no ExScript or ExAmount wrappers of OUTPUTS(1)).
+            //
+            // Semantic: under Scala's per-thunk-distinct sym semantic
+            // (Thunks.scala / ThunkScope.findDef parent-only walk), when the
+            // shared LEAF (OUTPUTS(1) = d29) is extracted globally via
+            // hasManyUsagesGlobal, deep-scope WRAPPERS around that leaf
+            // remain per-thunk-distinct: each sibling Thunk constructs its
+            // own ExScript(VU(29)) / ExAmount(VU(29)) inline, with no
+            // aggregation across thunks. Rust's single-pass DFS
+            // hash-cons aggregates them and S52b's deep-admit carve-out
+            // hoists at LCA=root — the over-extraction this gate fixes.
+            //
+            // Gate narrowness: targets wrappers of the SAME shape as the
+            // S75 candidate (`BIdx(Outputs, K==1)`) only. Other
+            // `is_sigmao_deep_scope_admit` candidates (e.g. csym=216
+            // SizeOf(PC[ByIdx,tokens]) scopes=[33,53,58,76]) are unaffected.
+            let s76_scope_aware_walk =
+                std::env::var("CSE_HC_V3_S76_SCOPE_AWARE_WALK").is_ok();
+            if s76_scope_aware_walk
+                && s75_admit_k1
+                && lca == 0
+                && !scopes.contains(&0)
+                && scopes_all_unique
+            {
+                let inner_is_byidx_outputs_1 = |inner: &Expr| -> bool {
+                    matches!(inner, Expr::ByIndex(b)
+                        if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
+                            && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i == 1))
+                            && b.expr.default.is_none()
+                    )
+                };
+                let is_wrapper_of_outputs_1 = match &node {
+                    Expr::ExtractScriptBytes(esb) => inner_is_byidx_outputs_1(&esb.input),
+                    Expr::ExtractAmount(ea) => inner_is_byidx_outputs_1(&ea.input),
+                    _ => false,
+                };
+                if is_wrapper_of_outputs_1 {
+                    if trace {
+                        eprintln!(
+                            "[HCv3/reject] csym={} reason=S76_PER_THUNK_DISTINCT_WRAPPER_OF_OUTPUTS_1 adj={} raw={} lca={} scopes={:?} :: {}",
+                            csym, adj, raw, lca, scopes, short_expr(&node)
+                        );
+                    }
+                    continue;
+                }
+            }
         }
         canonical_node.insert(csym, node.clone());
         placement.insert(csym, (lca, next_id));
@@ -11251,6 +11309,19 @@ fn rebuild_v3_walk(expr: Expr, scope_u32: u32) -> Expr {
             .as_ref()
             .and_then(|ctx| ctx.canonical_to_vid.get(&key).copied())
     }) {
+        // S76 PROBE 1 — per-occurrence walker replacement trace. Env-gated
+        // `CSE_TRACE_WALK=1`. Emits one line per canonical match in
+        // `rebuild_v3_walk` with the current rebuild-scope and resolved vid.
+        // Pair with `[HCv3/wrap-sub]` events in `wrap_with_valdefs_v3` to
+        // get a full per-site replacement decision map (handoff Step 3).
+        if std::env::var("CSE_TRACE_WALK").is_ok() {
+            eprintln!(
+                "[HCv3/walk] vid={} at_scope={} :: {}",
+                vid,
+                scope_u32,
+                short_expr(&expr)
+            );
+        }
         return Expr::ValUse(ValUse {
             val_id: ValId(vid),
             tpe: expr_type(&expr),
@@ -11590,6 +11661,26 @@ fn rebuild_v3_walk_children(expr: Expr, scope: u32) -> Expr {
     }
 }
 
+/// S76 PROBE 1 helper — given a pre-substitution `raw` Expr, a post-substitution
+/// `rhs`, and the env, find which env entries were substituted into `rhs`. Walks
+/// `rhs` for ValUse nodes whose val_id matches an env entry. Diagnostic only.
+fn collect_substituted_vids(
+    _raw: &Expr,
+    rhs: &Expr,
+    env: &[(Expr, u32)],
+    out: &mut Vec<u32>,
+) {
+    if let Expr::ValUse(vu) = rhs {
+        let vid = vu.val_id.0;
+        if env.iter().any(|(_, v)| *v == vid) {
+            out.push(vid);
+        }
+    }
+    for c in direct_children(rhs) {
+        collect_substituted_vids(_raw, c, env, out);
+    }
+}
+
 fn wrap_with_valdefs_v3(body: Expr, scope: sym_table::ScopeId) -> Expr {
     let syms = V3_CTX.with(|c| {
         c.borrow()
@@ -11611,10 +11702,31 @@ fn wrap_with_valdefs_v3(body: Expr, scope: sym_table::ScopeId) -> Expr {
     // uses ValUse(N) for an earlier ByIndex ValDef).
     let mut env_for_inner: Vec<(Expr, u32)> = Vec::new();
     let mut items: Vec<Expr> = Vec::new();
+    let trace_wrap = std::env::var("CSE_TRACE_WALK").is_ok();
     for csym in &syms {
         let (_, vid) = placement_owned[csym];
         let raw = canonical_node_owned[csym].clone();
         let rhs = build_value_recurse(&raw, &env_for_inner);
+        if trace_wrap {
+            // S76 PROBE 1 — per-csym wrap-RHS build trace. Reports which
+            // earlier same-scope ValDefs were substituted into THIS csym's
+            // RHS via `build_value_recurse`'s env. Critical for identifying
+            // wrapper-inline over-replacement (e.g. d34's ExScript(BIdx(...))
+            // gets BIdx(...) → ValUse(d29) inlined when S75-admit makes
+            // OUTPUTS(1) extractable).
+            let mut substituted_vids: Vec<u32> = Vec::new();
+            collect_substituted_vids(&raw, &rhs, &env_for_inner, &mut substituted_vids);
+            eprintln!(
+                "[HCv3/wrap] csym={} vid={} at_scope={} env_size={} substituted={:?} :: raw={} rhs={}",
+                csym,
+                vid,
+                scope,
+                env_for_inner.len(),
+                substituted_vids,
+                short_expr(&raw),
+                short_expr(&rhs)
+            );
+        }
         let valdef = Expr::ValDef(Spanned {
             source_span: SourceSpan::empty(),
             expr: ValDef {
