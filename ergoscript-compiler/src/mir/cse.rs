@@ -11007,13 +11007,43 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             // Note paideia csym=71 (OUTPUTS(1) count=25) has duplicate
             // scopes (10× scope=2, 12× scope=3) so its scopes_all_unique
             // fails — it doesn't hit this gate.
+            // S75 PROBE (env-gated; default OFF — hypothesis FALSIFIED).
+            //
+            // Hypothesis: NODE empirically extracts `OUTPUTS(1)` as a
+            // standalone ValDef (verified IR line 966 of NODE dump). The
+            // S74b K==1 reject was thus blocking a legitimate extraction.
+            // Admitting csym=20 (`CSE_HC_V3_S75_ADMIT_OUTPUTS_K1=1`) should
+            // close the residual +1 Int(1) / -1 Int(0) multiset gap.
+            //
+            // Empirical result (2026-05-21, post-3e8600fa):
+            //   sigmao 1142 → **1136B** (over-corrects -6B, worse)
+            //   pool count 61 → **59** (drops below NODE's 61)
+            //   NODE - LOCAL multiset: was (+1 Int(0) -1 Int(1)) under S74b →
+            //     now (**+1 Int(0) +1 Int(1)**); deficit changes direction
+            //     instead of closing
+            //   byte overlap: 1.3% → **0.1%** (collapses)
+            //
+            // FALSIFIED interpretation: admitting csym=20 replaces ALL inline
+            // OUTPUTS(1) uses with VU references via global `canonical_to_vid`
+            // lookup in `rebuild_v3_walk`. This over-replaces by 1 use site
+            // vs NODE's per-thunk-distinct-sym semantic, which leaves at
+            // least one inline OUTPUTS(1) use in a deeper scope. A SCOPE-AWARE
+            // admit (replace only same-scope uses, leave cross-scope inline)
+            // would be the correct mechanism, but requires deeper walker
+            // refactoring.
+            //
+            // Probe retained as durable env-gated infra; documents that the
+            // remaining sigmao closure is at the SCOPE-AWARE replacement
+            // layer, not at the admit-set layer.
+            let s75_admit_k1 =
+                std::env::var("CSE_HC_V3_S75_ADMIT_OUTPUTS_K1").is_ok();
             let is_byidx_outputs_k_eq_1_or_high = matches!(&node,
                 Expr::ByIndex(b)
                     if matches!(&*b.expr.input, Expr::GlobalVars(ergotree_ir::mir::global_vars::GlobalVars::Outputs))
                         && matches!(&*b.expr.index, Expr::Const(c) if matches!(&c.v, ergotree_ir::mir::constant::Literal::Int(i) if *i == 1))
                         && raw >= 5
                         && scopes_all_unique
-            );
+            ) && !s75_admit_k1;
             // Legacy S62 blanket gate kept under env opt-in for falsification
             // testing only (`CSE_HC_V3_S74B_LEGACY_AB_BLANKET=1`). Default OFF
             // applies the narrowed S74b gate. Used to verify S74b improvement

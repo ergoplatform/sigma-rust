@@ -4649,6 +4649,41 @@ fn debug_chaincash() {
 /// compute the multiset symmetric difference between LOCAL and NODE outer ValDef
 /// RHS shapes — the empirical residual class for sigmao -26 / sig-15 plateaus.
 #[cfg(test)]
+/// S75 — like `expr_shape` but inlines Int literal values for swap-site
+/// localization. Other Constant types still print as `K(<type>)`.
+#[cfg(test)]
+fn expr_shape_verbose(e: &ergotree_ir::mir::expr::Expr) -> String {
+    use ergotree_ir::mir::constant::Literal;
+    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::traversable::Traversable;
+    if let Expr::Const(c) = e {
+        if let Literal::Int(i) = c.v {
+            return format!("K(I,{})", i);
+        }
+        if let Literal::Long(i) = c.v {
+            return format!("K(L,{})", i);
+        }
+        if let Literal::Boolean(b) = c.v {
+            return format!("K(B,{})", b);
+        }
+        return format!("K({})", c.tpe);
+    }
+    let children: std::vec::Vec<String> = e.children().map(expr_shape_verbose).collect();
+    let head = expr_shape(e);
+    // Strip child-list suffix if present; we'll re-append ours
+    let head_base: String = if let Some(idx) = head.find('[') {
+        head[..idx].to_string()
+    } else {
+        head
+    };
+    if children.is_empty() {
+        head_base
+    } else {
+        format!("{}[{}]", head_base, children.join(","))
+    }
+}
+
+#[cfg(test)]
 fn expr_shape(e: &ergotree_ir::mir::expr::Expr) -> String {
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::traversable::Traversable;
@@ -5839,6 +5874,52 @@ fn probe_sig15_local_hex() {
                 Ok(bytes) => {
                     let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
                     eprintln!("  {:32} {:>5}B  {}", fixture, bytes.len(), hex);
+                    // S75 — optional local IR dump for IR-diff sessions
+                    // (avoids needing API_KEY for NODE-side; pair with cached
+                    // NODE IR dump at `/tmp/sigmao_v3_full.txt`).
+                    if std::env::var("SIG15_DUMP_IR").is_ok() {
+                        if let Ok(root) = tree.proposition() {
+                            eprintln!("\n=== LOCAL IR for {} ===\n{:#?}\n", fixture, root);
+                        }
+                    }
+                    // S75 — optional outer-ValDef shape dump WITH Int literal
+                    // values inline (for swap-site localization).
+                    if std::env::var("SIG15_DUMP_OUTER_SHAPES_VERBOSE").is_ok() {
+                        if let Ok(root) = tree.proposition() {
+                            if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
+                                eprintln!("\n=== LOCAL outer ValDefs (verbose) for {} ===", fixture);
+                                for it in &bv.expr().items {
+                                    if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
+                                        eprintln!(
+                                            "  d{:>3} = {}",
+                                            vd.expr().id.0,
+                                            expr_shape_verbose(&vd.expr().rhs)
+                                        );
+                                    }
+                                }
+                                eprintln!();
+                            }
+                        }
+                    }
+                    // S75 — optional outer-ValDef shape dump (cheaper than
+                    // full IR; compatible with the existing expr_shape printer).
+                    if std::env::var("SIG15_DUMP_OUTER_SHAPES").is_ok() {
+                        if let Ok(root) = tree.proposition() {
+                            if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
+                                eprintln!("\n=== LOCAL outer ValDefs for {} ===", fixture);
+                                for it in &bv.expr().items {
+                                    if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
+                                        eprintln!(
+                                            "  d{:>3} = {}",
+                                            vd.expr().id.0,
+                                            expr_shape(&vd.expr().rhs)
+                                        );
+                                    }
+                                }
+                                eprintln!();
+                            }
+                        }
+                    }
                 }
                 Err(e) => eprintln!("  {:32} SERIALIZE ERROR {:?}", fixture, e),
             },
