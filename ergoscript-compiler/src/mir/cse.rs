@@ -8456,6 +8456,34 @@ fn process_ast_graph_impl(
                 continue;
             }
 
+            // S55: under v3 (CSE_HC_V3=1) only, suppress Branch-cascade
+            // extraction of bare `LogicalNot(ValUse(_))`. PASS-3 upstream
+            // rejects this shape as `refs_local_same_scope_only_defer_to_inner_cse`
+            // (csym=343 in paideia: LNot(VU(59)) lca=9 scopes=[9,9] count=2);
+            // the Branch cascade then re-admits locally because dag_count>=2
+            // within the branch. Scala's per-Thunk-distinct sym semantic
+            // inlines LNot in this scenario — single-thunk LNot extraction is
+            // inconsistent with hash-cons hasManyUsages over a per-thunk sym.
+            // Reject mirrors PASS-3 intent. Empirical S55 cross-fixture audit
+            // at HEAD `4ecd32cd`: under v3, paideia +2B closer (1462→1464),
+            // all 12 v3 MATCH unchanged; under HC=0 default this reject
+            // REGRESSES paideia 1471→1473 (HC=0 PASS-1 admits this LNot at
+            // outer, so Branch cascade extraction is the byte-faithful path
+            // for HC=0). v3 gate keeps HC=0 sacred.
+            if mode == ScopeMode::Branch
+                && hash_cons_v3_enabled()
+                && matches!(node, Expr::LogicalNot(ln) if matches!(&*ln.expr.input, Expr::ValUse(_)))
+            {
+                if trace {
+                    eprintln!(
+                        "[PAG/Branch] reject reason=lnot_vu_per_thunk_distinct dag_count={} :: {}",
+                        dag_count,
+                        short_expr(node)
+                    );
+                }
+                continue;
+            }
+
             // Scope checks differ by mode:
             //
             // - Root: in Scala, && / || wrap the right operand in a
