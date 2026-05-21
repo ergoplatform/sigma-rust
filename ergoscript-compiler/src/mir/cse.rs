@@ -11040,6 +11040,21 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             // sigmao csym=20 count=10 but not csym=233 count=5). Used to
             // empirically probe the structural barrier to sigmao byte-EXACT
             // alignment with NODE.
+            //
+            // S73 — emission-layer FALSIFIED via constant-pool multiset
+            // measurement (75th cumulative falsification fingerprint).
+            // Under `CSE_HC_V3_UNREJECT_S62=ab MIN_RAW=10` sigmao produces
+            // a 61-entry pool (count-parity with NODE) but the MULTISETS
+            // differ by 4 entries (+2 Int(2), -1 Int(0), -1 Int(1)). HEAD
+            // shares the +2 Int(2) / -1 Int(0) deficit. Pool order is also
+            // permuted (slot 5+). Both observations together imply emission-
+            // layer alignment (visit order, put-order, segregation, placeholder
+            // id — handoff classes a/b/c/d) is INSUFFICIENT: any reorder
+            // preserves the multiset. The residual is at the extraction-site
+            // value layer (HIR/MIR lowering), the same surface S66-S71
+            // canon arc exhausted. v3 13/15 ceiling + sigmao 1148 size-MATCH
+            // is empirically definitive at the CSE-and-emission frontier.
+            // Detail map: parity-handoffs/S73-EMIT-DIVERGENCE-MAP.md (local).
             let unrej_s62 = std::env::var("CSE_HC_V3_UNREJECT_S62")
                 .unwrap_or_default();
             let unrej_ab = unrej_s62.split(',').any(|t| t.trim() == "ab");
