@@ -10056,6 +10056,39 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             // 4B residual is NOT in this class. Probes intentionally NOT
             // landed as code (env-gated dead-weight without yield); the
             // empirical falsification is the durable artifact.
+            //
+            // S59 (2026-05-20 paideia 4-path closure probe array) — four
+            // additional closure attempts on the 4B residual, all FALSIFIED.
+            // (a) `is_graph_shared` widen for `ByIdx[OGet[ExReg[stable]]]`
+            // (`CSE_HC_V3_PAIDEIA_GS_WIDEN`): admits csym=109 (OUTPUTS(1).R4
+            // .get(0)) and csym=315 (INPUTS(1).R4.get(0)). csym=109 then drops
+            // at PASS-2 recount (`raw=2 adjusted=1`, nested in another
+            // tentative). csym=315 gets hoisted to lca=0 via S52's sigmao
+            // deep-LCA-hoist heuristic (lca_uses=9 >= 5, scopes_all_unique).
+            // Net: paideia 1464 → 1462 (-2B, WRONG direction; further from
+            // NODE 1468). (b) Block sigmao deep-LCA-hoist for
+            // `SelectField[ByIndex[..]]` shape (`CSE_HC_V3_PAIDEIA_HOIST_EXCL`):
+            // csym=321 still placed at inner lca=9 (S42 reject doesn't fire
+            // because scopes.contains(&lca)=true). Paideia 1464 → 1462 (-2B).
+            // (c) Full reject of `SelectField[ByIndex[..]]` adj<=2 scopes_unique
+            // at PASS-3: paideia 1464 → 1458 (-6B WORSE; this extraction was
+            // net byte-positive vs inline). (d) Reject ALL inner-LCA same-
+            // scope adj<=2 placements (`CSE_HC_V3_PAIDEIA_INNER_BV_REJ`):
+            // paideia 1464 → 1464 (unchanged, compensating-extraction via
+            // `apply_cse_within_branches` HC=0 branch CSE re-extracts at
+            // same scope). All falsifications preserve 12/15 v3 MATCH
+            // byte-for-byte; segregation OK. (e) Structural diff anchor:
+            // LOCAL has 16 BlockValues vs NODE 12 (+4 wrappers); LOCAL has
+            // 126 ValDefs vs NODE 132 (-6 entries). Same 36 outer ValDef
+            // count both sides, same 79 constants both sides. Net 4B
+            // residual is BV-overhead vs ValDef-density trade-off at the
+            // `apply_cse_within_branches` inner-CSE layer — fixing requires
+            // either suppressing 4 specific inner BV wrappers OR re-allocating
+            // 6 inner ValDefs to flatter scopes. Neither expressible as a
+            // single narrow predicate at PASS-3. 66th cumulative falsification
+            // fingerprint (closure-direction-inverted-for-4B class). 4B
+            // residual confirmed G.2 hash-cons migration class per S58
+            // disposition (see archive PENDING_S59_*.md).
             if !scope_visible || !lca_in_scopes || !spans_scopes {
                 if trace {
                     let reason = if !scope_visible {
