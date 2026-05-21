@@ -10142,13 +10142,76 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     let mut canonical_node: HashMap<SymId, Expr> = HashMap::new();
     let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
 
+    // S70 — canon-aware admit-time count map (option (b) per S68 §4 / S69
+    // §Step 5). Builds, gated on `CSE_HC_V3_CANON_ADMIT=1`, a sym→count
+    // map by grouping canonical syms by canon-aware fingerprint of their
+    // RHS and summing `canonical_counts` within each group. Read-only;
+    // does NOT mutate `canonical_counts` (that would be option (a)
+    // `apply_canon_merge`, S68/S69). When the env is unset, the map is
+    // empty and call sites fall back to raw `st.canonical_count`.
+    //
+    // Why this layer: S69 confirmed source-val merge at the SymTable
+    // layer (option (a)) violates Scala's per-thunk-distinct sym
+    // semantic; the per-thunk-distinct boundary belongs at decision
+    // sites (PASS-1 entry filter + PASS-3 admit gate), not at the
+    // intern table. Canon-aware counting at the gate keeps SymTable
+    // raw and applies Scala's `hasManyUsagesGlobal` equivalence only
+    // where it matters — at the extraction decision.
+    let canon_admit_enabled =
+        !canon_v3.is_empty() && std::env::var("CSE_HC_V3_CANON_ADMIT").is_ok();
+    let canon_admit_count: HashMap<SymId, u32> = if canon_admit_enabled {
+        let mut groups: HashMap<u64, Vec<SymId>> = HashMap::new();
+        for sym in st.canonical_syms() {
+            if let Some(expr) = sym_expr.get(&sym) {
+                let fp = sym_table::canonical_expr_fingerprint(expr, &canon_v3);
+                groups.entry(fp).or_default().push(sym);
+            }
+        }
+        let mut result: HashMap<SymId, u32> = HashMap::new();
+        for (_fp, syms) in &groups {
+            let total: u32 = syms.iter().map(|s| st.canonical_count(*s)).sum();
+            for &s in syms {
+                result.insert(s, total);
+            }
+        }
+        if std::env::var("CSE_TRACE_CANON_ADMIT").is_ok() {
+            let mut promoted: Vec<(SymId, u32, u32)> = result
+                .iter()
+                .filter_map(|(s, &t)| {
+                    let raw = st.canonical_count(*s);
+                    if t > raw {
+                        Some((*s, raw, t))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            promoted.sort();
+            for (s, raw, total) in promoted {
+                eprintln!(
+                    "[HCv3/canon-admit] csym={} raw={} canon_total={}",
+                    s, raw, total
+                );
+            }
+        }
+        result
+    } else {
+        HashMap::new()
+    };
+    let count_of = |csym: SymId| -> u32 {
+        canon_admit_count
+            .get(&csym)
+            .copied()
+            .unwrap_or_else(|| st.canonical_count(csym))
+    };
+
     // PASS 1 — Tentative-extract set: every canonical that passes the structural
     // gates (count>=2 / extractable / !is_constant_def / graph-shared / !refs_local).
     // The β.1 recount in PASS 2 then narrows this set using Scala's
     // `hasManyUsagesGlobal` semantics.
     let mut tentative: Vec<SymId> = Vec::new();
     for &csym in &canonical_order {
-        let count = st.canonical_count(csym);
+        let count = count_of(csym);
         if count < 2 {
             if trace {
                 if let Some(n) = sym_expr.get(&csym) {
@@ -10479,7 +10542,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         if !adjusted_count.contains_key(&csym) {
             continue;
         }
-        let raw = st.canonical_count(csym);
+        let raw = count_of(csym);
         let adj = adjusted_count.get(&csym).copied().unwrap_or(raw);
         // S49 (2026-05-20 sigmao Session 47c) — SelectField(ValUse(_)) carve-out
         // for PASS-2 recount gate. When a SelectField's input is a stable
