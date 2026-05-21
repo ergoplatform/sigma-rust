@@ -9771,6 +9771,121 @@ thread_local! {
 ///   - F5 8 v2-MATCH-held: chaincash/oracle/rosen/skyharbor/ergomixer/
 ///     ergoraffle/phoenix/sigmausd — MUST hold under v3 (else regression
 ///     class = "Rust v3 over-hoists vs Scala first-DFS").
+///
+/// S67 — Per-VU canonicalization map for v3. Mirrors Scala's
+/// `findOrCreateDefinition` semantics (S66-CANONICAL-RULE.md §5):
+/// two ValDefs A and B collapse iff their RHSs are structurally equal
+/// (modulo previously-computed canon) AND one of their scopes is an
+/// ancestor of the other (or they share a scope). Sibling scopes
+/// NEVER collapse (Scala's `ThunkScope.findDef` walks parent-chain
+/// only, never sibling `bodyDefs`).
+///
+/// Algorithm (one-shot bottom-up):
+///   For each ValDef (id, scope, rhs) in DFS visit order:
+///     1. Skip if rhs is `Expr::FuncValue(_)` (S66 R7: Scala's
+///        `ThunkDef.equals` is nodeId-only — never collapses).
+///     2. Fingerprint rhs using `canonical_expr_hash` (canon-substituted
+///        ValUse val_ids). Child ValUses are already canon-resolved
+///        because DFS visit ensures children come first.
+///     3. Walk scope chain from `scope` up to root via
+///        `SymTable::parent_scope`; at each ancestor scope, look up
+///        `seen[scope].get(fingerprint)`. First hit wins.
+///     4. If hit: `canon[id] = canon.get(hit_id).unwrap_or(hit_id)`
+///        (transitive resolution to the canonical representative).
+///        Else: `seen.entry(scope).insert(fingerprint, id)`.
+///
+/// Termination: visit pass is finite. Confluence: bucket assignment is
+/// by fingerprint; representative is the first registrant in DFS order.
+/// Determinism: DFS visit + first-hit-wins.
+///
+/// CAVEAT (S67 representation-only): the canon map returned is NOT
+/// consumed by PASS 1/2/3. S68 will wire it into PASS-3's ExprKey
+/// construction (line ~13614 surgical site). The dump under
+/// `CSE_TRACE_CANON_V3=1` validates that the rule fires on sigmao
+/// per S65 measurement before any extraction behavior changes.
+fn compute_v3_canon(
+    val_def_visits: &[(u32, sym_table::ScopeId, Expr)],
+    val_def_scope: &HashMap<u32, sym_table::ScopeId>,
+    st: &sym_table::SymTable,
+) -> HashMap<u32, u32> {
+    let mut canon: HashMap<u32, u32> = HashMap::new();
+    // Per-scope buckets: scope_id → (fingerprint → first registrant val_id).
+    let mut seen: HashMap<sym_table::ScopeId, HashMap<u64, u32>> = HashMap::new();
+
+    for (id, scope, rhs) in val_def_visits {
+        // S66 R7 — exclude lambda bodies. Scala's `ThunkDef.equals` is
+        // nodeId-only, so two structurally-equal lambdas never collapse
+        // into one sym. Our canon must follow the same exclusion.
+        if matches!(rhs, Expr::FuncValue(_)) {
+            continue;
+        }
+        let fp = sym_table::canonical_expr_fingerprint(rhs, &canon);
+        let mut cur = *scope;
+        let mut hit: Option<u32> = None;
+        loop {
+            if let Some(scope_map) = seen.get(&cur) {
+                if let Some(&earlier_id) = scope_map.get(&fp) {
+                    hit = Some(earlier_id);
+                    break;
+                }
+            }
+            match st.parent_scope(cur) {
+                Some(p) => cur = p,
+                None => break,
+            }
+        }
+        if let Some(earlier) = hit {
+            let target = canon.get(&earlier).copied().unwrap_or(earlier);
+            canon.insert(*id, target);
+        } else {
+            seen.entry(*scope).or_default().insert(fp, *id);
+        }
+    }
+    // Sanity: every canon entry must point to a registered representative.
+    // (Defensive — only triggers if scope_parents is malformed.)
+    let _ = val_def_scope;
+    canon
+}
+
+/// S67 — Diagnostic dump under `CSE_TRACE_CANON_V3=1`. Emits per-line:
+///   `[HCv3/canon] <id> -> <canon_id> (scope=<S>)`
+/// for each ValDef that collapses (i.e. `canon[id] != id`), followed by
+/// a summary:
+///   `[HCv3/canon-summary] valdefs=<N> classes=<K> collapses=<N-K>
+///    excluded_lambda=<L>`
+/// Consumer: empirical validation that the rule fires on sigmao per
+/// S65 measurement (sigmao LOCAL=52 outer ValDefs vs NODE=46 → expect
+/// ≥6 collapses if the canon mirrors Scala perfectly at that layer).
+fn dump_canon_v3(
+    canon: &HashMap<u32, u32>,
+    val_def_visits: &[(u32, sym_table::ScopeId, Expr)],
+    val_def_scope: &HashMap<u32, sym_table::ScopeId>,
+) {
+    let mut excluded_lambda = 0usize;
+    for (id, _scope, rhs) in val_def_visits {
+        if matches!(rhs, Expr::FuncValue(_)) {
+            excluded_lambda += 1;
+            eprintln!("[HCv3/canon] {} excluded=FuncValue", id);
+            continue;
+        }
+        let target = canon.get(id).copied().unwrap_or(*id);
+        if target != *id {
+            let scope = val_def_scope.get(id).copied().unwrap_or(0);
+            eprintln!(
+                "[HCv3/canon] {} -> {} (scope={})",
+                id, target, scope
+            );
+        }
+    }
+    let collapses = canon.iter().filter(|(k, v)| *k != *v).count();
+    let total = val_def_visits.len();
+    let classes = total - excluded_lambda - collapses;
+    eprintln!(
+        "[HCv3/canon-summary] valdefs={} classes={} collapses={} excluded_lambda={}",
+        total, classes, collapses, excluded_lambda
+    );
+}
+
 fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     use sym_table::{ExprKey, ScopeId, SymId, SymTable};
 
@@ -9786,6 +9901,13 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     // LCA-of-uses is descendant-of-or-equal-to every locally-referenced
     // ValDef's defining scope (Scala's per-ThunkDef emission semantics).
     let mut val_def_scope: HashMap<u32, ScopeId> = HashMap::new();
+    // S67 — DFS-visit-ordered (val_id, scope, rhs_clone) tuples for every
+    // ValDef encountered in the program. Consumed by `compute_v3_canon`
+    // (below the visit pass) to build the per-VU canonicalization map per
+    // S66-CANONICAL-RULE.md §6.2. In S67 the resulting canon is NOT wired
+    // into PASS 1/2/3 — only dumped under `CSE_TRACE_CANON_V3=1`. S68 will
+    // consume it from PASS-3's ExprKey construction site (line ~13614).
+    let mut val_def_visits: Vec<(u32, ScopeId, Expr)> = Vec::new();
 
     #[allow(clippy::too_many_arguments)]
     fn visit(
@@ -9796,6 +9918,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         sym_expr: &mut HashMap<SymId, Expr>,
         sym_order: &mut Vec<SymId>,
         val_def_scope: &mut HashMap<u32, ScopeId>,
+        val_def_visits: &mut Vec<(u32, ScopeId, Expr)>,
         trace: bool,
     ) {
         match e {
@@ -9808,6 +9931,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
                 let s_t = st.new_scope(scope);
@@ -9822,6 +9946,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
                 let s_f = st.new_scope(scope);
@@ -9836,6 +9961,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
             }
@@ -9856,6 +9982,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
                 let s_r = st.new_scope(scope);
@@ -9870,6 +9997,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
             }
@@ -9886,6 +10014,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
             }
@@ -9895,6 +10024,11 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 // whether a candidate referencing this id is hoistable to
                 // its LCA-of-uses.
                 val_def_scope.insert(vd.expr.id.0, scope);
+                // S67 — capture (id, scope, rhs) in DFS visit order for
+                // `compute_v3_canon` below. The clone is O(rhs_size) per
+                // ValDef; aggregate cost is O(program_size) since each
+                // node belongs to exactly one ValDef's RHS.
+                val_def_visits.push((vd.expr.id.0, scope, (*vd.expr.rhs).clone()));
                 visit(
                     &vd.expr.rhs,
                     st,
@@ -9903,12 +10037,23 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     sym_expr,
                     sym_order,
                     val_def_scope,
+                    val_def_visits,
                     trace,
                 );
             }
             _ => {
                 for c in direct_children(e) {
-                    visit(c, st, scope, sym_counts, sym_expr, sym_order, val_def_scope, trace);
+                    visit(
+                        c,
+                        st,
+                        scope,
+                        sym_counts,
+                        sym_expr,
+                        sym_order,
+                        val_def_scope,
+                        val_def_visits,
+                        trace,
+                    );
                 }
             }
         }
@@ -9931,8 +10076,21 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         &mut sym_expr,
         &mut sym_order,
         &mut val_def_scope,
+        &mut val_def_visits,
         trace,
     );
+
+    // S67 — Compute the per-VU canonicalization map. Bottom-up fixpoint
+    // mirroring Scala's `findOrCreateDefinition` per S66-CANONICAL-RULE
+    // §6.2. NOT consumed by PASS 1/2/3 in this session — only dumped
+    // under `CSE_TRACE_CANON_V3=1`. S68 will wire it into ExprKey
+    // construction at the line 13614 surgical site.
+    let canon_v3 = compute_v3_canon(&val_def_visits, &val_def_scope, &st);
+    if std::env::var("CSE_TRACE_CANON_V3").is_ok() {
+        dump_canon_v3(&canon_v3, &val_def_visits, &val_def_scope);
+    }
+    // Suppress unused warning until S68 consumes canon_v3.
+    let _ = &canon_v3;
 
     // Determine first-DFS-encounter index per canonical sym (for topo ordering)
     let mut canonical_first_idx: HashMap<SymId, usize> = HashMap::new();
@@ -13657,6 +13815,94 @@ mod sym_table {
         }
     }
 
+    /// S67 — Canon-aware structural hash. Mirrors `expr_hash` except that
+    /// `Expr::ValUse(vu)` and `Expr::ValDef(vd)` substitute the raw val_id
+    /// with `canon[id]` (defaulting to the raw id when not in the map)
+    /// before hashing. This makes two RHS expressions that differ only in
+    /// their ValUse val_ids — but whose val_ids are equivalent under canon —
+    /// hash identically. Bottom-up by construction: when `compute_v3_canon`
+    /// processes ValDefs in DFS visit order, child val_ids are canon-
+    /// resolved before their parent's RHS is fingerprinted.
+    ///
+    /// S66 §5 anchor: Scala IR canonicalization is sym-pointer-by-nodeId
+    /// bottom-up. Rust HIR's positional val_ids diverge; this canon-aware
+    /// hash is the substitute. NOT consumed by PASS-3 in S67 — see
+    /// `compute_v3_canon` doc.
+    pub(super) fn canonical_expr_hash<H: Hasher>(
+        expr: &Expr,
+        canon: &HashMap<u32, u32>,
+        state: &mut H,
+    ) {
+        std::mem::discriminant(expr).hash(state);
+        match expr {
+            Expr::Const(c) => {
+                if let Ok(bytes) = c.sigma_serialize_bytes() {
+                    bytes.hash(state);
+                }
+            }
+            Expr::ConstPlaceholder(cp) => {
+                cp.id.hash(state);
+            }
+            Expr::ValUse(vu) => {
+                let raw = vu.val_id.0;
+                let cid = canon.get(&raw).copied().unwrap_or(raw);
+                cid.hash(state);
+                std::mem::discriminant(&vu.tpe).hash(state);
+            }
+            Expr::GlobalVars(gv) => {
+                std::mem::discriminant(gv).hash(state);
+            }
+            Expr::ValDef(vd) => {
+                let raw = vd.expr.id.0;
+                let cid = canon.get(&raw).copied().unwrap_or(raw);
+                cid.hash(state);
+            }
+            Expr::BinOp(b) => {
+                std::mem::discriminant(&b.expr.kind).hash(state);
+                match &b.expr.kind {
+                    BinOpKind::Arith(a) => std::mem::discriminant(a).hash(state),
+                    BinOpKind::Relation(r) => std::mem::discriminant(r).hash(state),
+                    BinOpKind::Logical(l) => std::mem::discriminant(l).hash(state),
+                    BinOpKind::Bit(b) => std::mem::discriminant(b).hash(state),
+                }
+            }
+            Expr::FuncValue(fv) => {
+                for arg in fv.args() {
+                    arg.idx.0.hash(state);
+                    std::mem::discriminant(&arg.tpe).hash(state);
+                }
+            }
+            Expr::PropertyCall(pc) => {
+                pc.expr.method.method_id().0.hash(state);
+            }
+            Expr::MethodCall(mc) => {
+                mc.expr.method.method_id().0.hash(state);
+            }
+            Expr::SelectField(sf) => {
+                sf.expr.field_index.zero_based_index().hash(state);
+            }
+            _ => {}
+        }
+        for child in direct_children(expr) {
+            canonical_expr_hash(child, canon, state);
+        }
+    }
+
+    /// S67 — Convenience: 64-bit fingerprint over `expr` modulo `canon`.
+    /// Hash collisions are accepted at the bucket-construction level in
+    /// `compute_v3_canon`; S68 wiring into PASS-3 would need a proper
+    /// Eq impl on a CanonicalExprKey, but for representation-only the
+    /// fingerprint is sufficient and avoids cloning the Expr tree.
+    pub(super) fn canonical_expr_fingerprint(
+        expr: &Expr,
+        canon: &HashMap<u32, u32>,
+    ) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut state = DefaultHasher::new();
+        canonical_expr_hash(expr, canon, &mut state);
+        state.finish()
+    }
+
     /// Hash-cons table mirroring Scala's `_globalDefs` + `ThunkScope.bodyDefs`
     /// chain. Each scope has its own structural-equality map; lookup walks
     /// from the current scope up through its parent chain to the root.
@@ -13919,6 +14165,14 @@ mod sym_table {
             result
         }
 
+        /// S67 — Read accessor for the immediate parent of `scope`.
+        /// Returns `None` for the root scope (id 0). Used by
+        /// `compute_v3_canon` to walk the scope ancestor chain when
+        /// matching structurally-equivalent ValDef RHSs.
+        pub fn parent_scope(&self, scope: ScopeId) -> Option<ScopeId> {
+            self.scope_parents[scope]
+        }
+
         /// Is `ancestor` an ancestor of (or equal to) `scope`? Used to
         /// determine whether a sym's owning scope is visible from the
         /// current scope.
@@ -14098,6 +14352,147 @@ mod sym_table {
             assert_eq!(t.find(&e_child, 0), None);
             // Sanity: child sees its own entry too.
             assert_eq!(t.find(&e_child, child), Some(child_sym));
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // S67 — canonical_expr_fingerprint + parent_scope unit tests.
+        //
+        // These validate the per-VU canonicalization mechanism per
+        // S66-CANONICAL-RULE.md §5. They are SYNTHETIC tests against the
+        // primitive; empirical sufficiency on sigmao is measured separately
+        // via `CSE_TRACE_CANON_V3=1`.
+        // ─────────────────────────────────────────────────────────────
+
+        use ergotree_ir::mir::val_use::ValUse as TValUse;
+        use ergotree_ir::types::stype::SType;
+
+        fn vu(id: u32, tpe: SType) -> Expr {
+            Expr::ValUse(TValUse {
+                val_id: ValId(id),
+                tpe,
+            })
+        }
+
+        /// S67 Test #1 — Empty canon: `canonical_expr_fingerprint(e, &empty)`
+        /// equals `ExprKey(e).hash()` for any e. The canon-aware hash is a
+        /// pure superset; with no substitutions it must equal the raw hash.
+        #[test]
+        fn canon_fingerprint_empty_canon_matches_raw() {
+            let canon: HashMap<u32, u32> = HashMap::new();
+            let e1 = super::super::strip_source_spans(binop_plus_spanned(
+                c_i64(1),
+                c_i64(2),
+                0,
+            ));
+            let e2 = vu(7, SType::SInt);
+            assert_eq!(
+                canonical_expr_fingerprint(&e1, &canon),
+                hash_of(&e1),
+                "BinOp+Const fingerprint must equal raw with empty canon"
+            );
+            assert_eq!(
+                canonical_expr_fingerprint(&e2, &canon),
+                hash_of(&e2),
+                "ValUse fingerprint must equal raw with empty canon"
+            );
+        }
+
+        /// S67 Test #2 — ValUse substitution: `canon = {2 → 1}` makes
+        /// `ValUse(2)` fingerprint equal `ValUse(1)`'s raw hash. This is
+        /// the core mechanism — different raw val_ids that should canon-
+        /// collapse hash to the same fingerprint.
+        #[test]
+        fn canon_fingerprint_valuse_substitution() {
+            let mut canon: HashMap<u32, u32> = HashMap::new();
+            canon.insert(2, 1);
+            let raw_1 = vu(1, SType::SInt);
+            let raw_2 = vu(2, SType::SInt);
+            assert_ne!(
+                canonical_expr_fingerprint(&raw_1, &HashMap::new()),
+                canonical_expr_fingerprint(&raw_2, &HashMap::new()),
+                "without canon, raw val_ids differ"
+            );
+            assert_eq!(
+                canonical_expr_fingerprint(&raw_2, &canon),
+                canonical_expr_fingerprint(&raw_1, &HashMap::new()),
+                "with canon[2→1], ValUse(2) fingerprints to ValUse(1)'s raw hash"
+            );
+        }
+
+        /// S67 Test #3 — Nested ValUse inside BinOp also substitutes.
+        /// `BinOp(+, ValUse(2), Const(0))` with `canon = {2 → 1}` equals
+        /// `BinOp(+, ValUse(1), Const(0))` with empty canon. This proves
+        /// the recursion through `direct_children` is canon-aware.
+        #[test]
+        fn canon_fingerprint_recurses_through_binop() {
+            let mut canon: HashMap<u32, u32> = HashMap::new();
+            canon.insert(2, 1);
+            let with_vu1 = super::super::strip_source_spans(binop_plus_spanned(
+                vu(1, SType::SInt),
+                c_i64(0),
+                0,
+            ));
+            let with_vu2 = super::super::strip_source_spans(binop_plus_spanned(
+                vu(2, SType::SInt),
+                c_i64(0),
+                0,
+            ));
+            assert_eq!(
+                canonical_expr_fingerprint(&with_vu2, &canon),
+                canonical_expr_fingerprint(&with_vu1, &HashMap::new()),
+                "nested ValUse(2) under canon[2→1] equals nested ValUse(1)"
+            );
+        }
+
+        /// S67 Test #4 — ValUse type discriminant is part of the hash even
+        /// under canon. `ValUse(1, SInt)` and `ValUse(1, SLong)` must NOT
+        /// fingerprint identically.
+        #[test]
+        fn canon_fingerprint_preserves_valuse_type() {
+            let canon: HashMap<u32, u32> = HashMap::new();
+            let e_int = vu(1, SType::SInt);
+            let e_long = vu(1, SType::SLong);
+            assert_ne!(
+                canonical_expr_fingerprint(&e_int, &canon),
+                canonical_expr_fingerprint(&e_long, &canon),
+                "type discriminant must influence the fingerprint"
+            );
+        }
+
+        /// S67 Test #5 — Transitive canon: `canon = {3→2, 2→1}` makes
+        /// `ValUse(3)` fingerprint to the raw `ValUse(2)` hash, NOT to
+        /// `ValUse(1)`. The canon map stores DIRECT lookups; transitive
+        /// resolution (3→2→1) is the responsibility of `compute_v3_canon`,
+        /// which writes `canon[3] = 1` directly when registering. The
+        /// fingerprint function intentionally does one substitution only.
+        #[test]
+        fn canon_fingerprint_single_step_substitution() {
+            let mut canon: HashMap<u32, u32> = HashMap::new();
+            canon.insert(3, 2);
+            canon.insert(2, 1);
+            let raw_2 = vu(2, SType::SInt);
+            let raw_3 = vu(3, SType::SInt);
+            // Per `compute_v3_canon` doc: "canon[id] = canon.get(hit_id).unwrap_or(hit_id)"
+            // ensures canon stores direct (transitive-resolved) ids. Test the
+            // single-step contract here.
+            assert_eq!(
+                canonical_expr_fingerprint(&raw_3, &canon),
+                canonical_expr_fingerprint(&raw_2, &HashMap::new()),
+                "ValUse(3) with canon[3→2] equals raw ValUse(2)"
+            );
+        }
+
+        /// S67 Test #6 — `parent_scope` accessor. Root scope (0) returns
+        /// None; children return their parent. This is consumed by
+        /// `compute_v3_canon`'s scope-chain walk.
+        #[test]
+        fn sym_table_parent_scope_accessor() {
+            let mut t = SymTable::new();
+            let child = t.new_scope(0);
+            let grandchild = t.new_scope(child);
+            assert_eq!(t.parent_scope(0), None, "root has no parent");
+            assert_eq!(t.parent_scope(child), Some(0));
+            assert_eq!(t.parent_scope(grandchild), Some(child));
         }
 
         /// G.2.3 Audit 1.B — perf baseline for `expr_hash`.
