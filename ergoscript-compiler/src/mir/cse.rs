@@ -9807,6 +9807,7 @@ fn compute_v3_canon(
     val_def_visits: &[(u32, sym_table::ScopeId, Expr)],
     val_def_scope: &HashMap<u32, sym_table::ScopeId>,
     st: &sym_table::SymTable,
+    val_def_rhs_deep: Option<&HashMap<u32, Expr>>,
 ) -> HashMap<u32, u32> {
     let mut canon: HashMap<u32, u32> = HashMap::new();
     // Per-scope buckets: scope_id → (fingerprint → first registrant val_id).
@@ -9819,7 +9820,17 @@ fn compute_v3_canon(
         if matches!(rhs, Expr::FuncValue(_)) {
             continue;
         }
-        let fp = sym_table::canonical_expr_fingerprint(rhs, &canon);
+        // S71 — choose deep (ValUse-resolved) or shallow (source-val)
+        // fingerprint based on caller-provided val_def_rhs map. Deep
+        // mode matches Scala `Def.equals` structural recursion through
+        // sym RHS chains. See `canonical_expr_hash_deep` doc for
+        // termination guards.
+        let fp = match val_def_rhs_deep {
+            Some(deep_map) => {
+                sym_table::canonical_expr_fingerprint_deep(rhs, &canon, deep_map)
+            }
+            None => sym_table::canonical_expr_fingerprint(rhs, &canon),
+        };
         let mut cur = *scope;
         let mut hit: Option<u32> = None;
         loop {
@@ -10080,12 +10091,29 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         trace,
     );
 
+    // S71 — Build val_def_rhs map from val_def_visits for optional deep
+    // (ValUse-resolved) canon fingerprinting. Indexed by val_id; values
+    // are clones of the RHS Expr at visit time. `CSE_HC_V3_CANON_DEEP=1`
+    // toggles deep mode at compute_v3_canon + apply_canon_merge + S70
+    // admit-count map build sites.
+    let canon_deep_enabled = std::env::var("CSE_HC_V3_CANON_DEEP").is_ok();
+    let val_def_rhs_map: HashMap<u32, Expr> = if canon_deep_enabled {
+        val_def_visits
+            .iter()
+            .map(|(id, _scope, rhs)| (*id, rhs.clone()))
+            .collect()
+    } else {
+        HashMap::new()
+    };
+    let val_def_rhs_deep: Option<&HashMap<u32, Expr>> =
+        if canon_deep_enabled { Some(&val_def_rhs_map) } else { None };
+
     // S67 — Compute the per-VU canonicalization map. Bottom-up fixpoint
     // mirroring Scala's `findOrCreateDefinition` per S66-CANONICAL-RULE
     // §6.2. NOT consumed by PASS 1/2/3 in this session — only dumped
     // under `CSE_TRACE_CANON_V3=1`. S68 will wire it into ExprKey
     // construction at the line 13614 surgical site.
-    let canon_v3 = compute_v3_canon(&val_def_visits, &val_def_scope, &st);
+    let canon_v3 = compute_v3_canon(&val_def_visits, &val_def_scope, &st, val_def_rhs_deep);
     if std::env::var("CSE_TRACE_CANON_V3").is_ok() {
         dump_canon_v3(&canon_v3, &val_def_visits, &val_def_scope);
     }
@@ -10119,7 +10147,7 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     // Without either env var, behavior is byte-identical to S67
     // (canon computed for diagnostic dump only, NOT consumed).
     if !canon_v3.is_empty() && std::env::var("CSE_HC_V3_CANON_WIRE").is_ok() {
-        let merged = st.apply_canon_merge(&canon_v3, &sym_expr);
+        let merged = st.apply_canon_merge(&canon_v3, &sym_expr, val_def_rhs_deep);
         if trace {
             eprintln!("[HCv3/canon-merge] merged={}", merged);
         }
@@ -10163,12 +10191,42 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         let mut groups: HashMap<u64, Vec<SymId>> = HashMap::new();
         for sym in st.canonical_syms() {
             if let Some(expr) = sym_expr.get(&sym) {
-                let fp = sym_table::canonical_expr_fingerprint(expr, &canon_v3);
+                // S71 — deep ValUse-resolved fingerprint when enabled.
+                let fp = match val_def_rhs_deep {
+                    Some(deep_map) => sym_table::canonical_expr_fingerprint_deep(
+                        expr, &canon_v3, deep_map,
+                    ),
+                    None => sym_table::canonical_expr_fingerprint(expr, &canon_v3),
+                };
                 groups.entry(fp).or_default().push(sym);
             }
         }
         let mut result: HashMap<SymId, u32> = HashMap::new();
+        let trace_skip =
+            std::env::var("CSE_TRACE_CANON_ADMIT_SKIP").is_ok();
         for (_fp, syms) in &groups {
+            // S71 — LCA-in-scopes narrow at the admit layer. Mirrors the
+            // S69 narrow inside `apply_canon_merge`: a canon-equivalent
+            // group may only contribute its summed count when the LCA of
+            // the use-scope union is itself one of the use scopes (Scala
+            // per-thunk-distinct sym semantic — `ThunkScope.findDef`
+            // walks parent-only, never sibling). Sibling-only groups
+            // keep raw counts. Mandatory once deep canon is wired since
+            // deep collapses surface more sibling-shared shapes.
+            let mut all_scopes: Vec<ScopeId> = Vec::new();
+            for &s in syms {
+                all_scopes.extend(st.canonical_scopes_for(s).iter().copied());
+            }
+            let group_lca = st.lca_of_scopes(&all_scopes);
+            if syms.len() >= 2 && !all_scopes.contains(&group_lca) {
+                if trace_skip {
+                    eprintln!(
+                        "[HCv3/canon-admit-skip] reason=sibling-only group={:?} lca={}",
+                        syms, group_lca
+                    );
+                }
+                continue;
+            }
             let total: u32 = syms.iter().map(|s| st.canonical_count(*s)).sum();
             for &s in syms {
                 result.insert(s, total);
@@ -13999,6 +14057,133 @@ mod sym_table {
         state.finish()
     }
 
+    /// S71 — Maximum recursion depth for deep ValUse-resolved canonical
+    /// fingerprint. Sigmao's deepest val-chain ≈ 8 per `val_def_visits`
+    /// inspection; 16 is 2× safety margin. Combined with the `visited`
+    /// HashSet cycle guard for defense-in-depth.
+    const MAX_DEEP_CANON_DEPTH: u32 = 16;
+
+    /// S71 — Deep ValUse-resolved canonical hash. Mirrors
+    /// `canonical_expr_hash` except that `Expr::ValUse(vu)`, after applying
+    /// `canon`, attempts to recurse into `val_def_rhs[canon_id]` and hash
+    /// the RHS structurally — matching Scala's `Def.equals` recursive
+    /// structural equivalence (sym pointer chains resolve to their
+    /// `Def` content via `findOrCreateDefinition`'s HashMap key).
+    ///
+    /// Termination guards:
+    /// 1. `depth >= MAX_DEEP_CANON_DEPTH` — strict monotone depth limit.
+    /// 2. `visited.contains(&canon_id)` — cycle guard (any canon_id
+    ///    unfolded at most once per query). Defense-in-depth — either
+    ///    guard alone suffices.
+    ///
+    /// When either guard trips OR `val_def_rhs.get(&canon_id)` is None,
+    /// falls back to the S67 shallow behavior (hash canon_id + type).
+    /// The "deep" path hashes a discriminator byte before recursing so
+    /// deep-resolved and shallow-fallback fingerprints don't collide.
+    pub(super) fn canonical_expr_hash_deep<H: Hasher>(
+        expr: &Expr,
+        canon: &HashMap<u32, u32>,
+        val_def_rhs: &HashMap<u32, Expr>,
+        depth: u32,
+        visited: &mut std::collections::HashSet<u32>,
+        state: &mut H,
+    ) {
+        std::mem::discriminant(expr).hash(state);
+        match expr {
+            Expr::Const(c) => {
+                if let Ok(bytes) = c.sigma_serialize_bytes() {
+                    bytes.hash(state);
+                }
+            }
+            Expr::ConstPlaceholder(cp) => {
+                cp.id.hash(state);
+            }
+            Expr::ValUse(vu) => {
+                let raw = vu.val_id.0;
+                let cid = canon.get(&raw).copied().unwrap_or(raw);
+                if depth < MAX_DEEP_CANON_DEPTH && !visited.contains(&cid) {
+                    if let Some(rhs) = val_def_rhs.get(&cid) {
+                        // Deep path — recurse into the RHS, marked by a
+                        // discriminator byte to distinguish from the
+                        // shallow fallback (avoid spurious collisions).
+                        0xDEu8.hash(state);
+                        visited.insert(cid);
+                        canonical_expr_hash_deep(
+                            rhs,
+                            canon,
+                            val_def_rhs,
+                            depth + 1,
+                            visited,
+                            state,
+                        );
+                        visited.remove(&cid);
+                        return;
+                    }
+                }
+                // Shallow fallback (S67 behavior).
+                cid.hash(state);
+                std::mem::discriminant(&vu.tpe).hash(state);
+            }
+            Expr::GlobalVars(gv) => {
+                std::mem::discriminant(gv).hash(state);
+            }
+            Expr::ValDef(vd) => {
+                let raw = vd.expr.id.0;
+                let cid = canon.get(&raw).copied().unwrap_or(raw);
+                cid.hash(state);
+            }
+            Expr::BinOp(b) => {
+                std::mem::discriminant(&b.expr.kind).hash(state);
+                match &b.expr.kind {
+                    BinOpKind::Arith(a) => std::mem::discriminant(a).hash(state),
+                    BinOpKind::Relation(r) => std::mem::discriminant(r).hash(state),
+                    BinOpKind::Logical(l) => std::mem::discriminant(l).hash(state),
+                    BinOpKind::Bit(b) => std::mem::discriminant(b).hash(state),
+                }
+            }
+            Expr::FuncValue(fv) => {
+                for arg in fv.args() {
+                    arg.idx.0.hash(state);
+                    std::mem::discriminant(&arg.tpe).hash(state);
+                }
+            }
+            Expr::PropertyCall(pc) => {
+                pc.expr.method.method_id().0.hash(state);
+            }
+            Expr::MethodCall(mc) => {
+                mc.expr.method.method_id().0.hash(state);
+            }
+            Expr::SelectField(sf) => {
+                sf.expr.field_index.zero_based_index().hash(state);
+            }
+            _ => {}
+        }
+        for child in direct_children(expr) {
+            canonical_expr_hash_deep(child, canon, val_def_rhs, depth, visited, state);
+        }
+    }
+
+    /// S71 — Top-level 64-bit deep fingerprint. When `val_def_rhs` is
+    /// non-empty the recursion is active; passing an empty map produces
+    /// the shallow S67 fingerprint plus the 0xDE discriminator marker
+    /// for sites that have no RHS to unfold — i.e. the result diverges
+    /// from `canonical_expr_fingerprint` purely through the
+    /// no-RHS shallow-fallback path. Callers should pass an empty map
+    /// only when intentionally exercising the deep-discriminator-but-
+    /// no-unfold case (mainly tests).
+    pub(super) fn canonical_expr_fingerprint_deep(
+        expr: &Expr,
+        canon: &HashMap<u32, u32>,
+        val_def_rhs: &HashMap<u32, Expr>,
+    ) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::collections::HashSet;
+        let mut state = DefaultHasher::new();
+        let mut visited: HashSet<u32> = HashSet::new();
+        canonical_expr_hash_deep(expr, canon, val_def_rhs, 0, &mut visited, &mut state);
+        state.finish()
+    }
+
     /// Hash-cons table mirroring Scala's `_globalDefs` + `ThunkScope.bodyDefs`
     /// chain. Each scope has its own structural-equality map; lookup walks
     /// from the current scope up through its parent chain to the root.
@@ -14305,6 +14490,7 @@ mod sym_table {
             &mut self,
             canon: &HashMap<u32, u32>,
             sym_expr: &HashMap<SymId, Expr>,
+            val_def_rhs_deep: Option<&HashMap<u32, Expr>>,
         ) -> usize {
             use std::collections::HashSet;
             // Unique canonical SymIds (values of self.canonical).
@@ -14315,10 +14501,17 @@ mod sym_table {
             canonical_syms.sort();
 
             // Group by canon-aware fingerprint of each canonical sym's RHS.
+            // S71 — deep ValUse-resolved fingerprint when val_def_rhs_deep is
+            // Some; otherwise shallow source-val fingerprint (S68 behavior).
             let mut groups: HashMap<u64, Vec<SymId>> = HashMap::new();
             for &sym in &canonical_syms {
                 if let Some(expr) = sym_expr.get(&sym) {
-                    let fp = canonical_expr_fingerprint(expr, canon);
+                    let fp = match val_def_rhs_deep {
+                        Some(deep_map) => {
+                            canonical_expr_fingerprint_deep(expr, canon, deep_map)
+                        }
+                        None => canonical_expr_fingerprint(expr, canon),
+                    };
                     groups.entry(fp).or_default().push(sym);
                 }
             }
