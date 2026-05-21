@@ -10037,6 +10037,25 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             // segregation FAIL observed at S39 unconditional lift).
             let lca_in_scopes = scopes.contains(&lca_uses);
             let spans_scopes = scopes.iter().any(|s| *s != lca_uses);
+            // S58 (2026-05-20 paideia 3-shape probe array) — compensating-
+            // extraction class confirmed for `refs_local_same_scope_only_
+            // defer_to_inner_cse` rejects. Per-shape isolated probes under
+            // env gates `CSE_HC_V3_PAIDEIA_OGET_EXREG` (OptionGet[ExReg[VU]]
+            // csym=269 vid=85 lca=6 + csym=388 vid=88 lca=14), `..._PC_VU_HIGH`
+            // (PropertyCall[VU] adj>=4 csym=373 vid=87 lca=14), and
+            // `..._BYIDX_PC_VU` (ByIndex[PropertyCall[VU]] csym=137/216/376/382)
+            // each fire admit + place at the rejecting candidate's lca_uses,
+            // but produce IDENTICAL output bytes (paideia v3 1464B unchanged
+            // standalone and composed). Root cause: `apply_cse_within_branches`
+            // (un-short-circuited under v3 since S42) runs HC=0
+            // `process_ast_graph_impl` per-branch on the v3-rebuilt tree and
+            // already re-extracts these same-scope candidates at the same
+            // inner BlockValue, so v3-PASS-3 admission is functionally a
+            // no-op for this class. 65th cumulative falsification fingerprint
+            // (compensating-extraction at the inner-CSE layer). The paideia
+            // 4B residual is NOT in this class. Probes intentionally NOT
+            // landed as code (env-gated dead-weight without yield); the
+            // empirical falsification is the durable artifact.
             if !scope_visible || !lca_in_scopes || !spans_scopes {
                 if trace {
                     let reason = if !scope_visible {
