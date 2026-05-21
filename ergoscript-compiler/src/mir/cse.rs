@@ -11032,7 +11032,30 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     } else { false }
                 } else { false }
             };
-            if is_byidx_outputs_high_idx || is_pc_tokens_byidx_outputs_0 || is_selfield_token_tuple {
+            // S72 — env-gated bypass of individual S62 shape sub-gates per
+            // S65 maximal-admit sweep. `CSE_HC_V3_UNREJECT_S62=ab,c,d` (any
+            // subset) admits the corresponding sub-shape. Optional raw-count
+            // floor `CSE_HC_V3_UNREJECT_S62_MIN_RAW=N` narrows shape (a/b)
+            // to admit only candidates with `raw >= N` (e.g. =10 to admit
+            // sigmao csym=20 count=10 but not csym=233 count=5). Used to
+            // empirically probe the structural barrier to sigmao byte-EXACT
+            // alignment with NODE.
+            let unrej_s62 = std::env::var("CSE_HC_V3_UNREJECT_S62")
+                .unwrap_or_default();
+            let unrej_ab = unrej_s62.split(',').any(|t| t.trim() == "ab");
+            let unrej_c = unrej_s62.split(',').any(|t| t.trim() == "c");
+            let unrej_d = unrej_s62.split(',').any(|t| t.trim() == "d");
+            let unrej_ab_min_raw: u32 = std::env::var("CSE_HC_V3_UNREJECT_S62_MIN_RAW")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let unrej_ab_applies =
+                unrej_ab && (unrej_ab_min_raw == 0 || raw >= unrej_ab_min_raw);
+            let s62_reject =
+                (is_byidx_outputs_high_idx && !unrej_ab_applies)
+                    || (is_pc_tokens_byidx_outputs_0 && !unrej_c)
+                    || (is_selfield_token_tuple && !unrej_d);
+            if s62_reject {
                 if trace {
                     eprintln!(
                         "[HCv3/reject] csym={} reason=S62_SHAPE adj={} raw={} lca={} scopes={:?} :: {}",
