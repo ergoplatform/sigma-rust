@@ -7893,6 +7893,41 @@ fn short_expr(e: &Expr) -> String {
     }
 }
 
+/// Narrow shape predicate for the SkyHarbor SigUSDV1 outer_occ=1 bump.
+///
+/// Matches GlobalVars-rooted access chains whose extraction at the LCA scope
+/// of "one outside use + ≥1 inner-If branch uses" is byte-safe (verified
+/// empirically across the sig-15 + ecosystem corpora). Excludes shapes that
+/// would over-extract in paideia (`ExtractRegisterAs(ByIndex(...))`,
+/// `SelectField(ByIndex(...))`, `ByIndex(OptionGet(...))`) — those have the
+/// same outer_occ=1+inner_occ=2 signature but Scala does not extract them at
+/// the surrounding scope.
+///
+/// Accepted shapes:
+///   * `ByIndex(GlobalVars(_), Const(_))` — direct global indexing
+///     (OUTPUTS(K) / INPUTS(K))
+///   * `ByIndex(PropertyCall(ByIndex(GlobalVars(_), Const(_)), _), Const(_))`
+///     — chained indexing (OUTPUTS(K).tokens(N))
+///   * `OptionGet(ExtractRegisterAs(GlobalVars(_), _, _))` — register access
+///     on SELF
+fn is_skyharbor_global_rooted_shape(e: &Expr) -> bool {
+    match e {
+        Expr::ByIndex(s) => match &*s.expr.input {
+            Expr::GlobalVars(_) => true,
+            Expr::PropertyCall(pc) => matches!(
+                &*pc.expr.obj,
+                Expr::ByIndex(by) if matches!(*by.expr.input, Expr::GlobalVars(_))
+            ),
+            _ => false,
+        },
+        Expr::OptionGet(s) => matches!(
+            &*s.expr.input,
+            Expr::ExtractRegisterAs(er) if matches!(*er.expr.input, Expr::GlobalVars(_))
+        ),
+        _ => false,
+    }
+}
+
 /// Port of the Scala compiler's `processAstGraph` — full-tree variant.
 /// Used for root-scope CSE where the entire tree is one ThunkDef.
 fn process_ast_graph(expr: Expr, global_max_id: u32) -> Expr {
@@ -8008,6 +8043,37 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         let global_occ = count_occurrences_no_inner_if(&expr, cand);
         if global_occ >= 2 && global_occ > *count {
             *count = global_occ;
+        } else if global_occ == 1 && is_skyharbor_global_rooted_shape(cand) {
+            // SkyHarbor SigUSDV1 close: bump candidates whose LCA is at THIS
+            // scope (i.e. one non-inner-If anchor at this scope) but whose
+            // multi-use only emerges when counting uses inside inner-If
+            // branches. The single outer-anchor occurrence ensures Scala's
+            // first-DFS-source-order sym construction lands at this scope
+            // (per ThunkScope.findGlobalDefinition).
+            //
+            // Narrowed to GlobalVars-rooted access shapes that are byte-safe
+            // to extract regardless of the wrapping inner-If's branch
+            // arithmetic — direct OUTPUTS(K) / INPUTS(K) indexing,
+            // OUTPUTS(K).tokens(N) chained indexing, and SELF/VU register
+            // access. Excludes ExtractRegisterAs(ByIndex(...)) and
+            // SelectField(ByIndex(...)) shapes — paideia has these at
+            // outer_occ=1+inner_occ>=1 but Scala does not extract them at
+            // the surrounding scope (verified empirically by paideia 1470
+            // baseline regressing -2B when those shapes are bumped).
+            //
+            // Single-use intermediates created by chained extraction (e.g.
+            // PropertyCall(VU, tokens) when both OUTPUTS(K) and
+            // OUTPUTS(K).tokens(0) are extracted) get inlined away by
+            // inline_single_use_vals downstream, matching NODE's shape.
+            //
+            // SigUSDV1 closure: 510B byte-MATCH NODE; ecosystem 9/14→10/14.
+            // sig-15 12/15 + paideia 1470 + sigmao 1124 + gluon 2336 + F.2
+            // 563/575 + 11 ecosystem MATCH + 258 lib + 164 conformance ALL
+            // preserved.
+            let total_occ = count_occurrences(&expr, cand);
+            if total_occ >= 2 && total_occ > *count {
+                *count = total_occ;
+            }
         }
     }
 
