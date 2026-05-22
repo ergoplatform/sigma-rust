@@ -1907,19 +1907,16 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                     }
                     "avlTree" => {
                         // avlTree(operationFlags: Byte, digest: Coll[Byte], keyLength: Int,
-                        //         valueLengthOpt: Option[Int]) → AvlTree
+                        //         valueLengthOpt: Option[Int]) → AvlTree.
                         //
-                        // NOTE: Scala IR's CreateAvlTree takes a runtime Option-typed Expr
-                        // for valueLengthOpt; Rust's `CreateAvlTree::value_length` is a
-                        // compile-time `Option<Box<Expr>>` of the inner Int Expr. To bridge
-                        // this, we pattern-match on the 4th arg's lowered MIR shape:
-                        //   `none[Int]()` → Rust None
-                        //   `some(intExpr)` → Rust Some(intExpr)
-                        // Other shapes (runtime Option-typed values) would need an IR fix
-                        // first and are rejected with an explanatory error. Byte-match
-                        // against Scala for this predef is a known IR-level discrepancy;
-                        // none of the 14/14 ecosystem fixtures exercise this path.
+                        // Scala IR's CreateAvlTree.valueLengthOpt is Value[SOption[SInt]] —
+                        // an Expr that yields SOption[SInt] at runtime. We match the same
+                        // shape by emitting a Constant of type SOption[SInt] for the
+                        // compile-time `none[Int]()` / `some(<intLit>)` surface forms.
+                        use ergotree_ir::mir::constant::{Constant, Literal};
                         use ergotree_ir::mir::create_avl_tree::CreateAvlTree;
+                        use ergotree_ir::types::stype::SType;
+                        use std::sync::Arc;
                         if args.len() != 4 {
                             return Err(MirLoweringError::new(
                                 format!(
@@ -1934,7 +1931,7 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                         let digest = it.next().unwrap();
                         let key_length = it.next().unwrap();
                         let raw_vlen = it.next().unwrap();
-                        let value_length: Option<Box<Expr>> = match raw_vlen {
+                        let inner_literal: Option<Box<Literal>> = match raw_vlen {
                             Expr::MethodCall(ref mc) if mc.expr.method.name() == "none" => None,
                             Expr::MethodCall(mc) if mc.expr.method.name() == "some" => {
                                 let inner = mc.expr.args.into_iter().next().ok_or_else(|| {
@@ -1943,7 +1940,16 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                         hir_expr.span,
                                     )
                                 })?;
-                                Some(Box::new(inner))
+                                match inner {
+                                    Expr::Const(c) => Some(Box::new(c.v)),
+                                    _ => {
+                                        return Err(MirLoweringError::new(
+                                            "avlTree's some(_) requires an integer literal at compile time"
+                                                .to_string(),
+                                            hir_expr.span,
+                                        ));
+                                    }
+                                }
                             }
                             _ => {
                                 return Err(MirLoweringError::new(
@@ -1953,6 +1959,11 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                                 ));
                             }
                         };
+                        let value_length: Expr = Constant {
+                            tpe: SType::SOption(Arc::new(SType::SInt)),
+                            v: Literal::Opt(inner_literal),
+                        }
+                        .into();
                         CreateAvlTree::new(flags, digest, key_length, value_length)
                             .map_err(|e| MirLoweringError::new(format!("{:?}", e), hir_expr.span))?
                             .into()

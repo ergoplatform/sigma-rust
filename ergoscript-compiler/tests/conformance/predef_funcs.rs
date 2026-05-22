@@ -331,17 +331,15 @@ fn predef_max() {
 #[test]
 fn predef_avl_tree_none() {
     // avlTree(operationFlags, digest, keyLength, valueLengthOpt) → AvlTree.
-    // valueLengthOpt = none[Int]() → Rust IR's compile-time None branch.
-    // (Byte-match against Scala for this predef has a known IR-shape
-    //  discrepancy — Rust's CreateAvlTree carries Option<Box<Expr>> while
-    //  Scala carries a runtime SOption[SInt] expression. Smoke test only.)
+    // valueLengthOpt = none[Int]() lowers to Constant(SOption[SInt], None),
+    // byte-matching Scala's `valueLengthOpt: Value[SIntOption]` shape.
     let expr = compile_ok(r#"{ avlTree(0.toByte, fromBase16("0102030405"), 32, none[Int]()) }"#);
     assert_eq!(expr.tpe(), SType::SAvlTree);
 }
 
 #[test]
 fn predef_avl_tree_some() {
-    // valueLengthOpt = some(8) → Rust IR's Some(Box<Expr>) branch.
+    // valueLengthOpt = some(8) lowers to Constant(SOption[SInt], Some(8)).
     let expr = compile_ok(r#"{ avlTree(0.toByte, fromBase16("0102030405"), 32, some(8)) }"#);
     assert_eq!(expr.tpe(), SType::SAvlTree);
 }

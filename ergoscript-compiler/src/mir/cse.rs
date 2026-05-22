@@ -3271,9 +3271,7 @@ fn collect_and_assign_ids(
             collect_and_assign_ids(&s.flags, id_map, next_id, def_id);
             collect_and_assign_ids(&s.digest, id_map, next_id, def_id);
             collect_and_assign_ids(&s.key_length, id_map, next_id, def_id);
-            if let Some(ref vl) = s.value_length {
-                collect_and_assign_ids(vl, id_map, next_id, def_id);
-            }
+            collect_and_assign_ids(&s.value_length, id_map, next_id, def_id);
         }
         Expr::MultiplyGroup(s) => {
             collect_and_assign_ids(&s.left, id_map, next_id, def_id);
@@ -4179,7 +4177,7 @@ fn map_children(expr: Expr, f: fn(Expr) -> Expr) -> Expr {
             f(*s.flags),
             f(*s.digest),
             f(*s.key_length),
-            s.value_length.map(|vl| Box::new(f(*vl))),
+            f(*s.value_length),
         )
         .map(Expr::CreateAvlTree)
         .expect("CreateAvlTree::new in map_children"),
@@ -4815,7 +4813,7 @@ fn contains_func_value(expr: &Expr) -> bool {
             contains_func_value(&s.flags)
                 || contains_func_value(&s.digest)
                 || contains_func_value(&s.key_length)
-                || s.value_length.as_deref().is_some_and(contains_func_value)
+                || contains_func_value(&s.value_length)
         }
         Expr::DeserializeRegister(s) => {
             s.default.as_deref().is_some_and(contains_func_value)
@@ -4928,11 +4926,7 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
             &s.expr.new_values,
         ],
         Expr::CreateAvlTree(s) => {
-            let mut v: Vec<&Expr> = vec![&s.flags, &s.digest, &s.key_length];
-            if let Some(vl) = s.value_length.as_deref() {
-                v.push(vl);
-            }
-            v
+            vec![&s.flags, &s.digest, &s.key_length, &s.value_length]
         }
         Expr::DeserializeRegister(s) => match s.default.as_deref() {
             Some(d) => vec![d],
@@ -13873,7 +13867,7 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
             rewrite_ids(*s.flags, id_map),
             rewrite_ids(*s.digest, id_map),
             rewrite_ids(*s.key_length, id_map),
-            s.value_length.map(|vl| Box::new(rewrite_ids(*vl, id_map))),
+            rewrite_ids(*s.value_length, id_map),
         )
         .map(Expr::CreateAvlTree)
         .expect("CreateAvlTree in rewrite_ids"),
@@ -16211,21 +16205,32 @@ mod walker_completeness_probe {
     }
 
     #[test]
-    fn create_avl_tree_has_three_or_four_children() {
-        let e3 = Expr::CreateAvlTree(CreateAvlTree {
+    fn create_avl_tree_has_four_children() {
+        use ergotree_ir::mir::constant::Literal;
+        let none_opt: Expr = Constant {
+            tpe: SType::SOption(std::sync::Arc::new(SType::SInt)),
+            v: Literal::Opt(None),
+        }
+        .into();
+        let some_opt: Expr = Constant {
+            tpe: SType::SOption(std::sync::Arc::new(SType::SInt)),
+            v: Literal::Opt(Some(Box::new(Literal::Int(8)))),
+        }
+        .into();
+        let e_none = Expr::CreateAvlTree(CreateAvlTree {
             flags: Box::new(cb_byte(1)),
             digest: Box::new(cb_bytes()),
             key_length: Box::new(ci(32)),
-            value_length: None,
+            value_length: Box::new(none_opt),
         });
-        assert_eq!(direct_children(&e3).len(), 3);
-        let e4 = Expr::CreateAvlTree(CreateAvlTree {
+        assert_eq!(direct_children(&e_none).len(), 4);
+        let e_some = Expr::CreateAvlTree(CreateAvlTree {
             flags: Box::new(cb_byte(1)),
             digest: Box::new(cb_bytes()),
             key_length: Box::new(ci(32)),
-            value_length: Some(Box::new(ci(8))),
+            value_length: Box::new(some_opt),
         });
-        assert_eq!(direct_children(&e4).len(), 4);
+        assert_eq!(direct_children(&e_some).len(), 4);
     }
 
     #[test]

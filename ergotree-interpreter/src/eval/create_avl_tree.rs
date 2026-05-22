@@ -21,12 +21,11 @@ impl Evaluable for CreateAvlTree {
         let flags_v = self.flags.eval(env, ctx)?.try_extract_into::<i8>()? as u8;
         let digest_v = self.digest.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
         let key_length = self.key_length.eval(env, ctx)?.try_extract_into::<i32>()? as u32;
-        let value_length_opt = match self.value_length.clone() {
-            Some(expr) => Some(Box::new(
-                expr.eval(env, ctx)?.try_extract_into::<i32>()? as u32
-            )),
-            None => None,
-        };
+        let value_length_opt = self
+            .value_length
+            .eval(env, ctx)?
+            .try_extract_into::<Option<i32>>()?
+            .map(|v| Box::new(v as u32));
 
         let tree_flags = AvlTreeFlags::parse(flags_v);
         let digest = ADDigest::try_from(digest_v.as_vec_u8()).map_err(map_eval_err)?;
@@ -54,11 +53,22 @@ mod tests {
     use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
     use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
     use ergo_chain_types::ADDigest;
+    use alloc::sync::Arc;
+    use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
         expr::Expr,
     };
+    use ergotree_ir::types::stype::SType;
     use sigma_ser::ScorexSerializable;
+
+    fn none_int_expr() -> Expr {
+        Constant {
+            tpe: SType::SOption(Arc::new(SType::SInt)),
+            v: Literal::Opt(None),
+        }
+        .into()
+    }
 
     #[test]
     fn eval_create_avl_tree() {
@@ -78,7 +88,7 @@ mod tests {
             Expr::Const(flags.clone().into()),
             Expr::Const(initial_digest.into()),
             1.into(),
-            None,
+            none_int_expr(),
         )
         .unwrap()
         .into();
