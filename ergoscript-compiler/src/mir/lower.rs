@@ -353,6 +353,57 @@ fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     Some(Constant::from(result).into())
 }
 
+/// Detect Byte/Short arithmetic overflow on Const+Const operands. Scala rejects
+/// these programs at compile time with "Byte overflow" / "Short overflow" via
+/// `propagateBinOp`'s `op.applySeq(a, b)` raising — empirically observed by
+/// p2sAddress probe and recorded in `project_bigint_arith_not_folded.md`. Returns
+/// the type-name string when the Plus/Minus/Multiply operation would overflow;
+/// the lower-site converts that into a `MirLoweringError` so Rust mirrors Scala's
+/// reject behavior instead of silently emitting the unfolded BinOp. Divide/Modulo
+/// stay as runtime BinOps in Scala (probed) so we leave them unchanged here.
+fn check_byte_short_overflow(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<&'static str> {
+    use ergotree_ir::mir::constant::Literal;
+    if !matches!(
+        op,
+        BinaryOp::Plus | BinaryOp::Minus | BinaryOp::Multiply
+    ) {
+        return None;
+    }
+    let (lc, rc) = match (l, r) {
+        (Expr::Const(lc), Expr::Const(rc)) => (lc, rc),
+        _ => return None,
+    };
+    match (&lc.v, &rc.v) {
+        (Literal::Byte(a), Literal::Byte(b)) => {
+            let ok = match op {
+                BinaryOp::Plus => a.checked_add(*b).is_some(),
+                BinaryOp::Minus => a.checked_sub(*b).is_some(),
+                BinaryOp::Multiply => a.checked_mul(*b).is_some(),
+                _ => true,
+            };
+            if !ok {
+                Some("Byte")
+            } else {
+                None
+            }
+        }
+        (Literal::Short(a), Literal::Short(b)) => {
+            let ok = match op {
+                BinaryOp::Plus => a.checked_add(*b).is_some(),
+                BinaryOp::Minus => a.checked_sub(*b).is_some(),
+                BinaryOp::Multiply => a.checked_mul(*b).is_some(),
+                _ => true,
+            };
+            if !ok {
+                Some("Short")
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Mirror Scala graph-IR fold: `Plus/Minus/Multiply/Divide/Modulo(Const, Const) → Const`
 /// for `SByte` / `SShort` / `SInt` / `SLong`.
 ///
@@ -745,6 +796,12 @@ pub fn lower(hir_expr: hir::Expr) -> Result<Expr, MirLoweringError> {
                 // upcast the narrower operand to match the wider one.
                 // This matches the Scala ErgoScript compiler's implicit conversions.
                 let (l, r) = numeric_upcast_pair(l, r);
+                if let Some(ty) = check_byte_short_overflow(&hir.op.node, &l, &r) {
+                    return Err(MirLoweringError::new(
+                        format!("{} overflow", ty),
+                        hir_expr.span,
+                    ));
+                }
                 if let Some(folded) = fold_compare_const_const(&hir.op.node, &l, &r) {
                     folded
                 } else if let Some(folded) = fold_arith_const_const(&hir.op.node, &l, &r) {

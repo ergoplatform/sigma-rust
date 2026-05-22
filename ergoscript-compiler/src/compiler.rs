@@ -419,6 +419,38 @@ mod tests {
     }
 
     #[test]
+    fn test_byte_arith_const_overflow_rejected() {
+        // Scala's `propagateBinOp` invokes `op.applySeq(a, b)` which raises
+        // "Byte overflow" / "Short overflow" at compile time on Const+Const
+        // arithmetic that exceeds the target range — empirically observed via
+        // p2sAddress probe. Mirror that here so Rust rejects too, instead of
+        // silently emitting an unfolded BinOp.
+        let byte_plus = "{ val r: Byte = (73.toByte) + (58.toByte); sigmaProp(r >= 0.toByte) }";
+        let short_mul = "{ val r: Short = (944.toShort) * (248.toShort); sigmaProp(r >= 0.toShort) }";
+        let byte_mul = "{ val r: Byte = (20.toByte) * (20.toByte); sigmaProp(r >= 0.toByte) }";
+        let byte_safe = "{ val r: Byte = (1.toByte) + (2.toByte); sigmaProp(r >= 0.toByte) }";
+        let err1 = compile(byte_plus, ScriptEnv::new()).expect_err("Byte+ overflow must reject");
+        assert!(
+            format!("{:?}", err1).contains("Byte overflow"),
+            "expected Byte overflow, got {:?}",
+            err1
+        );
+        let err2 = compile(short_mul, ScriptEnv::new()).expect_err("Short* overflow must reject");
+        assert!(
+            format!("{:?}", err2).contains("Short overflow"),
+            "expected Short overflow, got {:?}",
+            err2
+        );
+        let err3 = compile(byte_mul, ScriptEnv::new()).expect_err("Byte* overflow must reject");
+        assert!(
+            format!("{:?}", err3).contains("Byte overflow"),
+            "expected Byte overflow, got {:?}",
+            err3
+        );
+        compile(byte_safe, ScriptEnv::new()).expect("safe Byte+ must succeed");
+    }
+
+    #[test]
     fn test_sigmaprop_height_gt() {
         check(
             "sigmaProp(HEIGHT > 0)",
