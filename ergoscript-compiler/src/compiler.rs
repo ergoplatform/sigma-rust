@@ -5926,6 +5926,44 @@ fn probe_sig15_local_hex() {
             Err(e) => eprintln!("  {:32} COMPILE ERROR {:?}", fixture, e),
         }
     }
+    // S77 Probe 1 — optional NODE-side verbose outer-VD dump from a cached hex
+    // file. When `SIG15_NODE_HEX_PATH` points at a file containing NODE hex
+    // bytes (one line, no whitespace), parse the ErgoTree and dump verbose
+    // outer ValDef shapes (with K(I,N) values inline) for side-by-side
+    // comparison with the LOCAL dump above. Pure diagnostic; no mechanism.
+    if let Ok(p) = std::env::var("SIG15_NODE_HEX_PATH") {
+        if let Ok(hex_str) = std::fs::read_to_string(&p) {
+            let hex_str = hex_str.trim();
+            match base16::decode(hex_str.as_bytes()) {
+                Ok(bytes) => {
+                    match ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes) {
+                        Ok(tree) => {
+                            if let Ok(root) = tree.proposition() {
+                                if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
+                                    eprintln!(
+                                        "\n=== NODE outer ValDefs (verbose) from {} ===",
+                                        p
+                                    );
+                                    for it in &bv.expr().items {
+                                        if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
+                                            eprintln!(
+                                                "  d{:>3} = {}",
+                                                vd.expr().id.0,
+                                                expr_shape_verbose(&vd.expr().rhs)
+                                            );
+                                        }
+                                    }
+                                    eprintln!();
+                                }
+                            }
+                        }
+                        Err(e) => eprintln!("NODE hex parse error: {:?}", e),
+                    }
+                }
+                Err(e) => eprintln!("NODE hex decode error: {:?}", e),
+            }
+        }
+    }
 }
 
 /// Local-only probe: for each sig-15 fixture, compile locally and report
