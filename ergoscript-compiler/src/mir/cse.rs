@@ -8208,9 +8208,25 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         let extractable_count = dag_usages.iter()
             .filter(|(c, n)| *n >= 2 && is_extractable(c) && is_graph_shared(c))
             .count();
-        if extractable_count >= 6
-            && (schedule.len() < 60 || schedule.len() > 90)
-        {
+        // Allow runtime override of gate window via env: CSE_HC_V3_SKIP_SCHED="58,91"
+        let custom_skip = std::env::var("CSE_HC_V3_SKIP_SCHED").ok();
+        let gate_fires = if let Some(s) = &custom_skip {
+            let skips: Vec<usize> = s.split(',').filter_map(|t| t.trim().parse::<usize>().ok()).collect();
+            extractable_count >= 6 && skips.contains(&schedule.len())
+        } else {
+            extractable_count >= 6
+                && (schedule.len() < 60 || schedule.len() > 90)
+        };
+        if std::env::var("CSE_TRACE_HC_V3").is_ok() {
+            eprintln!(
+                "[HCv3/branch] schedule.len={} extractable_count={} dag_usages.len={} gate_fires={}",
+                schedule.len(),
+                extractable_count,
+                dag_usages.len(),
+                gate_fires
+            );
+        }
+        if gate_fires {
             return expr;
         }
     }
@@ -10894,7 +10910,25 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(5);
+        // S81 (2026-05-22 skyharbor close) — min_scope discriminator for hoist
+        // gate. The lca_uses>=5 threshold alone catches MATCH-held candidates
+        // whose occurrence scopes are shallow but happen to share an LCA at
+        // depth >= 5. Empirical anchor (skyharbor csym=69 ByIndex(Outputs, K(2))
+        // scopes=[6,7] adj=2): pre-S81 hoisted to lca=0 → outer ValDef placement
+        // diverges from NODE's inner-scope per-branch extraction → byte-DIFF at
+        // offset 6 despite size-equal 411B. NODE places this ByIndex INSIDE the
+        // royalty branch (deep inner BV), not at root mainG.bodyDefs.
+        //
+        // Sigmao's S52 hoist targets (csym=233 min=39, csym=234 min=39,
+        // csym=246 min=40) all have much deeper scopes than skyharbor's 6.
+        // Threshold tunable via `CSE_HC_V3_SIGMAO_HOIST_MIN_SCOPE`.
+        let hoist_min_scope: usize = std::env::var("CSE_HC_V3_SIGMAO_HOIST_MIN_SCOPE")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(25);
+        let hoist_min_scope_observed = scopes.iter().copied().min().unwrap_or(0);
         let is_sigmao_deep_lca_hoist = (lca_uses as u32) >= lca_threshold
+            && hoist_min_scope_observed >= hoist_min_scope
             && !references_locally_defined(&node, &branch_local_ids)
             && {
                 let mut sorted: Vec<_> = scopes.iter().copied().collect();
