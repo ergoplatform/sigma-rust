@@ -9732,6 +9732,19 @@ struct V3Ctx {
     placement: HashMap<sym_table::SymId, (sym_table::ScopeId, u32)>,
     by_scope: HashMap<sym_table::ScopeId, Vec<sym_table::SymId>>,
     canonical_node: HashMap<sym_table::SymId, Expr>,
+    /// S76 — set of csyms whose RHS construction at wrap_with_valdefs_v3
+    /// must EXCLUDE `s76_leaf_vid` from `env_for_inner`. Mirrors Scala
+    /// per-thunk-distinct sym semantic: sibling-deep wrappers don't
+    /// substitute their inner leaf during construction because they ARE
+    /// constructed inside their own thunk where parent-chain findDef
+    /// would substitute via root globalDefs — but our pipeline aggregates
+    /// them at root. Suppressing the env entry restores inline `BIdx(...)`
+    /// inside wrapper RHSes, matching NODE's per-thunk inline pattern.
+    s76_env_suppress: std::collections::HashSet<sym_table::SymId>,
+    /// S76 — the leaf vid to suppress (vid of csym=20 = OUTPUTS(1) under
+    /// S75 admit). `None` when S75 admit hasn't fired or csym=20 wasn't
+    /// placed.
+    s76_leaf_vid: Option<u32>,
 }
 
 thread_local! {
@@ -10169,6 +10182,8 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
     let mut placement: HashMap<SymId, (ScopeId, u32)> = HashMap::new();
     let mut canonical_node: HashMap<SymId, Expr> = HashMap::new();
     let mut next_id = find_max_val_id(&expr).max(global_max_id) + 1;
+    // S76 — collected at PASS-3 placement; consumed at wrap_with_valdefs_v3.
+    let mut s76_env_suppress: std::collections::HashSet<SymId> = std::collections::HashSet::new();
 
     // S70 — canon-aware admit-time count map (option (b) per S68 §4 / S69
     // §Step 5). Builds, gated on `CSE_HC_V3_CANON_ADMIT=1`, a sym→count
@@ -11180,34 +11195,35 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                 }
                 continue;
             }
-            // S76 — scope-aware wrapper reject (env-gated; closure target
+            // S76 — scope-aware env-suppression (env-gated; closure target
             // when paired with CSE_HC_V3_S75_ADMIT_OUTPUTS_K1=1).
             //
             // Probe 1 empirical anchor (handoff CLOSE-SIGMAO-S76-SCOPE-AWARE-WALKER.md
-            // Step 3): sigmao under S75 admit OVER-extracts csym=212 (`ExScript(
-            // BIdx(Outputs, 1))` scopes=[32, 74]) and csym=219 (`ExAmount(BIdx(
-            // Outputs, 1))` scopes=[34, 57, 75]) — both sibling-only deep
-            // (lca=0 ∧ !scopes.contains(&0)). Currently admitted via S52b's
-            // `is_sigmao_deep_scope_admit` (min_scope >= 25), overriding the
-            // S43/S46 per-thunk-distinct reject. NODE empirically does NOT
-            // extract these as root-level ValDefs (verified s_node_v75.txt
-            // top-level ValDef IDs 30-46 audit — only d30=PC<tokens>(VU(29))
-            // exists; no ExScript or ExAmount wrappers of OUTPUTS(1)).
+            // Step 3): sigmao under S75 admit OVER-substitutes inside the RHSes
+            // of csym=212 (`ExScript(BIdx(Outputs, 1))` scopes=[32, 74]) and
+            // csym=219 (`ExAmount(BIdx(Outputs, 1))` scopes=[34, 57, 75]) —
+            // both sibling-only deep (lca=0 ∧ !scopes.contains(&0)). Their
+            // wrapper ValDefs at root get `build_value_recurse` substitution
+            // of inner `BIdx(Outputs, 1) → ValUse(43)` because vid=43 (csym=20)
+            // is in `env_for_inner` before they build. NODE's per-thunk-distinct
+            // sym semantic creates these wrappers as LOCAL syms inside their
+            // thunks (not as root-level ValDefs); when each thunk constructs
+            // the wrapper, `findDef` walks parent chain to root and substitutes
+            // the inner leaf to ValUse(29) — i.e. each thunk has its own
+            // wrapper inline + inner sub via parent-chain visibility.
             //
-            // Semantic: under Scala's per-thunk-distinct sym semantic
-            // (Thunks.scala / ThunkScope.findDef parent-only walk), when the
-            // shared LEAF (OUTPUTS(1) = d29) is extracted globally via
-            // hasManyUsagesGlobal, deep-scope WRAPPERS around that leaf
-            // remain per-thunk-distinct: each sibling Thunk constructs its
-            // own ExScript(VU(29)) / ExAmount(VU(29)) inline, with no
-            // aggregation across thunks. Rust's single-pass DFS
-            // hash-cons aggregates them and S52b's deep-admit carve-out
-            // hoists at LCA=root — the over-extraction this gate fixes.
+            // Our pipeline's equivalent: keep the wrapper ValDefs admitted
+            // (single-pass DFS aggregates them at root) BUT skip the env
+            // substitution for vid=43 INSIDE these specific wrapper RHSes.
+            // This preserves inline `BIdx(Outputs, 1)` inside the wrapper
+            // RHS, which (a) restores 2 inline Const(SInt, 1) entries to the
+            // constant pool (closing NODE's 61-entry count) and (b) keeps
+            // wrapper bytes inline-equivalent to NODE's per-thunk pattern.
             //
-            // Gate narrowness: targets wrappers of the SAME shape as the
-            // S75 candidate (`BIdx(Outputs, K==1)`) only. Other
-            // `is_sigmao_deep_scope_admit` candidates (e.g. csym=216
-            // SizeOf(PC[ByIdx,tokens]) scopes=[33,53,58,76]) are unaffected.
+            // Bookkeeping: record csyms requiring env-suppression in a
+            // V3Ctx-local HashSet (consumed at wrap_with_valdefs_v3 build
+            // site). Gate narrowness identical to PASS-3 (sibling-only deep
+            // ExScript/ExAmount of BIdx(Outputs, 1)).
             let s76_scope_aware_walk =
                 std::env::var("CSE_HC_V3_S76_SCOPE_AWARE_WALK").is_ok();
             if s76_scope_aware_walk
@@ -11229,13 +11245,13 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
                     _ => false,
                 };
                 if is_wrapper_of_outputs_1 {
+                    s76_env_suppress.insert(csym);
                     if trace {
                         eprintln!(
-                            "[HCv3/reject] csym={} reason=S76_PER_THUNK_DISTINCT_WRAPPER_OF_OUTPUTS_1 adj={} raw={} lca={} scopes={:?} :: {}",
+                            "[HCv3/s76-env-suppress] csym={} adj={} raw={} lca={} scopes={:?} :: {}",
                             csym, adj, raw, lca, scopes, short_expr(&node)
                         );
                     }
-                    continue;
                 }
             }
         }
@@ -11271,13 +11287,42 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         .map(|(&csym, &(_, vid))| (ExprKey(canonical_node[&csym].clone()), vid))
         .collect();
 
+    // S76 — resolve the leaf vid (csym=20 = `BIdx(Outputs, 1)`) for env
+    // suppression. Built by constructing the matching ExprKey and looking it
+    // up in canonical_to_vid. `None` when csym=20 was rejected (default
+    // behavior when CSE_HC_V3_S75_ADMIT_OUTPUTS_K1 is unset).
+    let s76_leaf_vid: Option<u32> = if !s76_env_suppress.is_empty() {
+        let leaf_expr = {
+            use ergotree_ir::mir::coll_by_index::ByIndex;
+            use ergotree_ir::mir::constant::{Constant, Literal};
+            use ergotree_ir::mir::expr::Expr as MirExpr;
+            use ergotree_ir::mir::global_vars::GlobalVars;
+            use ergotree_ir::types::stype::SType;
+            let outputs = MirExpr::GlobalVars(GlobalVars::Outputs);
+            let index_one = MirExpr::Const(Constant {
+                tpe: SType::SInt,
+                v: Literal::Int(1),
+            });
+            MirExpr::ByIndex(Spanned {
+                source_span: SourceSpan::empty(),
+                expr: ByIndex::new(outputs, index_one, None)
+                    .expect("ByIndex::new for s76 leaf lookup"),
+            })
+        };
+        canonical_to_vid.get(&ExprKey(leaf_expr)).copied()
+    } else {
+        None
+    };
+
     if trace {
         eprintln!(
-            "[HCv3/summary] tentative={} placement.len={} by_scope.len={} canonical_to_vid.len={}",
+            "[HCv3/summary] tentative={} placement.len={} by_scope.len={} canonical_to_vid.len={} s76_env_suppress={} s76_leaf_vid={:?}",
             tentative.len(),
             placement.len(),
             by_scope.len(),
-            canonical_to_vid.len()
+            canonical_to_vid.len(),
+            s76_env_suppress.len(),
+            s76_leaf_vid,
         );
     }
     let ctx = V3Ctx {
@@ -11286,6 +11331,8 @@ fn process_ast_graph_hash_cons_v3(expr: Expr, global_max_id: u32) -> Expr {
         placement,
         by_scope,
         canonical_node,
+        s76_env_suppress,
+        s76_leaf_vid,
     };
     V3_CTX.with(|c| *c.borrow_mut() = Some(ctx));
 
@@ -11691,22 +11738,47 @@ fn wrap_with_valdefs_v3(body: Expr, scope: sym_table::ScopeId) -> Expr {
     if syms.is_empty() {
         return body;
     }
-    let (canonical_node_owned, placement_owned) = V3_CTX.with(|c| {
-        let c = c.borrow();
-        let ctx = c.as_ref().unwrap();
-        (ctx.canonical_node.clone(), ctx.placement.clone())
-    });
+    let (canonical_node_owned, placement_owned, s76_env_suppress, s76_leaf_vid) =
+        V3_CTX.with(|c| {
+            let c = c.borrow();
+            let ctx = c.as_ref().unwrap();
+            (
+                ctx.canonical_node.clone(),
+                ctx.placement.clone(),
+                ctx.s76_env_suppress.clone(),
+                ctx.s76_leaf_vid,
+            )
+        });
     // Each ValDef body is built with replacement env that includes earlier
     // ValDefs at this scope. This ensures dependency chains within the
     // BlockValue items are properly substituted (e.g. SelectField's body
     // uses ValUse(N) for an earlier ByIndex ValDef).
+    //
+    // S76 — for csyms recorded in `s76_env_suppress`, filter `env_for_inner`
+    // to exclude `s76_leaf_vid` (the OUTPUTS(1) leaf vid under S75 admit)
+    // when building their RHS. Mirrors NODE's per-thunk-distinct-sym
+    // semantic: each sibling-deep wrapper's RHS keeps inline `BIdx(Outputs, 1)`
+    // rather than substituting to `ValUse(leaf_vid)`. Other env entries
+    // (chain ValDefs at the same scope) are preserved.
     let mut env_for_inner: Vec<(Expr, u32)> = Vec::new();
     let mut items: Vec<Expr> = Vec::new();
     let trace_wrap = std::env::var("CSE_TRACE_WALK").is_ok();
     for csym in &syms {
         let (_, vid) = placement_owned[csym];
         let raw = canonical_node_owned[csym].clone();
-        let rhs = build_value_recurse(&raw, &env_for_inner);
+        let suppress_leaf =
+            s76_env_suppress.contains(csym) && s76_leaf_vid.is_some();
+        let effective_env: Vec<(Expr, u32)> = if suppress_leaf {
+            let leaf_vid = s76_leaf_vid.unwrap();
+            env_for_inner
+                .iter()
+                .filter(|(_, v)| *v != leaf_vid)
+                .cloned()
+                .collect()
+        } else {
+            env_for_inner.clone()
+        };
+        let rhs = build_value_recurse(&raw, &effective_env);
         if trace_wrap {
             // S76 PROBE 1 — per-csym wrap-RHS build trace. Reports which
             // earlier same-scope ValDefs were substituted into THIS csym's
