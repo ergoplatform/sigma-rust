@@ -295,6 +295,28 @@ fn try_widen_literal_at_binop_pos(narrow: &Expr, wide: &Expr) -> Option<Expr> {
     if lr <= rr {
         return None;
     }
+    // SBigInt target: HIR Literal has no BigInt variant. Rewrite the inline
+    // Int literal as an explicit `.toBigInt` FieldAccess so MIR lowering's
+    // `fold_to_bigint_on_const` produces `Const(BigInt256 N)` directly,
+    // matching Scala's parser-time `0: BigInt` inference for inline literals
+    // in BigInt binop positions (SigmaFi OpenOrderERG `fees(0)._2 > 0`).
+    // Val-bound `Const(SInt)` (e.g. spectrum `val FeeDenom = 1000`) stays
+    // unaffected because it is still a ValUse at this point — substitution
+    // to `Literal::Int` happens in the next pass (`constant_fold`).
+    if matches!(l_ty, SType::SBigInt) {
+        if let ExprKind::Literal(Literal::Int(_)) = &narrow.kind {
+            let to_bigint = Expr {
+                kind: ExprKind::FieldAccess(FieldAccessExpr {
+                    object: Box::new(narrow.clone()),
+                    field: "toBigInt".to_string(),
+                    type_args: vec![],
+                }),
+                tpe: Some(SType::SBigInt),
+                span: narrow.span,
+            };
+            return Some(to_bigint);
+        }
+    }
     match &narrow.kind {
         ExprKind::Literal(lit) => {
             let widened = widen_literal(lit, l_ty)?;
