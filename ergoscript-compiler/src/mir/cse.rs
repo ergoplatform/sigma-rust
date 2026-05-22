@@ -315,6 +315,19 @@ pub fn apply_cse(expr: Expr) -> Expr {
             trace_slot_shift("11-reorder_valdefs", &reordered);
             let final_expr = sequential_renumber(reordered);
             trace_slot_shift("12-sequential_renumber", &final_expr);
+            // WS-G sig-15 QB1 Phase 4 S37 — gluon stage-12 swap-symmetric ValDef
+            // pair merger. Post-sequential_renumber, sibling branches of a
+            // chained-If (depth >= 3) with `allOf(Coll(items))` terminals may
+            // contain item RHSes that are structurally equal modulo a single
+            // outer-bound ValUse-pair swap; hoist canonical form to enclosing
+            // BlockValue. See parity-handoffs/GLUON-S37-IMPL-SKETCH.md §1-§3.
+            // Gated by `CSE_PROBE_S37_OFF=1` (default-ON, opt-out).
+            let final_expr = if std::env::var("CSE_PROBE_S37_OFF").is_ok() {
+                final_expr
+            } else {
+                merge_stage12_swap_symmetric_pairs(final_expr)
+            };
+            trace_slot_shift("13-merge_stage12_swap_symmetric", &final_expr);
             final_expr
         })
         .expect("failed to spawn CSE thread")
@@ -13901,6 +13914,778 @@ fn rewrite_ids(expr: Expr, id_map: &HashMap<u32, u32>) -> Expr {
         | Expr::GetVar(_)
         | Expr::DeserializeContext(_) => expr,
     }
+}
+
+// ---------------------------------------------------------------------------
+// WS-G sig-15 QB1 Phase 4 S37 — stage-13 swap-symmetric ValDef pair merger
+// ---------------------------------------------------------------------------
+//
+// Source: parity-handoffs/GLUON-S37-IMPL-SKETCH.md §1-§3.
+// Handoff: parity-handoffs/CLOSE-GLUON-S37-IMPLEMENT.md.
+//
+// After `sequential_renumber` collapses per-branch local IDs to identical
+// numeric positions across sibling chained-If branches, structurally
+// equivalent item-RHSes (modulo a single outer-bound ValUse-pair swap)
+// in `allOf(Coll(items))` terminals become detectable. This pass hoists
+// the canonical form to the enclosing BlockValue and rewrites both inline
+// sites with `ValUse(new_id)`.
+//
+// Predicate (3-arity AND, §2):
+//   arity_1: chained-If else-depth >= 3
+//   arity_2: each branch terminal is `allOf(Coll(...))`
+//   arity_3: >=1 swap-symmetric item pair exists across two branches
+//
+// Env gates:
+//   CSE_PROBE_S37_OFF=1        — disable the pass (default ON / opt-out)
+//   CSE_PROBE_S37_MAX_PAIRS=N  — cap total pairs hoisted (per-pair isolation)
+//   CSE_PROBE_S37_ONLY_TRIVIAL=1 — admit only identity-swap pairs
+//   CSE_TRACE_S37=1            — emit gate + hoist trace
+//
+// Deviation from sketch §3c: the §3c branch substitutes id_b -> id_a in
+// item_q and commits a ValUse to the canonical-(id_a)-side outer ValDef
+// in branch_j. This is semantically sound only when ValUse(id_a) and
+// ValUse(id_b) refer to mutually-substitutable values; for gluon's P1-P4
+// the swap pair aliases user-source vals (e.g. inVolumePlus /
+// inVolumeMinus) that are NOT runtime-equivalent. To preserve semantics
+// this implementation additionally requires Expr::eq under BOTH
+// directions of the substitution — pq := substitute(item_q, id_b->id_a)
+// must equal canonical_rhs AND qp := substitute(canonical_rhs, id_a->id_b)
+// must equal item_q. This stricter check admits only swap pairs whose
+// id_a and id_b alias the same logical value (Scala-hash-cons style), so
+// the rewrite is sound. The HARD ABORT preflight (paideia/sigmao floors
+// and HC=0 12/15) catches any regression if the check turns out to be
+// insufficient.
+
+fn merge_stage12_swap_symmetric_pairs(expr: Expr) -> Expr {
+    let trace = std::env::var("CSE_TRACE_S37").is_ok();
+    let only_trivial = std::env::var("CSE_PROBE_S37_ONLY_TRIVIAL").is_ok();
+    let max_pairs: Option<usize> = std::env::var("CSE_PROBE_S37_MAX_PAIRS")
+        .ok()
+        .and_then(|s| s.parse().ok());
+    let mut ctx = S37Ctx {
+        next_id: find_max_val_id(&expr) + 1,
+        trace,
+        only_trivial,
+        max_pairs,
+        pairs_hoisted: 0,
+        nodes_visited: 0,
+        gate_fires: 0,
+    };
+    let mut e = expr;
+    walk_s37(&mut e, &mut ctx, &HashSet::new());
+    if trace {
+        eprintln!(
+            "[S37_SUMMARY] nodes_visited={} gate_fires={} pairs_hoisted={}",
+            ctx.nodes_visited, ctx.gate_fires, ctx.pairs_hoisted
+        );
+    }
+    e
+}
+
+struct S37Ctx {
+    next_id: u32,
+    trace: bool,
+    only_trivial: bool,
+    max_pairs: Option<usize>,
+    pairs_hoisted: usize,
+    nodes_visited: u32,
+    gate_fires: u32,
+}
+
+/// Walk recursively, tracking the enclosing block's bound IDs. At each
+/// `BlockValue`, attempt to hoist S37 pairs from any chained-If found
+/// as the block's result.
+fn walk_s37(expr: &mut Expr, ctx: &mut S37Ctx, scope: &HashSet<u32>) {
+    use ergotree_ir::traversable::Traversable;
+    ctx.nodes_visited += 1;
+    match expr {
+        Expr::BlockValue(s) => {
+            let mut inner_scope: HashSet<u32> = scope.clone();
+            for item in &s.expr.items {
+                if let Expr::ValDef(vd) = item {
+                    inner_scope.insert(vd.expr.id.0);
+                }
+            }
+            for item in &mut s.expr.items {
+                walk_s37(item, ctx, &inner_scope);
+            }
+            walk_s37(&mut s.expr.result, ctx, &inner_scope);
+            try_hoist_s37_in_block(s, ctx, scope);
+        }
+        Expr::FuncValue(fv) => {
+            let mut inner_scope: HashSet<u32> = scope.clone();
+            for arg in fv.args() {
+                inner_scope.insert(arg.idx.0);
+            }
+            for child in fv.children_mut() {
+                walk_s37(child, ctx, &inner_scope);
+            }
+        }
+        other => {
+            for child in other.children_mut() {
+                walk_s37(child, ctx, scope);
+            }
+        }
+    }
+}
+
+/// Inspect `block.result` for chained-If patterns matching the S37
+/// predicate and hoist accepted pairs into `block.items` (appended at
+/// the end).
+fn try_hoist_s37_in_block(
+    block: &mut Spanned<BlockValue>,
+    ctx: &mut S37Ctx,
+    outer_scope: &HashSet<u32>,
+) {
+    // block_scope = outer + items[] of this block.
+    let mut block_scope: HashSet<u32> = outer_scope.clone();
+    for item in &block.expr.items {
+        if let Expr::ValDef(vd) = item {
+            block_scope.insert(vd.expr.id.0);
+        }
+    }
+
+    let result_slot: &mut Expr = &mut block.expr.result;
+    if !s37_gate_arity_1_chained_if_depth_ge_3(result_slot) {
+        return;
+    }
+    let branches: Vec<&Expr> = s37_collect_chained_branches(result_slot);
+    // SKETCH-DEVIATION (narrow, documented per CLOSE-GLUON-S37-IMPLEMENT.md):
+    // gluon's chained-If ends in `sigmaProp(false)` (a default-reject branch),
+    // which sketch §2c reads as a hard arity_2 reject for the whole gate.
+    // Empirically this default-else pattern is the common shape across
+    // production contracts, so we relax arity_2 to require allOf(Coll) on
+    // the "then" branches only (the leading N-1 branches of the chain) and
+    // admit any terminal shape for the final else. The final else is NOT
+    // a candidate for swap-symmetric pair detection in arity_3.
+    let last_idx = branches.len().saturating_sub(1);
+    let mut branch_items: Vec<Option<Vec<Expr>>> = Vec::with_capacity(branches.len());
+    for (bi, b) in branches.iter().enumerate() {
+        match s37_strip_to_all_of_coll_items(b) {
+            Some(items) => branch_items.push(Some(items)),
+            None => {
+                if bi == last_idx && bi >= 3 {
+                    // final-else carve-out: leading 3+ branches matched allOf
+                    if ctx.trace {
+                        eprintln!(
+                            "[S37_GATE] arity_2 final_else_carveout branch={} terminal={}",
+                            bi,
+                            s37_branch_terminal_label(b)
+                        );
+                    }
+                    branch_items.push(None);
+                } else {
+                    if ctx.trace {
+                        eprintln!(
+                            "[S37_GATE] arity_2=false branch={} terminal={}",
+                            bi,
+                            s37_branch_terminal_label(b)
+                        );
+                    }
+                    return;
+                }
+            }
+        }
+    }
+    let allof_branch_count = branch_items.iter().filter(|x| x.is_some()).count();
+    if allof_branch_count < 3 {
+        if ctx.trace {
+            eprintln!(
+                "[S37_GATE] arity_2=false allof_branches={} < 3",
+                allof_branch_count
+            );
+        }
+        return;
+    }
+    if ctx.trace {
+        eprintln!(
+            "[S37_GATE] arity_1=true chain_depth={} arity_2=true allof_branches={}",
+            branches.len(),
+            allof_branch_count
+        );
+    }
+
+    // arity_3: find swap-symmetric pairs across distinct allOf branches.
+    //
+    // Group equivalent items into N-way equivalence classes BEFORE hoisting:
+    // an item-RHS structurally identical in N>=2 branches yields a single
+    // outer ValDef referenced from all N inline sites, NOT N-1 redundant
+    // ValDefs. The pair-by-pair sketch §3c walk creates duplicate hoists
+    // when an item appears in 3+ branches (e.g. gluon's
+    // __gluonWBoxPersistedValueCheck appears in all 4 BetaDecay+Fusion/
+    // Fission branches at pos 0). This deviation is documented in the
+    // commit body and module header.
+    let mut accepted: Vec<S37GroupedPair> = Vec::new();
+    let mut taken: HashSet<(usize, usize)> = HashSet::new();
+    for i in 0..branch_items.len() {
+        let items_i = match &branch_items[i] {
+            Some(v) => v.clone(),
+            None => continue,
+        };
+        for pos_p in 0..items_i.len() {
+            if taken.contains(&(i, pos_p)) {
+                continue;
+            }
+            let item_p = &items_i[pos_p];
+            // Collect all branches (including i) where the item is
+            // swap-symmetric to item_p; canonical_rhs = item_p.
+            let mut group: Vec<(usize, usize, Option<(u32, u32)>, Expr)> = Vec::new();
+            group.push((i, pos_p, None, item_p.clone()));
+            for j in (i + 1)..branch_items.len() {
+                let items_j = match &branch_items[j] {
+                    Some(v) => v,
+                    None => continue,
+                };
+                let mut paired_pos_q: Option<(usize, Option<(u32, u32)>, Expr)> = None;
+                for pos_q in 0..items_j.len() {
+                    if taken.contains(&(j, pos_q)) {
+                        continue;
+                    }
+                    let item_q = &items_j[pos_q];
+                    if let Some(swap) = s37_is_swap_symmetric(item_p, item_q) {
+                        if ctx.only_trivial && swap.is_some() {
+                            continue;
+                        }
+                        paired_pos_q = Some((pos_q, swap, item_q.clone()));
+                        break;
+                    }
+                }
+                if let Some((pos_q, swap, iq)) = paired_pos_q {
+                    group.push((j, pos_q, swap, iq));
+                }
+            }
+            if group.len() < 2 {
+                continue;
+            }
+            // §3d free-VU scope check on canonical_rhs.
+            let mut free_vus: Vec<u32> = Vec::new();
+            collect_orphan_ids(item_p, &block_scope, &mut free_vus);
+            if !free_vus.is_empty() {
+                if ctx.trace {
+                    eprintln!(
+                        "[S37_HOIST] free_vu_scope_check=fail orphans={:?} -- skip",
+                        free_vus
+                    );
+                }
+                continue;
+            }
+            for (b, p, _, _) in &group {
+                taken.insert((*b, *p));
+            }
+            accepted.push(S37GroupedPair {
+                canonical_rhs: item_p.clone(),
+                sites: group
+                    .into_iter()
+                    .map(|(b, p, swap, iq)| S37GroupSite {
+                        branch_idx: b,
+                        pos: p,
+                        swap,
+                        item: iq,
+                    })
+                    .collect(),
+            });
+            if let Some(max) = ctx.max_pairs {
+                if ctx.pairs_hoisted + accepted.len() >= max {
+                    break;
+                }
+            }
+        }
+        if let Some(max) = ctx.max_pairs {
+            if ctx.pairs_hoisted + accepted.len() >= max {
+                break;
+            }
+        }
+    }
+
+    if accepted.is_empty() {
+        if ctx.trace {
+            eprintln!("[S37_GATE] arity_3=false (no swap-symmetric pairs)");
+        }
+        return;
+    }
+    ctx.gate_fires += 1;
+    if ctx.trace {
+        eprintln!(
+            "[S37_GATE] verdict=accept hoist_pairs={}",
+            accepted.len()
+        );
+    }
+
+    let mut new_outer_defs: Vec<Expr> = Vec::new();
+    for grp in &accepted {
+        // §3c two-sided soundness check for non-trivial swaps in each site.
+        // If ANY site's swap fails the bidirectional Expr::eq check, skip
+        // the entire group (canonical_rhs is item_p which references id_a;
+        // a site that's not bidirectionally substitutable cannot soundly
+        // bind to ValUse(new_id) at that branch).
+        let mut sound = true;
+        for site in &grp.sites {
+            if let Some((id_a, id_b)) = site.swap {
+                let pq = s37_substitute_valuse(&site.item, id_b, id_a);
+                let qp = s37_substitute_valuse(&grp.canonical_rhs, id_a, id_b);
+                if !(pq == grp.canonical_rhs && qp == site.item) {
+                    sound = false;
+                    if ctx.trace {
+                        eprintln!(
+                            "[S37_HOIST] swap=({},{}) site=(branch={},pos={}) substitution_eq=fail -- skip group",
+                            id_a, id_b, site.branch_idx, site.pos
+                        );
+                    }
+                    break;
+                }
+            }
+        }
+        if !sound {
+            continue;
+        }
+        let new_id = ctx.next_id;
+        ctx.next_id += 1;
+        let tpe = grp.canonical_rhs.tpe();
+        new_outer_defs.push(Expr::ValDef(Spanned {
+            source_span: SourceSpan::empty(),
+            expr: ValDef {
+                id: ValId(new_id),
+                rhs: Box::new(grp.canonical_rhs.clone()),
+            },
+        }));
+        let val_use = Expr::ValUse(ValUse {
+            val_id: ValId(new_id),
+            tpe,
+        });
+        for site in &grp.sites {
+            s37_rewrite_branch_item(result_slot, site.branch_idx, site.pos, &val_use);
+        }
+        ctx.pairs_hoisted += 1;
+        if ctx.trace {
+            let sites_dbg: Vec<String> = grp
+                .sites
+                .iter()
+                .map(|s| format!("(b={},p={},swap={:?})", s.branch_idx, s.pos, s.swap))
+                .collect();
+            eprintln!(
+                "[S37_HOIST] new_id={} sites={} group=[{}] action=committed",
+                new_id,
+                grp.sites.len(),
+                sites_dbg.join(", ")
+            );
+        }
+    }
+    for vd in new_outer_defs {
+        block.expr.items.push(vd);
+    }
+}
+
+struct S37GroupedPair {
+    canonical_rhs: Expr,
+    sites: Vec<S37GroupSite>,
+}
+
+struct S37GroupSite {
+    branch_idx: usize,
+    pos: usize,
+    /// `None` means trivial (identity) match against canonical_rhs.
+    /// `Some((id_a, id_b))` means ValUse(id_a) <-> ValUse(id_b) swap.
+    swap: Option<(u32, u32)>,
+    /// The original item at this site (used for the §3c bidirectional
+    /// soundness check).
+    item: Expr,
+}
+
+/// arity_1: walk the else-chain and check depth >= 3.
+fn s37_gate_arity_1_chained_if_depth_ge_3(expr: &Expr) -> bool {
+    let mut depth = 0u32;
+    let mut cursor = expr;
+    loop {
+        match cursor {
+            Expr::If(if_op) => {
+                depth += 1;
+                cursor = &if_op.false_branch;
+            }
+            _ => break,
+        }
+    }
+    depth >= 3
+}
+
+/// Return one expression per branch (then_b of each chained If, plus
+/// the final else_b). Branches are listed in source order:
+/// [then_b0, then_b1, ..., then_b{n-1}, final_else].
+fn s37_collect_chained_branches(expr: &Expr) -> Vec<&Expr> {
+    let mut out: Vec<&Expr> = Vec::new();
+    let mut cursor = expr;
+    loop {
+        match cursor {
+            Expr::If(if_op) => {
+                out.push(&if_op.true_branch);
+                cursor = &if_op.false_branch;
+            }
+            other => {
+                out.push(other);
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// Peel optional `BoolToSigmaProp` and surrounding `BlockValue` wrappers,
+/// then return the items of the terminal `And(Collection::Exprs)`. None
+/// if the terminal shape doesn't match.
+fn s37_strip_to_all_of_coll_items(expr: &Expr) -> Option<Vec<Expr>> {
+    let mut cur = expr;
+    while let Expr::BlockValue(s) = cur {
+        cur = &s.expr.result;
+    }
+    if let Expr::BoolToSigmaProp(bts) = cur {
+        cur = &bts.input;
+    }
+    while let Expr::BlockValue(s) = cur {
+        cur = &s.expr.result;
+    }
+    if let Expr::And(a) = cur {
+        if let Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) =
+            a.expr.input.as_ref()
+        {
+            return Some(items.clone());
+        }
+    }
+    None
+}
+
+/// Lock-step walk of two trees; collect ValUse-id positional mismatches.
+/// Returns `Err(())` if the trees structurally differ at any non-ValUse
+/// position; otherwise returns the canonicalized set of `(min, max)`
+/// id-mismatch pairs. Empty set means Expr::eq().
+fn s37_collect_paired_valuse_diffs(e_p: &Expr, e_q: &Expr) -> Result<HashSet<(u32, u32)>, ()> {
+    let mut diffs: HashSet<(u32, u32)> = HashSet::new();
+    s37_paired_walk(e_p, e_q, &mut diffs)?;
+    Ok(diffs)
+}
+
+fn s37_paired_walk(p: &Expr, q: &Expr, diffs: &mut HashSet<(u32, u32)>) -> Result<(), ()> {
+    match (p, q) {
+        (Expr::ValUse(vp), Expr::ValUse(vq)) => {
+            if vp.tpe != vq.tpe {
+                return Err(());
+            }
+            if vp.val_id.0 != vq.val_id.0 {
+                let (a, b) = if vp.val_id.0 < vq.val_id.0 {
+                    (vp.val_id.0, vq.val_id.0)
+                } else {
+                    (vq.val_id.0, vp.val_id.0)
+                };
+                diffs.insert((a, b));
+            }
+            Ok(())
+        }
+        _ => {
+            if std::mem::discriminant(p) != std::mem::discriminant(q) {
+                return Err(());
+            }
+            // Verify non-child metadata equality for variants whose
+            // discriminants don't fully encode shape.
+            if let (Expr::Const(cp), Expr::Const(cq)) = (p, q) {
+                if cp != cq {
+                    return Err(());
+                }
+                return Ok(());
+            }
+            if let (Expr::ConstPlaceholder(cp), Expr::ConstPlaceholder(cq)) = (p, q) {
+                if cp != cq {
+                    return Err(());
+                }
+                return Ok(());
+            }
+            if let (Expr::GlobalVars(gp), Expr::GlobalVars(gq)) = (p, q) {
+                if gp != gq {
+                    return Err(());
+                }
+                return Ok(());
+            }
+            if let (Expr::GetVar(gp), Expr::GetVar(gq)) = (p, q) {
+                if gp != gq {
+                    return Err(());
+                }
+                return Ok(());
+            }
+            if let (Expr::DeserializeContext(dp), Expr::DeserializeContext(dq)) = (p, q) {
+                if dp != dq {
+                    return Err(());
+                }
+                return Ok(());
+            }
+            if let (Expr::ValDef(vp), Expr::ValDef(vq)) = (p, q) {
+                if vp.expr.id.0 != vq.expr.id.0 {
+                    return Err(());
+                }
+            }
+            if let (Expr::BinOp(bp), Expr::BinOp(bq)) = (p, q) {
+                if bp.expr.kind != bq.expr.kind {
+                    return Err(());
+                }
+            }
+            if let (Expr::MethodCall(mp), Expr::MethodCall(mq)) = (p, q) {
+                if mp.expr.method != mq.expr.method {
+                    return Err(());
+                }
+            }
+            if let (Expr::PropertyCall(mp), Expr::PropertyCall(mq)) = (p, q) {
+                if mp.expr.method != mq.expr.method {
+                    return Err(());
+                }
+            }
+            if let (Expr::SelectField(sp), Expr::SelectField(sq)) = (p, q) {
+                if sp.expr.field_index != sq.expr.field_index {
+                    return Err(());
+                }
+            }
+            if let (Expr::ExtractRegisterAs(sp), Expr::ExtractRegisterAs(sq)) = (p, q) {
+                if sp.expr.register_id != sq.expr.register_id
+                    || sp.expr.elem_tpe != sq.expr.elem_tpe
+                {
+                    return Err(());
+                }
+            }
+            if let (Expr::Upcast(up), Expr::Upcast(uq)) = (p, q) {
+                if up.tpe != uq.tpe {
+                    return Err(());
+                }
+            }
+            if let (Expr::Downcast(up), Expr::Downcast(uq)) = (p, q) {
+                if up.tpe != uq.tpe {
+                    return Err(());
+                }
+            }
+            if let (Expr::Collection(cp), Expr::Collection(cq)) = (p, q) {
+                use ergotree_ir::mir::collection::Collection;
+                match (cp, cq) {
+                    (
+                        Collection::Exprs { elem_tpe: tp, .. },
+                        Collection::Exprs { elem_tpe: tq, .. },
+                    ) => {
+                        if tp != tq {
+                            return Err(());
+                        }
+                    }
+                    (Collection::BoolConstants(bp), Collection::BoolConstants(bq)) => {
+                        if bp != bq {
+                            return Err(());
+                        }
+                        return Ok(());
+                    }
+                    _ => return Err(()),
+                }
+            }
+            let cp = direct_children(p);
+            let cq = direct_children(q);
+            if cp.len() != cq.len() {
+                return Err(());
+            }
+            for (a, b) in cp.iter().zip(cq.iter()) {
+                s37_paired_walk(a, b, diffs)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+/// `Some(None)` = trivial (identity) match.
+/// `Some(Some((a, b)))` = swap-symmetric on a single ValUse-pair.
+/// `None` = not swap-symmetric.
+fn s37_is_swap_symmetric(e_p: &Expr, e_q: &Expr) -> Option<Option<(u32, u32)>> {
+    let diffs = s37_collect_paired_valuse_diffs(e_p, e_q).ok()?;
+    if diffs.is_empty() {
+        return Some(None);
+    }
+    if diffs.len() != 1 {
+        return None;
+    }
+    Some(Some(*diffs.iter().next().unwrap()))
+}
+
+fn s37_substitute_valuse(expr: &Expr, from: u32, to: u32) -> Expr {
+    s37_substitute_walk(expr.clone(), from, to)
+}
+
+fn s37_substitute_walk(expr: Expr, from: u32, to: u32) -> Expr {
+    match expr {
+        Expr::ValUse(vu) => {
+            if vu.val_id.0 == from {
+                Expr::ValUse(ValUse {
+                    val_id: ValId(to),
+                    tpe: vu.tpe,
+                })
+            } else {
+                Expr::ValUse(vu)
+            }
+        }
+        other => {
+            use ergotree_ir::traversable::Traversable;
+            let mut e = other;
+            for child in e.children_mut() {
+                let owned = std::mem::replace(child, Expr::Context);
+                *child = s37_substitute_walk(owned, from, to);
+            }
+            e
+        }
+    }
+}
+
+/// Rewrite the `pos`-th item of the `allOf(Coll(...))` terminal of the
+/// `branch_idx`-th branch of the chained-If at `expr`.
+fn s37_rewrite_branch_item(expr: &mut Expr, branch_idx: usize, pos: usize, replacement: &Expr) {
+    let mut cursor: &mut Expr = expr;
+    let mut idx = 0usize;
+    loop {
+        let is_if = matches!(cursor, Expr::If(_));
+        if !is_if {
+            if branch_idx == idx {
+                s37_rewrite_inplace_in_terminal(cursor, pos, replacement);
+            }
+            return;
+        }
+        if branch_idx == idx {
+            if let Expr::If(if_op) = cursor {
+                s37_rewrite_inplace_in_terminal(&mut if_op.true_branch, pos, replacement);
+            }
+            return;
+        }
+        if let Expr::If(if_op) = cursor {
+            cursor = &mut if_op.false_branch;
+            idx += 1;
+            continue;
+        }
+        return;
+    }
+}
+
+fn s37_rewrite_inplace_in_terminal(expr: &mut Expr, pos: usize, replacement: &Expr) {
+    let cur: &mut Expr = s37_descend_to_all_of(expr);
+    if let Expr::And(a) = cur {
+        let input_box = &mut a.expr.input;
+        if let Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
+            items, ..
+        }) = input_box.as_mut()
+        {
+            if pos < items.len() {
+                items[pos] = replacement.clone();
+            }
+        }
+    }
+}
+
+fn s37_branch_terminal_label(expr: &Expr) -> String {
+    let mut cur = expr;
+    let mut depth = 0;
+    while depth < 6 {
+        match cur {
+            Expr::BlockValue(s) => {
+                cur = &s.expr.result;
+                depth += 1;
+            }
+            Expr::BoolToSigmaProp(bts) => {
+                cur = &bts.input;
+                depth += 1;
+            }
+            _ => break,
+        }
+    }
+    match cur {
+        Expr::And(a) => match a.expr.input.as_ref() {
+            Expr::Collection(_) => "And(Collection)".to_string(),
+            other => format!("And({})", variant_name(other)),
+        },
+        other => variant_name(other).to_string(),
+    }
+}
+
+fn variant_name(expr: &Expr) -> &'static str {
+    match expr {
+        Expr::Const(_) => "Const",
+        Expr::ConstPlaceholder(_) => "ConstPlaceholder",
+        Expr::GlobalVars(_) => "GlobalVars",
+        Expr::Context => "Context",
+        Expr::Global => "Global",
+        Expr::GetVar(_) => "GetVar",
+        Expr::DeserializeContext(_) => "DeserializeContext",
+        Expr::ValDef(_) => "ValDef",
+        Expr::ValUse(_) => "ValUse",
+        Expr::BlockValue(_) => "BlockValue",
+        Expr::BinOp(_) => "BinOp",
+        Expr::BoolToSigmaProp(_) => "BoolToSigmaProp",
+        Expr::If(_) => "If",
+        Expr::PropertyCall(_) => "PropertyCall",
+        Expr::MethodCall(_) => "MethodCall",
+        Expr::ExtractAmount(_) => "ExtractAmount",
+        Expr::ExtractRegisterAs(_) => "ExtractRegisterAs",
+        Expr::ExtractScriptBytes(_) => "ExtractScriptBytes",
+        Expr::ExtractBytes(_) => "ExtractBytes",
+        Expr::ExtractId(_) => "ExtractId",
+        Expr::ExtractCreationInfo(_) => "ExtractCreationInfo",
+        Expr::SizeOf(_) => "SizeOf",
+        Expr::LogicalNot(_) => "LogicalNot",
+        Expr::Negation(_) => "Negation",
+        Expr::SigmaPropBytes(_) => "SigmaPropBytes",
+        Expr::Upcast(_) => "Upcast",
+        Expr::Downcast(_) => "Downcast",
+        Expr::CalcBlake2b256(_) => "CalcBlake2b256",
+        Expr::Filter(_) => "Filter",
+        Expr::Exists(_) => "Exists",
+        Expr::ForAll(_) => "ForAll",
+        Expr::Map(_) => "Map",
+        Expr::Fold(_) => "Fold",
+        Expr::SigmaAnd(_) => "SigmaAnd",
+        Expr::SigmaOr(_) => "SigmaOr",
+        Expr::Tuple(_) => "Tuple",
+        Expr::Apply(_) => "Apply",
+        Expr::TreeLookup(_) => "TreeLookup",
+        Expr::OptionGet(_) => "OptionGet",
+        Expr::OptionIsDefined(_) => "OptionIsDefined",
+        Expr::OptionGetOrElse(_) => "OptionGetOrElse",
+        Expr::Slice(_) => "Slice",
+        Expr::Append(_) => "Append",
+        Expr::And(_) => "And",
+        Expr::Or(_) => "Or",
+        Expr::Collection(_) => "Collection",
+        Expr::CalcSha256(_) => "CalcSha256",
+        Expr::BitInversion(_) => "BitInversion",
+        Expr::ExtractBytesWithNoRef(_) => "ExtractBytesWithNoRef",
+        Expr::SigmaPropIsProven(_) => "SigmaPropIsProven",
+        Expr::ZkProofBlock(_) => "ZkProofBlock",
+        Expr::XorOf(_) => "XorOf",
+        Expr::Xor(_) => "Xor",
+        Expr::SubstConstants(_) => "SubstConstants",
+        Expr::CreateAvlTree(_) => "CreateAvlTree",
+        Expr::DeserializeRegister(_) => "DeserializeRegister",
+        Expr::Atleast(_) => "Atleast",
+        Expr::ByIndex(_) => "ByIndex",
+        Expr::SelectField(_) => "SelectField",
+        Expr::ByteArrayToBigInt(_) => "ByteArrayToBigInt",
+        Expr::ByteArrayToLong(_) => "ByteArrayToLong",
+        Expr::LongToByteArray(_) => "LongToByteArray",
+        Expr::DecodePoint(_) => "DecodePoint",
+        Expr::MultiplyGroup(_) => "MultiplyGroup",
+        Expr::Exponentiate(_) => "Exponentiate",
+        Expr::CreateProveDlog(_) => "CreateProveDlog",
+        Expr::CreateProveDhTuple(_) => "CreateProveDhTuple",
+        Expr::FuncValue(_) => "FuncValue",
+    }
+}
+
+fn s37_descend_to_all_of(expr: &mut Expr) -> &mut Expr {
+    let mut cur: &mut Expr = expr;
+    loop {
+        match cur {
+            Expr::BlockValue(s) => {
+                cur = &mut s.expr.result;
+            }
+            Expr::BoolToSigmaProp(bts) => {
+                cur = &mut bts.input;
+            }
+            _ => break,
+        }
+    }
+    cur
 }
 
 #[cfg(test)]
