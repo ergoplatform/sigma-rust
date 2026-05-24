@@ -8188,8 +8188,33 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
             // sig-15 12/15 + paideia 1470 + sigmao 1124 + gluon 2336 + F.2
             // 563/575 + 11 ecosystem MATCH + 258 lib + 164 conformance ALL
             // preserved.
+            //
+            // S83 — Lilium SaleLP carve-out: the simple `ByIndex(GlobalVars(_),
+            // Const(_))` shape (e.g. bare `OUTPUTS(K)`) requires `total_occ >=
+            // 3` to bump. With `total_occ >= 2` the bump fired on Lilium
+            // SaleLP's two cross-If-branch `OUTPUTS(4)` occurrences (one in
+            // `if (isLastSale) OUTPUTS(4) else OUTPUTS(5)`'s then-branch,
+            // one in `validSelfRecreation`'s else-branch nested ValDef
+            // `saleLPOUT = OUTPUTS(4)`) and over-extracted them into one
+            // shared sym at the surrounding scope — collapsing two Const(4)
+            // pool slots into one (`14 → 13` segregated constants in local).
+            // Scala does NOT extract this shape across non-sibling thunks at
+            // count==2 (per `hasManyUsagesGlobal` semantics — empirically
+            // verified by NODE keeping both Const(4) slots independent).
+            // SigUSDV1's load-bearing simple bump is `OUTPUTS(2)` at 3 total
+            // uses (per S41 commit body), so the `>= 3` threshold preserves
+            // that closure; chained/register shapes (the other two SigUSDV1
+            // bumps `OUTPUTS(2).tokens(0)` and `SELF.R4[Long].get` at
+            // total_occ=2 and total_occ=4 respectively) stay at `>= 2`
+            // because Scala's hash-cons does extract those at count>=2
+            // regardless of branch placement.
             let total_occ = count_occurrences(&expr, cand);
-            if total_occ >= 2 && total_occ > *count {
+            let is_simple_global_index = matches!(
+                cand,
+                Expr::ByIndex(s) if matches!(*s.expr.input, Expr::GlobalVars(_))
+            );
+            let threshold = if is_simple_global_index { 3 } else { 2 };
+            if total_occ >= threshold && total_occ > *count {
                 *count = total_occ;
             }
         }
