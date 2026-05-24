@@ -1309,6 +1309,35 @@ fn extract_if_cond_shared(
         if deeper_block_with_ge_two_occurrences(&current_items, &current_result, &sub) {
             continue;
         }
+        // SigmaFi OpenOrderERG / OpenOrderToken close: defer
+        // `ByIndex(ValUse(_), Const(_))` candidates whose every occurrence
+        // sits inside the branches of a single If at this scope (no
+        // occurrence in any cond at this scope). The candidate's
+        // LCA-of-uses is one level deeper; extracting here over-extracts.
+        //
+        // The existing `deeper_block_with_ge_two_occurrences` guard
+        // catches the case when the deferring sub-thunk is wrapped in a
+        // BlockValue. For SigmaFi's `fees(1)`, the containing thunk
+        // (optUIFee.isDefined then-branch) is directly an If — no
+        // BlockValue wrapper — so the BlockValue-only walker misses it.
+        //
+        // Narrowed to `ByIndex(ValUse(_), Const(_))` shape to limit blast
+        // radius. Widen empirically if other shapes (e.g.
+        // `SelectField(ByIndex(VU, Const))`, `ExtractRegisterAs(...)`)
+        // surface a matching ecosystem residual.
+        if matches!(
+            &sub,
+            Expr::ByIndex(s)
+                if matches!(*s.expr.input, Expr::ValUse(_))
+                    && matches!(*s.expr.index, Expr::Const(_))
+        ) && all_occurrences_in_one_inner_if_branches(
+            &current_items,
+            &current_result,
+            &sub,
+            cnt,
+        ) {
+            continue;
+        }
         // BISECT-A4 (S12): reject BinOp candidates whose entire subtree
         // contains no `ValUse` — pure-context-property comparisons such
         // as `INPUTS.size == 1` or `INPUTS.size >= 3`. Scala's TreeBuilding
@@ -7269,6 +7298,67 @@ fn deeper_block_with_ge_two_occurrences(items: &[Expr], result: &Expr, target: &
     walk(result, target, total)
 }
 
+/// SigmaFi-class defer guard for `extract_if_cond_shared`.
+///
+/// Companion to `deeper_block_with_ge_two_occurrences` that handles the
+/// non-BlockValue containing-sub-thunk case: returns true if some If
+/// subtree at this scope has both `true_branch` + `false_branch`
+/// occurrences summing to `total` — i.e. every occurrence of `target`
+/// lives inside one of that If's branches (none in cond). The candidate's
+/// LCA-of-uses is then inside the branch sub-thunk; the recursive
+/// `pre_extract_from_valdefs` pass over that branch will catch it.
+///
+/// Closes SigmaFi OpenOrderERG / OpenOrderToken: `ByIndex(VU(fees),
+/// Const(1))` has both occurrences inside the `optUIFee.isDefined`
+/// then-branch (cond `fees(1)._2 > 0` + branch `fees(1)._1.propBytes`).
+/// The outer `optUIFee.isDefined` If's true_branch is directly the inner
+/// `fees(1)._2 > 0` If (no BlockValue wrapper), so the existing
+/// BlockValue-based guard doesn't fire. Counting branch occurrences of
+/// the outer If catches the case.
+///
+/// Discriminator vs the `fees(0)` pattern (which extracts at this scope
+/// in NODE): for `fees(0)`, the `fees(0)._2 > 0` If has cond use of
+/// `fees(0)` (eager at this scope's main level relative to the inner If)
+/// AND one branch use; `branch_count == 1 != total == 2` so this guard
+/// doesn't defer. (`fees(0)` is also pre-extracted at step 03 via
+/// `collect_cond_branch_shared`, so it isn't a step-04 candidate in
+/// practice — the discriminator is a soundness check, not load-bearing.)
+fn all_occurrences_in_one_inner_if_branches(
+    items: &[Expr],
+    result: &Expr,
+    target: &Expr,
+    total: usize,
+) -> bool {
+    if total < 2 {
+        return false;
+    }
+    fn walk(expr: &Expr, target: &Expr, total: usize) -> bool {
+        if let Expr::If(if_op) = expr {
+            let branch_count = count_occurrences(&if_op.true_branch, target)
+                + count_occurrences(&if_op.false_branch, target);
+            if branch_count == total {
+                return true;
+            }
+        }
+        for child in direct_children(expr) {
+            if walk(child, target, total) {
+                return true;
+            }
+        }
+        false
+    }
+    for item in items {
+        if let Expr::ValDef(vd) = item {
+            if walk(&vd.expr.rhs, target, total) {
+                return true;
+            }
+        } else if walk(item, target, total) {
+            return true;
+        }
+    }
+    walk(result, target, total)
+}
+
 /// Whether `expr` contains any `ValUse(id)` for an id in `local_ids`.
 /// Used as the "capture-set reaches this scope's local items" signal:
 /// a candidate that references a local ValDef is anchored to this
@@ -8257,7 +8347,31 @@ fn process_ast_graph_branch(expr: Expr, global_max_id: u32) -> Expr {
         if global_occ < 2 {
             continue;
         }
-        if dag_usages.iter().any(|(e, _)| *e == cb) {
+        if let Some(entry) = dag_usages.iter_mut().find(|(e, _)| *e == cb) {
+            // SigmaFi OpenOrder close: bump existing scope-restricted count
+            // up to `global_occ` when the candidate is a SigmaFi-class
+            // `ByIndex(ValUse(_), Const(_))` that appears once at this
+            // scope's main level (eager inner-If cond use) and once inside
+            // that inner-If's branch sub-thunk. The scope-restricted
+            // `count_dag_usages_scope` saw only the cond use (count=1);
+            // without this bump, `dag_count<2` prevents extraction at this
+            // scope and the candidate falls to the next-deeper scope (the
+            // inner-If's branch BlockValue, one level too deep vs NODE).
+            //
+            // Narrowed to `ByIndex(ValUse(_), Const(_))` to limit blast
+            // radius. Other shapes (e.g. SelectField on a hash-consed
+            // input, ExtractRegisterAs) may have different Scala extraction
+            // semantics at this exact scope position; widen empirically
+            // only after a residual surfaces.
+            if matches!(
+                &cb,
+                Expr::ByIndex(s)
+                    if matches!(*s.expr.input, Expr::ValUse(_))
+                        && matches!(*s.expr.index, Expr::Const(_))
+            ) && global_occ > entry.1
+            {
+                entry.1 = global_occ;
+            }
             continue;
         }
         dag_usages.push((cb.clone(), global_occ));
