@@ -3384,6 +3384,15 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
     // changes effective usage counts when lambdas are present.
     let has_lambdas = !is_lambda_scope && contains_func_value(&expr);
 
+    if !is_lambda_scope && std::env::var("CSE_TRACE_FV_PATH").is_ok() {
+        let cfv = contains_func_value(&expr);
+        let dc = find_fv_path_via_direct_children(&expr);
+        eprintln!(
+            "[cse_dispatch] is_lambda_scope=false contains_func_value={} direct_children_path={:?}",
+            cfv, dc
+        );
+    }
+
     let local_max = find_max_val_id(&expr);
 
     if is_lambda_scope {
@@ -4767,12 +4776,29 @@ fn contains_func_value(expr: &Expr) -> bool {
         Expr::Tuple(t) => t.items.iter().any(contains_func_value),
         Expr::And(a) => contains_func_value(&a.expr.input),
         Expr::Or(o) => contains_func_value(&o.expr.input),
-        Expr::Collection(c) => match c {
-            ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
-                items.iter().any(contains_func_value)
-            }
-            _ => false,
-        },
+        // S82 — Collection arm narrowed out. S36 added a comprehensive
+        // recursion (`items.iter().any(contains_func_value)`) but the only
+        // two corpus shapes that traverse this arm are ecosystem
+        // `DuckPools ERG ParentInterest` (`Append → Collection → Fold → FuncValue`)
+        // and `Lilium SaleLP` (`And → Collection → If → BinOp → Fold → MethodCall →
+        // FuncValue`); both were MATCH before S36 because they routed through
+        // `process_ast_graph` (contains_func_value=false). After S36 they
+        // re-routed to the `has_lambdas` branch and lost MATCH. No sig-15
+        // fixture under HC=0 or v3 traverses Collection to reach a FuncValue
+        // (empirically verified at S82 via env-gated `CSE_TRACE_FV_PATH`
+        // probe — see `find_fv_path_via_direct_children` above), so leaving
+        // this arm absent restores both ecosystem fixtures' pre-S36 routing
+        // without affecting any sig-15 dispatch decision. DuckPools fully
+        // recovers (413→412 byte-MATCH); Lilium SaleLP partially recovers
+        // (320→316; pre-S36 was 317 MATCH — 1B drift introduced by some
+        // post-S36 commit in the default `process_ast_graph` path, tracked
+        // as a separate residual class).
+        // Expr::Collection(c) => match c {
+        //     ergotree_ir::mir::collection::Collection::Exprs { items, .. } => {
+        //         items.iter().any(contains_func_value)
+        //     }
+        //     _ => false,
+        // },
         Expr::Atleast(s) => contains_func_value(&s.bound) || contains_func_value(&s.input),
         Expr::Apply(app) => {
             contains_func_value(&app.func) || app.args.iter().any(contains_func_value)
@@ -4819,6 +4845,98 @@ fn contains_func_value(expr: &Expr) -> bool {
             s.default.as_deref().is_some_and(contains_func_value)
         }
         _ => false,
+    }
+}
+
+/// Diagnostic helper: walk the tree via the comprehensive `direct_children`
+/// recurrence and return the sequence of `Expr` variant names from the root
+/// to the first encountered `FuncValue`. Returns `None` if no FuncValue is
+/// reachable. Used by env-gated probes to localize which `contains_func_value`
+/// arm is responsible for a given fixture's routing decision.
+fn find_fv_path_via_direct_children(expr: &Expr) -> Option<Vec<&'static str>> {
+    if let Expr::FuncValue(_) = expr {
+        return Some(vec![expr_variant_name(expr)]);
+    }
+    for c in direct_children(expr) {
+        if let Some(mut sub) = find_fv_path_via_direct_children(c) {
+            let mut v = vec![expr_variant_name(expr)];
+            v.append(&mut sub);
+            return Some(v);
+        }
+    }
+    None
+}
+
+fn expr_variant_name(expr: &Expr) -> &'static str {
+    match expr {
+        Expr::Const(_) => "Const",
+        Expr::ConstPlaceholder(_) => "ConstPlaceholder",
+        Expr::SubstConstants(_) => "SubstConstants",
+        Expr::ByteArrayToLong(_) => "ByteArrayToLong",
+        Expr::ByteArrayToBigInt(_) => "ByteArrayToBigInt",
+        Expr::LongToByteArray(_) => "LongToByteArray",
+        Expr::Collection(_) => "Collection",
+        Expr::Tuple(_) => "Tuple",
+        Expr::CalcBlake2b256(_) => "CalcBlake2b256",
+        Expr::CalcSha256(_) => "CalcSha256",
+        Expr::Context => "Context",
+        Expr::Global => "Global",
+        Expr::GlobalVars(_) => "GlobalVars",
+        Expr::FuncValue(_) => "FuncValue",
+        Expr::Apply(_) => "Apply",
+        Expr::MethodCall(_) => "MethodCall",
+        Expr::PropertyCall(_) => "PropertyCall",
+        Expr::BlockValue(_) => "BlockValue",
+        Expr::ValDef(_) => "ValDef",
+        Expr::ValUse(_) => "ValUse",
+        Expr::If(_) => "If",
+        Expr::BinOp(_) => "BinOp",
+        Expr::And(_) => "And",
+        Expr::Or(_) => "Or",
+        Expr::Xor(_) => "Xor",
+        Expr::Atleast(_) => "Atleast",
+        Expr::LogicalNot(_) => "LogicalNot",
+        Expr::Negation(_) => "Negation",
+        Expr::BitInversion(_) => "BitInversion",
+        Expr::OptionGet(_) => "OptionGet",
+        Expr::OptionIsDefined(_) => "OptionIsDefined",
+        Expr::OptionGetOrElse(_) => "OptionGetOrElse",
+        Expr::ExtractAmount(_) => "ExtractAmount",
+        Expr::ExtractRegisterAs(_) => "ExtractRegisterAs",
+        Expr::ExtractScriptBytes(_) => "ExtractScriptBytes",
+        Expr::ExtractBytes(_) => "ExtractBytes",
+        Expr::ExtractBytesWithNoRef(_) => "ExtractBytesWithNoRef",
+        Expr::ExtractId(_) => "ExtractId",
+        Expr::ExtractCreationInfo(_) => "ExtractCreationInfo",
+        Expr::ByIndex(_) => "ByIndex",
+        Expr::SizeOf(_) => "SizeOf",
+        Expr::Slice(_) => "Slice",
+        Expr::Append(_) => "Append",
+        Expr::SelectField(_) => "SelectField",
+        Expr::BoolToSigmaProp(_) => "BoolToSigmaProp",
+        Expr::Upcast(_) => "Upcast",
+        Expr::Downcast(_) => "Downcast",
+        Expr::CreateProveDlog(_) => "CreateProveDlog",
+        Expr::CreateProveDhTuple(_) => "CreateProveDhTuple",
+        Expr::SigmaPropBytes(_) => "SigmaPropBytes",
+        Expr::SigmaAnd(_) => "SigmaAnd",
+        Expr::SigmaOr(_) => "SigmaOr",
+        Expr::GetVar(_) => "GetVar",
+        Expr::DeserializeRegister(_) => "DeserializeRegister",
+        Expr::DeserializeContext(_) => "DeserializeContext",
+        Expr::MultiplyGroup(_) => "MultiplyGroup",
+        Expr::Exponentiate(_) => "Exponentiate",
+        Expr::XorOf(_) => "XorOf",
+        Expr::DecodePoint(_) => "DecodePoint",
+        Expr::TreeLookup(_) => "TreeLookup",
+        Expr::CreateAvlTree(_) => "CreateAvlTree",
+        Expr::SigmaPropIsProven(_) => "SigmaPropIsProven",
+        Expr::ZkProofBlock(_) => "ZkProofBlock",
+        Expr::Map(_) => "Map",
+        Expr::Filter(_) => "Filter",
+        Expr::Fold(_) => "Fold",
+        Expr::Exists(_) => "Exists",
+        Expr::ForAll(_) => "ForAll",
     }
 }
 
