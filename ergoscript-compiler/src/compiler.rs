@@ -5770,14 +5770,10 @@ fn debug_gluon() {
     }
 }
 
-/// Local-only probe (Session 24, QB1 Phase 3.2): for each sig-15 fixture,
-/// compile locally and emit hex + length. No node call. Set `SIG15_FILTER=NAME`
-/// to limit. Used to compare HC=0 vs CSE_HC_V2=1 byte-output offline (no live
-/// node needed since the 12 MATCH fixtures' HC=0 LOCAL output is by definition
-/// equal to NODE's).
+/// Local-only probe: for each sig-15 fixture, compile locally and emit hex +
+/// length. No node call. Set `SIG15_FILTER=NAME` to limit.
 ///
 /// Run: cargo test -p ergoscript-compiler probe_sig15_local_hex -- --ignored --nocapture
-/// Also: CSE_HC_V2=1 cargo test -p ergoscript-compiler probe_sig15_local_hex -- --ignored --nocapture
 #[test]
 #[ignore]
 fn probe_sig15_local_hex() {
@@ -5877,9 +5873,7 @@ fn probe_sig15_local_hex() {
         .join("significant_15");
 
     let filter = std::env::var("SIG15_FILTER").ok();
-    let hc_v2 = std::env::var("CSE_HC_V2").as_deref() == Ok("1");
-    let mode = if hc_v2 { "CSE_HC_V2=1" } else { "HC=0 default" };
-    eprintln!("\n=== Sig-15 LOCAL hex probe (mode: {}) ===", mode);
+    eprintln!("\n=== Sig-15 LOCAL hex probe ===");
 
     for (fixture, prelude) in fixtures {
         if let Some(ref f) = filter {
