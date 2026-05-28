@@ -532,12 +532,7 @@ fn count_alias_split_occurrences(
         }
     }
     if let Expr::If(if_op) = expr {
-        count_alias_split_occurrences(
-            &if_op.condition,
-            in_if_branch,
-            eager_counts,
-            branch_counts,
-        );
+        count_alias_split_occurrences(&if_op.condition, in_if_branch, eager_counts, branch_counts);
         count_alias_split_occurrences(&if_op.true_branch, true, eager_counts, branch_counts);
         count_alias_split_occurrences(&if_op.false_branch, true, eager_counts, branch_counts);
         return;
@@ -581,7 +576,12 @@ fn inline_alias_vals_walk(
             for item in s.expr.items.iter_mut() {
                 inline_alias_vals_walk(item, in_if_branch, eager_counts, branch_counts);
             }
-            inline_alias_vals_walk(&mut s.expr.result, in_if_branch, eager_counts, branch_counts);
+            inline_alias_vals_walk(
+                &mut s.expr.result,
+                in_if_branch,
+                eager_counts,
+                branch_counts,
+            );
 
             let mut inline_map: indexmap::IndexMap<u32, Expr> = indexmap::IndexMap::new();
             for item in s.expr.items.iter() {
@@ -631,7 +631,8 @@ fn inline_alias_vals_walk(
                     val_id: ValId(*val_id),
                     tpe: rhs.tpe(),
                 });
-                let new_items: Vec<Expr> = s.expr
+                let new_items: Vec<Expr> = s
+                    .expr
                     .items
                     .iter()
                     .map(|i| replace_all(i, &val_use, rhs))
@@ -650,7 +651,6 @@ fn inline_alias_vals_walk(
         }
     }
 }
-
 
 /// Re-assign val IDs in DFS traversal order from the result expression.
 ///
@@ -1330,12 +1330,8 @@ fn extract_if_cond_shared(
             Expr::ByIndex(s)
                 if matches!(*s.expr.input, Expr::ValUse(_))
                     && matches!(*s.expr.index, Expr::Const(_))
-        ) && all_occurrences_in_one_inner_if_branches(
-            &current_items,
-            &current_result,
-            &sub,
-            cnt,
-        ) {
+        ) && all_occurrences_in_one_inner_if_branches(&current_items, &current_result, &sub, cnt)
+        {
             continue;
         }
         // BISECT-A4 (S12): reject BinOp candidates whose entire subtree
@@ -1617,20 +1613,19 @@ fn inline_single_use_vals(expr: Expr) -> Expr {
                     let id = vd.expr.id.0;
                     let count = use_counts.get(&id).copied().unwrap_or(0);
                     if count == 1 {
-                        let mut rhs_to_inline =
-                            if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
-                                // Hoist inner items to surrounding scope; inline
-                                // only the BlockValue's result at the use site.
-                                for inner in inner_bv.expr.items.iter() {
-                                    if let Expr::ValDef(inner_vd) = inner {
-                                        hoisted_ids.push(inner_vd.expr.id.0);
-                                    }
-                                    hoisted_items.push(inner.clone());
+                        let mut rhs_to_inline = if let Expr::BlockValue(inner_bv) = &*vd.expr.rhs {
+                            // Hoist inner items to surrounding scope; inline
+                            // only the BlockValue's result at the use site.
+                            for inner in inner_bv.expr.items.iter() {
+                                if let Expr::ValDef(inner_vd) = inner {
+                                    hoisted_ids.push(inner_vd.expr.id.0);
                                 }
-                                (*inner_bv.expr.result).clone()
-                            } else {
-                                (*vd.expr.rhs).clone()
-                            };
+                                hoisted_items.push(inner.clone());
+                            }
+                            (*inner_bv.expr.result).clone()
+                        } else {
+                            (*vd.expr.rhs).clone()
+                        };
                         // Forward-substitute prior single-use inlines into this
                         // RHS so the later sequential `replace_all` over the
                         // block doesn't reintroduce a ValUse(K) whose ValDef(K)
@@ -2559,7 +2554,14 @@ fn emit_deps(
             for item in &s.expr.items {
                 emit_deps(item, val_map, emitted, emitted_ids, in_thunk, false);
             }
-            emit_deps(&s.expr.result, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.result,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::ValDef(s) => emit_deps(&s.expr.rhs, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::BinOp(s) => {
@@ -2608,7 +2610,14 @@ fn emit_deps(
                 }
             } else {
                 emit_deps(&s.expr.left, val_map, emitted, emitted_ids, in_thunk, false);
-                emit_deps(&s.expr.right, val_map, emitted, emitted_ids, in_thunk, false);
+                emit_deps(
+                    &s.expr.right,
+                    val_map,
+                    emitted,
+                    emitted_ids,
+                    in_thunk,
+                    false,
+                );
             }
         }
         Expr::BoolToSigmaProp(bts) => {
@@ -2616,7 +2625,14 @@ fn emit_deps(
         }
         Expr::If(if_op) => {
             // Condition is in the main scope — process normally
-            emit_deps(&if_op.condition, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &if_op.condition,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
             // If branches are ThunkDef scopes in Scala's graph IR.
             // ThunkDef.deps (free variables) are ordered by symbol ID,
             // so we collect all val refs from both branches, sort by ID,
@@ -2653,10 +2669,7 @@ fn emit_deps(
                 if let Some(Expr::ValDef(vd)) = val_map.get(&id) {
                     let mut deps: Vec<u32> = Vec::new();
                     collect_all_val_uses(&vd.expr.rhs, &mut deps);
-                    if deps
-                        .iter()
-                        .any(|d| *d != id && direct_set.contains(d))
-                    {
+                    if deps.iter().any(|d| *d != id && direct_set.contains(d)) {
                         has_direct_interleave = true;
                         break;
                     }
@@ -2769,77 +2782,242 @@ fn emit_deps(
             }
         }
         Expr::Filter(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.condition,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Exists(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.condition,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::ForAll(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.condition, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.condition,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Map(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.mapper, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.mapper,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Fold(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
             emit_deps(&s.expr.zero, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.fold_op, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.fold_op,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::FuncValue(fv) => emit_deps(fv.body(), val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::PropertyCall(s) => emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::PropertyCall(s) => {
+            emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk, false)
+        }
         Expr::MethodCall(s) => {
             emit_deps(&s.expr.obj, val_map, emitted, emitted_ids, in_thunk, false);
             for a in &s.expr.args {
                 emit_deps(a, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
-        Expr::ByteArrayToBigInt(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
+        Expr::ByteArrayToBigInt(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::ExtractAmount(ea) => {
+            emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
-        Expr::ExtractAmount(ea) => emit_deps(&ea.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::ExtractRegisterAs(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
-        }
+        Expr::ExtractRegisterAs(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
         Expr::ExtractScriptBytes(esb) => {
             emit_deps(&esb.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
-        Expr::ExtractBytes(eb) => emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::ExtractBytes(eb) => {
+            emit_deps(&eb.input, val_map, emitted, emitted_ids, in_thunk, false)
+        }
         Expr::ExtractId(ei) => emit_deps(&ei.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::ExtractCreationInfo(eci) => {
             emit_deps(&eci.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
         Expr::SizeOf(so) => emit_deps(&so.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::ByIndex(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.index, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.index,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
             if let Some(ref d) = s.expr.default {
                 emit_deps(d, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
-        Expr::SelectField(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::OptionGet(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::OptionIsDefined(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false)
-        }
+        Expr::SelectField(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::OptionGet(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::OptionIsDefined(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
         Expr::OptionGetOrElse(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.default, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.default,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Slice(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
             emit_deps(&s.expr.from, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.until, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.until,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
-        Expr::LogicalNot(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::Negation(s) => emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::SigmaPropBytes(spb) => emit_deps(&spb.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::LogicalNot(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::Negation(s) => emit_deps(
+            &s.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::SigmaPropBytes(spb) => {
+            emit_deps(&spb.input, val_map, emitted, emitted_ids, in_thunk, false)
+        }
         Expr::Upcast(uc) => emit_deps(&uc.input, val_map, emitted, emitted_ids, in_thunk, false),
         Expr::Downcast(dc) => emit_deps(&dc.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::CalcBlake2b256(cb) => emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::CalcBlake2b256(cb) => {
+            emit_deps(&cb.input, val_map, emitted, emitted_ids, in_thunk, false)
+        }
         Expr::CreateProveDlog(cpd) => {
             emit_deps(&cpd.input, val_map, emitted, emitted_ids, in_thunk, false)
         }
@@ -2867,7 +3045,14 @@ fn emit_deps(
         Expr::TreeLookup(s) => {
             emit_deps(&s.expr.tree, val_map, emitted, emitted_ids, in_thunk, false);
             emit_deps(&s.expr.key, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.proof, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.proof,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Apply(app) => {
             emit_deps(&app.func, val_map, emitted, emitted_ids, in_thunk, false);
@@ -2875,16 +3060,44 @@ fn emit_deps(
                 emit_deps(a, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
-        Expr::And(a) => emit_deps(&a.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
-        Expr::Or(o) => emit_deps(&o.expr.input, val_map, emitted, emitted_ids, in_thunk, false),
+        Expr::And(a) => emit_deps(
+            &a.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
+        Expr::Or(o) => emit_deps(
+            &o.expr.input,
+            val_map,
+            emitted,
+            emitted_ids,
+            in_thunk,
+            false,
+        ),
         Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) => {
             for item in items {
                 emit_deps(item, val_map, emitted, emitted_ids, in_thunk, false);
             }
         }
         Expr::Append(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
-            emit_deps(&s.expr.col_2, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
+            emit_deps(
+                &s.expr.col_2,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         Expr::Exponentiate(s) => {
             emit_deps(&s.left, val_map, emitted, emitted_ids, in_thunk, false);
@@ -2901,7 +3114,14 @@ fn emit_deps(
             emit_deps(&s.input, val_map, emitted, emitted_ids, in_thunk, false);
         }
         Expr::ByteArrayToLong(s) => {
-            emit_deps(&s.expr.input, val_map, emitted, emitted_ids, in_thunk, false);
+            emit_deps(
+                &s.expr.input,
+                val_map,
+                emitted,
+                emitted_ids,
+                in_thunk,
+                false,
+            );
         }
         _ => {}
     }
@@ -3445,8 +3665,7 @@ fn cse_expr(expr: Expr, global_max_id: u32, is_lambda_scope: bool) -> Expr {
                 let better = match &best {
                     None => true,
                     Some((_, best_sav, best_depth)) => {
-                        savings > *best_sav
-                            || (savings == *best_sav && depth < *best_depth)
+                        savings > *best_sav || (savings == *best_sav && depth < *best_depth)
                     }
                 };
                 if better {
@@ -3879,9 +4098,11 @@ fn map_children_with_id(expr: Expr, gid: u32, f: fn(Expr, u32) -> Expr) -> Expr 
             }
             other => Expr::Collection(other),
         },
-        Expr::Atleast(s) => ergotree_ir::mir::atleast::Atleast::new(f(*s.bound, gid), f(*s.input, gid))
-            .map(Expr::Atleast)
-            .expect("Atleast::new in map_children_with_id"),
+        Expr::Atleast(s) => {
+            ergotree_ir::mir::atleast::Atleast::new(f(*s.bound, gid), f(*s.input, gid))
+                .map(Expr::Atleast)
+                .expect("Atleast::new in map_children_with_id")
+        }
         // Other types: pass through (no child Expr fields containing nested Ifs)
         other => other,
     }
@@ -4780,9 +5001,7 @@ fn contains_func_value(expr: &Expr) -> bool {
                 || contains_func_value(&s.expr.from)
                 || contains_func_value(&s.expr.until)
         }
-        Expr::Append(s) => {
-            contains_func_value(&s.expr.input) || contains_func_value(&s.expr.col_2)
-        }
+        Expr::Append(s) => contains_func_value(&s.expr.input) || contains_func_value(&s.expr.col_2),
         Expr::Tuple(t) => t.items.iter().any(contains_func_value),
         Expr::And(a) => contains_func_value(&a.expr.input),
         Expr::Or(o) => contains_func_value(&o.expr.input),
@@ -4851,9 +5070,7 @@ fn contains_func_value(expr: &Expr) -> bool {
                 || contains_func_value(&s.key_length)
                 || contains_func_value(&s.value_length)
         }
-        Expr::DeserializeRegister(s) => {
-            s.default.as_deref().is_some_and(contains_func_value)
-        }
+        Expr::DeserializeRegister(s) => s.default.as_deref().is_some_and(contains_func_value),
         _ => false,
     }
 }
@@ -5048,11 +5265,9 @@ fn direct_children(expr: &Expr) -> Vec<&Expr> {
         Expr::XorOf(s) => vec![&s.input],
         // Multi-child arms — G.2.3a, audit 1.A.
         Expr::Xor(s) => vec![&s.left, &s.right],
-        Expr::SubstConstants(s) => vec![
-            &s.expr.script_bytes,
-            &s.expr.positions,
-            &s.expr.new_values,
-        ],
+        Expr::SubstConstants(s) => {
+            vec![&s.expr.script_bytes, &s.expr.positions, &s.expr.new_values]
+        }
         Expr::CreateAvlTree(s) => {
             vec![&s.flags, &s.digest, &s.key_length, &s.value_length]
         }
@@ -5381,7 +5596,11 @@ fn walk_orphan(expr: &Expr, scope: &HashSet<u32>, count: &mut usize) {
 /// also appear outside If.cond).
 fn count_in_if_cond(expr: &Expr, target: &Expr, inside_cond: bool) -> (usize, usize) {
     let here = if expr == target {
-        if inside_cond { (1, 0) } else { (0, 1) }
+        if inside_cond {
+            (1, 0)
+        } else {
+            (0, 1)
+        }
     } else {
         (0, 0)
     };
@@ -5411,7 +5630,7 @@ fn count_in_if_cond(expr: &Expr, target: &Expr, inside_cond: bool) -> (usize, us
         }
         other => {
             for c in direct_children(other) {
-                add(count_in_if_cond(&c, target, inside_cond));
+                add(count_in_if_cond(c, target, inside_cond));
             }
         }
     }
@@ -5479,8 +5698,10 @@ pub(crate) fn count_const_sint(expr: &Expr, target: i32) -> usize {
     let mut all = Vec::new();
     collect_consts(expr, &mut all);
     all.iter()
-        .filter(|c| matches!(c, Expr::Const(k)
-            if matches!(k.v, ergotree_ir::mir::constant::Literal::Int(v) if v == target)))
+        .filter(|c| {
+            matches!(c, Expr::Const(k)
+            if matches!(k.v, ergotree_ir::mir::constant::Literal::Int(v) if v == target))
+        })
         .count()
 }
 
@@ -5520,8 +5741,8 @@ fn shape_signature(e: &Expr) -> String {
         Expr::CalcSha256(_) => ("Sha", None),
         Expr::FuncValue(_) => ("Fn", None),
         Expr::Apply(_) => ("Apply", None),
-        Expr::MethodCall(m) => ("MC", Some(format!("{}", m.expr().method.name()))),
-        Expr::PropertyCall(p) => ("PC", Some(format!("{}", p.expr().method.name()))),
+        Expr::MethodCall(m) => ("MC", Some(m.expr().method.name().to_string())),
+        Expr::PropertyCall(p) => ("PC", Some(p.expr().method.name().to_string())),
         Expr::BlockValue(_) => ("Block", None),
         Expr::ValDef(v) => ("VD", Some(format!("id={}", v.expr().id.0))),
         Expr::If(_) => ("If", None),
@@ -5537,10 +5758,7 @@ fn shape_signature(e: &Expr) -> String {
         Expr::OptionIsDefined(_) => ("OIsDef", None),
         Expr::OptionGetOrElse(_) => ("OGetOr", None),
         Expr::ExtractAmount(_) => ("ExAmt", None),
-        Expr::ExtractRegisterAs(r) => (
-            "ExReg",
-            Some(format!("R{}", r.expr().register_id)),
-        ),
+        Expr::ExtractRegisterAs(r) => ("ExReg", Some(format!("R{}", r.expr().register_id))),
         Expr::ExtractBytes(_) => ("ExBytes", None),
         Expr::ExtractBytesWithNoRef(_) => ("ExBNoRef", None),
         Expr::ExtractScriptBytes(_) => ("ExScript", None),
@@ -5548,7 +5766,14 @@ fn shape_signature(e: &Expr) -> String {
         Expr::ExtractId(_) => ("ExId", None),
         Expr::ByIndex(b) => (
             "ByIdx",
-            Some(if b.expr().default.is_some() { "or" } else { "raw" }.to_string()),
+            Some(
+                if b.expr().default.is_some() {
+                    "or"
+                } else {
+                    "raw"
+                }
+                .to_string(),
+            ),
         ),
         Expr::SizeOf(_) => ("SizeOf", None),
         Expr::Slice(_) => ("Slice", None),
@@ -5596,7 +5821,11 @@ fn shape_signature(e: &Expr) -> String {
 /// Q24-S3 — count subtree occurrences of `target` shape anywhere in `expr`.
 fn count_shape_tree(expr: &Expr, target: &str) -> usize {
     use ergotree_ir::traversable::Traversable;
-    let mut count = if shape_signature(expr) == target { 1 } else { 0 };
+    let mut count = if shape_signature(expr) == target {
+        1
+    } else {
+        0
+    };
     for child in expr.children() {
         count += count_shape_tree(child, target);
     }
@@ -5961,9 +6190,7 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
     // Predicate: count outer ValDef RHS matches.
     let outer_vd_count: usize = items
         .iter()
-        .filter(|i| {
-            matches!(i, Expr::ValDef(vd) if shape_signature(&vd.expr.rhs) == TARGET_SHAPE)
-        })
+        .filter(|i| matches!(i, Expr::ValDef(vd) if shape_signature(&vd.expr.rhs) == TARGET_SHAPE))
         .count();
     if outer_vd_count == 0 {
         return Expr::BlockValue(Spanned {
@@ -6103,7 +6330,9 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
             if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
                 eprintln!(
                     "[PROMOTE_S2/lift] BAIL unreachable={} closure_size={} match_orphans={:?}",
-                    unreachable, closure_set.len(), match_orphans
+                    unreachable,
+                    closure_set.len(),
+                    match_orphans
                 );
             }
             (items, result, Vec::new(), outer_scope)
@@ -6172,10 +6401,13 @@ fn promote_branch_emerged_s2(expr: Expr, next_id: &mut u32) -> Expr {
                     },
                 })
             }
-            other => extract_inline_shape(other, TARGET_SHAPE, next_id, &mut extracted, &outer_scope),
+            other => {
+                extract_inline_shape(other, TARGET_SHAPE, next_id, &mut extracted, &outer_scope)
+            }
         })
         .collect();
-    let new_result = extract_inline_shape(result, TARGET_SHAPE, next_id, &mut extracted, &outer_scope);
+    let new_result =
+        extract_inline_shape(result, TARGET_SHAPE, next_id, &mut extracted, &outer_scope);
 
     if extracted.is_empty() {
         return Expr::BlockValue(Spanned {
@@ -6238,7 +6470,9 @@ fn extract_inline_shape(
             // matches can be extracted.
             return match expr {
                 Expr::FuncValue(_) => expr,
-                other => map_children_extract_shape(other, target_shape, next_id, extracted, outer_scope),
+                other => {
+                    map_children_extract_shape(other, target_shape, next_id, extracted, outer_scope)
+                }
             };
         }
         if std::env::var("CSE_TRACE_PROMOTE_S2").is_ok() {
@@ -6452,16 +6686,14 @@ fn map_children_extract_shape(
                 input: r!(*es.input).into(),
             },
         ),
-        Expr::ExtractId(es) => {
-            Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+        Expr::ExtractId(es) => Expr::ExtractId(ergotree_ir::mir::extract_id::ExtractId {
+            input: r!(*es.input).into(),
+        }),
+        Expr::ExtractCreationInfo(es) => Expr::ExtractCreationInfo(
+            ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
                 input: r!(*es.input).into(),
-            })
-        }
-        Expr::ExtractCreationInfo(es) => {
-            Expr::ExtractCreationInfo(ergotree_ir::mir::extract_creation_info::ExtractCreationInfo {
-                input: r!(*es.input).into(),
-            })
-        }
+            },
+        ),
         Expr::SelectField(s) => {
             let input = r!(*s.expr.input);
             ergotree_ir::mir::select_field::SelectField::new(input, s.expr.field_index)
@@ -6524,7 +6756,8 @@ fn map_children_extract_shape(
         Expr::Upcast(u) => {
             let tpe = u.tpe.clone();
             Expr::Upcast(
-                ergotree_ir::mir::upcast::Upcast::new(r!(*u.input), tpe).expect("Upcast in extract"),
+                ergotree_ir::mir::upcast::Upcast::new(r!(*u.input), tpe)
+                    .expect("Upcast in extract"),
             )
         }
         Expr::Downcast(d) => {
@@ -6601,8 +6834,8 @@ fn collect_valdef_paths(
     }
 }
 
-fn collect_orphan_paths<'a>(
-    expr: &'a Expr,
+fn collect_orphan_paths(
+    expr: &Expr,
     scope: &HashSet<u32>,
     path: &mut Vec<&'static str>,
     out: &mut Vec<(u32, ergotree_ir::types::stype::SType, Vec<&'static str>)>,
@@ -6849,26 +7082,46 @@ fn map_children_remove(expr: Expr, to_remove: &HashSet<u32>) -> Expr {
             let index = r!(*s.expr.index);
             let default = s.expr.default.map(|d| Box::new(r!(*d)));
             ergotree_ir::mir::coll_by_index::ByIndex::new(input, index, default)
-                .map(|bi| Expr::ByIndex(Spanned { source_span: s.source_span, expr: bi }))
+                .map(|bi| {
+                    Expr::ByIndex(Spanned {
+                        source_span: s.source_span,
+                        expr: bi,
+                    })
+                })
                 .expect("ByIndex in remove_valdefs_in_blocks")
         }
         Expr::OptionGet(og) => {
             let input = r!(*og.expr.input);
             ergotree_ir::mir::option_get::OptionGet::try_build(input)
-                .map(|x| Expr::OptionGet(Spanned { source_span: og.source_span, expr: x }))
+                .map(|x| {
+                    Expr::OptionGet(Spanned {
+                        source_span: og.source_span,
+                        expr: x,
+                    })
+                })
                 .expect("OptionGet in remove_valdefs_in_blocks")
         }
         Expr::OptionGetOrElse(s) => {
             let input = r!(*s.expr.input);
             let default = r!(*s.expr.default);
             ergotree_ir::mir::option_get_or_else::OptionGetOrElse::new(input, default)
-                .map(|x| Expr::OptionGetOrElse(Spanned { source_span: s.source_span, expr: x }))
+                .map(|x| {
+                    Expr::OptionGetOrElse(Spanned {
+                        source_span: s.source_span,
+                        expr: x,
+                    })
+                })
                 .expect("OptionGetOrElse in remove_valdefs_in_blocks")
         }
         Expr::OptionIsDefined(s) => {
             let input = r!(*s.expr.input);
             ergotree_ir::mir::option_is_defined::OptionIsDefined::try_build(input)
-                .map(|x| Expr::OptionIsDefined(Spanned { source_span: s.source_span, expr: x }))
+                .map(|x| {
+                    Expr::OptionIsDefined(Spanned {
+                        source_span: s.source_span,
+                        expr: x,
+                    })
+                })
                 .expect("OptionIsDefined in remove_valdefs_in_blocks")
         }
         Expr::ExtractRegisterAs(s) => {
@@ -6878,7 +7131,12 @@ fn map_children_remove(expr: Expr, to_remove: &HashSet<u32>) -> Expr {
                 s.expr.register_id,
                 ergotree_ir::types::stype::SType::SOption(s.expr.elem_tpe),
             )
-            .map(|x| Expr::ExtractRegisterAs(Spanned { source_span: s.source_span, expr: x }))
+            .map(|x| {
+                Expr::ExtractRegisterAs(Spanned {
+                    source_span: s.source_span,
+                    expr: x,
+                })
+            })
             .expect("ExtractRegisterAs in remove_valdefs_in_blocks")
         }
         Expr::ExtractScriptBytes(es) => {
@@ -7013,7 +7271,6 @@ fn collect_orphan_ids(expr: &Expr, scope: &HashSet<u32>, out: &mut Vec<u32>) {
         }
     }
 }
-
 
 // -----------------------------------------------------------------------
 // Graph IR: processAstGraph port
@@ -8007,7 +8264,9 @@ fn touches_runtime_context(expr: &Expr) -> bool {
     match expr {
         Expr::ValUse(_) | Expr::GlobalVars(_) | Expr::Context | Expr::GetVar(_) => true,
         Expr::Global => false,
-        _ => direct_children(expr).into_iter().any(touches_runtime_context),
+        _ => direct_children(expr)
+            .into_iter()
+            .any(touches_runtime_context),
     }
 }
 
@@ -8782,8 +9041,8 @@ fn process_ast_graph_impl(
                 // this carve-out, `appears_in_main_scope` (strict) rejects the
                 // candidate and Rust inlines twice, diverging from Scala.
                 // Empirical fixtures: composition_143, composition_189.
-                let is_global_only_provedlog = matches!(node, Expr::CreateProveDlog(_))
-                    && !touches_runtime_context(node);
+                let is_global_only_provedlog =
+                    matches!(node, Expr::CreateProveDlog(_)) && !touches_runtime_context(node);
                 // sig-15 sigmao_option (`168acaf2`) and paideia_stake_state S3 (`d6ba8d82`):
                 // SelectField is hash-consed by Scala's TreeBuilding on (input_sym, field_index)
                 // — the SelectField sym depends only on the input sym. When the input is
@@ -9508,7 +9767,7 @@ fn lambda_rescue_post_pass(
             }
             let depth = expr_depth(cand) as i32;
             let savings = (total as i32 - 1) * depth;
-            if best.as_ref().map_or(true, |(_, s)| savings > *s) {
+            if best.as_ref().is_none_or(|(_, s)| savings > *s) {
                 best = Some((cand.clone(), savings));
             }
         }
@@ -10260,11 +10519,9 @@ fn replace_all(expr: &Expr, target: &Expr, replacement: &Expr) -> Expr {
         }
         Expr::SigmaPropIsProven(s) => {
             let new_input = replace_all(&s.input, target, replacement);
-            Expr::SigmaPropIsProven(
-                ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven {
-                    input: new_input.into(),
-                },
-            )
+            Expr::SigmaPropIsProven(ergotree_ir::mir::sigma_prop_is_proven::SigmaPropIsProven {
+                input: new_input.into(),
+            })
         }
         Expr::XorOf(s) => {
             let new_input = replace_all(&s.input, target, replacement);
@@ -11292,31 +11549,33 @@ fn try_hoist_s37_in_block(
     // commit body and module header.
     let mut accepted: Vec<S37GroupedPair> = Vec::new();
     let mut taken: HashSet<(usize, usize)> = HashSet::new();
-    for i in 0..branch_items.len() {
-        let items_i = match &branch_items[i] {
+    // Group entry: (branch_idx, item_pos, swap, item_expr).
+    type GroupEntry = (usize, usize, Option<(u32, u32)>, Expr);
+    // Paired-position record for inner loop.
+    type PairedPos = (usize, Option<(u32, u32)>, Expr);
+    for (i, items_i_opt) in branch_items.iter().enumerate() {
+        let items_i = match items_i_opt {
             Some(v) => v.clone(),
             None => continue,
         };
-        for pos_p in 0..items_i.len() {
+        for (pos_p, item_p) in items_i.iter().enumerate() {
             if taken.contains(&(i, pos_p)) {
                 continue;
             }
-            let item_p = &items_i[pos_p];
             // Collect all branches (including i) where the item is
             // swap-symmetric to item_p; canonical_rhs = item_p.
-            let mut group: Vec<(usize, usize, Option<(u32, u32)>, Expr)> = Vec::new();
+            let mut group: Vec<GroupEntry> = Vec::new();
             group.push((i, pos_p, None, item_p.clone()));
-            for j in (i + 1)..branch_items.len() {
-                let items_j = match &branch_items[j] {
+            for (j, items_j_opt) in branch_items.iter().enumerate().skip(i + 1) {
+                let items_j = match items_j_opt {
                     Some(v) => v,
                     None => continue,
                 };
-                let mut paired_pos_q: Option<(usize, Option<(u32, u32)>, Expr)> = None;
-                for pos_q in 0..items_j.len() {
+                let mut paired_pos_q: Option<PairedPos> = None;
+                for (pos_q, item_q) in items_j.iter().enumerate() {
                     if taken.contains(&(j, pos_q)) {
                         continue;
                     }
-                    let item_q = &items_j[pos_q];
                     if let Some(swap) = s37_is_swap_symmetric(item_p, item_q) {
                         if ctx.only_trivial && swap.is_some() {
                             continue;
@@ -11380,10 +11639,7 @@ fn try_hoist_s37_in_block(
     }
     ctx.gate_fires += 1;
     if ctx.trace {
-        eprintln!(
-            "[S37_GATE] verdict=accept hoist_pairs={}",
-            accepted.len()
-        );
+        eprintln!("[S37_GATE] verdict=accept hoist_pairs={}", accepted.len());
     }
 
     let mut new_outer_defs: Vec<Expr> = Vec::new();
@@ -11470,14 +11726,9 @@ struct S37GroupSite {
 fn s37_gate_arity_1_chained_if_depth_ge_3(expr: &Expr) -> bool {
     let mut depth = 0u32;
     let mut cursor = expr;
-    loop {
-        match cursor {
-            Expr::If(if_op) => {
-                depth += 1;
-                cursor = &if_op.false_branch;
-            }
-            _ => break,
-        }
+    while let Expr::If(if_op) = cursor {
+        depth += 1;
+        cursor = &if_op.false_branch;
     }
     depth >= 3
 }
@@ -11738,9 +11989,8 @@ fn s37_rewrite_inplace_in_terminal(expr: &mut Expr, pos: usize, replacement: &Ex
     let cur: &mut Expr = s37_descend_to_all_of(expr);
     if let Expr::And(a) = cur {
         let input_box = &mut a.expr.input;
-        if let Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs {
-            items, ..
-        }) = input_box.as_mut()
+        if let Expr::Collection(ergotree_ir::mir::collection::Collection::Exprs { items, .. }) =
+            input_box.as_mut()
         {
             if pos < items.len() {
                 items[pos] = replacement.clone();
@@ -12190,13 +12440,17 @@ mod walker_completeness_probe {
 
     #[test]
     fn calc_sha256_has_one_child() {
-        let e = Expr::CalcSha256(CalcSha256 { input: Box::new(cb_bytes()) });
+        let e = Expr::CalcSha256(CalcSha256 {
+            input: Box::new(cb_bytes()),
+        });
         assert_eq!(direct_children(&e).len(), 1);
     }
 
     #[test]
     fn bit_inversion_has_one_child() {
-        let e = Expr::BitInversion(BitInversion { input: Box::new(ci(7)) });
+        let e = Expr::BitInversion(BitInversion {
+            input: Box::new(ci(7)),
+        });
         assert_eq!(direct_children(&e).len(), 1);
     }
 
@@ -12220,7 +12474,9 @@ mod walker_completeness_probe {
                 ergotree_ir::mir::global_vars::GlobalVars::Height,
             )),
         });
-        let e = Expr::SigmaPropIsProven(SigmaPropIsProven { input: Box::new(body) });
+        let e = Expr::SigmaPropIsProven(SigmaPropIsProven {
+            input: Box::new(body),
+        });
         assert_eq!(direct_children(&e).len(), 1);
     }
 
@@ -12309,7 +12565,9 @@ mod walker_completeness_probe {
                 ergotree_ir::mir::global_vars::GlobalVars::Height,
             )),
         });
-        let e = Expr::ZkProofBlock(ZkProofBlock { input: Box::new(body) });
+        let e = Expr::ZkProofBlock(ZkProofBlock {
+            input: Box::new(body),
+        });
         assert_eq!(direct_children(&e).len(), 1);
     }
 }

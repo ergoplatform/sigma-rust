@@ -162,12 +162,7 @@ fn cache_lookup(
     None
 }
 
-fn cache_store(
-    cache_dir: &Path,
-    info_hash: &str,
-    source: &str,
-    result: &Result<Vec<u8>, String>,
-) {
+fn cache_store(cache_dir: &Path, info_hash: &str, source: &str, result: &Result<Vec<u8>, String>) {
     let stem = cache_stem(info_hash, source);
     let (path, tmp, payload): (PathBuf, PathBuf, Vec<u8>) = match result {
         Ok(bytes) => (
@@ -324,8 +319,8 @@ fn build_corpus(crate_root: &Path) -> Vec<(String, String)> {
         .join("significant_15");
     for (fname, prelude) in significant_15_preludes() {
         let path = sig15_dir.join(fname);
-        let raw = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+        let raw =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
         let source = if prelude.is_empty() {
             raw
         } else if let Some(idx) = raw.find('{') {
@@ -441,9 +436,7 @@ fn significant_15_preludes() -> Vec<(&'static str, String)> {
 fn test_diff_fuzz() {
     let api_key = std::env::var("API_KEY").unwrap_or_default();
     if api_key.is_empty() {
-        eprintln!(
-            "WARN: API_KEY not set — proceeding (read-only endpoints may not require auth)"
-        );
+        eprintln!("WARN: API_KEY not set — proceeding (read-only endpoints may not require auth)");
     }
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let out_root = crate_root.join("target").join("diff_fuzz");
@@ -824,28 +817,94 @@ fn normalize_error(err: &str) -> String {
 fn construct_fingerprint(source: &str) -> Vec<String> {
     let mut tokens: Vec<String> = Vec::new();
     let known_predefs: &[&str] = &[
-        "sigmaProp", "anyOf", "allOf", "atLeast", "blake2b256", "sha256",
-        "byteArrayToBigInt", "byteArrayToLong", "longToByteArray",
-        "decodePoint", "groupGenerator", "fromBase16", "fromBase58",
-        "proveDlog", "proveDHTuple", "getVar", "OUTPUTS", "INPUTS",
-        "SELF", "CONTEXT", "HEIGHT", "MIN_VALUE", "MAX_VALUE",
-        "Coll", "Some", "None", "Option", "min", "max", "abs",
-        "executeFromVar", "substConstants", "xorOf", "logicalNot",
-        "outerJoin", "place_holder",
+        "sigmaProp",
+        "anyOf",
+        "allOf",
+        "atLeast",
+        "blake2b256",
+        "sha256",
+        "byteArrayToBigInt",
+        "byteArrayToLong",
+        "longToByteArray",
+        "decodePoint",
+        "groupGenerator",
+        "fromBase16",
+        "fromBase58",
+        "proveDlog",
+        "proveDHTuple",
+        "getVar",
+        "OUTPUTS",
+        "INPUTS",
+        "SELF",
+        "CONTEXT",
+        "HEIGHT",
+        "MIN_VALUE",
+        "MAX_VALUE",
+        "Coll",
+        "Some",
+        "None",
+        "Option",
+        "min",
+        "max",
+        "abs",
+        "executeFromVar",
+        "substConstants",
+        "xorOf",
+        "logicalNot",
+        "outerJoin",
+        "place_holder",
     ];
     let known_methods: &[&str] = &[
-        "exp", "multiply", "negate", "getEncoded", "get", "getOrElse",
-        "isDefined", "isEmpty", "size", "filter", "map", "fold", "forall",
-        "exists", "indices", "indexOf", "slice", "append", "flatMap",
-        "patch", "updated", "updateMany", "zip", "toBigInt", "toByte",
-        "toShort", "toInt", "toLong", "toBytes", "toBits", "value",
-        "propositionBytes", "id", "bytes", "bytesWithoutRef",
-        "tokens", "creationInfo", "register", "R0", "R1", "R2", "R3",
-        "R4", "R5", "R6", "R7", "R8", "R9",
+        "exp",
+        "multiply",
+        "negate",
+        "getEncoded",
+        "get",
+        "getOrElse",
+        "isDefined",
+        "isEmpty",
+        "size",
+        "filter",
+        "map",
+        "fold",
+        "forall",
+        "exists",
+        "indices",
+        "indexOf",
+        "slice",
+        "append",
+        "flatMap",
+        "patch",
+        "updated",
+        "updateMany",
+        "zip",
+        "toBigInt",
+        "toByte",
+        "toShort",
+        "toInt",
+        "toLong",
+        "toBytes",
+        "toBits",
+        "value",
+        "propositionBytes",
+        "id",
+        "bytes",
+        "bytesWithoutRef",
+        "tokens",
+        "creationInfo",
+        "register",
+        "R0",
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R8",
+        "R9",
     ];
-    let known_forms: &[&str] = &[
-        "if", "else", "val", "fun", "true", "false",
-    ];
+    let known_forms: &[&str] = &["if", "else", "val", "fun", "true", "false"];
 
     // Identifier scan
     let bytes = source.as_bytes();
@@ -1014,8 +1073,7 @@ fn top_constructs(c: &Cluster, n: usize) -> Vec<(String, usize)> {
     for m in &c.members {
         // Use a per-member set so a construct repeated N times in one source
         // doesn't dominate the cluster summary.
-        let mut seen: std::collections::BTreeSet<&str> =
-            std::collections::BTreeSet::new();
+        let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
         for t in &m.constructs {
             seen.insert(t.as_str());
         }
@@ -1119,11 +1177,7 @@ ill-typed source. Should be 0 if F.2's typed-AST discipline is holding."
     }
 }
 
-fn write_cluster_file(
-    cluster_dir: &Path,
-    cluster_id: usize,
-    c: &Cluster,
-) -> String {
+fn write_cluster_file(cluster_dir: &Path, cluster_id: usize, c: &Cluster) -> String {
     let slug = cluster_slug(c);
     let filename = format!("{:03}_{}.md", cluster_id, slug);
     let path = cluster_dir.join(&filename);
@@ -1140,7 +1194,11 @@ fn write_cluster_file(
         .collect();
 
     let mut s = String::new();
-    s.push_str(&format!("# Cluster {:03} — {}\n\n", cluster_id, cluster_summary(c)));
+    s.push_str(&format!(
+        "# Cluster {:03} — {}\n\n",
+        cluster_id,
+        cluster_summary(c)
+    ));
     s.push_str(&format!("**Outcome:** {}\n", c.outcome.label()));
     s.push_str(&format!("**Tag:** {}\n", c.tag.label()));
     s.push_str(&format!("**Programs in cluster:** {}\n", c.members.len()));
@@ -1170,7 +1228,10 @@ fn write_cluster_file(
     s.push_str(&format!("**Cluster key:** `{}`\n\n", c.key));
 
     s.push_str("## Smallest representative\n\n");
-    s.push_str(&format!("Source: `{}` ({} non-empty lines)\n\n", representative.name, representative.line_count));
+    s.push_str(&format!(
+        "Source: `{}` ({} non-empty lines)\n\n",
+        representative.name, representative.line_count
+    ));
     s.push_str("```ergoscript\n");
     s.push_str(representative.source.trim_end());
     s.push_str("\n```\n\n");
@@ -1187,10 +1248,7 @@ fn write_cluster_file(
 
     s.push_str("## Five smallest\n\n");
     for m in sorted.iter().take(5) {
-        s.push_str(&format!(
-            "1. `{}` — {} lines\n",
-            m.name, m.line_count
-        ));
+        s.push_str(&format!("1. `{}` — {} lines\n", m.name, m.line_count));
     }
     s.push('\n');
 

@@ -426,7 +426,8 @@ mod tests {
         // p2sAddress probe. Mirror that here so Rust rejects too, instead of
         // silently emitting an unfolded BinOp.
         let byte_plus = "{ val r: Byte = (73.toByte) + (58.toByte); sigmaProp(r >= 0.toByte) }";
-        let short_mul = "{ val r: Short = (944.toShort) * (248.toShort); sigmaProp(r >= 0.toShort) }";
+        let short_mul =
+            "{ val r: Short = (944.toShort) * (248.toShort); sigmaProp(r >= 0.toShort) }";
         let byte_mul = "{ val r: Byte = (20.toByte) * (20.toByte); sigmaProp(r >= 0.toByte) }";
         let byte_safe = "{ val r: Byte = (1.toByte) + (2.toByte); sigmaProp(r >= 0.toByte) }";
         let err1 = compile(byte_plus, ScriptEnv::new()).expect_err("Byte+ overflow must reject");
@@ -4765,10 +4766,7 @@ fn expr_shape(e: &ergotree_ir::mir::expr::Expr) -> String {
         Expr::OptionIsDefined(_) => ("OIsDef", None),
         Expr::OptionGetOrElse(_) => ("OGetOr", None),
         Expr::ExtractAmount(_) => ("ExAmt", None),
-        Expr::ExtractRegisterAs(r) => (
-            "ExReg",
-            Some(format!("R{}", r.expr().register_id)),
-        ),
+        Expr::ExtractRegisterAs(r) => ("ExReg", Some(format!("R{}", r.expr().register_id))),
         Expr::ExtractBytes(_) => ("ExBytes", None),
         Expr::ExtractBytesWithNoRef(_) => ("ExBNoRef", None),
         Expr::ExtractScriptBytes(_) => ("ExScript", None),
@@ -4776,7 +4774,14 @@ fn expr_shape(e: &ergotree_ir::mir::expr::Expr) -> String {
         Expr::ExtractId(_) => ("ExId", None),
         Expr::ByIndex(b) => (
             "ByIdx",
-            Some(if b.expr().default.is_some() { "or" } else { "raw" }.to_string()),
+            Some(
+                if b.expr().default.is_some() {
+                    "or"
+                } else {
+                    "raw"
+                }
+                .to_string(),
+            ),
         ),
         Expr::SizeOf(_) => ("SizeOf", None),
         Expr::Slice(_) => ("Slice", None),
@@ -5261,13 +5266,18 @@ fn debug_skyharbor() {
     match first_diff {
         Some(off) => eprintln!(
             "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
-            off, off * 2, local_bytes[off], node_bytes[off]
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
         ),
         None => eprintln!("MATCH"),
     }
     eprintln!(
         "matched={:?}  bytes(canon)={}  bytes(local)={}",
-        canon.matched, node_bytes.len(), local_bytes.len()
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
     );
     eprintln!("\n=== CONSTANTS ===");
     eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
@@ -5308,7 +5318,9 @@ fn debug_phoenix() {
         .join("significant_15");
     let raw = std::fs::read_to_string(fixtures_dir.join("phoenix_hodlerg_bank_full.es")).unwrap();
     let prelude = "val phoenixFeeContractBytesHash: Coll[Byte] = fromBase16(\"0000000000000000000000000000000000000000000000000000000000000001\");\n";
-    let idx = raw.find('{').expect("phoenix_hodlerg_bank_full.es missing leading {");
+    let idx = raw
+        .find('{')
+        .expect("phoenix_hodlerg_bank_full.es missing leading {");
     let mut source = String::with_capacity(raw.len() + prelude.len());
     source.push_str(&raw[..=idx]);
     source.push('\n');
@@ -5331,13 +5343,18 @@ fn debug_phoenix() {
     match first_diff {
         Some(off) => eprintln!(
             "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
-            off, off * 2, local_bytes[off], node_bytes[off]
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
         ),
         None => eprintln!("MATCH"),
     }
     eprintln!(
         "matched={:?}  bytes(canon)={}  bytes(local)={}",
-        canon.matched, node_bytes.len(), local_bytes.len()
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
     );
     eprintln!("\n=== CONSTANTS ===");
     eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
@@ -5394,13 +5411,18 @@ fn debug_spectrum_n2t() {
     match first_diff {
         Some(off) => eprintln!(
             "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
-            off, off * 2, local_bytes[off], node_bytes[off]
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
         ),
         None => eprintln!("MATCH"),
     }
     eprintln!(
         "matched={:?}  bytes(canon)={}  bytes(local)={}",
-        canon.matched, node_bytes.len(), local_bytes.len()
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
     );
     eprintln!("\n=== CONSTANTS ===");
     eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
@@ -5441,7 +5463,9 @@ fn debug_spectrum_t2t() {
         .join("significant_15");
     let raw = std::fs::read_to_string(fixtures_dir.join("spectrum_t2t_pool.es")).unwrap();
     let prelude = "val InitiallyLockedLP: Long = 9223372036854775807L;\n";
-    let idx = raw.find('{').expect("spectrum_t2t_pool.es missing leading {");
+    let idx = raw
+        .find('{')
+        .expect("spectrum_t2t_pool.es missing leading {");
     let mut source = String::with_capacity(raw.len() + prelude.len());
     source.push_str(&raw[..=idx]);
     source.push('\n');
@@ -5464,13 +5488,18 @@ fn debug_spectrum_t2t() {
     match first_diff {
         Some(off) => eprintln!(
             "first diff at byte {} (hex offset {}): local={:02x} node={:02x}",
-            off, off * 2, local_bytes[off], node_bytes[off]
+            off,
+            off * 2,
+            local_bytes[off],
+            node_bytes[off]
         ),
         None => eprintln!("MATCH"),
     }
     eprintln!(
         "matched={:?}  bytes(canon)={}  bytes(local)={}",
-        canon.matched, node_bytes.len(), local_bytes.len()
+        canon.matched,
+        node_bytes.len(),
+        local_bytes.len()
     );
     eprintln!("\n=== CONSTANTS ===");
     eprintln!("LOCAL constants_len: {:?}", local_tree.constants_len());
@@ -5523,7 +5552,9 @@ fn debug_paideia() {
          val _emissionNFT: Coll[Byte] = {dummy_token3};\n\
          val _stakeContractHash: Coll[Byte] = {dummy_addr};\n",
     );
-    let idx = raw.find('{').expect("paideia_stake_state.es missing leading {");
+    let idx = raw
+        .find('{')
+        .expect("paideia_stake_state.es missing leading {");
     let mut source = String::with_capacity(raw.len() + prelude.len());
     source.push_str(&raw[..=idx]);
     source.push('\n');
@@ -5708,12 +5739,11 @@ fn debug_gluon() {
         .map(|(id, v)| (*id, v.last().unwrap().clone()))
         .collect();
     let mut og_bad = Vec::new();
-    walk_optget_mismatches(
-        &expr,
-        &|id| store_lookup.get(id).cloned(),
-        &mut og_bad,
+    walk_optget_mismatches(&expr, &|id| store_lookup.get(id).cloned(), &mut og_bad);
+    eprintln!(
+        "OptionGet(ValUse(N)) where N's last-walker type is NOT SOption: {}",
+        og_bad.len()
     );
-    eprintln!("OptionGet(ValUse(N)) where N's last-walker type is NOT SOption: {}", og_bad.len());
     for (id, t) in og_bad.iter().take(10) {
         eprintln!("  ValId({:?}) last-recorded type {:?}", id, t);
     }
@@ -5913,7 +5943,10 @@ fn probe_sig15_local_hex() {
                     if std::env::var("SIG15_DUMP_OUTER_SHAPES_VERBOSE").is_ok() {
                         if let Ok(root) = tree.proposition() {
                             if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
-                                eprintln!("\n=== LOCAL outer ValDefs (verbose) for {} ===", fixture);
+                                eprintln!(
+                                    "\n=== LOCAL outer ValDefs (verbose) for {} ===",
+                                    fixture
+                                );
                                 for it in &bv.expr().items {
                                     if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
                                         eprintln!(
@@ -5961,31 +5994,26 @@ fn probe_sig15_local_hex() {
         if let Ok(hex_str) = std::fs::read_to_string(&p) {
             let hex_str = hex_str.trim();
             match base16::decode(hex_str.as_bytes()) {
-                Ok(bytes) => {
-                    match ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes) {
-                        Ok(tree) => {
-                            if let Ok(root) = tree.proposition() {
-                                if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
-                                    eprintln!(
-                                        "\n=== NODE outer ValDefs (verbose) from {} ===",
-                                        p
-                                    );
-                                    for it in &bv.expr().items {
-                                        if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
-                                            eprintln!(
-                                                "  d{:>3} = {}",
-                                                vd.expr().id.0,
-                                                expr_shape_verbose(&vd.expr().rhs)
-                                            );
-                                        }
+                Ok(bytes) => match ergotree_ir::ergo_tree::ErgoTree::sigma_parse_bytes(&bytes) {
+                    Ok(tree) => {
+                        if let Ok(root) = tree.proposition() {
+                            if let ergotree_ir::mir::expr::Expr::BlockValue(bv) = root {
+                                eprintln!("\n=== NODE outer ValDefs (verbose) from {} ===", p);
+                                for it in &bv.expr().items {
+                                    if let ergotree_ir::mir::expr::Expr::ValDef(vd) = it {
+                                        eprintln!(
+                                            "  d{:>3} = {}",
+                                            vd.expr().id.0,
+                                            expr_shape_verbose(&vd.expr().rhs)
+                                        );
                                     }
-                                    eprintln!();
                                 }
+                                eprintln!();
                             }
                         }
-                        Err(e) => eprintln!("NODE hex parse error: {:?}", e),
                     }
-                }
+                    Err(e) => eprintln!("NODE hex parse error: {:?}", e),
+                },
                 Err(e) => eprintln!("NODE hex decode error: {:?}", e),
             }
         }
@@ -6192,8 +6220,7 @@ fn probe_gluon_scopes() {
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
     let dummy_token3 =
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
-    let dummy_addr =
-        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
     let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
     let prelude = format!(
         "val _MinFee: Long = 1000000L;\n\
@@ -6319,24 +6346,23 @@ fn probe_gluon_scopes() {
         // Find any ValDef(id) whose scope-path is an ancestor of the use_path
         // and whose tpe matches.
         let candidates = by_id.get(id).cloned().unwrap_or_default();
-        let any_match = candidates.iter().any(|(t, def_path)| {
-            *t == want_t && is_ancestor(def_path, use_path)
-        });
+        let any_match = candidates
+            .iter()
+            .any(|(t, def_path)| *t == want_t && is_ancestor(def_path, use_path));
         if !any_match {
             bad.push((*id, want_t, use_path.clone(), candidates));
         }
     }
 
     eprintln!("=== gluon scope-resolvability probe ===");
-    eprintln!("ValDefs: {}, OptionGet(ValUse) sites: {}", defs.len(), uses.len());
+    eprintln!(
+        "ValDefs: {}, OptionGet(ValUse) sites: {}",
+        defs.len(),
+        uses.len()
+    );
     eprintln!("Unresolvable OptionGet(ValUse) sites: {}", bad.len());
     for (i, (id, want, up, cands)) in bad.iter().enumerate().take(8) {
-        eprintln!(
-            "  [{}] ValUse(id={}) wants {:?}",
-            i,
-            id.0,
-            want,
-        );
+        eprintln!("  [{}] ValUse(id={}) wants {:?}", i, id.0, want,);
         eprintln!("       use scope-path: {:?}", up);
         eprintln!("       all ValDef(id={}) candidates:", id.0);
         for (t, dp) in cands {
@@ -6358,11 +6384,7 @@ fn probe_sig15_sibling_redundancy() {
     use ergotree_ir::mir::val_def::ValId;
     use ergotree_ir::traversable::Traversable;
 
-    fn walk(
-        e: &MirExpr,
-        path: &mut Vec<String>,
-        out: &mut Vec<(Vec<String>, ValId, MirExpr)>,
-    ) {
+    fn walk(e: &MirExpr, path: &mut Vec<String>, out: &mut Vec<(Vec<String>, ValId, MirExpr)>) {
         match e {
             MirExpr::ValDef(spanned) => {
                 let vd = &spanned.expr;
@@ -6419,8 +6441,7 @@ fn probe_sig15_sibling_redundancy() {
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
     let dummy_token3 =
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
-    let dummy_addr =
-        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
     let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
 
     let fixtures: &[(&str, String)] = &[
@@ -6652,8 +6673,7 @@ fn probe_gluon_sibling_redundancy() {
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000002\")";
     let dummy_token3 =
         "fromBase16(\"0000000000000000000000000000000000000000000000000000000000000003\")";
-    let dummy_addr =
-        "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
+    let dummy_addr = "fromBase16(\"00aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")";
     let dummy_pk = "proveDlog(decodePoint(fromBase16(\"02d04baf1e643c82e9e25f35a8636e1c4ae9bfc12944af9c8dd9b6a47fd7f8b700\")))";
 
     let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -6693,11 +6713,7 @@ fn probe_gluon_sibling_redundancy() {
 
     // Path segments label structural junctions on the way down.
     // Format example: ["root", "BV.item[2]", "If.true", "BV.item[0]"]
-    fn walk(
-        e: &MirExpr,
-        path: &mut Vec<String>,
-        out: &mut Vec<(Vec<String>, ValId, MirExpr)>,
-    ) {
+    fn walk(e: &MirExpr, path: &mut Vec<String>, out: &mut Vec<(Vec<String>, ValId, MirExpr)>) {
         match e {
             MirExpr::ValDef(spanned) => {
                 let vd = &spanned.expr;
@@ -6775,7 +6791,10 @@ fn probe_gluon_sibling_redundancy() {
 
     let mut multi_groups: Vec<&Vec<usize>> = groups.iter().filter(|g| g.len() >= 2).collect();
     multi_groups.sort_by_key(|g| std::cmp::Reverse(g.len()));
-    eprintln!("structurally-equal-rhs groups with count >= 2: {}", multi_groups.len());
+    eprintln!(
+        "structurally-equal-rhs groups with count >= 2: {}",
+        multi_groups.len()
+    );
 
     fn is_prefix(a: &[String], b: &[String]) -> bool {
         a.len() <= b.len() && a.iter().zip(b.iter()).all(|(x, y)| x == y)
@@ -6850,7 +6869,10 @@ fn probe_gluon_sibling_redundancy() {
     eprintln!("  Row B2 (SIBLING-only):   {}", row_b2_groups);
     eprintln!("  Row B3 (MIXED):          {}", row_b3_groups);
     eprintln!("  SAME_SCOPE (anomaly):    {}", same_scope_groups);
-    eprintln!("total pairs: ancestor={} sibling={}", total_ancestor_pairs, total_sibling_pairs);
+    eprintln!(
+        "total pairs: ancestor={} sibling={}",
+        total_ancestor_pairs, total_sibling_pairs
+    );
     let dominant = if row_b2_groups + row_b3_groups == 0 && row_b1_groups > 0 {
         "Row B1 — ancestor-chain (extraction-time scope-handoff bug)"
     } else if row_b1_groups + row_b3_groups == 0 && row_b2_groups > 0 {
@@ -7969,7 +7991,14 @@ fn probe_int_to_long_upcast_fold() {
                 let bytes = canon.tree.sigma_serialize_bytes().unwrap();
                 let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
                 eprintln!("  NODE  ({}B): {}", bytes.len(), hex);
-                eprintln!("  {}", if local_bytes == bytes { "MATCH" } else { "DIFF" });
+                eprintln!(
+                    "  {}",
+                    if local_bytes == bytes {
+                        "MATCH"
+                    } else {
+                        "DIFF"
+                    }
+                );
                 if let Ok(n) = canon.tree.constants_len() {
                     for i in 0..n {
                         eprintln!("    NODE[{}] {:?}", i, canon.tree.get_constant(i));

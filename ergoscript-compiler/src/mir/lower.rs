@@ -363,10 +363,7 @@ fn fold_compare_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
 /// stay as runtime BinOps in Scala (probed) so we leave them unchanged here.
 fn check_byte_short_overflow(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<&'static str> {
     use ergotree_ir::mir::constant::Literal;
-    if !matches!(
-        op,
-        BinaryOp::Plus | BinaryOp::Minus | BinaryOp::Multiply
-    ) {
+    if !matches!(op, BinaryOp::Plus | BinaryOp::Minus | BinaryOp::Multiply) {
         return None;
     }
     let (lc, rc) = match (l, r) {
@@ -444,11 +441,7 @@ fn fold_arith_const_const(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
     use ergotree_ir::mir::constant::Literal;
     if !matches!(
         op,
-        BinaryOp::Plus
-            | BinaryOp::Minus
-            | BinaryOp::Multiply
-            | BinaryOp::Divide
-            | BinaryOp::Modulo
+        BinaryOp::Plus | BinaryOp::Minus | BinaryOp::Multiply | BinaryOp::Divide | BinaryOp::Modulo
     ) {
         return None;
     }
@@ -573,18 +566,30 @@ fn fold_min_max_const_const(is_min: bool, l: &Expr, r: &Expr) -> Option<Expr> {
         _ => return None,
     };
     let result: Constant = match (&lc.v, &rc.v) {
-        (Literal::Byte(a), Literal::Byte(b)) => {
-            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        (Literal::Byte(a), Literal::Byte(b)) => if is_min {
+            std::cmp::min(*a, *b)
+        } else {
+            std::cmp::max(*a, *b)
         }
-        (Literal::Short(a), Literal::Short(b)) => {
-            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        .into(),
+        (Literal::Short(a), Literal::Short(b)) => if is_min {
+            std::cmp::min(*a, *b)
+        } else {
+            std::cmp::max(*a, *b)
         }
-        (Literal::Int(a), Literal::Int(b)) => {
-            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        .into(),
+        (Literal::Int(a), Literal::Int(b)) => if is_min {
+            std::cmp::min(*a, *b)
+        } else {
+            std::cmp::max(*a, *b)
         }
-        (Literal::Long(a), Literal::Long(b)) => {
-            if is_min { std::cmp::min(*a, *b) } else { std::cmp::max(*a, *b) }.into()
+        .into(),
+        (Literal::Long(a), Literal::Long(b)) => if is_min {
+            std::cmp::min(*a, *b)
+        } else {
+            std::cmp::max(*a, *b)
         }
+        .into(),
         // BigInt deliberately NOT folded — verified empirically.
         _ => return None,
     };
@@ -670,9 +675,7 @@ fn fold_eq_neq(op: &BinaryOp, l: &Expr, r: &Expr) -> Option<Expr> {
         let folded = if op_is_eq == b {
             other.clone()
         } else {
-            LogicalNot::try_build(other.clone())
-                .ok()?
-                .into()
+            LogicalNot::try_build(other.clone()).ok()?.into()
         };
         return Some(folded);
     }

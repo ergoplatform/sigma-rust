@@ -116,10 +116,7 @@ impl Ty {
     }
 
     fn is_numeric(&self) -> bool {
-        matches!(
-            self,
-            Ty::Byte | Ty::Short | Ty::Int | Ty::Long | Ty::BigInt
-        )
+        matches!(self, Ty::Byte | Ty::Short | Ty::Int | Ty::Long | Ty::BigInt)
     }
 }
 
@@ -186,11 +183,26 @@ impl Env {
 /// would require additional context (Box, Coll[Box], Option, GroupElement).
 fn lit(ty: &Ty, rng: &mut Rng) -> Option<Term> {
     match ty {
-        Ty::Boolean => Some(Term::new(if rng.flip() { "true" } else { "false" }, ty.clone())),
-        Ty::Byte => Some(Term::new(format!("{}.toByte", rng.gen_range(0, 100)), ty.clone())),
-        Ty::Short => Some(Term::new(format!("{}.toShort", rng.gen_range(0, 1000)), ty.clone())),
-        Ty::Int => Some(Term::new(format!("{}", rng.gen_range(0, 100_000)), ty.clone())),
-        Ty::Long => Some(Term::new(format!("{}L", rng.gen_range(0, 1_000_000)), ty.clone())),
+        Ty::Boolean => Some(Term::new(
+            if rng.flip() { "true" } else { "false" },
+            ty.clone(),
+        )),
+        Ty::Byte => Some(Term::new(
+            format!("{}.toByte", rng.gen_range(0, 100)),
+            ty.clone(),
+        )),
+        Ty::Short => Some(Term::new(
+            format!("{}.toShort", rng.gen_range(0, 1000)),
+            ty.clone(),
+        )),
+        Ty::Int => Some(Term::new(
+            format!("{}", rng.gen_range(0, 100_000)),
+            ty.clone(),
+        )),
+        Ty::Long => Some(Term::new(
+            format!("{}L", rng.gen_range(0, 1_000_000)),
+            ty.clone(),
+        )),
         Ty::BigInt => Some(Term::new(
             // `<int-literal>.toBigInt` is the Scala-parseable form; the
             // earlier `byteArrayToBigInt(fromBase16("XX"))` form tripped
@@ -230,10 +242,7 @@ type PredefBuilder = fn(&mut Env, &mut Rng) -> Option<(Vec<String>, Term)>;
 fn p_blake2b256(env: &mut Env, rng: &mut Rng) -> Option<(Vec<String>, Term)> {
     let arg = env.pick_or_lit(&Ty::Coll(Box::new(Ty::Byte)), rng)?;
     let bound = format!("val h = blake2b256({})", arg.src);
-    Some((
-        vec![bound],
-        Term::new("h.size > 0", Ty::Boolean),
-    ))
+    Some((vec![bound], Term::new("h.size > 0", Ty::Boolean)))
 }
 
 fn p_sha256(env: &mut Env, rng: &mut Rng) -> Option<(Vec<String>, Term)> {
@@ -454,7 +463,10 @@ fn m_coll_size(_env: &mut Env, _rng: &mut Rng) -> Option<(Vec<String>, Term)> {
 
 fn m_coll_byte_size(env: &mut Env, rng: &mut Rng) -> Option<(Vec<String>, Term)> {
     let bs = env.pick_typed(&Ty::Coll(Box::new(Ty::Byte)), rng)?;
-    Some((vec![], Term::new(format!("{}.size > 0", bs.src), Ty::Boolean)))
+    Some((
+        vec![],
+        Term::new(format!("{}.size > 0", bs.src), Ty::Boolean),
+    ))
 }
 
 fn m_coll_indexof(env: &mut Env, rng: &mut Rng) -> Option<(Vec<String>, Term)> {
@@ -657,12 +669,7 @@ fn gen_predef_pass(seed: u64) -> Vec<(String, String)> {
             if let Some((decls, term)) = builder(&mut env, &mut rng) {
                 if term.ty == Ty::Boolean {
                     let src = assemble(&decls, &term);
-                    let id = format!(
-                        "predef_{:03}_{}_{}",
-                        idx,
-                        sanitize(name),
-                        k
-                    );
+                    let id = format!("predef_{:03}_{}_{}", idx, sanitize(name), k);
                     out.push((id, src));
                 }
             }
@@ -777,10 +784,8 @@ fn gen_numeric_pass(seed: u64) -> Vec<(String, String)> {
             // Comparison ops on like-typed pair.
             if t1 == t2 {
                 for (k, op) in cmp_ops.iter().enumerate() {
-                    let mut rng = Rng::new(mix_seed(
-                        seed ^ 0x4444_4444,
-                        (i as u64) * 100 + k as u64,
-                    ));
+                    let mut rng =
+                        Rng::new(mix_seed(seed ^ 0x4444_4444, (i as u64) * 100 + k as u64));
                     let env = Env::fresh();
                     let a = match env.pick_or_lit(t1, &mut rng) {
                         Some(t) => t,
@@ -920,16 +925,13 @@ fn rename_locals(decls: &[String], term_src: &mut String, suffix: &str) -> Vec<S
         while i < bytes.len() {
             let c = bytes[i];
             let starts_ident = (c.is_ascii_alphabetic() || c == b'_')
-                && (i == 0
-                    || {
-                        let p = bytes[i - 1];
-                        !(p.is_ascii_alphanumeric() || p == b'_')
-                    });
+                && (i == 0 || {
+                    let p = bytes[i - 1];
+                    !(p.is_ascii_alphanumeric() || p == b'_')
+                });
             if starts_ident {
                 let start = i;
-                while i < bytes.len()
-                    && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_')
-                {
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
                     i += 1;
                 }
                 let ident = &s[start..i];
@@ -977,7 +979,10 @@ fn gen_walker_gap_pass(seed: u64) -> Vec<(String, String)> {
         ("createProveDlog", |_| {
             (
                 vec!["val sp = proveDlog(groupGenerator)".into()],
-                Term::new("sp.propBytes.size > 0 && sp.propBytes.size > 0", Ty::Boolean),
+                Term::new(
+                    "sp.propBytes.size > 0 && sp.propBytes.size > 0",
+                    Ty::Boolean,
+                ),
             )
         }),
         ("createProveDhTuple", |_| {
@@ -992,7 +997,10 @@ fn gen_walker_gap_pass(seed: u64) -> Vec<(String, String)> {
                     "val gE = decodePoint(SELF.id)".into(),
                     "val gE2 = gE.multiply(gE)".into(),
                 ],
-                Term::new("gE2 != groupGenerator || gE2 == groupGenerator", Ty::Boolean),
+                Term::new(
+                    "gE2 != groupGenerator || gE2 == groupGenerator",
+                    Ty::Boolean,
+                ),
             )
         }),
         ("exponentiate", |rng| {
@@ -1188,7 +1196,10 @@ fn coverage_pass_counts_nonzero() {
     let programs = run_all_passes(DEFAULT_SEED);
     let buckets = ["predef_", "method_", "numeric_", "composition_", "walker_"];
     for prefix in buckets {
-        let n = programs.iter().filter(|(n, _)| n.starts_with(prefix)).count();
+        let n = programs
+            .iter()
+            .filter(|(n, _)| n.starts_with(prefix))
+            .count();
         assert!(n > 0, "pass {} produced 0 programs", prefix);
     }
 }

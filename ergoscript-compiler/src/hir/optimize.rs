@@ -69,9 +69,9 @@ fn count_target_int_lits_inner(expr: &Expr, target: i32, n: &mut usize) {
             count_target_int_lits_inner(&if_expr.else_branch, target, n);
         }
         ExprKind::Lambda(lam) => count_target_int_lits_inner(&lam.body, target, n),
-        ExprKind::LogicalNot(inner)
-        | ExprKind::Negation(inner)
-        | ExprKind::BitInversion(inner) => count_target_int_lits_inner(inner, target, n),
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
+            count_target_int_lits_inner(inner, target, n)
+        }
         ExprKind::Tuple(items) => {
             for item in items {
                 count_target_int_lits_inner(item, target, n);
@@ -1116,9 +1116,7 @@ fn hir_kind_eq(a: &ExprKind, b: &ExprKind) -> bool {
             // legitimate CSE merges (S16: gluon Pair 2 cross-branch SInt nDays
             // diverged solely on op-span polluting equality after the H3
             // in-pass ValUse substitution unified the inner ValUse IDs).
-            a.op.node == b.op.node
-                && hir_expr_eq(&a.lhs, &b.lhs)
-                && hir_expr_eq(&a.rhs, &b.rhs)
+            a.op.node == b.op.node && hir_expr_eq(&a.lhs, &b.lhs) && hir_expr_eq(&a.rhs, &b.rhs)
         }
         (ExprKind::FieldAccess(a), ExprKind::FieldAccess(b)) => {
             a.field == b.field && a.type_args == b.type_args && hir_expr_eq(&a.object, &b.object)
@@ -1848,10 +1846,8 @@ fn eliminate_negation_inner(expr: Expr, scope: &HashMap<u32, Expr>) -> Expr {
                         // ValDef-orphan that LOCAL's `inline_single_use_vals`
                         // doesn't always reclaim, regressing the plateau.
                         // sigmao's `GT(VU, VU)` form (both ValUse) is safe.
-                        let lhs_lit =
-                            matches!(bin.lhs.kind, ExprKind::Literal(_));
-                        let rhs_lit =
-                            matches!(bin.rhs.kind, ExprKind::Literal(_));
+                        let lhs_lit = matches!(bin.lhs.kind, ExprKind::Literal(_));
+                        let rhs_lit = matches!(bin.rhs.kind, ExprKind::Literal(_));
                         if !lhs_lit && !rhs_lit {
                             let flipped = match bin.op.node {
                                 BinaryOp::Gt => Some(BinaryOp::Le),
@@ -2087,13 +2083,11 @@ fn walk_collect_max_id(expr: &Expr, m: &mut u32) {
             }
             walk_collect_max_id(&lam.body, m);
         }
-        ExprKind::LogicalNot(inner)
-        | ExprKind::Negation(inner)
-        | ExprKind::BitInversion(inner) => walk_collect_max_id(inner, m),
-        ExprKind::Literal(_)
-        | ExprKind::Ident(_)
-        | ExprKind::GlobalVars(_)
-        | ExprKind::Context => {}
+        ExprKind::LogicalNot(inner) | ExprKind::Negation(inner) | ExprKind::BitInversion(inner) => {
+            walk_collect_max_id(inner, m)
+        }
+        ExprKind::Literal(_) | ExprKind::Ident(_) | ExprKind::GlobalVars(_) | ExprKind::Context => {
+        }
     }
 }
 
@@ -2103,10 +2097,7 @@ fn walk_merge(expr: Expr, next_id: &mut u32) -> Expr {
     match expr.kind {
         ExprKind::Block(items) => {
             // Recurse into each item first.
-            let processed: Vec<Expr> = items
-                .into_iter()
-                .map(|i| walk_merge(i, next_id))
-                .collect();
+            let processed: Vec<Expr> = items.into_iter().map(|i| walk_merge(i, next_id)).collect();
             // Now for each If item, hoist mergeable vals into this Block.
             let mut out: Vec<Expr> = Vec::with_capacity(processed.len());
             for item in processed {
@@ -2163,7 +2154,11 @@ fn walk_merge(expr: Expr, next_id: &mut u32) -> Expr {
         }
         ExprKind::Apply(app) => {
             let func = walk_merge(*app.func, next_id);
-            let args: Vec<Expr> = app.args.into_iter().map(|a| walk_merge(a, next_id)).collect();
+            let args: Vec<Expr> = app
+                .args
+                .into_iter()
+                .map(|a| walk_merge(a, next_id))
+                .collect();
             Expr {
                 kind: ExprKind::Apply(Apply {
                     func: Box::new(func),
@@ -2301,10 +2296,10 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
     }
 
     // Snapshot ValDefs per tail: (idx, id, rhs, declared_tpe).
-    let mut tail_vals: Vec<Vec<(usize, u32, Expr, Option<SType>)>> =
-        Vec::with_capacity(tails.len());
+    type TailValEntry = (usize, u32, Expr, Option<SType>);
+    let mut tail_vals: Vec<Vec<TailValEntry>> = Vec::with_capacity(tails.len());
     for tail in tails.iter() {
-        let mut vs: Vec<(usize, u32, Expr, Option<SType>)> = Vec::new();
+        let mut vs: Vec<TailValEntry> = Vec::new();
         for (idx, item) in tail.iter().enumerate() {
             if let ExprKind::ValDef(vd) = &item.kind {
                 if let Some(id) = vd.id {
@@ -2318,10 +2313,7 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
     }
 
     // Used flag per ValDef (so each participates in at most one merge).
-    let mut used: Vec<Vec<bool>> = tail_vals
-        .iter()
-        .map(|v| vec![false; v.len()])
-        .collect();
+    let mut used: Vec<Vec<bool>> = tail_vals.iter().map(|v| vec![false; v.len()]).collect();
     let mut candidates: Vec<Cand> = Vec::new();
 
     // For each tail i, each unused val, find matching unused vals in other tails j>i.
@@ -2377,7 +2369,7 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                 // SInt nDays at vid=146/187 referencing inner ValUse IDs that
                 // an earlier same-pass commit unified) reject under hir_expr_eq.
                 let opt_disable = std::env::var("CSE_PROBE_S16_INPASS_SUB_OFF").is_ok();
-                if !opt_disable && !std::env::var("CSE_PROBE_S14_HIR_MERGE_OFF").is_ok() {
+                if !opt_disable && std::env::var("CSE_PROBE_S14_HIR_MERGE_OFF").is_err() {
                     let replacement = Expr {
                         kind: ExprKind::ValUse(ValUse {
                             id: new_id,
@@ -2418,7 +2410,10 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
                 "[S14_MERGE] new_id={} tpe={:?} branches={:?}",
                 c.new_id,
                 c.tpe,
-                c.removals.iter().map(|(t, _, id)| (*t, *id)).collect::<Vec<_>>()
+                c.removals
+                    .iter()
+                    .map(|(t, _, id)| (*t, *id))
+                    .collect::<Vec<_>>()
             );
         }
     }
@@ -2447,10 +2442,7 @@ fn hoist_from_if_chain(if_expr: Expr, next_id: &mut u32) -> (Vec<Expr>, Expr) {
         let replacement = Expr {
             kind: ExprKind::ValUse(ValUse {
                 id: cand.new_id,
-                tpe: cand
-                    .tpe
-                    .clone()
-                    .unwrap_or(SType::SAny),
+                tpe: cand.tpe.clone().unwrap_or(SType::SAny),
             }),
             span: cand.span,
             tpe: cand.tpe.clone(),
