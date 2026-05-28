@@ -1,9 +1,15 @@
-# Contributing to `ergoscript-compiler`
+# Contributing to the Rust ErgoScript Compiler
+
+(crate: `ergoscript-compiler`)
 
 This crate compiles ErgoScript source to ergotree IR. It is a pure-Rust
 alternative to the reference Scala compiler (sigmastate-interpreter). When
 the two compilers produce identical bytes for a given source we say the
 output is **byte-MATCH**; when they differ the source is **diverged**.
+
+> This document is the **compiler-crate-specific** contribution guide. The
+> repo-wide rules (CI checks, release process, branch conventions) live in
+> the root [`CONTRIBUTING.md`](../CONTRIBUTING.md). Both apply.
 
 This document covers:
 
