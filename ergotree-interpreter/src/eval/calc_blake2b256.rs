@@ -58,4 +58,20 @@ mod tests {
         }
 
     }
+
+    #[test]
+    fn calc_blake2b256_empty_jit_cost() {
+        // santa eval fixture `calc_blake2b256_empty` (tree 00cb0e00): hash of an
+        // empty Coll[Byte] constant. Cost = Const(empty coll) 5 + per-item at
+        // n=0 (base 20 + one chunk * per_chunk 7 = 27, post n=0 chunks fix) = 32.
+        // Matches the JVM under activated=3 (was 25 before the n=0 fix).
+        let expr: Expr = CalcBlake2b256 {
+            input: Box::new(Expr::Const(Vec::<u8>::new().into())),
+        }
+        .into();
+        let ctx = force_any_val::<Context>();
+        let before = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i8>>(&expr, &ctx);
+        assert_eq!(ctx.jit_cost_value() - before, 32);
+    }
 }
