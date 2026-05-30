@@ -21,7 +21,19 @@ impl Evaluable for Collection {
     ) -> Result<Value<'ctx>, EvalError> {
         ctx.add_jit_cost(20)?; // ConcreteCollection = Fixed(20)
         Ok(match self {
-            Collection::BoolConstants(bools) => bools.clone().into(),
+            Collection::BoolConstants(bools) => {
+                // The JVM models a boolean-constant collection as N
+                // BooleanConstant nodes: ConcreteCollection.eval charges the
+                // Fixed(20) above, then evaluates each item, charging
+                // Constant.costKind = FixedCost(JitCost(5)) per element (sigma
+                // `values.scala` ConcreteCollection.eval per-item `evalTo` +
+                // Constant.costKind). The `Exprs` arm below already pays this
+                // via each `Expr::Const` eval (`expr.rs`: Constant = Fixed(5)),
+                // but the packed-bool form converts directly, so charge the
+                // equivalent N * 5 here to match the JVM (total = 20 + 5n).
+                ctx.add_jit_cost(5 * bools.len() as u64)?;
+                bools.clone().into()
+            }
             Collection::Exprs { elem_tpe, items } => {
                 let items_v: Result<Arc<[Value]>, EvalError> =
                     items.iter().map(|i| i.eval(env, ctx)).collect();
@@ -50,9 +62,11 @@ impl Evaluable for Collection {
 #[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
-    use crate::eval::test_util::eval_out_wo_ctx;
+    use crate::eval::test_util::{eval_out, eval_out_wo_ctx};
+    use ergotree_ir::chain::context::Context;
     use ergotree_ir::mir::expr::Expr;
     use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
 
     proptest! {
 
@@ -88,5 +102,25 @@ mod tests {
             let res = eval_out_wo_ctx::<Vec<Vec<i8>>>(&coll);
             prop_assert_eq!(res, bb);
         }
+    }
+
+    #[test]
+    fn bool_constants_coll_charges_per_constant() {
+        // ConcreteCollection = Fixed(20); each boolean constant is a
+        // BooleanConstant = Fixed(5) (sigma `values.scala` :878 / :380). The
+        // packed `BoolConstants` form must charge 20 + 5n to match the JVM and
+        // the `Exprs` form. Cross-validated by the santa eval fixture
+        // `coll_bool_constants_3` (tree 00850305) -> JVM 35.
+        let cost = |n: usize| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let exprs: Vec<Expr> = (0..n).map(|i| Expr::Const((i % 2 == 0).into())).collect();
+            let coll: Expr = Collection::new(SType::SBoolean, exprs).unwrap().into();
+            let _: Vec<bool> = eval_out(&coll, &ctx);
+            ctx.jit_cost_value() - before
+        };
+        assert_eq!(cost(0), 20); // empty: 20 + 0
+        assert_eq!(cost(3), 35); // 20 + 3*5  (coll_bool_constants_3)
+        assert_eq!(cost(5), 45); // 20 + 5*5
     }
 }
