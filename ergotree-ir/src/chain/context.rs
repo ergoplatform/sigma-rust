@@ -81,7 +81,15 @@ impl<'ctx> Context<'ctx> {
         Ok(())
     }
 
-    /// Add per-item JIT cost: base + ceil(n_items / chunk_size) * per_chunk
+    /// Add per-item JIT cost: `base + chunks(n_items) * per_chunk`, where
+    /// `chunks(n)` mirrors Scala consensus `PerItemCost.chunks`:
+    /// `(n - 1) / chunk_size + 1` using signed (toward-zero) division.
+    ///
+    /// This differs from naive ceiling division only at `n_items == 0`:
+    /// for `chunk_size >= 2` an empty collection still costs one chunk (Scala
+    /// charges `base + per_chunk`), while for `chunk_size == 1` it costs zero
+    /// chunks (`base` only). For every `n_items >= 1` the result is byte-
+    /// identical to the old `ceil(n_items / chunk_size)`.
     pub fn add_per_item_jit_cost(
         &self,
         base: u32,
@@ -89,7 +97,11 @@ impl<'ctx> Context<'ctx> {
         chunk_size: u32,
         n_items: u32,
     ) -> Result<(), CostLimitExceeded> {
-        let chunks = (n_items + chunk_size - 1) / chunk_size;
+        // Faithful replication of Scala's `(nItems - 1) / chunkSize + 1`.
+        // Scala `Int` division truncates toward zero; Rust `i64` division does
+        // the same. i64 avoids the `u32` underflow at `n_items == 0`. `.max(0)`
+        // is defensive — the expression is never negative for `chunk_size >= 1`.
+        let chunks = ((n_items as i64 - 1) / chunk_size as i64 + 1).max(0) as u32;
         let cost = base + chunks * per_chunk;
         self.add_jit_cost(u64::from(cost))
     }

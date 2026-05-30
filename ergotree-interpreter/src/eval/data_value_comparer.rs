@@ -215,4 +215,94 @@ mod tests {
         assert!(!eq_with_cost(&lv, &rv, &ctx).unwrap());
         assert_eq!(ctx.jit_cost_value() - before, COLL_MATCH_TYPE_COST as u64);
     }
+
+    /// Charge for equality of two equal empty `Coll[elem_tpe]` (wrapped form):
+    /// MatchType dispatch + per-item cost at n=0.
+    fn empty_wrapped_coll_eq_cost(elem_tpe: SType) -> u64 {
+        let ctx = force_any_val::<Context>();
+        let before = ctx.jit_cost_value();
+        let empty: Arc<[Value<'_>]> = Arc::from(Vec::<Value<'_>>::new());
+        let lv: Value<'_> = Value::Coll(CollKind::WrappedColl {
+            elem_tpe: elem_tpe.clone(),
+            items: empty.clone(),
+        });
+        let rv: Value<'_> = Value::Coll(CollKind::WrappedColl {
+            elem_tpe,
+            items: empty,
+        });
+        assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
+        ctx.jit_cost_value() - before
+    }
+
+    #[test]
+    fn empty_coll_eq_cs_ge_2_charges_one_chunk() {
+        // n=0 regression (the mainnet 1,520,814 finding): for chunkSize>=2
+        // element types an empty Coll must still pay one chunk, mirroring Scala
+        // PerItemCost.chunks(0) = (0-1)/cs + 1 = 1 (signed, toward-zero div).
+        // Cost = MatchType(1) + base(15) + 1*per_chunk. Before the fix Rust's
+        // ceiling chunks(0)=0 charged only base -> undercharge vs the JVM.
+        // Long(cs=48) / Int(cs=64) / Short(cs=96) / Boolean(cs=128): per_chunk=2.
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SLong), 18);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SInt), 18);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SShort), 18);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SBoolean), 18);
+        // BigInt: per_chunk=7, cs=5 -> 1 + 15 + 7 = 23.
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SBigInt), 23);
+        // AvlTree: per_chunk=5, cs=2 -> 1 + 15 + 5 = 21.
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SAvlTree), 21);
+    }
+
+    #[test]
+    fn empty_coll_byte_eq_charges_one_chunk() {
+        // Coll[Byte] is a NativeColl (cs=128, per_chunk=2). Empty -> one chunk:
+        // MatchType(1) + base(15) + 2 = 18.
+        let ctx = force_any_val::<Context>();
+        let before = ctx.jit_cost_value();
+        let empty_bytes: Arc<[i8]> = Arc::from(Vec::<i8>::new());
+        let lv: Value<'_> =
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(empty_bytes.clone())));
+        let rv: Value<'_> = Value::Coll(CollKind::NativeColl(NativeColl::CollByte(empty_bytes)));
+        assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
+        assert_eq!(ctx.jit_cost_value() - before, 18);
+    }
+
+    #[test]
+    fn empty_coll_cs_eq_1_charges_base_only() {
+        // chunkSize==1 types stay at base only: Scala chunks(0) = (0-1)/1 + 1 = 0.
+        // Cost = MatchType(1) + base(15) + 0 = 16. These already matched the JVM
+        // before the fix; assert the n=0 change does NOT move them.
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SBox), 16);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SGroupElement), 16);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SHeader), 16);
+        assert_eq!(empty_wrapped_coll_eq_cost(SType::SPreHeader), 16);
+    }
+
+    #[test]
+    fn nonempty_coll_long_path_byte_identical() {
+        // Prove n>=1 is byte-identical to the old ceiling formula across a chunk
+        // boundary. Long: base=15, per_chunk=2, cs=48. Total = MatchType(1) +
+        // base + chunks(n)*per_chunk, where chunks(n) == ceil(n/48) for n>=1.
+        //   len 1  -> chunks=1 -> 1 + 15 + 2  = 18
+        //   len 48 -> chunks=1 -> 1 + 15 + 2  = 18  (last item still in chunk 1)
+        //   len 49 -> chunks=2 -> 1 + 15 + 4  = 20  (spills into chunk 2)
+        let cost = |len: usize| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let items: Arc<[Value<'_>]> =
+                Arc::from((0..len as i64).map(Value::Long).collect::<Vec<Value<'_>>>());
+            let lv: Value<'_> = Value::Coll(CollKind::WrappedColl {
+                elem_tpe: SType::SLong,
+                items: items.clone(),
+            });
+            let rv: Value<'_> = Value::Coll(CollKind::WrappedColl {
+                elem_tpe: SType::SLong,
+                items,
+            });
+            assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
+            ctx.jit_cost_value() - before
+        };
+        assert_eq!(cost(1), 18);
+        assert_eq!(cost(48), 18);
+        assert_eq!(cost(49), 20);
+    }
 }
