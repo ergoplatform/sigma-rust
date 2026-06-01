@@ -39,13 +39,21 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
             .max(0);
         let len = normalized_input_vals.len();
         let start = (from as usize).min(len);
-        let found = normalized_input_vals
-            .into_iter()
-            .skip(start)
-            .position(|it| it == target_element);
-        // indexOf costs PerItemCost(20, 10, 2) over the iterations actually
-        // performed (Scala's `i - start`): from `start` to the found index
-        // (inclusive) or to the collection end -- not the full length.
+        // Scan from `start`, comparing each element with the target through
+        // the cost-charging DataValueComparer: JVM `indexOf_eval` calls
+        // `equalDataValues(xs(i), elem)` per step, charging the element-type
+        // equality cost (EQ_PRIM=3, EQ_BIGINT=5, EQ_GroupElement=172, ...). A
+        // bare `==` here left that per-comparison cost uncharged.
+        let mut found = None;
+        for (offset, it) in normalized_input_vals.iter().skip(start).enumerate() {
+            if crate::eval::data_value_comparer::eq_with_cost(it, &target_element, ctx)? {
+                found = Some(offset);
+                break;
+            }
+        }
+        // indexOf also charges PerItemCost(20, 10, 2) over the iterations
+        // actually performed (Scala's `i - start`): from `start` to the found
+        // index (inclusive) or to the collection end -- not the full length.
         let iterations = match found {
             Some(off) => off + 1,
             None => len - start,
@@ -526,17 +534,70 @@ mod tests {
             let _: i32 = try_eval_out(&index_of(target), &ctx).unwrap();
             ctx.jit_cost_value() - before
         };
-        // indexOf charges PerItemCost(20, 10, 2) over the iterations performed
-        // (Scala's `i - start`). Finding 1 at index 0 is 1 iteration (cost 30);
-        // finding 16 at index 15 is 16 iterations (cost 100). The rest of the
-        // tree (coll/args/method-call) is identical, so the delta isolates the
-        // iteration scaling: 70. Pre-fix (full-length charge) the delta was 0.
+        // indexOf charges, per iteration performed (Scala's `i - start`), both
+        // the loop's PerItemCost(20, 10, 2) and the element-type equality cost
+        // (EQ_PRIM_COST=3 for Long, via eq_with_cost). Finding 1 at index 0 is
+        // 1 iteration; finding 16 at index 15 is 16. The rest of the tree is
+        // identical, so the delta isolates the per-iteration scaling:
+        //   PerItemCost: (20+10*8) - (20+10*1) = 70
+        //   element eq:  3 * (16 - 1)          = 45   (EQ_PRIM_COST per compare)
+        //   total                              = 115
+        // Pre-iterations-fix the PerItemCost delta was 0; pre-eq-fix (bare ==)
+        // the eq delta was 0.
         let delta = cost_of(16) - cost_of(1);
         assert_eq!(
-            delta, 70,
-            "indexOf cost must scale with iterations performed (16 vs 1 -> \
-             (20+10*8) - (20+10*1) = 70); got {}",
+            delta, 115,
+            "indexOf cost must scale with iterations: PerItemCost 70 + \
+             per-comparison EQ_PRIM_COST 3*15 = 45 -> 115; got {}",
             delta,
+        );
+    }
+
+    #[test]
+    fn index_of_charges_element_eq_cost() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::bigint256::BigInt256;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // B3: each indexOf comparison is charged the element type's equality
+        // cost via eq_with_cost. Holding the iteration count fixed (target at
+        // index 0 => 1 comparison) and varying only the element type isolates
+        // that charge: everything else (the single PerItemCost iteration, the
+        // coll and target Constants, the method-call tree) is type-independent,
+        // so the cost difference is exactly EQ_BIGINT_COST(5) - EQ_PRIM_COST(3)
+        // = 2. Pre-fix (bare ==, uncharged) the difference was 0.
+        let cost_of = |coll: Constant, target: Constant, t: SType| -> u64 {
+            let expr: Expr = MethodCall::new(
+                coll.into(),
+                scoll::INDEX_OF_METHOD
+                    .clone()
+                    .with_concrete_types(&[(STypeVar::t(), t)].iter().cloned().collect()),
+                vec![target.into(), 0i32.into()],
+            )
+            .unwrap()
+            .into();
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: i32 = try_eval_out(&expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+        let long_cost = cost_of(vec![5i64].into(), 5i64.into(), SType::SLong);
+        let bigint = BigInt256::from(5i64);
+        let bigint_coll = Constant {
+            tpe: SType::SColl(Arc::new(SType::SBigInt)),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::from(vec![Constant::from(bigint).v]),
+                elem_tpe: SType::SBigInt,
+            }),
+        };
+        let bigint_cost = cost_of(bigint_coll, bigint.into(), SType::SBigInt);
+        assert_eq!(
+            bigint_cost - long_cost,
+            2,
+            "indexOf must charge the element-type eq cost per comparison \
+             (EQ_BIGINT_COST 5 - EQ_PRIM_COST 3 = 2); got {}",
+            bigint_cost - long_cost,
         );
     }
 
