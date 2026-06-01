@@ -27,8 +27,6 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
                 obj
             ))),
         }?;
-        let n = normalized_input_vals.len() as u32;
-        ctx.add_per_item_jit_cost(20, 10, 2, n)?;
         let target_element = args
             .first()
             .cloned()
@@ -39,13 +37,21 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
             .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?
             .try_extract_into::<i32>()?
             .max(0);
-
-        normalized_input_vals
+        let len = normalized_input_vals.len();
+        let start = (from as usize).min(len);
+        let found = normalized_input_vals
             .into_iter()
-            .skip(from as usize)
-            .position(|it| it == target_element)
-            .map(|idx| idx as i32 + from)
-            .unwrap_or(-1)
+            .skip(start)
+            .position(|it| it == target_element);
+        // indexOf costs PerItemCost(20, 10, 2) over the iterations actually
+        // performed (Scala's `i - start`): from `start` to the found index
+        // (inclusive) or to the collection end -- not the full length.
+        let iterations = match found {
+            Some(off) => off + 1,
+            None => len - start,
+        };
+        ctx.add_per_item_jit_cost(20, 10, 2, iterations as u32)?;
+        found.map(|off| (start + off) as i32).unwrap_or(-1)
     }))
 };
 
@@ -488,6 +494,44 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<i32>(&expr);
         assert_eq!(res, -1);
+    }
+
+    #[test]
+    fn index_of_cost_scales_with_iterations() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        let coll: Vec<i64> = (1..=16).collect();
+        let index_of = |target: i64| -> Expr {
+            MethodCall::new(
+                coll.clone().into(),
+                scoll::INDEX_OF_METHOD
+                    .clone()
+                    .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                vec![target.into(), 0i32.into()],
+            )
+            .unwrap()
+            .into()
+        };
+        let cost_of = |target: i64| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: i32 = try_eval_out(&index_of(target), &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+        // indexOf charges PerItemCost(20, 10, 2) over the iterations performed
+        // (Scala's `i - start`). Finding 1 at index 0 is 1 iteration (cost 30);
+        // finding 16 at index 15 is 16 iterations (cost 100). The rest of the
+        // tree (coll/args/method-call) is identical, so the delta isolates the
+        // iteration scaling: 70. Pre-fix (full-length charge) the delta was 0.
+        let delta = cost_of(16) - cost_of(1);
+        assert_eq!(
+            delta, 70,
+            "indexOf cost must scale with iterations performed (16 vs 1 -> \
+             (20+10*8) - (20+10*1) = 70); got {}",
+            delta,
+        );
     }
 
     #[test]
