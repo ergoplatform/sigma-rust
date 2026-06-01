@@ -821,7 +821,10 @@ mod test {
                         VerifierError::EvalError(EvalError::Spanned(e)) => {
                             matches!(*e.error, EvalError::CostError(_))
                         }
-                        _ => false,
+                        VerifierError::ErgoTreeError(_)
+                        | VerifierError::EvalError(_)
+                        | VerifierError::SigParsingError(_)
+                        | VerifierError::FiatShamirTreeSerializationError(_) => false,
                     };
                     prop_assert!(is_cost, "expected CostError, got {verr:?}");
                 }

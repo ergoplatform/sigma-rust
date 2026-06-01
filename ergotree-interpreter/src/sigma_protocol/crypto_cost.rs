@@ -41,6 +41,7 @@ pub fn estimate_crypto_cost(prop: &SigmaBoolean) -> u64 {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {

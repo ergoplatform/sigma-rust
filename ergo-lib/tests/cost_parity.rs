@@ -66,7 +66,7 @@ fn decode_hex(hex: &str) -> Vec<u8> {
     base16::decode(hex.as_bytes()).expect("invalid hex in test vector")
 }
 
-/// Recursive crypto cost estimate matching Scala's `estimateCryptoVerifyCost`.
+// Recursive crypto cost estimate matching Scala's `estimateCryptoVerifyCost`.
 
 /// Count token entries for a list of boxes (for init cost computation).
 /// Returns (total_entries, distinct_ids).
@@ -172,13 +172,13 @@ struct ParityResult {
 
 fn run_parity_check_paths(tx_path: &Path, cost_path: &Path, hdr_path: &Path) -> ParityResult {
     let tx_records: Vec<TxRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&tx_path).expect("read tx json"))
+        serde_json::from_str(&std::fs::read_to_string(tx_path).expect("read tx json"))
             .expect("parse tx json");
     let cost_records: Vec<CostRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&cost_path).expect("read cost json"))
+        serde_json::from_str(&std::fs::read_to_string(cost_path).expect("read cost json"))
             .expect("parse cost json");
     let hdr_records: Vec<HeaderRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&hdr_path).expect("read header json"))
+        serde_json::from_str(&std::fs::read_to_string(hdr_path).expect("read header json"))
             .expect("parse header json");
 
     // Build cost lookup: tx_id_hex -> block_cost
@@ -301,6 +301,7 @@ fn run_parity_check_paths(tx_path: &Path, cost_path: &Path, hdr_path: &Path) -> 
             }
         };
 
+        #[allow(clippy::needless_range_loop)]
         for input_idx in 0..n_inputs {
             let pre_input = running_jit;
 
@@ -642,13 +643,13 @@ fn run_validate_parity_check_paths(
     hdr_path: &Path,
 ) -> ParityResult {
     let tx_records: Vec<TxRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&tx_path).expect("read tx json"))
+        serde_json::from_str(&std::fs::read_to_string(tx_path).expect("read tx json"))
             .expect("parse tx json");
     let cost_records: Vec<CostRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&cost_path).expect("read cost json"))
+        serde_json::from_str(&std::fs::read_to_string(cost_path).expect("read cost json"))
             .expect("parse cost json");
     let hdr_records: Vec<HeaderRecord> =
-        serde_json::from_str(&std::fs::read_to_string(&hdr_path).expect("read header json"))
+        serde_json::from_str(&std::fs::read_to_string(hdr_path).expect("read header json"))
             .expect("parse header json");
 
     let cost_map: HashMap<String, u64> = cost_records

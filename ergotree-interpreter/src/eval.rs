@@ -631,19 +631,16 @@ mod test {
             input: Box::new(GlobalVars::SelfBox.into()),
         }
         .into();
-        let tree = ErgoTree::try_from(Expr::BoolToSigmaProp(
-            BoolToSigmaProp {
-                input: Box::new(
-                    BinOp {
-                        kind: BinOpKind::Relation(RelationOp::Gt),
-                        left: Box::new(self_value),
-                        right: Box::new(Expr::Const(0i64.into())),
-                    }
-                    .into(),
-                ),
-            }
-            .into(),
-        ))
+        let tree = ErgoTree::try_from(Expr::BoolToSigmaProp(BoolToSigmaProp {
+            input: Box::new(
+                BinOp {
+                    kind: BinOpKind::Relation(RelationOp::Gt),
+                    left: Box::new(self_value),
+                    right: Box::new(Expr::Const(0i64.into())),
+                }
+                .into(),
+            ),
+        }))
         .unwrap();
         let ctx = force_any_val::<Context>();
         let res = reduce_to_crypto(&tree, &ctx).unwrap();

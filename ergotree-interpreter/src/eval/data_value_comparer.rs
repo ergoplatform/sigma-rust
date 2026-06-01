@@ -199,6 +199,7 @@ fn is_coa_coll(coll: &CollKind<Value<'_>>) -> bool {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -214,7 +215,7 @@ mod tests {
         let lv: Value<'_> = Value::Int(42);
         let rv: Value<'_> = Value::Int(42);
         assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
-        assert_eq!(ctx.jit_cost_value() - before, EQ_PRIM_COST as u64);
+        assert_eq!(ctx.jit_cost_value() - before, EQ_PRIM_COST);
     }
 
     #[test]
@@ -224,8 +225,7 @@ mod tests {
         // of 3 items = 15 + 2 = 17). Total = 1 + 17 = 18.
         let ctx = force_any_val::<Context>();
         let before = ctx.jit_cost_value();
-        let items: Arc<[Value<'_>]> =
-            Arc::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
+        let items: Arc<[Value<'_>]> = Arc::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
         let lv: Value<'_> = Value::Coll(CollKind::WrappedColl {
             elem_tpe: SType::SInt,
             items: items.clone(),
@@ -282,7 +282,7 @@ mod tests {
             items: items_b,
         });
         assert!(!eq_with_cost(&lv, &rv, &ctx).unwrap());
-        assert_eq!(ctx.jit_cost_value() - before, COLL_MATCH_TYPE_COST as u64);
+        assert_eq!(ctx.jit_cost_value() - before, COLL_MATCH_TYPE_COST);
     }
 
     /// Charge for equality of two equal empty `Coll[elem_tpe]` (wrapped form):
@@ -328,8 +328,9 @@ mod tests {
         let ctx = force_any_val::<Context>();
         let before = ctx.jit_cost_value();
         let empty_bytes: Arc<[i8]> = Arc::from(Vec::<i8>::new());
-        let lv: Value<'_> =
-            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(empty_bytes.clone())));
+        let lv: Value<'_> = Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
+            empty_bytes.clone(),
+        )));
         let rv: Value<'_> = Value::Coll(CollKind::NativeColl(NativeColl::CollByte(empty_bytes)));
         assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
         assert_eq!(ctx.jit_cost_value() - before, 18);

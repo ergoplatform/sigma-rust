@@ -512,9 +512,9 @@ mod tests {
         let index_of = |target: i64| -> Expr {
             MethodCall::new(
                 coll.clone().into(),
-                scoll::INDEX_OF_METHOD
-                    .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                scoll::INDEX_OF_METHOD.clone().with_concrete_types(
+                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                ),
                 vec![target.into(), 0i32.into()],
             )
             .unwrap()

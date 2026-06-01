@@ -244,16 +244,14 @@ mod tests {
         let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
         assert_eq!(ergo_tree.constants_len().unwrap(), 3);
         let tree_bytes = ergo_tree.sigma_serialize_bytes().unwrap();
-        let script_bytes_expr: Expr = Expr::Const(Constant::from(tree_bytes)).into();
+        let script_bytes_expr: Expr = Expr::Const(Constant::from(tree_bytes));
 
         let run = |positions: Vec<i32>, new_vals: Vec<i32>| -> u64 {
             let ctx = force_any_val::<Context>();
             let before = ctx.jit_cost_value();
             let script_bytes: Box<Expr> = Box::new(script_bytes_expr.clone());
-            let positions_expr: Box<Expr> =
-                Box::new(Expr::Const(Constant::from(positions)));
-            let new_values_expr: Box<Expr> =
-                Box::new(Expr::Const(Constant::from(new_vals)));
+            let positions_expr: Box<Expr> = Box::new(Expr::Const(Constant::from(positions)));
+            let new_values_expr: Box<Expr> = Box::new(Expr::Const(Constant::from(new_vals)));
             let subst = Expr::SubstConstants(
                 SubstConstants {
                     script_bytes,

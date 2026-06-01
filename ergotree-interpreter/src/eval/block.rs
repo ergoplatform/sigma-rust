@@ -65,6 +65,7 @@ impl Evaluable for BlockValue {
 }
 
 #[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use ergotree_ir::mir::block::BlockValue;

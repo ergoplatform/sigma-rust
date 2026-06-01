@@ -207,7 +207,8 @@ mod tests {
             large_range > small_input,
             "Slice cost must scale with requested range. small_input={}, \
              large_range={}",
-            small_input, large_range,
+            small_input,
+            large_range,
         );
     }
 }

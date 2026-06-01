@@ -207,7 +207,9 @@ impl Evaluable for BinOp {
                 // dispatch below (per-type + per-coll-element), since the cost
                 // depends on the runtime value type.
                 RelationOp::Eq | RelationOp::NEq => {}
-                _ => { ctx.add_jit_cost(20)?; } // LT, LE, GT, GE = Fixed(20)
+                _ => {
+                    ctx.add_jit_cost(20)?;
+                } // LT, LE, GT, GE = Fixed(20)
             },
             BinOpKind::Logical(_) => {
                 ctx.add_jit_cost(20)?; // BinOr, BinAnd, BinXor = Fixed(20)
@@ -237,15 +239,15 @@ impl Evaluable for BinOp {
             BinOpKind::Relation(op) => match op {
                 RelationOp::Eq => {
                     let rv_val = rv()?;
-                    Ok(Value::Boolean(crate::eval::data_value_comparer::eq_with_cost(
-                        &lv, &rv_val, ctx,
-                    )?))
+                    Ok(Value::Boolean(
+                        crate::eval::data_value_comparer::eq_with_cost(&lv, &rv_val, ctx)?,
+                    ))
                 }
                 RelationOp::NEq => {
                     let rv_val = rv()?;
-                    Ok(Value::Boolean(!crate::eval::data_value_comparer::eq_with_cost(
-                        &lv, &rv_val, ctx,
-                    )?))
+                    Ok(Value::Boolean(
+                        !crate::eval::data_value_comparer::eq_with_cost(&lv, &rv_val, ctx)?,
+                    ))
                 }
                 RelationOp::Gt => eval_gt(lv, rv()?),
                 RelationOp::Lt => eval_lt(lv, rv()?),
