@@ -122,17 +122,17 @@ pub(crate) fn flatmap_eval<'ctx>(
             input_v
         ))),
     }?;
-    let n = normalized_input_vals.len() as u32;
-    ctx.add_per_item_jit_cost(60, 10, 8, n)?;
-    normalized_input_vals
+    let values = normalized_input_vals
         .iter()
         .map(|item| lambda_call(item.clone()))
-        .collect::<Result<Vec<Value>, EvalError>>()
-        .map(|values| {
-            CollKind::from_vec_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)
-        })
-        .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
-        .map(Value::Coll)
+        .collect::<Result<Vec<Value>, EvalError>>()?;
+    let coll =
+        CollKind::from_vec_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)?;
+    // flatMap cost scales with the OUTPUT (flattened) length, not the input
+    // length, matching Scala's `flatMap_eval` (addSeqCost over `res.length`
+    // after building the result, post the per-item lambda calls).
+    ctx.add_per_item_jit_cost(60, 10, 8, coll.len() as u32)?;
+    Ok(Value::Coll(coll))
 }
 
 pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
