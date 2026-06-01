@@ -114,7 +114,24 @@ pub(crate) fn eq_with_cost<'ctx>(
             }
             let (base, per_chunk, chunk_size) = coll_eq_cost(l_coll);
             ctx.add_per_item_jit_cost(base, per_chunk, chunk_size, n as u32)?;
-            Ok(lv == rv)
+            // COA leaf-element colls are bulk-compared (the per-item cost above
+            // is the whole charge, mirroring JVM `equalCOA_*`). Composite-
+            // element colls (Coll/Tuple/Option/SigmaProp -- the `coll_eq_cost`
+            // default arm) recurse `eq_with_cost` per element, charging the
+            // nested MatchType + per-item, as JVM's generic `equalColls` does
+            // (DataValueComparer.scala:201-238).
+            if is_coa_coll(l_coll) {
+                Ok(lv == rv)
+            } else {
+                let l_items = l_coll.as_vec();
+                let r_items = r_coll.as_vec();
+                for (l, r) in l_items.iter().zip(r_items.iter()) {
+                    if !eq_with_cost(l, r, ctx)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
         }
 
         (Value::Header(_), Value::Header(_)) => {
@@ -157,6 +174,31 @@ fn coll_eq_cost(coll: &CollKind<Value<'_>>) -> (u32, u32, u32) {
     }
 }
 
+/// Whether a collection's element type is a COA (CollOverArray) leaf — the
+/// types JVM `equalColls_Dispatch` bulk-compares without recursion. This is
+/// exactly the set with an explicit (non-default) arm in `coll_eq_cost`;
+/// composite element types (the default arm: Coll/Tuple/Option/SigmaProp, …)
+/// instead recurse `eq_with_cost` per element.
+fn is_coa_coll(coll: &CollKind<Value<'_>>) -> bool {
+    match coll {
+        CollKind::NativeColl(NativeColl::CollByte(_)) => true,
+        CollKind::WrappedColl { elem_tpe, .. } => matches!(
+            elem_tpe,
+            SType::SShort
+                | SType::SInt
+                | SType::SLong
+                | SType::SBoolean
+                | SType::SBigInt
+                | SType::SUnsignedBigInt
+                | SType::SGroupElement
+                | SType::SAvlTree
+                | SType::SBox
+                | SType::SPreHeader
+                | SType::SHeader
+        ),
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -194,6 +236,33 @@ mod tests {
         });
         assert!(eq_with_cost(&lv, &rv, &ctx).unwrap());
         assert_eq!(ctx.jit_cost_value() - before, 18);
+    }
+
+    #[test]
+    fn nested_coll_eq_recurses_element_cost() {
+        // B4: a Coll with a composite element type (here Coll[Coll[Int]]) must
+        // recurse eq_with_cost per element -- charging the nested MatchType +
+        // per-item -- matching JVM's generic `equalColls`; leaf-element colls
+        // (the inner Coll[Int]) still bulk-compare. For [[1,2,3],[4,5,6]] vs
+        // itself: outer = MatchType 1 + default per-item (10,2,1) over 2 =
+        // 1+14 = 15; each inner Coll[Int] len 3 = MatchType 1 + (15,2,64) over
+        // 3 = 1+17 = 18; total = 15 + 18 + 18 = 51 (pre-fix, no recursion: 15).
+        let ctx = force_any_val::<Context>();
+        let inner_a: Value<'_> = Value::Coll(CollKind::WrappedColl {
+            elem_tpe: SType::SInt,
+            items: Arc::from(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+        });
+        let inner_b: Value<'_> = Value::Coll(CollKind::WrappedColl {
+            elem_tpe: SType::SInt,
+            items: Arc::from(vec![Value::Int(4), Value::Int(5), Value::Int(6)]),
+        });
+        let outer: Value<'_> = Value::Coll(CollKind::WrappedColl {
+            elem_tpe: SType::SColl(Arc::new(SType::SInt)),
+            items: Arc::from(vec![inner_a, inner_b]),
+        });
+        let before = ctx.jit_cost_value();
+        assert!(eq_with_cost(&outer, &outer.clone(), &ctx).unwrap());
+        assert_eq!(ctx.jit_cost_value() - before, 51);
     }
 
     #[test]
