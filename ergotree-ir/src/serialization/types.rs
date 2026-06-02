@@ -162,6 +162,9 @@ impl TypeCode {
 impl SigmaSerializable for TypeCode {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.value())?;
+        // Each serialized type code is one byte (PutByteCost) -- charged for Constant type
+        // prefixes (e.g. box register types) during Global.serialize; gated, no-op otherwise.
+        w.add_put_byte_cost();
         Ok(())
     }
 
