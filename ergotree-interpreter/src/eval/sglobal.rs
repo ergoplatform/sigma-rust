@@ -197,6 +197,8 @@ pub(crate) static DESERIALIZE_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
 };
 
 pub(crate) static SERIALIZE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    // Scala `serialize_eval` charges SigmaByteWriter.StartWriterCost = FixedCost(JitCost(10))
+    // up front, then each writer `put`'s cost during DataSerializer.serialize.
     ctx.add_jit_cost(10)?;
     if obj != Value::Global {
         return Err(EvalError::UnexpectedValue(format!(
@@ -212,10 +214,15 @@ pub(crate) static SERIALIZE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
         .map_err(EvalError::UnexpectedValue)?;
 
     let mut buf = vec![];
-    let mut writer = SigmaByteWriter::new(&mut buf, None);
-    writer.with_tree_version(ctx.tree_version(), |writer| {
-        DataSerializer::sigma_serialize(&arg, writer)
-    })?;
+    let put_cost = {
+        let mut writer = SigmaByteWriter::new(&mut buf, None);
+        writer.enable_serialize_cost_tracking();
+        writer.with_tree_version(ctx.tree_version(), |writer| {
+            DataSerializer::sigma_serialize(&arg, writer)
+        })?;
+        writer.serialize_cost()
+    };
+    ctx.add_jit_cost(put_cost)?;
     Ok(Value::from(buf))
 };
 
@@ -578,6 +585,64 @@ mod tests {
         let enc_kind = cost_of::<i64>(&enc_mc) - cost_of::<BigInt256>(&enc_arg);
         let dec_kind = cost_of::<BigInt256>(&dec_mc) - cost_of::<i64>(&dec_arg);
         assert_eq!(dec_kind - enc_kind, 25);
+    }
+
+    /// Regression: `Global.serialize` charges the `SigmaByteWriter` per-`put` costs on top of
+    /// `StartWriterCost(10)` -- previously a flat `JitCost(10)` that dropped every per-`put`
+    /// cost. Scala constants (`SigmaByteWriter.scala`): `PutByteCost`=1,
+    /// `Put{Signed,Unsigned}NumericCost`=3, `PutChunkCost`=`PerItemCost(3,1,1)` => `3 + n`.
+    /// Isolate each value's serialize cost by subtracting its arg-const eval; the shared
+    /// `Global` receiver, `MethodCall` Fixed(4) and `StartWriterCost(10)` cancel in the
+    /// cross-type differences. Matches the blessed JVM v6 vectors (Byte 90, numerics 92,
+    /// Coll[Byte] 95 empty / 98 for 3 bytes).
+    #[test]
+    fn serialize_charges_writer_costkinds() {
+        use crate::eval::test_util::eval_out;
+        use ergotree_ir::chain::context::Context;
+        use ergotree_ir::mir::constant::TryExtractFrom;
+        use ergotree_ir::mir::value::Value;
+        use sigma_test_util::force_any_val;
+
+        fn cost_of<T: TryExtractFrom<Value<'static>> + 'static>(e: &Expr) -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: T = eval_out(e, &ctx);
+            ctx.jit_cost_value() - before
+        }
+
+        fn serialize_mc(c: &Constant) -> Expr {
+            MethodCall::new(
+                Expr::Global,
+                SERIALIZE_METHOD
+                    .clone()
+                    .with_concrete_types(&[(STypeVar::t(), c.tpe.clone())].into_iter().collect()),
+                vec![c.clone().into()],
+            )
+            .unwrap()
+            .into()
+        }
+
+        // serialize cost of `c` isolated from its argument eval.
+        fn ser_kind<T: TryExtractFrom<Value<'static>> + 'static>(c: Constant) -> u64 {
+            cost_of::<Vec<u8>>(&serialize_mc(&c)) - cost_of::<T>(&c.into())
+        }
+
+        let byte = ser_kind::<i8>(1i8.into());
+        let long = ser_kind::<i64>(1i64.into());
+        let coll0 = ser_kind::<Vec<i8>>(Vec::<i8>::new().into());
+        let coll3 = ser_kind::<Vec<i8>>(vec![1i8, 2, 3].into());
+        let bigint = ser_kind::<BigInt256>(BigInt256::from(1i8).into());
+
+        // PutSignedNumericCost(3) - PutByteCost(1)
+        assert_eq!(long - byte, 2);
+        // Coll[Byte] n=0: putU16(3) + PutChunkCost.cost(0)=3 => 6; minus Byte(1)
+        assert_eq!(coll0 - byte, 5);
+        // Coll[Byte] n=3: putU16(3) + PutChunkCost.cost(3)=6 => 9; minus Byte(1)
+        assert_eq!(coll3 - byte, 8);
+        // PutChunkCost per-item slope: cost(3) - cost(0)
+        assert_eq!(coll3 - coll0, 3);
+        // BigInt(1): putU16(3) + PutChunkCost.cost(1)=4 => 7; minus Byte(1)
+        assert_eq!(bigint - byte, 6);
     }
 
     use proptest::prelude::*;

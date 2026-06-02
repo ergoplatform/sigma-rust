@@ -41,17 +41,34 @@ impl DataSerializer {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L26-L26
         Ok(match c {
             Literal::Unit => (),
-            Literal::Boolean(v) => w.put_u8(u8::from(*v))?,
-            Literal::Byte(v) => w.put_i8(*v)?,
-            Literal::Short(v) => w.put_i16(*v)?,
-            Literal::Int(v) => w.put_i32(*v)?,
-            Literal::Long(v) => w.put_i64(*v)?,
+            Literal::Boolean(v) => {
+                w.put_u8(u8::from(*v))?;
+                w.add_put_byte_cost();
+            }
+            Literal::Byte(v) => {
+                w.put_i8(*v)?;
+                w.add_put_byte_cost();
+            }
+            Literal::Short(v) => {
+                w.put_i16(*v)?;
+                w.add_put_numeric_cost();
+            }
+            Literal::Int(v) => {
+                w.put_i32(*v)?;
+                w.add_put_numeric_cost();
+            }
+            Literal::Long(v) => {
+                w.put_i64(*v)?;
+                w.add_put_numeric_cost();
+            }
             Literal::BigInt(v) => {
                 v.sigma_serialize(w)?;
             }
             Literal::String(s) => {
                 w.put_usize_as_u32_unwrapped(s.len())?;
+                w.add_put_numeric_cost();
                 w.write_all(s.as_bytes())?;
+                w.add_put_chunk_cost(s.len());
             }
             Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
@@ -68,26 +85,31 @@ impl DataSerializer {
             Literal::Coll(ct) => match ct {
                 CollKind::NativeColl(NativeColl::CollByte(b)) => {
                     w.put_usize_as_u16_unwrapped(b.len())?;
-                    w.write_all(b.clone().as_vec_u8().as_slice())?
+                    w.add_put_numeric_cost();
+                    w.write_all(b.clone().as_vec_u8().as_slice())?;
+                    w.add_put_chunk_cost(b.len());
                 }
                 CollKind::WrappedColl {
                     elem_tpe: SType::SBoolean,
                     items: v,
                 } => {
                     w.put_usize_as_u16_unwrapped(v.len())?;
+                    w.add_put_numeric_cost();
                     let maybe_bools: Result<Vec<bool>, TryExtractFromError> = v
                         .clone()
                         .iter()
                         .cloned()
                         .map(|i| i.try_extract_into::<bool>())
                         .collect();
-                    w.put_bits(maybe_bools?.as_slice())?
+                    w.put_bits(maybe_bools?.as_slice())?;
+                    w.add_put_chunk_cost(v.len());
                 }
                 CollKind::WrappedColl {
                     elem_tpe: _,
                     items: v,
                 } => {
                     w.put_usize_as_u16_unwrapped(v.len())?;
+                    w.add_put_numeric_cost();
                     v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))?
                 }
@@ -102,6 +124,7 @@ impl DataSerializer {
                 w.put_option(Option::as_ref(opt), |w, v| {
                     DataSerializer::sigma_serialize(v, w)
                 })?;
+                w.add_put_byte_cost();
             }
             // unsupported, see
             // https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
