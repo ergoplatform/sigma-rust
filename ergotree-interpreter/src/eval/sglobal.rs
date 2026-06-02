@@ -246,7 +246,8 @@ pub(crate) static SGLOBAL_NONE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static ENCODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, args| {
-    ctx.add_jit_cost(10)?;
+    // Scala Global.encodeNbits EncodeNBitsCost = FixedCost(JitCost(25)).
+    ctx.add_jit_cost(25)?;
     let bigint: BigInt = args
         .first()
         .cloned()
@@ -257,7 +258,8 @@ pub(crate) static ENCODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, args| {
 };
 
 pub(crate) static DECODE_NBITS_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, args| {
-    ctx.add_jit_cost(10)?;
+    // Scala Global.decodeNbits DecodeNBitsCost = FixedCost(JitCost(50)).
+    ctx.add_jit_cost(50)?;
     let nbits: i64 = args
         .first()
         .cloned()
@@ -527,6 +529,49 @@ mod tests {
 
         let n_bits = 16842752;
         assert_eq!(decode_nbits(n_bits), BigInt256::from(1_i8));
+    }
+
+    /// Regression: the Global nbits methods charge their Scala costKinds --
+    /// Global.encodeNbits = FixedCost(JitCost(25)), Global.decodeNbits =
+    /// FixedCost(JitCost(50)) (both were a flat 10, the v6 -15/-40 undercharge).
+    /// Isolate each method's costKind by subtracting its arg-const eval cost; the
+    /// shared `Global` receiver eval and the MethodCall Fixed(4) cancel, so the
+    /// decode-minus-encode costKind delta must be 50 - 25 = 25.
+    #[test]
+    fn nbits_methods_charge_scala_costkinds() {
+        use crate::eval::test_util::eval_out;
+        use ergotree_ir::chain::context::Context;
+        use ergotree_ir::mir::constant::TryExtractFrom;
+        use ergotree_ir::mir::value::Value;
+        use sigma_test_util::force_any_val;
+
+        fn cost_of<T: TryExtractFrom<Value<'static>> + 'static>(e: &Expr) -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: T = eval_out(e, &ctx);
+            ctx.jit_cost_value() - before
+        }
+
+        let enc_arg: Expr = Constant::from(BigInt256::from(1i8)).into();
+        let dec_arg: Expr = Constant::from(16842752i64).into();
+        let enc_mc: Expr = MethodCall::new(
+            Expr::Global,
+            ENCODE_NBITS_METHOD.clone(),
+            vec![enc_arg.clone()],
+        )
+        .unwrap()
+        .into();
+        let dec_mc: Expr = MethodCall::new(
+            Expr::Global,
+            DECODE_NBITS_METHOD.clone(),
+            vec![dec_arg.clone()],
+        )
+        .unwrap()
+        .into();
+
+        let enc_kind = cost_of::<i64>(&enc_mc) - cost_of::<BigInt256>(&enc_arg);
+        let dec_kind = cost_of::<BigInt256>(&dec_mc) - cost_of::<i64>(&dec_arg);
+        assert_eq!(dec_kind - enc_kind, 25);
     }
 
     use proptest::prelude::*;
