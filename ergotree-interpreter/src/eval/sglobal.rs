@@ -605,6 +605,9 @@ mod tests {
 
         fn cost_of<T: TryExtractFrom<Value<'static>> + 'static>(e: &Expr) -> u64 {
             let ctx = force_any_val::<Context>();
+            // UnsignedBigInt/Option/Header serialize arms are gated to tree version >= V3;
+            // pin V3 so eval_out doesn't hit a random pre-V3 context. Cost is version-independent.
+            ctx.tree_version.set(ErgoTreeVersion::V3);
             let before = ctx.jit_cost_value();
             let _: T = eval_out(e, &ctx);
             ctx.jit_cost_value() - before
@@ -643,6 +646,20 @@ mod tests {
         assert_eq!(coll3 - coll0, 3);
         // BigInt(1): putU16(3) + PutChunkCost.cost(1)=4 => 7; minus Byte(1)
         assert_eq!(bigint - byte, 6);
+
+        // --- Phase A1: delegated nested serializers metered at the ergotree-ir site ---
+        let gel = ser_kind::<EcPoint>(Constant::from(
+            EcPoint::from_base16_str(String::from(
+                "026930cb9972e01534918a6f6d6b8e35bc398f57140d13eb3623ea31fbd069939b",
+            ))
+            .unwrap(),
+        ));
+        let ubi = ser_kind::<UnsignedBigInt>(Constant::from(UnsignedBigInt::from(1u32)));
+
+        // GroupElement: EcPoint writes one GROUP_SIZE(33)-byte block => PutChunkCost(33)=36; minus Byte(1)
+        assert_eq!(gel - byte, 35);
+        // UnsignedBigInt(1): putU16(3) + PutChunkCost.cost(1)=4 => 7; identical shape to BigInt(1)
+        assert_eq!(ubi, bigint);
     }
 
     use proptest::prelude::*;

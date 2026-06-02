@@ -17,6 +17,8 @@ use crate::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
 impl SigmaSerializable for SigmaBoolean {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.op_code().sigma_serialize(w)?;
+        // Scala SigmaBoolean.serializer writes a 1-byte op code (PutByteCost) for every variant.
+        w.add_put_byte_cost();
         match self {
             SigmaBoolean::ProofOfKnowledge(proof) => match proof {
                 SigmaProofOfKnowledgeTree::ProveDhTuple(v) => v.sigma_serialize(w),
@@ -66,7 +68,9 @@ impl SigmaSerializable for SigmaBoolean {
 
 impl SigmaSerializable for ProveDlog {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.h.sigma_serialize(w)
+        self.h.sigma_serialize(w)?;
+        w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
+        Ok(())
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -78,9 +82,14 @@ impl SigmaSerializable for ProveDlog {
 impl SigmaSerializable for ProveDhTuple {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.g.sigma_serialize(w)?;
+        w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
         self.h.sigma_serialize(w)?;
+        w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
         self.u.sigma_serialize(w)?;
-        self.v.sigma_serialize(w)
+        w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
+        self.v.sigma_serialize(w)?;
+        w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
+        Ok(())
     }
 
     #[allow(clippy::many_single_char_names)]

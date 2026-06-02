@@ -70,7 +70,13 @@ impl DataSerializer {
                 w.write_all(s.as_bytes())?;
                 w.add_put_chunk_cost(s.len());
             }
-            Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
+            Literal::GroupElement(ecp) => {
+                // EcPoint::scorex_serialize writes exactly GROUP_SIZE (33) bytes as one block;
+                // Scala meters it as putBytes(33) = PutChunkCost. (EcPoint is in ergo-chain-types
+                // and can't reach the cost sink, so record it here at the delegating site.)
+                ecp.sigma_serialize(w)?;
+                w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
+            }
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
             Literal::UnsignedBigInt(v) if w.tree_version() >= ErgoTreeVersion::V3 => {
                 v.sigma_serialize(w)?
