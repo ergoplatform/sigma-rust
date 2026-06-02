@@ -299,7 +299,7 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
             ))),
         }?;
         let n = normalized_input_vals.len() as u32;
-        ctx.add_per_item_jit_cost(20, 1, 10, n)?;
+        ctx.add_per_item_jit_cost(20, 2, 10, n)?;
         let indexes_arg = args.first().cloned().ok_or_else(|| {
             EvalError::NotFound("updated: missing first arg (indexes)".to_string())
         })?;
