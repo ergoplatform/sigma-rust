@@ -212,6 +212,7 @@ impl SigmaSerializable for ErgoBox {
         )?;
         self.transaction_id.sigma_serialize(w)?;
         w.put_u16(self.index)?;
+        w.add_put_numeric_cost();
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
@@ -311,11 +312,15 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L95-L95
     box_value.sigma_serialize(w)?;
     w.write_all(&ergo_tree_bytes[..])?;
+    // ergoTree is pre-serialized to bytes and written as one block => PutChunkCost over its length.
+    w.add_put_chunk_cost(ergo_tree_bytes.len());
     w.put_u32(creation_height)?;
+    w.add_put_numeric_cost();
     let tokens: &[Token] = tokens.as_ref().map(BoundedVec::as_ref).unwrap_or(&[]);
     // Unwrap is safe since BoxTokens size is bounded to ErgoBox::MAX_TOKENS_COUNT
     #[allow(clippy::unwrap_used)]
     w.put_u8(u8::try_from(tokens.len()).unwrap())?;
+    w.add_put_byte_cost();
 
     tokens.iter().try_for_each(|t| {
         match token_ids_in_tx {
