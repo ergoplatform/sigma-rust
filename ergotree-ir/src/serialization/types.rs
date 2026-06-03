@@ -346,22 +346,27 @@ impl SigmaSerializable for SType {
                 #[allow(clippy::unwrap_used)]
                 // TypeCode::from_primitive_type can't fail since it's only called on primitive types here
                 SBoolean | SByte | SShort | SInt | SLong | SBigInt | SGroupElement | SSigmaProp
-                | SUnsignedBigInt => w
-                    .put_u8(
+                | SUnsignedBigInt => {
+                    w.put_u8(
                         TypeCode::COLL as u8
                             + TypeCode::from_primitive_type(elem_type).unwrap() as u8,
-                    )
-                    .map_err(From::from),
+                    )?;
+                    // fast-path combined type code = one byte; meter it like TypeCode::sigma_serialize
+                    w.add_put_byte_cost();
+                    Ok(())
+                }
                 SColl(inner_elem_type) => match &**inner_elem_type {
                     #[allow(clippy::unwrap_used)]
                     // TypeCode::from_primitive_type can't fail since it's only called on primitive types here
                     SBoolean | SByte | SShort | SInt | SLong | SBigInt | SGroupElement
-                    | SSigmaProp | SUnsignedBigInt => w
-                        .put_u8(
+                    | SSigmaProp | SUnsignedBigInt => {
+                        w.put_u8(
                             TypeCode::NESTED_COLL as u8
                                 + TypeCode::from_primitive_type(inner_elem_type).unwrap() as u8,
-                        )
-                        .map_err(From::from),
+                        )?;
+                        w.add_put_byte_cost();
+                        Ok(())
+                    }
                     STypeVar(_) | SAny | SUnit | SBox | SAvlTree | SOption(_) | SColl(_)
                     | STuple(_) | SFunc(_) | SContext | SString | SHeader | SPreHeader
                     | SGlobal => {
@@ -387,12 +392,14 @@ impl SigmaSerializable for SType {
                         SBoolean | SByte | SShort | SInt | SLong | SBigInt | SGroupElement
                         | SSigmaProp | SUnsignedBigInt,
                         t2,
-                    ) if t1 == t2 => w
-                        .put_u8(
+                    ) if t1 == t2 => {
+                        w.put_u8(
                             TypeCode::TUPLE_PAIR_SYMMETRIC as u8
                                 + TypeCode::from_primitive_type(t1).unwrap() as u8,
-                        )
-                        .map_err(From::from),
+                        )?;
+                        w.add_put_byte_cost();
+                        Ok(())
+                    }
                     (
                         SBoolean | SByte | SShort | SInt | SLong | SBigInt | SGroupElement
                         | SSigmaProp | SUnsignedBigInt,
@@ -402,6 +409,7 @@ impl SigmaSerializable for SType {
                             TypeCode::TUPLE_PAIR1 as u8
                                 + TypeCode::from_primitive_type(t1).unwrap() as u8,
                         )?;
+                        w.add_put_byte_cost();
                         t2.sigma_serialize(w)
                     }
                     (
@@ -413,6 +421,7 @@ impl SigmaSerializable for SType {
                             TypeCode::TUPLE_PAIR2 as u8
                                 + TypeCode::from_primitive_type(t2).unwrap() as u8,
                         )?;
+                        w.add_put_byte_cost();
                         t1.sigma_serialize(w)
                     }
                     (
@@ -523,6 +532,29 @@ mod tests {
         assert!(
             sigma_serialize_roundtrip_versioned(&SType::SFunc(sfunc), ErgoTreeVersion::V3).is_err()
         );
+    }
+
+    /// Each combined fast-path type code (Coll/nested-Coll/tuple-pair of primitives) is a single
+    /// byte that must be metered like `TypeCode::sigma_serialize` (PutByteCost = 1). Matches the
+    /// blessed v6 `Global.serialize[Box]` register-type entries (Coll[Byte] 178 / Coll[Int] 152 /
+    /// Coll[Coll[Byte]] 151 / (Int,Int) 146 / (Int,Long) 147 / (Coll[Byte],Int) 154), each undercharged by 1.
+    #[test]
+    fn serialize_charges_fastpath_typecode_byte() {
+        use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+        fn type_put_cost(t: &SType) -> u64 {
+            let mut buf = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut buf, None);
+            w.enable_serialize_cost_tracking();
+            t.sigma_serialize(&mut w).unwrap();
+            w.serialize_cost()
+        }
+        let coll = |t: SType| SType::SColl(t.into());
+        let pair = |a: SType, b: SType| SType::STuple(stuple::STuple::pair(a, b));
+        assert_eq!(type_put_cost(&coll(SType::SByte)), 1); // COLL+prim
+        assert_eq!(type_put_cost(&coll(coll(SType::SByte))), 1); // NESTED_COLL+prim
+        assert_eq!(type_put_cost(&pair(SType::SInt, SType::SInt)), 1); // TUPLE_PAIR_SYMMETRIC
+        assert_eq!(type_put_cost(&pair(SType::SInt, SType::SLong)), 2); // TUPLE_PAIR1 + SLong prim byte
+        assert_eq!(type_put_cost(&pair(coll(SType::SByte), SType::SInt)), 2); // TUPLE_PAIR2 + Coll[Byte] byte (blessed (Coll[Byte],Int) box = 154)
     }
 
     proptest! {
