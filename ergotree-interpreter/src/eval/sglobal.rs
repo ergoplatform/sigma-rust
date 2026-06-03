@@ -327,7 +327,9 @@ pub(crate) static POW_HIT_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, mut args| {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use ergo_chain_types::{ADDigest, EcPoint, Header};
+    use ergo_chain_types::{
+        ADDigest, AutolykosSolution, BlockId, Digest32, EcPoint, Header, Votes,
+    };
     use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::ergo_tree::ErgoTreeVersion;
     use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
@@ -680,6 +682,39 @@ mod tests {
         // so dummy and withValueLen are identical. minus Byte(1) => 37.
         assert_eq!(avl_dummy - byte, 37);
         assert_eq!(avl_withlen - byte, 37);
+
+        // --- Header (delegated Header::scorex_serialize, hand-mirrored at the data.rs site) ---
+        // Deterministic v2 / empty-unparsed header (autolykos v2: pk + 8-byte nonce, no w/d).
+        let header = ser_kind::<Header>(Constant::from(Header {
+            version: 2,
+            id: BlockId(Digest32::zero()),
+            parent_id: BlockId(Digest32::zero()),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits: 0,
+            height: 0,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::new(
+                    EcPoint::from_base16_str(String::from(
+                        "026930cb9972e01534918a6f6d6b8e35bc398f57140d13eb3623ea31fbd069939b",
+                    ))
+                    .unwrap(),
+                ),
+                pow_onetime_pk: None,
+                nonce: vec![0u8; 8],
+                pow_distance: None,
+            },
+            votes: Votes([0, 0, 0]),
+            unparsed_bytes: Box::new([]),
+        }));
+        // put_cost 244 (blessed Global.serialize[Header] 333 = 89 + 244): ver 1 + 4×Digest32
+        // putBytes(32)=35 + ADDigest putBytes(33)=36 + putULong 3 + nBits putBytes(4)=7
+        // + putUInt(height)=0 + votes putBytes(3)=6 + unparsedLen 1 + unparsed putBytes(0)=3
+        // + pk putBytes(33)=36 + nonce putBytes(8)=11. minus Byte(1) => 243.
+        assert_eq!(header - byte, 243);
     }
 
     use proptest::prelude::*;

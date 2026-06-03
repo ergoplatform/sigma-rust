@@ -27,6 +27,7 @@ use crate::types::stuple;
 use crate::types::stype::SType;
 use crate::unsignedbigint256::UnsignedBigInt;
 use ergo_chain_types::EcPoint;
+use num_traits::Zero;
 
 use super::sigma_byte_writer::SigmaByteWrite;
 use alloc::sync::Arc;
@@ -125,6 +126,48 @@ impl DataSerializer {
                 .try_for_each(|i| DataSerializer::sigma_serialize(i, w))?,
             Literal::Header(h) if w.tree_version() >= ErgoTreeVersion::V3 => {
                 h.scorex_serialize(w)?;
+                // Header is in ergo-chain-types and can't reach the cost sink, so mirror the
+                // JVM's metered put sequence here (as for EcPoint/AvlTree). Order matches
+                // `ErgoHeader.sigmaSerializer` = `HeaderWithoutPowSerializer.serialize` +
+                // `AutolykosSolution.sigmaSerializerV{1,2}` (sigma
+                // `org/ergoplatform/{ErgoHeader,HeaderWithoutPow}.scala`); keep in sync with
+                // `Header::serialize_without_pow` / `AutolykosSolution::serialize_bytes`. All
+                // puts are no-info, so `putUInt(height)` is unmetered (0). Blessed v6
+                // `Global.serialize[Header]` = 333 (= 89 + put_cost 244, v2/empty-unparsed).
+                w.add_put_byte_cost(); // put(version)
+                w.add_put_chunk_cost(32); // putBytes(parentId: Digest32)
+                w.add_put_chunk_cost(32); // putBytes(ADProofsRoot: Digest32)
+                w.add_put_chunk_cost(32); // putBytes(transactionsRoot: Digest32)
+                w.add_put_chunk_cost(33); // putBytes(stateRoot: ADDigest)
+                w.add_put_numeric_cost(); // putULong(timestamp)
+                w.add_put_chunk_cost(32); // putBytes(extensionRoot: Digest32)
+                w.add_put_chunk_cost(4); // DifficultySerializer: putBytes(nBits, 4 BE)
+                                         // putUInt(height): no-info, unmetered (0)
+                w.add_put_chunk_cost(3); // putBytes(votes)
+                if h.version > 1 {
+                    w.add_put_byte_cost(); // putUByte(unparsedBytes.len)
+                    w.add_put_chunk_cost(h.unparsed_bytes.len()); // putBytes(unparsedBytes)
+                }
+                // AutolykosSolution.sigmaSerializerV{1,2}
+                w.add_put_chunk_cost(EcPoint::GROUP_SIZE); // GroupElementSerializer(pk)
+                if h.version == 1 {
+                    // GroupElementSerializer(w) — one-time pk, v1 only
+                    w.add_put_chunk_cost(EcPoint::GROUP_SIZE);
+                }
+                w.add_put_chunk_cost(8); // putBytes(nonce)
+                if h.version == 1 {
+                    w.add_put_byte_cost(); // putUByte(dBytes.len) — v1 only
+                                           // putBytes(dBytes): length per sigma `asUnsignedByteArray` — empty for
+                                           // zero, else minimal big-endian (matches `fix/autolykos-v1-zero-distance`).
+                    let d_len = h.autolykos_solution.pow_distance.as_ref().map_or(0, |d| {
+                        if d.is_zero() {
+                            0
+                        } else {
+                            d.to_bytes_be().len()
+                        }
+                    });
+                    w.add_put_chunk_cost(d_len);
+                }
             }
             Literal::Opt(opt) if w.tree_version() >= ErgoTreeVersion::V3 => {
                 w.put_option(Option::as_ref(opt), |w, v| {
