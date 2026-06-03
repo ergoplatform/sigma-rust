@@ -327,9 +327,10 @@ pub(crate) static POW_HIT_EVAL_FN: EvalFn = |_mc, _env, ctx, _obj, mut args| {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use ergo_chain_types::{EcPoint, Header};
+    use ergo_chain_types::{ADDigest, EcPoint, Header};
     use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::ergo_tree::ErgoTreeVersion;
+    use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::long_to_byte_array::LongToByteArray;
@@ -660,6 +661,25 @@ mod tests {
         assert_eq!(gel - byte, 35);
         // UnsignedBigInt(1): putU16(3) + PutChunkCost.cost(1)=4 => 7; identical shape to BigInt(1)
         assert_eq!(ubi, bigint);
+
+        // --- Phase A2c: AvlTree (delegated AvlTreeData serializer) ---
+        let avl_dummy = ser_kind::<AvlTreeData>(Constant::from(AvlTreeData {
+            digest: ADDigest::zero(),
+            tree_flags: AvlTreeFlags::new(true, true, true),
+            key_length: 32,
+            value_length_opt: None,
+        }));
+        let avl_withlen = ser_kind::<AvlTreeData>(Constant::from(AvlTreeData {
+            digest: ADDigest::zero(),
+            tree_flags: AvlTreeFlags::new(true, true, true),
+            key_length: 32,
+            value_length_opt: Some(Box::new(8u32)),
+        }));
+        // AvlTree: putBytes(33-digest)=36 + putUByte(flags)=1 + putUInt(keyLength)=0
+        // + putOption tag=1 = 38; the Some valueLength inner putUInt nets to 0 (no-info putUInt),
+        // so dummy and withValueLen are identical. minus Byte(1) => 37.
+        assert_eq!(avl_dummy - byte, 37);
+        assert_eq!(avl_withlen - byte, 37);
     }
 
     use proptest::prelude::*;
