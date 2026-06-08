@@ -12,6 +12,7 @@ use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use ergotree_ir::types::smethod::SMethod;
+use ergotree_ir::types::stype::SType;
 
 use self::env::Env;
 use ergotree_ir::chain::context::Context;
@@ -124,6 +125,28 @@ pub struct ReductionResult {
     pub cost: u64,
     /// Diagnostic information about the reduction (pretty printed expr and/or env)
     pub diag: ReductionDiagnosticInfo,
+}
+
+/// Mirror of sigma-state `SType.isValueOfType`'s reachable rejections
+/// (`SType.scala:200-205`), invoked by the JVM via `Value.checkType` at the
+/// Tuple-eval items (`values.scala:801/804`) and `ConstantPlaceholder.eval`
+/// (`values.scala:412`): a tuple type must be a pair (arity 2) and a function
+/// type must be unary, otherwise the JVM throws "Unsupported tuple/function
+/// type". sigma-rust models flat N-ary tuples (`TupleItems` = `BoundedVec<2,255>`)
+/// so an arity≠2 tuple constant/value is representable and would otherwise
+/// evaluate where the JVM rejects (a consensus accept/reject divergence). The
+/// remaining `isValueOfType` arms only assert a value matches its type, which is
+/// an invariant of sigma-rust's typed `Value`s, so they need no run-time check.
+pub(crate) fn check_value_type(tpe: &SType) -> Result<(), EvalError> {
+    match tpe {
+        SType::STuple(t) if t.items.len() != 2 => {
+            Err(EvalError::Misc(format!("Unsupported tuple type {tpe:?}")))
+        }
+        SType::SFunc(f) if f.t_dom.len() != 1 => Err(EvalError::Misc(format!(
+            "Unsupported function type {tpe:?}"
+        ))),
+        _ => Ok(()),
+    }
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
