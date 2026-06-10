@@ -16,6 +16,7 @@ use crate::serialization::SigmaSerializeResult;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 pub use box_id::*;
+use core2::io::SeekFrom;
 use ergo_chain_types::Digest32;
 pub use register::*;
 
@@ -58,7 +59,7 @@ pub type BoxTokens = BoundedVec<Token, 1, { ErgoBox::MAX_TOKENS_COUNT }>;
     serde(try_from = "crate::chain::json::ergo_box::ErgoBoxJson"),
     serde(into = "crate::chain::json::ergo_box::ErgoBoxJson")
 )]
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone)]
 pub struct ErgoBox {
     pub(crate) box_id: BoxId,
     /// amount of money associated with the box
@@ -77,6 +78,23 @@ pub struct ErgoBox {
     pub transaction_id: TxId,
     /// number of box (from 0 to total number of boxes the transaction with transactionId created - 1)
     pub index: u16,
+    /// Exact serialized bytes retained when this box was parsed off the wire (`None` for boxes
+    /// built from fields, which serialize canonically). Mirrors the reference impl's
+    /// `ErgoBox._bytes`: `ErgoBox.bytes` returns this slice verbatim, so a box carrying a
+    /// non-canonically-encoded value keeps its on-the-wire byte image (and thus `id`).
+    pub(crate) serialized_bytes: Option<Vec<u8>>,
+}
+
+// Mirror the reference impl's `ErgoBox.equals` (ErgoBox.scala:188-191), which compares the
+// box `id` (a `Blake2b256` hash of the box bytes) rather than the decoded fields. For a box
+// parsed off the wire `id` is computed over the exact retained input slice, so two boxes whose
+// bytes differ only in a non-canonical-but-accepted encoding (e.g. a `0x00`-lead "garbage
+// identity" GroupElement, where bytes 1..32 are discarded at parse) have different ids and
+// therefore compare unequal — even though every decoded field is equal.
+impl PartialEq for ErgoBox {
+    fn eq(&self, other: &Self) -> bool {
+        self.box_id == other.box_id
+    }
 }
 
 impl ErgoBox {
@@ -109,6 +127,7 @@ impl ErgoBox {
             creation_height,
             transaction_id,
             index,
+            serialized_bytes: None,
         };
         let box_id = box_with_zero_id.calc_box_id()?;
         Ok(ErgoBox {
@@ -120,6 +139,18 @@ impl ErgoBox {
     /// Box id (Blake2b256 hash of serialized box)
     pub fn box_id(&self) -> BoxId {
         self.box_id
+    }
+
+    /// Serialized box bytes. For a box parsed off the wire this is the exact retained input
+    /// slice (`ErgoBox._bytes`); for a box built from fields it is the canonical serialization.
+    /// `ExtractBytes` (`Box.bytes`) surfaces this, so non-canonically-encoded inputs keep their
+    /// on-the-wire byte image. (Note `bytesWithoutRef`/`ErgoBoxCandidate` has no retained slice
+    /// and always re-serializes canonically — see `ErgoBoxCandidate`.)
+    pub fn bytes(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+        match &self.serialized_bytes {
+            Some(bytes) => Ok(bytes.clone()),
+            None => self.sigma_serialize_bytes(),
+        }
     }
 
     /// Create ErgoBox from ErgoBoxCandidate by adding transaction id
@@ -138,6 +169,7 @@ impl ErgoBox {
             creation_height: box_candidate.creation_height,
             transaction_id,
             index,
+            serialized_bytes: None,
         };
         let box_id = box_with_zero_id.calc_box_id()?;
         Ok(ErgoBox {
@@ -215,10 +247,31 @@ impl SigmaSerializable for ErgoBox {
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        // Mirror `ErgoBox.sigmaSerializer.parse` (ErgoBox.scala:214-225): retain the exact
+        // consumed input slice, compute `id` over it, and keep it (`serialized_bytes`) so
+        // `ErgoBox.bytes` returns it verbatim — instead of re-serializing the decoded box. This
+        // preserves the on-the-wire identity and byte image of boxes carrying
+        // non-canonically-encoded (but accepted) values, matching the reference impl.
+        let start = r.position()?;
         let box_candidate = ErgoBoxCandidate::parse_body_with_indexed_digests(None, r)?;
         let tx_id = TxId::sigma_parse(r)?;
         let index = r.get_u16()?;
-        Ok(ErgoBox::from_box_candidate(&box_candidate, tx_id, index)?)
+        let end = r.position()?;
+        r.seek(SeekFrom::Start(start))?;
+        let mut box_bytes = alloc::vec![0u8; (end - start) as usize];
+        r.read_exact(&mut box_bytes)?;
+        let box_id: BoxId = Digest32::from(*blake2b256_hash(&box_bytes)).into();
+        Ok(ErgoBox {
+            box_id,
+            value: box_candidate.value,
+            ergo_tree: box_candidate.ergo_tree,
+            tokens: box_candidate.tokens,
+            additional_registers: box_candidate.additional_registers,
+            creation_height: box_candidate.creation_height,
+            transaction_id: tx_id,
+            index,
+            serialized_bytes: Some(box_bytes),
+        })
     }
 }
 
@@ -490,6 +543,66 @@ mod tests {
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
     use sigma_test_util::force_any_val_with;
+
+    // Regression: a box parsed off the wire keeps its on-the-wire identity. Two boxes whose
+    // bytes differ only in a non-canonical-but-accepted GroupElement encoding (`0x00`-lead
+    // "garbage identity", bytes 1..32 discarded at parse) get different ids and compare
+    // unequal, even though their decoded R4 GroupElements are equal — mirroring
+    // `ErgoBox.equals` (id over the retained slice). SANTA `Box.eq_id_basis`.
+    #[test]
+    fn box_id_uses_retained_wire_bytes() {
+        use ergo_chain_types::ec_point::identity;
+        let ge_const: Constant = identity().into();
+        let regs = NonMandatoryRegisters::new([(NonMandatoryRegisterId::R4, ge_const)]).unwrap();
+        let constructed = ErgoBox::from_box_candidate(
+            &ErgoBoxCandidate {
+                value: BoxValue::SAFE_USER_MIN,
+                ergo_tree: force_any_val::<ErgoTree>(),
+                tokens: None,
+                additional_registers: regs,
+                creation_height: 0,
+            },
+            TxId::zero(),
+            0,
+        )
+        .unwrap();
+        let canon_bytes = constructed.sigma_serialize_bytes().unwrap();
+
+        // Locate the R4 GroupElement constant (type byte `0x07` then the `0x00` identity lead).
+        // It is the last such marker: only zero bytes (txid + index) follow it. Flip the 32
+        // bytes after the lead to 0xaa; the GroupElement still parses to the identity point
+        // (bytes 1..32 are discarded), so only the box bytes — and thus the id — change.
+        let ge_pos = canon_bytes
+            .windows(2)
+            .rposition(|w| w == [0x07, 0x00])
+            .unwrap();
+        let mut garbage_bytes = canon_bytes.clone();
+        for b in &mut garbage_bytes[ge_pos + 2..ge_pos + 2 + 32] {
+            *b = 0xaa;
+        }
+        assert_ne!(garbage_bytes, canon_bytes);
+
+        let box_canon = ErgoBox::sigma_parse_bytes(&canon_bytes).unwrap();
+        let box_garbage = ErgoBox::sigma_parse_bytes(&garbage_bytes).unwrap();
+
+        // id is computed over the exact retained input slice, not the re-serialized box.
+        let canon_id: BoxId = Digest32::from(*blake2b256_hash(&canon_bytes)).into();
+        let garbage_id: BoxId = Digest32::from(*blake2b256_hash(&garbage_bytes)).into();
+        assert_eq!(box_canon.box_id(), canon_id);
+        assert_eq!(box_garbage.box_id(), garbage_id);
+        // `bytes()` likewise returns the retained slice verbatim (the `Box.bytes` basis).
+        assert_eq!(box_garbage.bytes().unwrap(), garbage_bytes);
+        assert_eq!(box_canon.bytes().unwrap(), canon_bytes);
+        // Different ids => unequal boxes...
+        assert_ne!(box_canon.box_id(), box_garbage.box_id());
+        assert_ne!(box_canon, box_garbage);
+        // ...even though the decoded R4 GroupElements compare equal (value basis preserved).
+        let r4 = RegisterId::NonMandatoryRegisterId(NonMandatoryRegisterId::R4);
+        assert_eq!(
+            box_canon.get_register(r4).unwrap(),
+            box_garbage.get_register(r4).unwrap()
+        );
+    }
 
     #[test]
     fn get_register_mandatory() {

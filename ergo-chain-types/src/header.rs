@@ -5,6 +5,7 @@ use crate::autolykos_pow_scheme::{
 use crate::{ADDigest, BlockId, Digest32, EcPoint};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use core2::io::SeekFrom;
 use core2::io::Write;
 use num_bigint::{BigUint, ToBigInt};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
@@ -121,7 +122,11 @@ impl ScorexSerializable for Header {
         Ok(())
     }
 
+    // `seek(SeekFrom::Current(0))` reads the stream position; `Seek::stream_position` is
+    // std-only in core2 (this crate is `no_std`), so the `seek_from_current` lint can't apply.
+    #[allow(clippy::seek_from_current)]
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
+        let start = r.seek(SeekFrom::Current(0))?;
         let version = r.get_u8()?;
         let parent_id = BlockId(Digest32::scorex_parse(r)?);
         let ad_proofs_root = Digest32::scorex_parse(r)?;
@@ -183,12 +188,19 @@ impl ScorexSerializable for Header {
             }
         };
 
-        // The `Header.id` field isn't serialized/deserialized but rather computed as a hash of
-        // every other field in `Header`. First we initialize header with dummy id field then
-        // compute the hash.
-        let mut header = Header {
+        // The `Header.id` is computed as a hash of the serialized header. Mirror
+        // `ErgoHeader.sigmaSerializer.parse` (ErgoHeader.scala:167-180): hash the EXACT consumed
+        // input slice rather than re-serializing the decoded fields, so a header carrying a
+        // non-canonically-encoded (but accepted) value — e.g. a `0x00`-lead "garbage identity"
+        // minerPk — keeps its on-the-wire id and compares per the reference impl.
+        let end = r.seek(SeekFrom::Current(0))?;
+        r.seek(SeekFrom::Start(start))?;
+        let mut header_bytes = vec![0u8; (end - start) as usize];
+        r.read_exact(&mut header_bytes)?;
+        let id = BlockId(blake2b256_hash(&header_bytes).into());
+        Ok(Header {
             version,
-            id: BlockId(Digest32::zero()),
+            id,
             parent_id,
             ad_proofs_root,
             state_root,
@@ -197,18 +209,10 @@ impl ScorexSerializable for Header {
             n_bits,
             height,
             extension_root,
-            autolykos_solution: autolykos_solution.clone(),
+            autolykos_solution,
             votes,
             unparsed_bytes,
-        };
-
-        let mut id_bytes = header.serialize_without_pow()?;
-        let mut data = Vec::new();
-        autolykos_solution.serialize_bytes(version, &mut data)?;
-        id_bytes.extend(data);
-        let id = BlockId(blake2b256_hash(&id_bytes).into());
-        header.id = id;
-        Ok(header)
+        })
     }
 }
 

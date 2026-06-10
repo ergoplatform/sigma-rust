@@ -1,6 +1,5 @@
 use ergotree_ir::mir::extract_bytes::ExtractBytes;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::serialization::SigmaSerializable;
 
 use crate::eval::env::Env;
 use crate::eval::Context;
@@ -15,7 +14,10 @@ impl Evaluable for ExtractBytes {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
-            Value::CBox(b) => Ok(b.sigma_serialize_bytes()?.into()),
+            // `Box.bytes` returns the retained wire slice for a parsed box (the reference impl's
+            // `ErgoBox.bytes`), so a non-canonically-encoded box keeps its on-the-wire byte image
+            // — unlike `bytesWithoutRef`, which re-serializes the candidate canonically.
+            Value::CBox(b) => Ok(b.bytes()?.into()),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected ExtractBytes input to be Value::CBox, got {0:?}",
                 input_v
@@ -45,7 +47,7 @@ mod tests {
         let ctx = force_any_val::<Context>();
         assert_eq!(
             eval_out::<Vec<i8>>(&e, &ctx),
-            ctx.self_box.sigma_serialize_bytes().unwrap().as_vec_i8()
+            ctx.self_box.bytes().unwrap().as_vec_i8()
         );
     }
 }

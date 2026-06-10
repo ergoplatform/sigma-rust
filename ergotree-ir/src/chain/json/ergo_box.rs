@@ -76,6 +76,7 @@ impl TryFrom<ErgoBoxJson> for ErgoBox {
             creation_height: box_json.creation_height,
             transaction_id: box_json.transaction_id,
             index: box_json.index,
+            serialized_bytes: None,
         };
         let box_id = box_with_zero_id.calc_box_id()?;
         let ergo_box = ErgoBox {
