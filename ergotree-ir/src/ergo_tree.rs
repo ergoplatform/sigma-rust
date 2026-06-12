@@ -383,7 +383,7 @@ impl SigmaSerializable for ErgoTree {
                 let tree_size_bytes = r.get_u32()?;
                 let body_pos = r.position()?;
                 let mut buf = vec![0u8; tree_size_bytes as usize];
-                r.read_exact(buf.as_mut_slice())?;
+                r.get_bytes_into(buf.as_mut_slice())?;
                 let mut inner_r =
                     SigmaByteReader::new(Cursor::new(&mut buf[..]), ConstantStore::empty());
                 match inner_r.with_tree_version(header.version(), |inner_r| {
@@ -394,7 +394,7 @@ impl SigmaSerializable for ErgoTree {
                         let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
                         r.seek(io::SeekFrom::Start(start_pos))?;
                         let mut bytes = vec![0; num_bytes as usize];
-                        r.read_exact(&mut bytes)?;
+                        r.get_bytes_into(&mut bytes)?;
                         Ok(ErgoTree::Unparsed {
                             tree_bytes: bytes,
                             error,

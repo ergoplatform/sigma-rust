@@ -6,6 +6,7 @@ use super::val_def_type_store::ValDefTypeStore;
 use core2::io::Cursor;
 use core2::io::Read;
 use core2::io::Seek;
+use sigma_ser::vlq_encode::PositionLimit;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 
 /// Implementation of SigmaByteRead
@@ -16,6 +17,7 @@ pub struct SigmaByteReader<R> {
     val_def_type_store: ValDefTypeStore,
     was_deserialize: bool,
     version: ErgoTreeVersion,
+    position_limit: u64,
 }
 
 impl<R: Read> SigmaByteReader<R> {
@@ -28,6 +30,7 @@ impl<R: Read> SigmaByteReader<R> {
             val_def_type_store: ValDefTypeStore::new(),
             was_deserialize: false,
             version: ErgoTreeVersion::V0,
+            position_limit: u64::MAX,
         }
     }
 
@@ -44,6 +47,7 @@ impl<R: Read> SigmaByteReader<R> {
             val_def_type_store: ValDefTypeStore::new(),
             was_deserialize: false,
             version: ErgoTreeVersion::MAX_SCRIPT_VERSION,
+            position_limit: u64::MAX,
         }
     }
 }
@@ -115,6 +119,18 @@ impl<R: Seek> Seek for SigmaByteReader<R> {
     #[cfg(feature = "std")]
     fn stream_position(&mut self) -> core2::io::Result<u64> {
         self.inner.stream_position()
+    }
+}
+
+/// Real position-limit storage: this is the decorating reader the limit lives on
+/// (the reference impl's `CoreByteReader.positionLimit`), while the wrapped inner
+/// reader stays unchecked.
+impl<R> PositionLimit for SigmaByteReader<R> {
+    fn position_limit(&self) -> u64 {
+        self.position_limit
+    }
+    fn set_position_limit(&mut self, limit: u64) {
+        self.position_limit = limit;
     }
 }
 

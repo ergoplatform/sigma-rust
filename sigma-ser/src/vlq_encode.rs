@@ -165,10 +165,71 @@ pub trait WriteSigmaVlqExt: io::Write {
 /// Mark all types implementing `Write` as implementing the extension.
 impl<W: io::Write + ?Sized> WriteSigmaVlqExt for W {}
 
+/// Reader position-limit state, mirroring the reference implementation's
+/// `CoreByteReader.positionLimit`: a soft window over a span of the input that is
+/// checked once at the START of each primitive read (see
+/// [`ReadSigmaVlqExt::check_position_limit`]). `u64::MAX` means "no limit"; a
+/// serializer narrows it over a span and restores the previous value afterwards
+/// (e.g. the box candidate parser sets `position + MaxBoxSize`).
+pub trait PositionLimit {
+    /// Current position limit (`u64::MAX` = unlimited).
+    fn position_limit(&self) -> u64;
+    /// Set the position limit. Callers save the previous value and restore it
+    /// after the windowed span.
+    fn set_position_limit(&mut self, limit: u64);
+}
+
+/// Bare cursors carry no limit storage: setting a limit on a `Cursor` is a no-op
+/// and reads are bounded only by the buffer. Position limits are effective on
+/// readers that store them (`SigmaByteReader` in `ergotree-ir`), matching the
+/// reference impl where only the decorating `CoreByteReader` has a limit while
+/// the underlying reader is unchecked.
+impl<T> PositionLimit for io::Cursor<T> {
+    fn position_limit(&self) -> u64 {
+        u64::MAX
+    }
+    fn set_position_limit(&mut self, _limit: u64) {}
+}
+
+impl<P: PositionLimit + ?Sized> PositionLimit for &mut P {
+    fn position_limit(&self) -> u64 {
+        (**self).position_limit()
+    }
+    fn set_position_limit(&mut self, limit: u64) {
+        (**self).set_position_limit(limit)
+    }
+}
+
 /// Read and decode values using VLQ (+ ZigZag for signed values) encoded and written with [`WriteSigmaVlqExt`]
 /// for VLQ see <https://en.wikipedia.org/wiki/Variable-length_quantity> (GLE)
 /// for ZigZag see <https://developers.google.com/protocol-buffers/docs/encoding#types>
-pub trait ReadSigmaVlqExt: io::Read + io::Seek {
+pub trait ReadSigmaVlqExt: io::Read + io::Seek + PositionLimit {
+    /// Check that the current position has not passed the position limit, failing
+    /// strictly on `position > limit` (a read starting exactly AT the limit is
+    /// allowed) — the reference impl's `CheckPositionLimit` validation rule 1014.
+    /// Called once at the start of each primitive read; the read itself may then
+    /// run past the limit unchecked, which is what lets the final field of a
+    /// windowed span overrun the window, exactly like the JVM's lazy per-read
+    /// check.
+    // `seek(Current(0))` instead of `stream_position()`: core2's no_std `Seek`
+    // has no `stream_position` (it is std-gated), and this crate is no_std-capable
+    #[allow(clippy::seek_from_current)]
+    fn check_position_limit(&mut self) -> Result<(), io::Error> {
+        let limit = self.position_limit();
+        if limit == u64::MAX {
+            return Ok(());
+        }
+        let position = self.seek(io::SeekFrom::Current(0))?;
+        if position > limit {
+            // static message: core2's no_std `io::Error::new` only takes `&'static str`
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "read position exceeds the position limit",
+            ));
+        }
+        Ok(())
+    }
+
     /// Read i8 without decoding
     fn get_i8(&mut self) -> Result<i8, io::Error> {
         Self::get_u8(self).map(|v| v as i8)
@@ -176,6 +237,7 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
 
     /// Read u8 without decoding
     fn get_u8(&mut self) -> Result<u8, io::Error> {
+        self.check_position_limit()?;
         let mut slice = [0u8; 1];
         self.read_exact(&mut slice)?;
         Ok(slice[0])
@@ -217,10 +279,16 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
     fn get_u64(&mut self) -> Result<u64, VlqEncodingError> {
         // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L2653
         // for faster version see: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedInputStream.java#L1085
+        self.check_position_limit()?;
         let mut result: i64 = 0;
         let mut shift = 0;
         while shift < 64 {
-            let b = self.get_u8()?;
+            // raw (unchecked) byte read: the limit is checked once per primitive,
+            // so continuation bytes of a VLQ value that started within the limit
+            // may cross it, like the reference impl's underlying reader
+            let mut slice = [0u8; 1];
+            self.read_exact(&mut slice)?;
+            let b = slice[0];
             result |= ((b & 0x7F) as i64) << shift;
             if (b & 0x80) == 0 {
                 return Ok(result as u64);
@@ -232,6 +300,7 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
 
     /// Read a vector of bits with the given size
     fn get_bits(&mut self, size: usize) -> Result<Vec<bool>, VlqEncodingError> {
+        self.check_position_limit()?;
         let byte_num = size.div_ceil(8);
         let mut buf = vec![0u8; byte_num];
         self.read_exact(&mut buf)?;
@@ -239,6 +308,14 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
         let mut bits = BitVec::<u8, Lsb0>::from_vec(buf);
         bits.truncate(size);
         Ok(bits.iter().map(|x| *x).collect::<Vec<bool>>())
+    }
+
+    /// Read exactly `buf.len()` bytes, checking the position limit once at the
+    /// start (the reference impl's `getBytes`): a chunk that begins within the
+    /// limit may run past it.
+    fn get_bytes_into(&mut self, buf: &mut [u8]) -> Result<(), io::Error> {
+        self.check_position_limit()?;
+        self.read_exact(buf)
     }
 
     /// Reads a string from the reader. Reads a byte (size), and the string
@@ -265,7 +342,7 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
 }
 
 /// Mark all types implementing `Read` as implementing the extension.
-impl<R: io::Read + io::Seek + ?Sized> ReadSigmaVlqExt for R {}
+impl<R: io::Read + io::Seek + PositionLimit + ?Sized> ReadSigmaVlqExt for R {}
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
@@ -1012,5 +1089,99 @@ mod tests {
             prop_assert_eq!(&bytes_i64(i as i64), &expected_bytes);
             prop_assert_eq!(&bytes_i32(i as i32), &expected_bytes);
         }
+    }
+
+    /// A reader with real position-limit storage (the shape `SigmaByteReader`
+    /// has in `ergotree-ir`), pinning the check semantics at this layer.
+    struct LimitedCursor {
+        inner: Cursor<Vec<u8>>,
+        limit: u64,
+    }
+
+    impl LimitedCursor {
+        fn new(bytes: Vec<u8>) -> Self {
+            LimitedCursor {
+                inner: Cursor::new(bytes),
+                limit: u64::MAX,
+            }
+        }
+    }
+
+    impl io::Read for LimitedCursor {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            self.inner.read(buf)
+        }
+    }
+
+    impl io::Seek for LimitedCursor {
+        fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+            self.inner.seek(pos)
+        }
+    }
+
+    impl PositionLimit for LimitedCursor {
+        fn position_limit(&self) -> u64 {
+            self.limit
+        }
+        fn set_position_limit(&mut self, limit: u64) {
+            self.limit = limit;
+        }
+    }
+
+    #[test]
+    fn position_limit_boundary_is_inclusive() {
+        // strict `position > limit`: a primitive starting exactly AT the limit reads
+        let mut r = LimitedCursor::new(vec![1, 2, 3, 4, 5, 6, 7, 8]);
+        r.set_position_limit(4);
+        assert_eq!(r.get_u8().unwrap(), 1); // pos 0
+        assert_eq!(r.get_u8().unwrap(), 2); // pos 1
+        assert_eq!(r.get_u8().unwrap(), 3); // pos 2
+        assert_eq!(r.get_u8().unwrap(), 4); // pos 3
+        assert_eq!(r.get_u8().unwrap(), 5); // pos 4 == limit: allowed
+        assert!(r.get_u8().is_err()); // pos 5 > limit
+    }
+
+    #[test]
+    fn position_limit_vlq_checked_once_per_primitive() {
+        // a VLQ u64 starting within the limit decodes even when its
+        // continuation bytes cross the limit
+        let mut bytes = bytes_u64(u64::MAX);
+        assert_eq!(bytes.len(), 10);
+        let mut r = LimitedCursor::new(bytes.clone());
+        r.set_position_limit(0);
+        assert_eq!(r.get_u64().unwrap(), u64::MAX); // starts at 0 == limit
+
+        // while one STARTING past the limit is rejected before any byte is read
+        bytes.insert(0, 0); // pad: the VLQ now starts at position 1
+        let mut r = LimitedCursor::new(bytes);
+        r.set_position_limit(0);
+        assert_eq!(r.get_u8().unwrap(), 0); // consume the pad at pos 0
+        assert!(r.get_u64().is_err()); // starts at 1 > limit
+    }
+
+    #[test]
+    fn position_limit_chunk_may_overrun_but_not_start_past() {
+        let mut r = LimitedCursor::new(vec![0u8; 16]);
+        r.set_position_limit(4);
+        let mut buf = [0u8; 10];
+        // starts at 0 <= 4: the chunk may run past the limit
+        r.get_bytes_into(&mut buf).unwrap();
+        // the next chunk starts at 10 > 4
+        assert!(r.get_bytes_into(&mut buf[..2]).is_err());
+    }
+
+    #[test]
+    fn position_limit_default_is_unlimited() {
+        let mut r = LimitedCursor::new(bytes_u64(12345));
+        assert_eq!(r.get_u64().unwrap(), 12345);
+    }
+
+    #[test]
+    fn bare_cursor_limit_is_noop() {
+        // documented: Cursor has no limit storage, setting one is a no-op
+        let mut c = Cursor::new(vec![9u8; 4]);
+        c.set_position_limit(0);
+        assert_eq!(c.position_limit(), u64::MAX);
+        assert_eq!(c.get_u8().unwrap(), 9);
     }
 }

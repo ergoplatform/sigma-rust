@@ -327,7 +327,7 @@ impl SigmaSerializable for UnsignedBigInt {
             )));
         }
         let mut buf = [0u8; 32];
-        r.read_exact(&mut buf[32 - size..])?;
+        r.get_bytes_into(&mut buf[32 - size..])?;
         match UnsignedBigInt::from_be_slice(&buf) {
             Some(x) => Ok(x),
             None => Err(SigmaParsingError::ValueOutOfBounds("".into())),

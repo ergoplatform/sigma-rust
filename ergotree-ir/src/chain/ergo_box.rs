@@ -80,11 +80,13 @@ pub struct ErgoBox {
 }
 
 impl ErgoBox {
-    /// Safe maximum number of tokens in the box
-    /// Calculated from the max box size (4kb) limit and the size of the token (32 bytes)
-    // (4096 - 85 bytes minimal size of the rest of the fields) / 33 token id 32 bytes + minimal token amount 1 byte = 121 tokens
-    // let's set to 121 + 1 to be safe
-    pub const MAX_TOKENS_COUNT: usize = 122;
+    /// Maximum number of tokens a box can carry: the wire count is a single
+    /// byte, so 255 — the reference impl's `SigmaConstants.MaxTokens`, which
+    /// binds only in SDK builders. The data layer has NO token-count consensus
+    /// rule; the real parse gate is the [`ErgoBox::MAX_BOX_SIZE`] position-limit
+    /// window over the candidate span (`ErgoBoxCandidate.parseBodyWithIndexedDigests`),
+    /// so how many tokens actually fit depends on the rest of the box.
+    pub const MAX_TOKENS_COUNT: usize = 255;
     /// Maximum box size in Ergo
     pub const MAX_BOX_SIZE: usize = 4096;
     /// Maximum script size
@@ -346,6 +348,16 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 ) -> Result<ErgoBoxCandidate, SigmaParsingError> {
     // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
 
+    // `ErgoBoxCandidate.parseBodyWithIndexedDigests` puts a MaxBoxSize window
+    // over the candidate span: each primitive read checks `position > limit`
+    // BEFORE reading (rule 1014), so a final field may overrun the window while
+    // a read STARTING past it fails. Restored on the success path only, like
+    // the reference impl (no `finally` there); nested candidate parses
+    // (Coll[Box] constants in registers) save/restore the outer window.
+    let previous_position_limit = r.position_limit();
+    let window_limit = r.position()? + ErgoBox::MAX_BOX_SIZE as u64;
+    r.set_position_limit(window_limit);
+
     let value = BoxValue::sigma_parse(r)?;
     let ergo_tree = ErgoTree::sigma_parse(r)?;
     let creation_height = r.get_u32()?;
@@ -378,6 +390,7 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 
     let additional_registers = NonMandatoryRegisters::sigma_parse(r)?;
 
+    r.set_position_limit(previous_position_limit);
     Ok(ErgoBoxCandidate {
         value,
         ergo_tree,
@@ -443,6 +456,15 @@ pub mod arbitrary {
                         creation_height,
                     },
                 )
+                // candidates whose serialization exceeds the MAX_BOX_SIZE parse
+                // window do not survive the consensus parser (here or on the
+                // JVM), so they cannot round-trip; keep generated boxes
+                // parseable
+                .prop_filter("candidate must fit the MAX_BOX_SIZE parse window", |c| {
+                    c.sigma_serialize_bytes()
+                        .map(|b| b.len() <= ErgoBox::MAX_BOX_SIZE)
+                        .unwrap_or(false)
+                })
                 .boxed()
         }
         type Strategy = BoxedStrategy<Self>;
@@ -483,13 +505,12 @@ pub mod arbitrary {
 mod tests {
 
     use super::*;
-    use crate::chain::token::arbitrary::ArbTokenIdParam;
+    use crate::chain::token::TokenAmount;
+    use crate::mir::expr::Expr;
     use crate::serialization::sigma_serialize_roundtrip;
 
-    use proptest::collection::SizeRange;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
-    use sigma_test_util::force_any_val_with;
 
     #[test]
     fn get_register_mandatory() {
@@ -522,25 +543,110 @@ mod tests {
         assert_eq!(b.creation_info().1, expected_bytes.to_vec().as_vec_i8());
     }
 
+    // NOTE: the old `test_max_tokens` (a MAX_TOKENS_COUNT round-trip with
+    // arbitrary token amounts) is superseded by
+    // `box_window_123_minimal_tokens_fit_and_parse` below: with the
+    // MAX_BOX_SIZE parse window in place, "max tokens" is not a fixed count
+    // but whatever fits the window, exactly like the reference impl.
+
+    /// Deterministic tiny tree so the token counts below sit on known sides of
+    /// the MAX_BOX_SIZE window (123 minimal tokens fit for any tree <= 31
+    /// bytes; 124 cross for any tree).
+    fn small_tree() -> ErgoTree {
+        let tree = ErgoTree::try_from(Expr::Const(true.into())).unwrap();
+        assert!(tree.sigma_serialize_bytes().unwrap().len() <= 31);
+        tree
+    }
+
+    fn minimal_tokens_vec(n: usize) -> Vec<Token> {
+        (0..n)
+            .map(|i| {
+                let mut id = [0u8; 32];
+                id[0] = i as u8;
+                id[1] = (i >> 8) as u8;
+                Token {
+                    token_id: Digest32::from(id).into(),
+                    // amount 1 = single VLQ byte: a minimal token is 33 bytes
+                    amount: TokenAmount::try_from(1u64).unwrap(),
+                }
+            })
+            .collect()
+    }
+
+    fn windowed_candidate(
+        tokens: Option<BoxTokens>,
+        registers: NonMandatoryRegisters,
+    ) -> ErgoBoxCandidate {
+        ErgoBoxCandidate {
+            value: BoxValue::MIN,
+            ergo_tree: small_tree(),
+            tokens,
+            additional_registers: registers,
+            creation_height: 0,
+        }
+    }
+
+    // The token gate is the MAX_BOX_SIZE position-limit window over the
+    // candidate span, not a count rule (JVM
+    // ErgoBoxCandidate.parseBodyWithIndexedDigests; the routed
+    // Global.deserializeTo_Box_token_window family).
+
     #[test]
-    fn test_max_tokens() {
-        let tokens = force_any_val_with::<Vec<Token>>((
-            SizeRange::new(ErgoBox::MAX_TOKENS_COUNT..=ErgoBox::MAX_TOKENS_COUNT),
-            ArbTokenIdParam::Arbitrary,
-        ));
-        let b = ErgoBox::from_box_candidate(
-            &ErgoBoxCandidate {
-                value: BoxValue::SAFE_USER_MIN,
-                ergo_tree: force_any_val::<ErgoTree>(),
-                tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
-                additional_registers: NonMandatoryRegisters::empty(),
-                creation_height: 0,
-            },
-            TxId::zero(),
-            0,
-        )
-        .unwrap();
-        assert_eq!(sigma_serialize_roundtrip(&b), b);
+    fn box_window_123_minimal_tokens_fit_and_parse() {
+        let tokens = BoxTokens::from_vec(minimal_tokens_vec(123)).unwrap();
+        let c = windowed_candidate(Some(tokens), NonMandatoryRegisters::empty());
+        let bytes = c.sigma_serialize_bytes().unwrap();
+        assert!(bytes.len() <= ErgoBox::MAX_BOX_SIZE);
+        let parsed = ErgoBoxCandidate::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(parsed.tokens.as_ref().unwrap().len(), 123);
+    }
+
+    #[test]
+    fn box_window_124_minimal_tokens_cross_and_error() {
+        let tokens = BoxTokens::from_vec(minimal_tokens_vec(124)).unwrap();
+        let c = windowed_candidate(Some(tokens), NonMandatoryRegisters::empty());
+        let bytes = c.sigma_serialize_bytes().unwrap();
+        assert!(bytes.len() > ErgoBox::MAX_BOX_SIZE);
+        // a token read starts past the window: same verdict the count cap used
+        // to give, now by the JVM's mechanism
+        assert!(ErgoBoxCandidate::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn box_window_escape_on_final_field() {
+        // the window is checked BEFORE each read: a candidate whose LAST field
+        // overruns 4096 still parses (the JVM's lazy per-read semantics) ...
+        let fat_r4 = Constant::from(vec![0i8; 4200]);
+        let c = windowed_candidate(
+            Some(BoxTokens::from_vec(minimal_tokens_vec(2)).unwrap()),
+            NonMandatoryRegisters::try_from(vec![fat_r4.clone()]).unwrap(),
+        );
+        let bytes = c.sigma_serialize_bytes().unwrap();
+        assert!(bytes.len() > ErgoBox::MAX_BOX_SIZE);
+        let parsed = ErgoBoxCandidate::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(parsed.tokens.as_ref().unwrap().len(), 2);
+
+        // ... while a read STARTING past the window fails: a small R5 placed
+        // after the fat R4
+        let c = windowed_candidate(
+            Some(BoxTokens::from_vec(minimal_tokens_vec(2)).unwrap()),
+            NonMandatoryRegisters::try_from(vec![fat_r4, Constant::from(1i32)]).unwrap(),
+        );
+        let bytes = c.sigma_serialize_bytes().unwrap();
+        assert!(ErgoBoxCandidate::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn box_tokens_relaxed_to_u8_ceiling() {
+        // 255 is the type bound (SigmaConstants.MaxTokens): such boxes
+        // serialize fine, and it is the window that rejects them at parse
+        let tokens = BoxTokens::from_vec(minimal_tokens_vec(255)).unwrap();
+        let c = windowed_candidate(Some(tokens), NonMandatoryRegisters::empty());
+        let bytes = c.sigma_serialize_bytes().unwrap();
+        assert!(bytes.len() > ErgoBox::MAX_BOX_SIZE);
+        assert!(ErgoBoxCandidate::sigma_parse_bytes(&bytes).is_err());
+        // 256 is unrepresentable (single count byte on the wire)
+        assert!(BoxTokens::from_vec(minimal_tokens_vec(256)).is_err());
     }
 
     proptest! {

@@ -130,11 +130,11 @@ impl ScorexSerializable for Header {
         let timestamp = r.get_u64()?;
         let extension_root = Digest32::scorex_parse(r)?;
         let mut n_bits_buf = [0u8, 0, 0, 0];
-        r.read_exact(&mut n_bits_buf)?;
+        r.get_bytes_into(&mut n_bits_buf)?;
         let n_bits = u32::from_be_bytes(n_bits_buf);
         let height = r.get_u32()?;
         let mut votes_bytes = [0u8, 0, 0];
-        r.read_exact(&mut votes_bytes)?;
+        r.get_bytes_into(&mut votes_bytes)?;
         let votes = Votes(votes_bytes);
 
         // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
@@ -143,7 +143,7 @@ impl ScorexSerializable for Header {
             let new_field_size = r.get_u8()?;
             if new_field_size > 0 {
                 let mut field_bytes: Vec<u8> = vec![0; new_field_size as usize];
-                r.read_exact(&mut field_bytes)?;
+                r.get_bytes_into(&mut field_bytes)?;
                 field_bytes.into()
             } else {
                 Box::new([])
@@ -157,10 +157,10 @@ impl ScorexSerializable for Header {
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let pow_onetime_pk = Some(EcPoint::scorex_parse(r)?.into());
             let mut nonce: Vec<u8> = vec![0; 8];
-            r.read_exact(&mut nonce)?;
+            r.get_bytes_into(&mut nonce)?;
             let d_bytes_len = r.get_u8()?;
             let mut d_bytes: Vec<u8> = vec![0; d_bytes_len as usize];
-            r.read_exact(&mut d_bytes)?;
+            r.get_bytes_into(&mut d_bytes)?;
             let pow_distance = Some(BigUint::from_bytes_be(&d_bytes));
             AutolykosSolution {
                 miner_pk,
@@ -174,7 +174,7 @@ impl ScorexSerializable for Header {
             let pow_distance = None;
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let mut nonce: Vec<u8> = vec![0; 8];
-            r.read_exact(&mut nonce)?;
+            r.get_bytes_into(&mut nonce)?;
             AutolykosSolution {
                 miner_pk,
                 pow_onetime_pk,

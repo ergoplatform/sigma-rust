@@ -134,7 +134,7 @@ impl DataSerializer {
             SString => {
                 let len = r.get_u32()?;
                 let mut buf = vec![0; len as usize];
-                r.read_exact(&mut buf)?;
+                r.get_bytes_into(&mut buf)?;
                 Literal::String(String::from_utf8_lossy(&buf).into())
             }
             SBigInt => Literal::BigInt(BigInt256::sigma_parse(r)?),
@@ -149,7 +149,7 @@ impl DataSerializer {
             SColl(elem_type) if **elem_type == SByte => {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
-                r.read_exact(&mut buf)?;
+                r.get_bytes_into(&mut buf)?;
                 Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 )))
