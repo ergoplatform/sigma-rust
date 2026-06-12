@@ -6,7 +6,7 @@ use ergo_chain_types::Header;
 use super::transaction::Transaction;
 
 /// Maximum number of transactions that can be contained in a block. See
-/// https://github.com/ergoplatform/ergo/blob/fc292f6bc2d3c6ca27ce5f6a316186d8459150cc/src/main/scala/org/ergoplatform/modifiers/history/BlockTransactions.scala#L157
+/// <https://github.com/ergoplatform/ergo/blob/fc292f6bc2d3c6ca27ce5f6a316186d8459150cc/src/main/scala/org/ergoplatform/modifiers/history/BlockTransactions.scala#L157>
 const MAX_NUM_TRANSACTIONS: usize = 10_000_000;
 
 /// Transactions in a block

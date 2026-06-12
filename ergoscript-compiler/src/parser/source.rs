@@ -4,8 +4,8 @@ use crate::lexer::Token;
 use crate::lexer::TokenKind;
 
 pub struct Source<'t, 'input> {
-    tokens: &'t [Token<'input>],
-    cursor: usize,
+    pub(crate) tokens: &'t [Token<'input>],
+    pub(crate) cursor: usize,
 }
 
 impl<'t, 'input> Source<'t, 'input> {
@@ -52,5 +52,24 @@ impl<'t, 'input> Source<'t, 'input> {
 
     fn peek_token_raw(&self) -> Option<&Token<'_>> {
         self.tokens.get(self.cursor)
+    }
+
+    /// Check if there's a newline in the trivia immediately before the current cursor.
+    /// Looks backward from the cursor position to find the most recent trivia tokens.
+    pub fn newline_before_current(&self) -> bool {
+        let mut i = self.cursor;
+        while i > 0 {
+            i -= 1;
+            if let Some(token) = self.tokens.get(i) {
+                if token.kind.is_trivia() {
+                    if token.text.contains('\n') {
+                        return true;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        false
     }
 }

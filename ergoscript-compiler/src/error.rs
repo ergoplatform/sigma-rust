@@ -3,8 +3,8 @@ use rowan::TextRange;
 
 pub fn pretty_error_desc(source: &str, span: TextRange, error_msg: &str) -> String {
     let line_col_lookup = LineColLookup::new(source);
-    let start_zero_based: usize = usize::from(span.start()) - 1;
-    let end_zero_based: usize = usize::from(span.end()) - 1;
+    let start_zero_based: usize = usize::from(span.start()).saturating_sub(1);
+    let end_zero_based: usize = usize::from(span.end()).saturating_sub(1);
     let (line_start, col_start) = line_col_lookup.get(start_zero_based);
     let (line_end, col_end) = line_col_lookup.get(end_zero_based);
     if line_end != line_start {

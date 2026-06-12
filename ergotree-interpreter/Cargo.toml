@@ -38,7 +38,7 @@ ergo_avltree_rust = { version = "0.1.1" }
 gf2_192 = { version = "^0.28.0", path = "../gf2_192" }
 miette = { workspace = true, optional = true }
 hashbrown = { workspace = true }
-core2 = { workspace = true }
+core3 = { workspace = true }
 sigma-test-util = { workspace = true, optional = true }
 
 generic-array = "=0.14.7" #TODO: unpin this when k256 and elliptic-curve upgrade to generic-array 1.0 and remove the deprecation warnings

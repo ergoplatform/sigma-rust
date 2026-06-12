@@ -67,7 +67,7 @@ impl ProverMessage for FirstProverMessage {
     }
 }
 
-/** Size of the binary representation of any group element (2 ^ groupSizeBits == <number of elements in a group>) */
+/// Size of the binary representation of any group element (2 ^ groupSizeBits == number of elements in a group)
 pub(crate) const GROUP_SIZE_BITS: usize = 256;
 /** Number of bytes to represent any group element as byte array */
 pub(crate) const GROUP_SIZE: usize = GROUP_SIZE_BITS / 8;

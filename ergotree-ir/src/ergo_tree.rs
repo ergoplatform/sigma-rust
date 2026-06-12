@@ -19,8 +19,10 @@ use alloc::vec::Vec;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 use crate::serialization::constant_store::ConstantStore;
+use crate::serialization::val_def_type_store::ValDefTypeStore;
+use crate::traversable::Traversable;
 use core::convert::TryFrom;
-use core2::io;
+use core3::io;
 use derive_more::From;
 use io::Cursor;
 #[cfg(feature = "std")]
@@ -126,6 +128,16 @@ pub enum ErgoTree {
     Parsed(ParsedErgoTree),
 }
 
+/// Walk an expression tree and collect all ValDef (id, type) pairs into the store.
+fn collect_val_def_types(expr: &Expr, store: &mut ValDefTypeStore) {
+    if let Expr::ValDef(vd) = expr {
+        store.insert(vd.expr.id, vd.expr.tpe());
+    }
+    for child in expr.children() {
+        collect_val_def_types(child, store);
+    }
+}
+
 impl ErgoTree {
     fn parsed_tree(&self) -> Result<&ParsedErgoTree, ErgoTreeError> {
         match self {
@@ -196,13 +208,20 @@ impl ErgoTree {
             let cs = ConstantStore::empty();
             let ww = &mut data;
             let mut w = SigmaByteWriter::new(ww, Some(cs));
-            expr.sigma_serialize(&mut w)?;
+            // Propagate tree version to the writer so version-gated serialization
+            // rules (e.g. pre-v3 Upcast(Const, _) strip in expr.rs) fire correctly.
+            w.with_tree_version(header.version(), |w| expr.sigma_serialize(w))?;
             #[allow(clippy::unwrap_used)]
             // We set constant store earlier
             let constants = w.constant_store_mut_ref().unwrap().get_all();
             let cursor = Cursor::new(&mut data[..]);
             let new_cs = ConstantStore::new(constants.clone());
             let mut sr = SigmaByteReader::new(cursor, new_cs);
+            // Pre-populate ValDef type store so that ValUse nodes can resolve
+            // their types even when the linear byte order puts them before
+            // their corresponding ValDef (e.g., CSE-extracted vals inside
+            // ThunkDef scopes).
+            collect_val_def_types(expr, sr.val_def_type_store());
             let parsed_expr = sr.with_tree_version(header.version(), Expr::sigma_parse)?;
             ErgoTree::Parsed(ParsedErgoTree {
                 header,
@@ -440,8 +459,8 @@ impl TryFrom<ErgoTree> for ProveDlog {
     }
 }
 
-impl From<core2::io::Error> for ErgoTreeError {
-    fn from(e: core2::io::Error) -> Self {
+impl From<core3::io::Error> for ErgoTreeError {
+    fn from(e: core3::io::Error) -> Self {
         ErgoTreeError::IoError(e.to_string())
     }
 }

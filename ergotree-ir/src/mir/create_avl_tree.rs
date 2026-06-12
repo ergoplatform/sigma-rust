@@ -1,6 +1,7 @@
 //! Create an AVL tree
 
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 
 use super::expr::Expr;
 use crate::has_opcode::HasStaticOpCode;
@@ -21,8 +22,9 @@ pub struct CreateAvlTree {
     pub digest: Box<Expr>,
     /// Value of type Int
     pub key_length: Box<Expr>,
-    /// Optional value of type Int
-    pub value_length: Option<Box<Expr>>,
+    /// Expression of type SOption[SInt] yielding the optional value-length.
+    /// Matches Scala's `valueLengthOpt: Value[SIntOption]` shape.
+    pub value_length: Box<Expr>,
 }
 
 impl CreateAvlTree {
@@ -31,27 +33,18 @@ impl CreateAvlTree {
         flags: Expr,
         digest: Expr,
         key_length: Expr,
-        value_length: Option<Box<Expr>>,
+        value_length: Expr,
     ) -> Result<Self, InvalidArgumentError> {
         flags.check_post_eval_tpe(&SType::SByte)?;
-        digest.check_post_eval_tpe(&SType::SColl(alloc::sync::Arc::new(SType::SByte)))?;
+        digest.check_post_eval_tpe(&SType::SColl(Arc::new(SType::SByte)))?;
         key_length.check_post_eval_tpe(&SType::SInt)?;
-        if !value_length
-            .clone()
-            .map(|expr| expr.post_eval_tpe() == SType::SInt)
-            .unwrap_or(true)
-        {
-            return Err(InvalidArgumentError(format!(
-                "CreateAvlTree: expected value_length type to be Option[Int], got {0:?}",
-                value_length
-            )));
-        }
+        value_length.check_post_eval_tpe(&SType::SOption(Arc::new(SType::SInt)))?;
 
         Ok(Self {
             flags: flags.into(),
             digest: digest.into(),
             key_length: key_length.into(),
-            value_length,
+            value_length: value_length.into(),
         })
     }
 
@@ -70,7 +63,7 @@ impl SigmaSerializable for CreateAvlTree {
         let flags = Expr::sigma_parse(r)?;
         let digest = Expr::sigma_parse(r)?;
         let key_length = Expr::sigma_parse(r)?;
-        let value_length = Option::<Box<Expr>>::sigma_parse(r)?;
+        let value_length = Expr::sigma_parse(r)?;
         Ok(Self::new(flags, digest, key_length, value_length)?)
     }
 
@@ -82,19 +75,17 @@ impl SigmaSerializable for CreateAvlTree {
     }
 }
 
-impl_traversable_expr!(CreateAvlTree, boxed flags, boxed digest, boxed key_length, opt value_length);
+impl_traversable_expr!(CreateAvlTree, boxed flags, boxed digest, boxed key_length, boxed value_length);
 
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 mod arbitrary {
-    use alloc::sync::Arc;
-
+    use crate::mir::constant::{Constant, Literal};
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;
     use proptest::prelude::*;
-    use proptest::result::Probability;
 
     impl Arbitrary for CreateAvlTree {
         type Strategy = BoxedStrategy<Self>;
@@ -114,15 +105,15 @@ mod arbitrary {
                     tpe: SType::SInt,
                     depth: 0,
                 }),
-                any_with::<Option<Box<Expr>>>((
-                    Probability::default(),
-                    ArbExprParams {
-                        tpe: SType::SInt,
-                        depth: 0,
-                    },
-                )),
+                proptest::option::of(any::<i32>()),
             )
-                .prop_map(|(flags, digest, key_length, value_length)| {
+                .prop_map(|(flags, digest, key_length, value_length_opt)| {
+                    let inner_literal = value_length_opt.map(|v| Box::new(Literal::Int(v)));
+                    let value_length: Expr = Constant {
+                        tpe: SType::SOption(Arc::new(SType::SInt)),
+                        v: Literal::Opt(inner_literal),
+                    }
+                    .into();
                     Self::new(flags, digest, key_length, value_length).unwrap()
                 })
                 .boxed()

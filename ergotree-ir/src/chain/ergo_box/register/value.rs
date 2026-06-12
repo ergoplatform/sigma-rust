@@ -126,8 +126,8 @@ impl RegisterValue {
     }
 }
 
-/// Convert evaluated Tuple expression to Constant
-/// see https://github.com/ergoplatform/sigma-rust/issues/700
+/// Convert evaluated Tuple expression to Constant.
+/// See <https://github.com/ergoplatform/sigma-rust/issues/700>.
 fn tuple_to_constant(t: &Tuple) -> Result<Constant, String> {
     let values = t.items.try_mapped_ref(|tuple_item| match tuple_item {
         Expr::Const(c) => Ok(c.v.clone()),

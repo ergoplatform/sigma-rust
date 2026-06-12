@@ -61,6 +61,7 @@ use crate::mir::select_field::SelectField;
 use crate::mir::sigma_and::SigmaAnd;
 use crate::mir::sigma_or::SigmaOr;
 use crate::mir::sigma_prop_bytes::SigmaPropBytes;
+use crate::mir::sigma_prop_is_proven::SigmaPropIsProven;
 use crate::mir::subst_const::SubstConstants;
 use crate::mir::tree_lookup::TreeLookup;
 use crate::mir::tuple::Tuple;
@@ -70,6 +71,7 @@ use crate::mir::val_def::ValDef;
 use crate::mir::val_use::ValUse;
 use crate::mir::xor::Xor;
 use crate::mir::xor_of::XorOf;
+use crate::mir::zk_proof::ZkProofBlock;
 use crate::source_span::SourceSpan;
 use crate::source_span::Spanned;
 use crate::types::stype::SType;
@@ -165,6 +167,8 @@ impl Print for Expr {
             Expr::CreateProveDlog(v) => v.print(w),
             Expr::CreateProveDhTuple(v) => v.print(w),
             Expr::SigmaPropBytes(v) => v.print(w),
+            Expr::SigmaPropIsProven(v) => v.print(w),
+            Expr::ZkProofBlock(v) => v.print(w),
             Expr::DecodePoint(v) => v.print(w),
             Expr::SigmaAnd(v) => v.print(w),
             Expr::SigmaOr(v) => v.print(w),
@@ -1014,6 +1018,30 @@ impl Print for SigmaPropBytes {
         let input = self.input.print(w)?;
         write!(w, ")")?;
         Ok(SigmaPropBytes {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for SigmaPropIsProven {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "sigmaPropIsProven(")?;
+        let input = self.input.print(w)?;
+        write!(w, ")")?;
+        Ok(SigmaPropIsProven {
+            input: Box::new(input),
+        }
+        .into())
+    }
+}
+
+impl Print for ZkProofBlock {
+    fn print(&self, w: &mut dyn Printer) -> Result<Expr, PrintError> {
+        write!(w, "ZKProof {{ ")?;
+        let input = self.input.print(w)?;
+        write!(w, " }}")?;
+        Ok(ZkProofBlock {
             input: Box::new(input),
         }
         .into())

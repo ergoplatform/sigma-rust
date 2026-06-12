@@ -30,3 +30,12 @@ build/
 .log/
 
 **/proptest-regressions
+
+# Local working notes / per-session handoffs (not part of the PR)
+SESSION-*.md
+SESSION-*.txt
+*-HANDOFF.md
+NEXT-SESSION-*.md
+SESSION-SUMMARY.md
+ERGOSCRIPT-RUST-COMPILER-STATUS.md
+scala_cse_debug_*.txt

@@ -202,6 +202,8 @@ impl Expr {
             Expr::CreateProveDlog(_) => SourceSpan::empty(),
             Expr::CreateProveDhTuple(_) => SourceSpan::empty(),
             Expr::SigmaPropBytes(_) => SourceSpan::empty(),
+            Expr::SigmaPropIsProven(_) => SourceSpan::empty(),
+            Expr::ZkProofBlock(_) => SourceSpan::empty(),
             Expr::DecodePoint(_) => SourceSpan::empty(),
             Expr::SigmaAnd(_) => SourceSpan::empty(),
             Expr::SigmaOr(_) => SourceSpan::empty(),

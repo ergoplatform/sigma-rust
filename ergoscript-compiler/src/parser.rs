@@ -105,6 +105,12 @@ impl<'t, 'input> Parser<'t, 'input> {
     fn peek(&mut self) -> Option<TokenKind> {
         self.source.peek_kind()
     }
+
+    /// Check if there was a newline in the trivia just before the current token position.
+    /// Call after p.at() / p.peek() which consume trivia.
+    fn had_newline(&self) -> bool {
+        self.source.newline_before_current()
+    }
 }
 
 #[cfg(test)]
@@ -140,6 +146,36 @@ mod tests {
             expect![[r#"
             Root@0..9
               Comment@0..9 "// hello!""#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_comment() {
+        check(
+            "/* hello */",
+            expect![[r#"
+            Root@0..11
+              BlockComment@0..11 "/* hello */""#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_comment_inside_expr() {
+        // Block comments are trivia and must not interrupt parsing.
+        check(
+            "1 /* skip */ + 2",
+            expect![[r#"
+                Root@0..16
+                  InfixExpr@0..16
+                    IntNumber@0..13
+                      IntNumber@0..1 "1"
+                      Whitespace@1..2 " "
+                      BlockComment@2..12 "/* skip */"
+                      Whitespace@12..13 " "
+                    Plus@13..14 "+"
+                    Whitespace@14..15 " "
+                    IntNumber@15..16
+                      IntNumber@15..16 "2""#]],
         );
     }
 

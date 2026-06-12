@@ -9,13 +9,13 @@ description = "Ergo binary serialization primitives"
 
 [features]
 default = ["std"]
-std = ["core2/std"]
+std = ["core3/std"]
 
 [dependencies]
 thiserror = { workspace = true }
 bitvec = { workspace = true }
 bounded-vec = { workspace = true }
-core2 = { workspace = true }
+core3 = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

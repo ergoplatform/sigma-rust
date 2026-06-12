@@ -49,7 +49,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     node: &UncheckedTree,
     w: &mut W,
     write_challenges: bool,
-) -> Result<(), core2::io::Error> {
+) -> Result<(), core3::io::Error> {
     if write_challenges {
         node.challenge().sigma_serialize(w)?;
     }
@@ -289,7 +289,7 @@ pub enum SigParsingError {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod test {
-    use core2::io::Cursor;
+    use core3::io::Cursor;
 
     use ergotree_ir::serialization::{
         constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
