@@ -15,7 +15,7 @@ use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
 use ergotree_interpreter::sigma_protocol::verifier::{
     verify_signature, VerificationResult, VerifierError,
 };
-use ergotree_ir::chain::context::TxIoVec;
+use ergotree_ir::chain::context::{CostLimitExceeded, TxIoVec};
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
@@ -193,29 +193,35 @@ impl TransactionContext<Transaction> {
         // Verify input proofs with cost tracking.
         // This is usually the most expensive check so it's done last.
         let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
+        let max_block_cost = state_context.parameters.max_block_cost() as u64;
         let mut context = make_context(state_context, self, 0)?;
-        // Per-tx cost budget: MaxBlockCost * 10 (block cost → JitCost scale). The
-        // accumulator on `context` is NOT reset between inputs, so this limit is
-        // enforced cumulatively across the whole tx — matching Scala's semantics.
-        // Resetting per-input would let an attacker bypass MaxBlockCost by splitting
-        // expensive work across many inputs.
-        context.jit_cost_limit = Some(state_context.parameters.max_block_cost() as u64 * 10);
 
-        // Charge per-tx init cost (gaps S1 + S2): interpreter baseline + per-input,
-        // per-data-input, per-output, per-token structural costs. Goes into the
-        // shared accumulator before per-input work so subsequent add_jit_cost calls
-        // still see the correct cumulative floor. Reject upfront if init alone
-        // exceeds the tx budget — we can't honestly blame any specific input.
+        // Per-tx init cost (gaps S1 + S2): interpreter baseline + per-input,
+        // per-data-input, per-output, per-token structural costs — all front-loaded,
+        // mirroring the JVM's `initialCost` in `ErgoTransaction.validateStateful`
+        // (interpreterInitCost + inputs·inputCost + dataInputs·dataInputCost +
+        // outputs·outputCost, plus the token-access cost). Reject upfront if it
+        // already exceeds MaxBlockCost (the JVM's `maxCost >= startCost` gate) — we
+        // can't honestly blame any specific input.
         let init_cost_block = compute_tx_init_cost(
             &self.spending_tx,
             self.boxes_to_spend.as_slice(),
             &state_context.parameters,
         );
-        let init_cost_jit = init_cost_block.saturating_mul(10);
-        context
-            .add_jit_cost(init_cost_jit)
-            .map_err(|_| TxValidationError::InitCostExceeded(init_cost_jit))?;
+        if init_cost_block > max_block_cost {
+            return Err(TxValidationError::InitCostExceeded(
+                init_cost_block.saturating_mul(10),
+            ));
+        }
 
+        // Running tx cost in BLOCK units, mirroring the JVM's `currentTxCost`. The
+        // cost limit is enforced in block units — NOT against the raw JIT accumulator.
+        // The JVM floors each input's JIT cost to block cost (`JitCost.toBlockCost`,
+        // i.e. `/ 10`) per input and per component (script eval and crypto verify are
+        // floored separately) before accumulating, discarding each input's
+        // sub-block-unit (mod-10) remainder. A tx whose floored block total equals
+        // MaxBlockCost is therefore accepted even though the un-floored JIT sum exceeds
+        // MaxBlockCost * 10 — the exact-fit boundary we must admit.
         let mut total_cost: u64 = init_cost_block;
         for input_idx in 0..self.spending_tx.inputs.len() {
             update_context(&mut context, self, input_idx)?;
@@ -233,18 +239,39 @@ impl TransactionContext<Transaction> {
                 continue;
             }
 
-            // Reduce the ErgoTree to a SigmaBoolean. Eval cost accumulates on the
-            // shared `context.jit_cost` so the limit check fires if cumulative
-            // per-tx JIT cost overflows MaxBlockCost*10 (see gap S4 above).
+            // The JVM verifies each input with a FRESH interpreter whose
+            // `costLimit = maxCost - currentTxCost` (the remaining BLOCK budget,
+            // `initCost = 0`) — `ErgoTransaction.verifyInput`. Mirror it: reset the
+            // accumulator and cap it at the remaining budget × 10 (the evaluator's
+            // `CostAccumulator` works in the JitCost scale). The remaining budget
+            // shrinks as inputs accrue, so splitting expensive work across many inputs
+            // still cannot exceed MaxBlockCost in aggregate (the S4 concern) — while
+            // per-input flooring keeps the exact-fit boundary byte-identical to the JVM.
+            let remaining_block = max_block_cost.saturating_sub(total_cost);
+            context.reset_jit_cost();
+            context.jit_cost_limit = Some(remaining_block.saturating_mul(10));
+
+            // Reduce the ErgoTree to a SigmaBoolean. The per-input JIT cap above
+            // mirrors the JVM evaluator's `CostAccumulator` (throws once accumulated
+            // JIT exceeds `remaining_block * 10`); `reduction.cost` is the floored
+            // block cost (`(jit_after - 0) / 10`).
             let reduction = reduce_to_crypto(&input_box.ergo_tree, &context)
                 .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
 
-            // Charge sigma-protocol verification cost through the same shared
-            // accumulator (gap S3).
-            let crypto_cost_jit = estimate_crypto_cost(&reduction.sigma_prop);
-            context.add_jit_cost(crypto_cost_jit).map_err(|e| {
-                TxValidationError::VerifierError(input_idx, VerifierError::EvalError(e.into()))
-            })?;
+            // Sigma-protocol verification cost, floored to block units separately
+            // (JVM `addCryptoCost`: `estimateCryptoVerifyCost(...).toBlockCost`), then
+            // the combined per-input block cost is checked against the remaining block
+            // budget (JVM `addCostChecked` / `bsBlockTransactionsCost`, block units).
+            let crypto_cost_block = estimate_crypto_cost(&reduction.sigma_prop) / 10;
+            let input_cost_block = reduction.cost + crypto_cost_block;
+            if input_cost_block > remaining_block {
+                return Err(TxValidationError::VerifierError(
+                    input_idx,
+                    VerifierError::EvalError(
+                        CostLimitExceeded(remaining_block.saturating_mul(10)).into(),
+                    ),
+                ));
+            }
 
             let verified = verify_signature(
                 reduction.sigma_prop.clone(),
@@ -263,7 +290,7 @@ impl TransactionContext<Transaction> {
                 ));
             }
 
-            total_cost += reduction.cost + (crypto_cost_jit / 10);
+            total_cost += input_cost_block;
         }
         Ok(total_cost)
     }
@@ -763,14 +790,15 @@ mod test {
             }
         });
     }
-    // Regression for S4 (JIT_COSTING_FIX_PLAN.md): validate() must enforce
-    // jit_cost_limit against cumulative per-tx cost, not per-input. Pre-fix, each
-    // input reset the accumulator, letting a tx whose inputs individually fit under
-    // the limit still exceed MaxBlockCost in aggregate. Use Const(true) inputs
-    // (5 JitCost each, TrivialProp → 0 crypto cost) and zero-out structural
-    // Parameters so init cost reduces to the fixed INTERPRETER_INIT_COST baseline;
-    // then tune max_block_cost so cumulative eval (init + 2 × 5) fits and
-    // (init + 3 × 5) overflows the per-tx budget.
+    // Regression for S4 (JIT_COSTING_FIX_PLAN.md): validate() must enforce the cost
+    // limit cumulatively across the whole tx — inputs that individually fit must not
+    // collectively exceed MaxBlockCost. We match the JVM (`ErgoTransaction.verifyInput`):
+    // each input gets a FRESH budget of `maxCost - currentTxCost` (the *remaining*
+    // block budget), which shrinks as inputs accrue, so the aggregate is still capped.
+    // Use Const(true) inputs (50 JitCost = 5 block each, TrivialProp → 0 crypto cost)
+    // and zero-out structural Parameters so init reduces to the fixed
+    // INTERPRETER_INIT_COST baseline; then size max_block_cost so 2 inputs fit
+    // (init + 2 × 5) and the 3rd overflows its remaining budget.
     #[test]
     fn test_validate_enforces_cumulative_jit_cost_across_inputs() {
         use ergotree_interpreter::eval::EvalError;
