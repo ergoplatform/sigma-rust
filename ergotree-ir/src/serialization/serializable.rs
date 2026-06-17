@@ -121,17 +121,73 @@ pub enum SigmaParsingError {
     /// rejected, not degraded to `Unparsed`.
     #[error("data value of type code {0} cannot be deserialized (rule 1009: not soft-forkable)")]
     NonSerializableTypeCode(u8),
+    /// A read started past the position limit (the reference impl's rule 1014
+    /// `CheckPositionLimit`, set as the `MaxBoxSize` window during box parse).
+    /// SOFT-FORKABLE: a size-flagged tree whose body overruns its position
+    /// window degrades to `Unparsed` (matching the JVM's `ValidationException`),
+    /// unlike a hard EOF/structural failure which rejects.
+    #[error("read position exceeds the position limit")]
+    PositionLimitExceeded,
 }
 
 impl From<io::Error> for SigmaParsingError {
     fn from(error: io::Error) -> Self {
-        SigmaParsingError::Io(error.to_string())
+        // `InvalidData` is the position-limit signal (rule 1014); see
+        // `VlqEncodingError`'s `From<io::Error>`. Keep it apart from `Io` (EOF).
+        if error.kind() == io::ErrorKind::InvalidData {
+            SigmaParsingError::PositionLimitExceeded
+        } else {
+            SigmaParsingError::Io(error.to_string())
+        }
     }
 }
 
 impl From<&io::Error> for SigmaParsingError {
     fn from(error: &io::Error) -> Self {
-        SigmaParsingError::Io(error.to_string())
+        if error.kind() == io::ErrorKind::InvalidData {
+            SigmaParsingError::PositionLimitExceeded
+        } else {
+            SigmaParsingError::Io(error.to_string())
+        }
+    }
+}
+
+impl SigmaParsingError {
+    /// True if this is the soft-forkable position-limit error (rule 1014),
+    /// whether at the top level or nested in `VlqEncode` / `ScorexParsingError`
+    /// (a windowed read can trip the limit through either channel).
+    pub fn is_position_limit_exceeded(&self) -> bool {
+        match self {
+            SigmaParsingError::PositionLimitExceeded => true,
+            SigmaParsingError::VlqEncode(vlq_encode::VlqEncodingError::PositionLimitExceeded) => {
+                true
+            }
+            SigmaParsingError::ScorexParsingError(e) => e.is_position_limit_exceeded(),
+            _ => false,
+        }
+    }
+
+    /// True if a size-flagged `ErgoTree` carrying a constant whose body fails
+    /// with this error must REJECT (escape the soft-fork degrade) instead of
+    /// degrading to `Unparsed`. Mirrors sigma-state
+    /// `ErgoTreeSerializer.deserializeErgoTree`, which wraps as `UnparsedErgoTree`
+    /// ONLY a soft-forkable `ValidationException`: a hard wire-structure failure
+    /// (invalid EC point, EOF/truncation, VLQ overflow → the JVM's
+    /// `IllegalArgumentException` / `IOException`) escapes and rejects. The one
+    /// soft-forkable case in these wire channels is position-limit (rule 1014),
+    /// which is excluded so it still degrades. Soft-forkable type/opcode/method
+    /// errors live in other variants and keep degrading (not listed here).
+    pub fn escapes_sized_tree_degrade(&self) -> bool {
+        if self.is_position_limit_exceeded() {
+            return false;
+        }
+        matches!(
+            self,
+            SigmaParsingError::NonSerializableTypeCode(_)
+                | SigmaParsingError::ScorexParsingError(_)
+                | SigmaParsingError::Io(_)
+                | SigmaParsingError::VlqEncode(_)
+        )
     }
 }
 

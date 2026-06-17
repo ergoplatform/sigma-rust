@@ -96,17 +96,48 @@ pub enum ScorexParsingError {
     /// Failed to convert integer type
     #[error("Bounds check error: {0}")]
     TryFrom(#[from] core::num::TryFromIntError),
+    /// A read started past the position limit (rule 1014). DISTINCT from
+    /// [`ScorexParsingError::Io`] (EOF): soft-forkable (degrade a size-flagged
+    /// tree) vs hard reject. See [`ReadSigmaVlqExt::check_position_limit`].
+    #[error("read position exceeds the position limit")]
+    PositionLimitExceeded,
 }
 
 impl From<io::Error> for ScorexParsingError {
     fn from(error: io::Error) -> Self {
-        ScorexParsingError::Io(error.to_string())
+        // See `VlqEncodingError`'s `From<io::Error>`: `InvalidData` is the
+        // position-limit signal (rule 1014), kept apart from `Io` (EOF).
+        if error.kind() == io::ErrorKind::InvalidData {
+            ScorexParsingError::PositionLimitExceeded
+        } else {
+            ScorexParsingError::Io(error.to_string())
+        }
     }
 }
 
 impl From<&io::Error> for ScorexParsingError {
     fn from(error: &io::Error) -> Self {
-        ScorexParsingError::Io(error.to_string())
+        if error.kind() == io::ErrorKind::InvalidData {
+            ScorexParsingError::PositionLimitExceeded
+        } else {
+            ScorexParsingError::Io(error.to_string())
+        }
+    }
+}
+
+impl ScorexParsingError {
+    /// True if this is the soft-forkable position-limit error (rule 1014),
+    /// at the top level or nested in [`ScorexParsingError::VlqEncode`] (a VLQ
+    /// read can trip the limit and arrive wrapped). Used by the sized-`ErgoTree`
+    /// degrade gate to DEGRADE position-limit while REJECTING hard wire errors.
+    pub fn is_position_limit_exceeded(&self) -> bool {
+        matches!(
+            self,
+            ScorexParsingError::PositionLimitExceeded
+                | ScorexParsingError::VlqEncode(
+                    vlq_encode::VlqEncodingError::PositionLimitExceeded
+                )
+        )
     }
 }
 

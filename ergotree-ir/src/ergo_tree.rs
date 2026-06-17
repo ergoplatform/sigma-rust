@@ -392,16 +392,20 @@ impl SigmaSerializable for ErgoTree {
                     Ok(parsed_tree) => Ok(parsed_tree.into()),
                     Err(error) => {
                         // Mirror sigma-state `ErgoTreeSerializer.deserializeErgoTree`:
-                        // the size-flagged `UnparsedErgoTree` fallback wraps ONLY
-                        // soft-forkable `ValidationException`s. A non-soft-forkable
-                        // data type code (rule 1009 `CheckSerializableTypeCode` does
-                        // not fire) throws a hard `SerializerException` that escapes
-                        // the fallback — reject instead of degrading to `Unparsed`.
-                        if let ErgoTreeError::SigmaParsingError(
-                            e @ SigmaParsingError::NonSerializableTypeCode(_),
-                        ) = &error
-                        {
-                            return Err(e.clone());
+                        // the size-flagged `UnparsedErgoTree` fallback wraps ONLY a
+                        // soft-forkable `ValidationException`. A HARD wire-structure
+                        // failure escapes the fallback and REJECTS instead of
+                        // degrading to `Unparsed`: a non-soft-forkable data type code
+                        // (rule 1009 `CheckSerializableTypeCode` does not fire), an
+                        // invalid EC point, EOF/truncation, or a VLQ overflow — the
+                        // JVM's `SerializerException` / `IllegalArgumentException` /
+                        // `IOException`. Position-limit (rule 1014) is the one
+                        // soft-forkable wire error and still degrades. See
+                        // `SigmaParsingError::escapes_sized_tree_degrade`.
+                        if let ErgoTreeError::SigmaParsingError(e) = &error {
+                            if e.escapes_sized_tree_degrade() {
+                                return Err(e.clone());
+                            }
                         }
                         let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
                         r.seek(io::SeekFrom::Start(start_pos))?;
@@ -749,6 +753,60 @@ mod tests {
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert!(matches!(tree, ErgoTree::Unparsed { .. }));
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn sized_tree_rejects_malformed_ec_point_pk() {
+        // SANTA wire reject vector `ErgoTree.sheader_constant_v3_malformed_pk_reject`:
+        // a v3 + size + const-seg tree with one segregated `SHeader` constant whose
+        // AutolykosSolution pk is an INVALID compressed EC point (prefix 0x05). The JVM
+        // rejects — `GroupElementSerializer.parse` throws `IllegalArgumentException`, a
+        // HARD error that escapes `deserializeErgoTree`'s `UnparsedErgoTree` soft-fork
+        // fallback. We must reject (the strict production parse), not degrade to
+        // `Unparsed`. (The integration branch additionally exercises the same gate via
+        // the lenient/conformance entry against this exact SANTA vector.)
+        let bytes = base16::decode("1bdb01016802000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0843d0000000000000000000000000000000000000000000000000000000000000000070239b8010000000005000000000000000000000000000000000000000000000000000000000000000000000001000000017300").unwrap();
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn sized_tree_degrade_gate_escapes_hard_errors_but_degrades_position_limit() {
+        // The gate policy (`SigmaParsingError::escapes_sized_tree_degrade`): hard
+        // wire-structure failures REJECT (escape == true), matching the JVM's
+        // non-`ValidationException` exceptions; position-limit (rule 1014) is the one
+        // soft-forkable wire error and DEGRADES (escape == false), in every channel it
+        // can arrive through (top-level, nested in `VlqEncode` / `ScorexParsingError`).
+        use sigma_ser::vlq_encode::VlqEncodingError;
+        use sigma_ser::ScorexParsingError;
+        let degrades = [
+            SigmaParsingError::PositionLimitExceeded,
+            SigmaParsingError::VlqEncode(VlqEncodingError::PositionLimitExceeded),
+            SigmaParsingError::ScorexParsingError(ScorexParsingError::PositionLimitExceeded),
+            SigmaParsingError::ScorexParsingError(ScorexParsingError::VlqEncode(
+                VlqEncodingError::PositionLimitExceeded,
+            )),
+            // soft-forkable type/opcode errors keep degrading (behavior unchanged)
+            SigmaParsingError::NotSupported("SOption data"),
+            SigmaParsingError::InvalidOpCode(0xff),
+        ];
+        for e in &degrades {
+            assert!(!e.escapes_sized_tree_degrade(), "should degrade: {e:?}");
+        }
+        let rejects = [
+            // invalid EC point (this finding)
+            SigmaParsingError::ScorexParsingError(ScorexParsingError::Misc(
+                "failed to parse PK from bytes".to_string(),
+            )),
+            // EOF / truncation (the sibling over-accept this fix also closes)
+            SigmaParsingError::Io("unexpected end of file".to_string()),
+            // VLQ overflow
+            SigmaParsingError::VlqEncode(VlqEncodingError::VlqDecodingFailed),
+            // non-soft-forkable data type code (rule 1009, prior round)
+            SigmaParsingError::NonSerializableTypeCode(104),
+        ];
+        for e in &rejects {
+            assert!(e.escapes_sized_tree_degrade(), "should reject: {e:?}");
+        }
     }
 
     #[test]
