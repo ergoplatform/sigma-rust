@@ -112,6 +112,15 @@ pub enum SigmaParsingError {
     /// Invalid register value
     #[error("Invalid register value: {0}")]
     InvalidRegisterValue(#[from] RegisterValueError),
+    /// Data value of a type whose type code has no `DataSerializer` and is NOT
+    /// soft-forkable per sigma-state rule 1009 (`CheckSerializableTypeCode`): the
+    /// code is neither `OptionTypeCode` (36) nor `> LastDataType` (111). Mirrors the
+    /// JVM's hard `SerializerException` ("Not defined DataSerializer for type ..."),
+    /// which escapes `ErgoTreeSerializer.deserializeErgoTree`'s `UnparsedErgoTree`
+    /// soft-fork fallback — so a size-flagged tree carrying such a constant is
+    /// rejected, not degraded to `Unparsed`.
+    #[error("data value of type code {0} cannot be deserialized (rule 1009: not soft-forkable)")]
+    NonSerializableTypeCode(u8),
 }
 
 impl From<io::Error> for SigmaParsingError {

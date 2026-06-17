@@ -391,6 +391,18 @@ impl SigmaSerializable for ErgoTree {
                 }) {
                     Ok(parsed_tree) => Ok(parsed_tree.into()),
                     Err(error) => {
+                        // Mirror sigma-state `ErgoTreeSerializer.deserializeErgoTree`:
+                        // the size-flagged `UnparsedErgoTree` fallback wraps ONLY
+                        // soft-forkable `ValidationException`s. A non-soft-forkable
+                        // data type code (rule 1009 `CheckSerializableTypeCode` does
+                        // not fire) throws a hard `SerializerException` that escapes
+                        // the fallback — reject instead of degrading to `Unparsed`.
+                        if let ErgoTreeError::SigmaParsingError(
+                            e @ SigmaParsingError::NonSerializableTypeCode(_),
+                        ) = &error
+                        {
+                            return Err(e.clone());
+                        }
                         let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
                         r.seek(io::SeekFrom::Start(start_pos))?;
                         let mut bytes = vec![0; num_bytes as usize];
@@ -711,6 +723,32 @@ mod tests {
         let bytes = base16::decode(invalid_ergo_tree_with_extra_bytes.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), valid_ergo_tree_bytes);
+    }
+
+    #[test]
+    fn sized_tree_rejects_non_soft_forkable_data_type_code() {
+        // SANTA wire reject vector `ErgoTree.unparsed_soft_fork_header_constant`: a
+        // v2 + size + const-seg tree with one segregated `SHeader` constant (typeCode
+        // 0x68 = 104). sigma-state rule 1009 (`CheckSerializableTypeCode`) does NOT
+        // special-case `SHeader` (neither `OptionTypeCode` 36 nor `> LastDataType`
+        // 111), so the JVM throws a hard `SerializerException` that escapes
+        // `deserializeErgoTree`'s `UnparsedErgoTree` fallback and REJECTS — even with
+        // the size flag set. We must reject, not degrade to `Unparsed`.
+        let bytes = base16::decode("1adb01016802000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0843d0000000000000000000000000000000000000000000000000000000000000000070239b8010000000000000000000000000000000000000000000000000000000000000000000000000000000001000000017300").unwrap();
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn sized_tree_degrades_soft_forkable_option_constant() {
+        // Twin accept vector `ErgoTree.unparsed_soft_fork_option_constant`: a v2 +
+        // size + const-seg tree with one segregated `SOption[SInt]` constant
+        // (`Some(5)`). The Option typecode (36) IS rule-1009 soft-forkable, so the
+        // size flag degrades the whole tree to `Unparsed` and it re-serializes
+        // byte-identical (identity round-trip) — must stay accepted, not regress.
+        let bytes = base16::decode("1a060128010a7300").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
     }
 
     #[test]
