@@ -41,7 +41,7 @@ swift test -Xlinker -L../../target/release/ --skip RestNodeApiTests --skip RestN
 The `RestNodeApiTests` assume you have an ergo node running on localhost.
  
 
-### Building Xcode 13 project for `iPhoneSimulator` 
+### Building Xcode 15 project for `iPhoneSimulator` 
 
 Make sure `ergo-lib-c` is built as described above.
 
@@ -61,7 +61,7 @@ Then double click `ErgoLib.xcodeproj` which opens Xcode. You need to manually po
 
 Set `Other Linker Flags` to be `-L/absolute/path/to/sigma-rust/target/release` for x86_64 and ` -L/absolute/path/to/sigma-rust/target/aarch64-apple-ios-sim/release` for simulator on Apple silicon macs. The project can now be built.
 
-### Building Xcode 13 project for `iPhone(iOS)`
+### Building Xcode 15 project for `iPhone(iOS)`
 
 First we need to build an ARM64 target for `ergo-lib-c`: 
 
