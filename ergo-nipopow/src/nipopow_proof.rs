@@ -9,6 +9,16 @@ use sigma_ser::{
 
 use crate::nipopow_algos::NipopowAlgos;
 
+/// Upper bound for prefix/suffix element counts in a NiPoPow proof.
+/// Real proofs never exceed a few hundred entries; 20 000 is generous.
+const MAX_NIPOPOW_PROOF_ELEMENTS: usize = 20_000;
+/// Upper bound for a serialized header within a PoPowHeader (bytes).
+const MAX_POPOW_HEADER_BYTES: usize = 10_000;
+/// Upper bound for the number of interlinks in a PoPowHeader.
+const MAX_POPOW_INTERLINKS: usize = 10_000;
+/// Upper bound for the serialized interlinks proof (bytes).
+const MAX_POPOW_PROOF_BYTES: usize = 1_000_000;
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// A structure representing NiPoPow proof as a persistent modifier.
 pub struct NipopowProof {
@@ -216,6 +226,11 @@ impl ScorexSerializable for NipopowProof {
         let m = r.get_u32()?;
         let k = r.get_u32()?;
         let num_prefixes = r.get_u32()? as usize;
+        if num_prefixes > MAX_NIPOPOW_PROOF_ELEMENTS {
+            return Err(ScorexParsingError::Io(
+                "num_prefixes exceeds sanity limit".into(),
+            ));
+        }
         let mut prefix = Vec::with_capacity(num_prefixes);
         for _ in 0..num_prefixes {
             let _size = r.get_u32()?;
@@ -224,6 +239,11 @@ impl ScorexSerializable for NipopowProof {
         let _suffix_head_size = r.get_u32()?;
         let suffix_head = PoPowHeader::scorex_parse(r)?;
         let num_suffix_tail = r.get_u32()? as usize;
+        if num_suffix_tail > MAX_NIPOPOW_PROOF_ELEMENTS {
+            return Err(ScorexParsingError::Io(
+                "num_suffix_tail exceeds sanity limit".into(),
+            ));
+        }
         let mut suffix_tail = Vec::with_capacity(num_suffix_tail);
         for _ in 0..num_suffix_tail {
             let _size = r.get_u32();
@@ -340,12 +360,22 @@ impl ScorexSerializable for PoPowHeader {
     }
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
-        let header_size = r.get_u32()?;
-        let mut buf = vec![0; header_size as usize];
+        let header_size = r.get_u32()? as usize;
+        if header_size > MAX_POPOW_HEADER_BYTES {
+            return Err(ScorexParsingError::Io(
+                "header_size exceeds sanity limit".into(),
+            ));
+        }
+        let mut buf = vec![0; header_size];
         r.read_exact(&mut buf)?;
         let header = Header::scorex_parse(&mut std::io::Cursor::new(buf))?;
 
-        let interlinks_size = r.get_u32()?;
+        let interlinks_size = r.get_u32()? as usize;
+        if interlinks_size > MAX_POPOW_INTERLINKS {
+            return Err(ScorexParsingError::Io(
+                "interlinks_size exceeds sanity limit".into(),
+            ));
+        }
 
         let interlinks: Result<Vec<BlockId>, ScorexParsingError> = (0..interlinks_size)
             .map(|_| {
@@ -356,6 +386,11 @@ impl ScorexSerializable for PoPowHeader {
             .collect();
 
         let proof_bytes = r.get_u32()? as usize;
+        if proof_bytes > MAX_POPOW_PROOF_BYTES {
+            return Err(ScorexParsingError::Io(
+                "proof_bytes exceeds sanity limit".into(),
+            ));
+        }
         let mut proof_buf = vec![0u8; proof_bytes];
         r.read_exact(&mut proof_buf)?;
         let interlinks_proof = BatchMerkleProof::scorex_parse_bytes(&proof_buf);
@@ -605,6 +640,52 @@ pub mod tests {
             !proof.has_valid_connections(),
             "broken suffix tail (parent_id chain violation) must still be \
              rejected after the prefix-tolerance fix"
+        );
+    }
+
+    /// Helper: VLQ-encode a u32 into bytes.
+    fn vlq_encode_u32(v: u32) -> Vec<u8> {
+        let mut buf = Vec::new();
+        sigma_ser::vlq_encode::WriteSigmaVlqExt::put_u32(&mut buf, v).unwrap();
+        buf
+    }
+
+    #[test]
+    fn crafted_huge_prefix_count_returns_err() {
+        let mut payload = Vec::new();
+        payload.extend(vlq_encode_u32(1)); // m
+        payload.extend(vlq_encode_u32(1)); // k
+        payload.extend(vlq_encode_u32(0x7FFF_FFFF)); // num_prefixes
+        payload.extend_from_slice(&[0u8; 16]); // padding
+
+        let result = NipopowProof::scorex_parse(&mut std::io::Cursor::new(payload));
+        assert!(
+            result.is_err(),
+            "Expected Err for huge num_prefixes, got Ok"
+        );
+    }
+
+    #[test]
+    fn crafted_huge_header_size_returns_err() {
+        let mut payload = Vec::new();
+        payload.extend(vlq_encode_u32(0x7FFF_FFFF)); // header_size
+        payload.extend_from_slice(&[0u8; 16]); // padding
+
+        let result = PoPowHeader::scorex_parse(&mut std::io::Cursor::new(payload));
+        assert!(result.is_err(), "Expected Err for huge header_size, got Ok");
+    }
+
+    #[test]
+    fn crafted_header_size_just_over_limit_returns_err() {
+        let mut payload = Vec::new();
+        let over_limit = (MAX_POPOW_HEADER_BYTES as u32) + 1;
+        payload.extend(vlq_encode_u32(over_limit)); // header_size
+        payload.extend_from_slice(&[0u8; 16]); // padding
+
+        let result = PoPowHeader::scorex_parse(&mut std::io::Cursor::new(payload));
+        assert!(
+            result.is_err(),
+            "Expected Err for header_size > limit, got Ok"
         );
     }
 }
