@@ -4,10 +4,11 @@ use ergo_chain_types::{
     },
     Header,
 };
-use num_traits::ToPrimitive;
+use num_traits::{ToPrimitive, Zero};
 use std::convert::TryInto;
 
-use crate::{nipopow_proof::PoPowHeader, NipopowProof, NipopowProofError};
+use crate::nipopow_proof::{NipopowValidationError, PoPowHeader};
+use crate::{NipopowProof, NipopowProofError};
 use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
 /// Prefix for Block Interlinks
@@ -80,6 +81,9 @@ impl NipopowAlgos {
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
     pub fn best_arg(&self, chain: &[&Header], m: u32) -> Result<usize, AutolykosPowSchemeError> {
+        if m == 0 {
+            return Err(AutolykosPowSchemeError::OutOfBounds);
+        }
         // Little helper struct for loop below
         struct Acc {
             level: u32,
@@ -123,13 +127,15 @@ impl NipopowAlgos {
         if !genesis_header {
             // Order of the secp256k1 elliptic curve
             let order = order_bigint();
+            let decoded_target = decode_compact_bits(header.n_bits);
+            if decoded_target.is_zero() {
+                return Err(AutolykosPowSchemeError::OutOfBounds);
+            }
             #[allow(clippy::unwrap_used)]
-            let required_target = (order / decode_compact_bits(header.n_bits))
-                .to_f64()
-                .unwrap();
+            let required_target = (order / decoded_target).to_f64().unwrap();
             #[allow(clippy::unwrap_used)]
             let real_target = self.pow_scheme.pow_hit(header)?.to_f64().unwrap();
-            let level = required_target.log2() - real_target.log2();
+            let level = log2_via_ln(required_target) - log2_via_ln(real_target);
             Ok(level as i32)
         } else {
             Ok(i32::MAX)
@@ -170,22 +176,25 @@ impl NipopowAlgos {
         k: u32,
         m: u32,
     ) -> Result<NipopowProof, NipopowProofError> {
-        if k == 0 {
-            return Err(NipopowProofError::ZeroKParameter);
-        }
-        if chain.len() < ((k + m) as usize) {
+        NipopowProof::validate_parameters(m, k)
+            .map_err(NipopowValidationError::into_construction_error)?;
+        let k_usize = k as usize;
+        let m_usize = m as usize;
+        // Both values are at most MAX_NIPOPOW_PROOF_ELEMENTS, so this sum is
+        // bounded before it participates in arithmetic or slicing.
+        if chain.len() < k_usize + m_usize {
             return Err(NipopowProofError::ChainTooShort);
         }
         if chain[0].header.height != 1 {
             return Err(NipopowProofError::NonAnchoredChain);
         }
 
-        let suffix = chain[(chain.len() - (k as usize))..].to_vec();
+        let suffix = chain[(chain.len() - k_usize)..].to_vec();
         let suffix_head = suffix[0].clone();
         let suffix_tail: Vec<Header> = suffix[1..].iter().map(|p| p.header.clone()).collect();
         #[allow(clippy::unwrap_used)]
-        let max_level: i32 = if chain.len() > (k as usize) {
-            (chain[..(chain.len() - (k as usize))]
+        let max_level: i32 = if chain.len() > k_usize {
+            (chain[..(chain.len() - k_usize)]
                 .last()
                 .unwrap()
                 .interlinks
@@ -203,15 +212,15 @@ impl NipopowAlgos {
                 // C[:−k]{B:}↑µ
                 let mut sub_chain = vec![];
 
-                for p in &chain[..(chain.len() - (k as usize))] {
+                for p in &chain[..(chain.len() - k_usize)] {
                     let max_level = self.max_level_of(&p.header)?;
                     if max_level >= level && p.header.height >= anchoring_point.header.height {
                         sub_chain.push(p.clone());
                     }
                 }
 
-                if (m as usize) < sub_chain.len() {
-                    stack.push((sub_chain[sub_chain.len() - (m as usize)].clone(), level - 1));
+                if m_usize < sub_chain.len() {
+                    stack.push((sub_chain[sub_chain.len() - m_usize].clone(), level - 1));
                 } else {
                     stack.push((anchoring_point, level - 1));
                 }
@@ -383,6 +392,16 @@ fn kv_to_leaf(kv: &([u8; 2], Vec<u8>)) -> Vec<u8> {
         .chain(kv.1.iter().copied())
         .collect()
 }
+
+/// Computes a base-2 logarithm using the JVM reference's arithmetic shape.
+///
+/// The reference uses `Math.log(x) / Math.log(2)`. This avoids the known
+/// integer-boundary divergence from `f64::log2`, but does not claim general
+/// bit-exact parity across math-library implementations.
+fn log2_via_ln(x: f64) -> f64 {
+    x.ln() / core::f64::consts::LN_2
+}
+
 // creates a MerkleTree from a key/value pair of extension section
 fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTree {
     let leafs = kv
@@ -396,6 +415,24 @@ fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ergo_chain_types::{ADDigest, AutolykosSolution, EcPoint, Votes};
+
+    /// The secp256k1 order and order / 32 both round to exact powers of two
+    /// when converted to `f64`. OpenJDK 17 evaluates the corresponding level
+    /// as 4.999999999999972 and truncates it to 4, while native `f64::log2`
+    /// evaluates it as exactly 5.
+    #[test]
+    fn log2_via_ln_matches_jvm_boundary_vector() {
+        let required_target = 2f64.powi(256);
+        let real_target = 2f64.powi(251);
+
+        assert_eq!(log2_via_ln(real_target), 251.00000000000003);
+        let reference_level = log2_via_ln(required_target) - log2_via_ln(real_target);
+        assert_eq!(reference_level as i32, 4);
+
+        let native_level = required_target.log2() - real_target.log2();
+        assert_eq!(native_level as i32, 5);
+    }
 
     fn blockid(byte: u8) -> BlockId {
         BlockId(Digest32::from([byte; 32]))
@@ -432,5 +469,59 @@ mod tests {
     fn pack_interlinks_empty_returns_empty() {
         let packed = NipopowAlgos::pack_interlinks(vec![]);
         assert!(packed.is_empty());
+    }
+
+    #[test]
+    fn best_arg_rejects_zero_m_without_looping() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let (sender, receiver) = mpsc::channel();
+        let _worker =
+            std::thread::spawn(move || sender.send(NipopowAlgos::default().best_arg(&[], 0)));
+
+        assert_eq!(
+            receiver.recv_timeout(Duration::from_secs(1)),
+            Ok(Err(AutolykosPowSchemeError::OutOfBounds))
+        );
+    }
+
+    #[test]
+    fn max_level_rejects_zero_decoded_target() {
+        let header = Header {
+            version: 2,
+            id: blockid(1),
+            parent_id: blockid(0),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits: 0,
+            height: 2,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::<EcPoint>::default(),
+                pow_onetime_pk: None,
+                nonce: vec![0; 8],
+                pow_distance: None,
+            },
+            votes: Votes([0, 0, 0]),
+            unparsed_bytes: Box::new([]),
+        };
+
+        assert_eq!(
+            NipopowAlgos::default().max_level_of(&header),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn prove_rejects_parameter_sum_overflow_before_slicing() {
+        assert_eq!(
+            NipopowAlgos::default().prove(&[], u32::MAX, 1),
+            Err(NipopowProofError::AutolykosPowSchemeError(
+                AutolykosPowSchemeError::OutOfBounds
+            ))
+        );
     }
 }

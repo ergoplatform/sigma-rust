@@ -1,13 +1,102 @@
-use derive_more::From;
 use ergo_chain_types::{autolykos_pow_scheme::AutolykosPowSchemeError, BlockId, Header};
-use ergo_merkle_tree::BatchMerkleProof;
+use ergo_merkle_tree::{BatchMerkleProof, MerkleNode};
 use serde::{Deserialize, Serialize};
 use sigma_ser::{
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
     ScorexParsingError, ScorexSerializable, ScorexSerializeResult,
 };
+use std::collections::HashSet;
 
 use crate::nipopow_algos::NipopowAlgos;
+
+/// Upper bound for prefix/suffix element counts and proof parameters.
+/// Real proofs never exceed a few hundred entries; 20 000 is generous.
+const MAX_NIPOPOW_PROOF_ELEMENTS: usize = 20_000;
+/// Upper bound for a serialized header nested inside a `PoPowHeader`.
+const MAX_POPOW_HEADER_BYTES: usize = 10_000;
+/// Upper bound for the number of interlinks nested inside a `PoPowHeader`.
+const MAX_POPOW_INTERLINKS: usize = 10_000;
+/// Upper bound for a serialized interlinks proof frame.
+const MAX_POPOW_PROOF_BYTES: usize = 1_000_000;
+/// A serialized Merkle index is a `u32`, so a representable binary tree has at
+/// most 32 parent levels. At each level, each disclosed index can require at
+/// most one sibling proof node.
+const MAX_MERKLE_PROOF_LEVELS: usize = u32::BITS as usize;
+/// Upper bound for one serialized `PoPowHeader` element frame.
+const MAX_POPOW_HEADER_ELEMENT_BYTES: usize =
+    MAX_POPOW_HEADER_BYTES + MAX_POPOW_INTERLINKS * 32 + MAX_POPOW_PROOF_BYTES + 64;
+
+/// Read one length-declared element frame.
+///
+/// The declared size owns the outer stream boundary: exactly that many bytes
+/// are consumed before parsing the element. The nested parser may leave
+/// trailing bytes inside its private slice, matching JVM `parseBytes` behavior.
+fn read_framed<T: ScorexSerializable, R: ReadSigmaVlqExt>(
+    r: &mut R,
+    max_bytes: usize,
+    what: &str,
+) -> Result<T, ScorexParsingError> {
+    let size = r.get_u32()? as usize;
+    if size > max_bytes {
+        return Err(ScorexParsingError::Io(format!(
+            "{what} declared size {size} exceeds sanity limit {max_bytes}"
+        )));
+    }
+    let mut buf = vec![0; size];
+    r.read_exact(&mut buf)?;
+    T::scorex_parse_bytes(&buf)
+}
+
+fn validate_batch_merkle_proof_frame(bytes: &[u8]) -> Result<(), ScorexParsingError> {
+    const COUNT_BYTES: usize = 8;
+    const INDEX_BYTES: usize = 36;
+    const PROOF_BYTES: usize = 33;
+
+    let counts = bytes.get(..COUNT_BYTES).ok_or_else(|| {
+        ScorexParsingError::ValueOutOfBounds(
+            "BatchMerkleProof counts do not fit declared proof frame".into(),
+        )
+    })?;
+    let indices_len = u32::from_be_bytes([counts[0], counts[1], counts[2], counts[3]]) as usize;
+    let proofs_len = u32::from_be_bytes([counts[4], counts[5], counts[6], counts[7]]) as usize;
+    let indices_bytes = indices_len.checked_mul(INDEX_BYTES).ok_or_else(|| {
+        ScorexParsingError::ValueOutOfBounds(
+            "BatchMerkleProof index count does not fit declared proof frame".into(),
+        )
+    })?;
+    let proofs_bytes = proofs_len.checked_mul(PROOF_BYTES).ok_or_else(|| {
+        ScorexParsingError::ValueOutOfBounds(
+            "BatchMerkleProof proof count does not fit declared proof frame".into(),
+        )
+    })?;
+    let required_bytes = COUNT_BYTES
+        .checked_add(indices_bytes)
+        .and_then(|size| size.checked_add(proofs_bytes))
+        .ok_or_else(|| {
+            ScorexParsingError::ValueOutOfBounds(
+                "BatchMerkleProof counts do not fit declared proof frame".into(),
+            )
+        })?;
+    if required_bytes != bytes.len() {
+        return Err(ScorexParsingError::ValueOutOfBounds(format!(
+            "BatchMerkleProof encoded length requires {required_bytes} bytes and does not fit declared proof frame of {} bytes",
+            bytes.len()
+        )));
+    }
+    let max_proof_nodes = indices_len
+        .checked_mul(MAX_MERKLE_PROOF_LEVELS)
+        .ok_or_else(|| {
+            ScorexParsingError::ValueOutOfBounds(
+                "BatchMerkleProof structural proof-node bound overflow".into(),
+            )
+        })?;
+    if proofs_len > max_proof_nodes {
+        return Err(ScorexParsingError::ValueOutOfBounds(format!(
+            "BatchMerkleProof proof count {proofs_len} exceeds structural limit {max_proof_nodes} for {indices_len} disclosed indices"
+        )));
+    }
+    Ok(())
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 /// A structure representing NiPoPow proof as a persistent modifier.
@@ -41,50 +130,106 @@ impl NipopowProof {
         suffix_head: PoPowHeader,
         suffix_tail: Vec<Header>,
     ) -> Result<NipopowProof, NipopowProofError> {
-        if k >= 1 {
-            Ok(NipopowProof {
-                popow_algos: NipopowAlgos::default(),
-                m,
-                k,
-                prefix,
-                suffix_head,
-                suffix_tail,
-            })
-        } else {
-            Err(NipopowProofError::ZeroKParameter)
+        Self::validate_parameters(m, k).map_err(NipopowValidationError::into_construction_error)?;
+        Self::validate_suffix_length(k, suffix_tail.len())
+            .map_err(NipopowValidationError::into_construction_error)?;
+        Ok(NipopowProof {
+            popow_algos: NipopowAlgos::default(),
+            m,
+            k,
+            prefix,
+            suffix_head,
+            suffix_tail,
+        })
+    }
+
+    /// Validate proof parameters before any parameter-dependent allocation,
+    /// arithmetic, loop, or indexing.
+    pub(crate) fn validate_parameters(m: u32, k: u32) -> Result<(), NipopowValidationError> {
+        if m == 0 || m > MAX_NIPOPOW_PROOF_ELEMENTS as u32 {
+            return Err(NipopowValidationError::InvalidMParameter(m));
         }
+        if k == 0 {
+            return Err(NipopowValidationError::ZeroKParameter);
+        }
+        if k > MAX_NIPOPOW_PROOF_ELEMENTS as u32 {
+            return Err(NipopowValidationError::InvalidKParameter(k));
+        }
+        Ok(())
+    }
+
+    fn validate_suffix_length(
+        k: u32,
+        suffix_tail_len: usize,
+    ) -> Result<(), NipopowValidationError> {
+        let actual = u32::try_from(suffix_tail_len)
+            .ok()
+            .and_then(|len| len.checked_add(1))
+            .ok_or(NipopowValidationError::SuffixLengthMismatch {
+                expected: k,
+                actual: suffix_tail_len.saturating_add(1),
+            })?;
+        if actual != k {
+            return Err(NipopowValidationError::SuffixLengthMismatch {
+                expected: k,
+                actual: actual as usize,
+            });
+        }
+        Ok(())
     }
 
     /// Implementation of the ≥ algorithm from [`KMZ17`], see Algorithm 4
     ///
     /// [`KMZ17`]: https://fc20.ifca.ai/preproceedings/74.pdf
     pub fn is_better_than(&self, that: &NipopowProof) -> Result<bool, NipopowProofError> {
-        if self.is_valid() && that.is_valid() {
-            if let Some(lca) = self.popow_algos.lowest_common_ancestor(
-                &self.headers_chain().collect::<Vec<_>>(),
-                &that.headers_chain().collect::<Vec<_>>(),
-            ) {
-                let self_headers = self
-                    .headers_chain()
-                    .filter(|h| h.height > lca.height)
-                    .collect::<Vec<_>>();
-                let that_headers = that
-                    .headers_chain()
-                    .filter(|h| h.height > lca.height)
-                    .collect::<Vec<_>>();
-                Ok(self.popow_algos.best_arg(&self_headers, self.m)?
-                    > self.popow_algos.best_arg(&that_headers, self.m)?)
-            } else {
-                Ok(false)
-            }
+        let self_is_valid = self.validate().is_ok();
+        let that_is_valid = that.validate().is_ok();
+        if !self_is_valid || !that_is_valid {
+            return Ok(self_is_valid);
+        }
+        if (self.m, self.k) != (that.m, that.k) {
+            return Ok(false);
+        }
+        if let Some(lca) = self.popow_algos.lowest_common_ancestor(
+            &self.headers_chain().collect::<Vec<_>>(),
+            &that.headers_chain().collect::<Vec<_>>(),
+        ) {
+            let self_headers = self
+                .headers_chain()
+                .filter(|h| h.height > lca.height)
+                .collect::<Vec<_>>();
+            let that_headers = that
+                .headers_chain()
+                .filter(|h| h.height > lca.height)
+                .collect::<Vec<_>>();
+            Ok(self.popow_algos.best_arg(&self_headers, self.m)?
+                > self.popow_algos.best_arg(&that_headers, that.m)?)
         } else {
-            Ok(self.is_valid())
+            Ok(false)
         }
     }
 
-    /// Returns whether this proof satisfies the current structural validity checks.
-    pub(crate) fn is_valid(&self) -> bool {
-        self.has_valid_connections() && self.has_valid_heights() && self.has_valid_proofs()
+    /// Validate parameters, suffix cardinality, chain structure, and interlink proofs.
+    pub fn validate(&self) -> Result<(), NipopowValidationError> {
+        Self::validate_parameters(self.m, self.k)?;
+        Self::validate_suffix_length(self.k, self.suffix_tail.len())?;
+        if !self.has_valid_connections() {
+            return Err(NipopowValidationError::InvalidProofStructure("connections"));
+        }
+        if !self.has_valid_heights() {
+            return Err(NipopowValidationError::InvalidProofStructure("heights"));
+        }
+        if !self.has_valid_proofs() {
+            return Err(NipopowValidationError::InvalidProofStructure(
+                "interlink proofs",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Returns whether this proof passes [`NipopowProof::validate`].
+    pub fn is_valid(&self) -> bool {
+        self.validate().is_ok()
     }
 
     /// Checks the connections of the blocks in the proof.
@@ -215,37 +360,90 @@ impl ScorexSerializable for NipopowProof {
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let m = r.get_u32()?;
         let k = r.get_u32()?;
+        Self::validate_parameters(m, k)
+            .map_err(|err| ScorexParsingError::ValueOutOfBounds(err.to_string()))?;
         let num_prefixes = r.get_u32()? as usize;
+        if num_prefixes > MAX_NIPOPOW_PROOF_ELEMENTS {
+            return Err(ScorexParsingError::Io(
+                "num_prefixes exceeds sanity limit".into(),
+            ));
+        }
         let mut prefix = Vec::with_capacity(num_prefixes);
         for _ in 0..num_prefixes {
-            let _size = r.get_u32()?;
-            prefix.push(PoPowHeader::scorex_parse(r)?);
+            prefix.push(read_framed(
+                r,
+                MAX_POPOW_HEADER_ELEMENT_BYTES,
+                "prefix element",
+            )?);
         }
-        let _suffix_head_size = r.get_u32()?;
-        let suffix_head = PoPowHeader::scorex_parse(r)?;
+        let suffix_head = read_framed(r, MAX_POPOW_HEADER_ELEMENT_BYTES, "suffix head")?;
         let num_suffix_tail = r.get_u32()? as usize;
+        if num_suffix_tail > MAX_NIPOPOW_PROOF_ELEMENTS {
+            return Err(ScorexParsingError::Io(
+                "num_suffix_tail exceeds sanity limit".into(),
+            ));
+        }
+        Self::validate_suffix_length(k, num_suffix_tail)
+            .map_err(|err| ScorexParsingError::ValueOutOfBounds(err.to_string()))?;
         let mut suffix_tail = Vec::with_capacity(num_suffix_tail);
         for _ in 0..num_suffix_tail {
-            let _size = r.get_u32();
-            suffix_tail.push(Header::scorex_parse(r)?);
+            suffix_tail.push(read_framed(
+                r,
+                MAX_POPOW_HEADER_BYTES,
+                "suffix-tail header",
+            )?);
         }
-        Ok(NipopowProof {
-            popow_algos: NipopowAlgos::default(),
-            m,
-            k,
-            prefix,
-            suffix_head,
-            suffix_tail,
-        })
+        Self::new(m, k, prefix, suffix_head, suffix_tail)
+            .map_err(|err| ScorexParsingError::ValueOutOfBounds(err.to_string()))
     }
 }
 
-/// `NipopowProof` errors
-#[derive(PartialEq, Eq, Debug, Clone, From, thiserror::Error)]
+/// Detailed validation failures for a `NipopowProof`.
+#[non_exhaustive]
+#[derive(PartialEq, Eq, Debug, Clone, thiserror::Error)]
+pub enum NipopowValidationError {
+    /// `m` is outside the supported proof-resource range.
+    #[error("m parameter {0} must be in 1..=20000")]
+    InvalidMParameter(u32),
+    /// `k` parameter == 0. Must be >= 1.
+    #[error("k parameter == 0. Must be >= 1")]
+    ZeroKParameter,
+    /// `k` exceeds the supported proof-resource range.
+    #[error("k parameter {0} must be in 1..=20000")]
+    InvalidKParameter(u32),
+    /// Declared `k` does not match the number of suffix headers.
+    #[error("suffix length {actual} does not match k parameter {expected}")]
+    SuffixLengthMismatch {
+        /// Declared suffix length.
+        expected: u32,
+        /// Actual suffix length, including the suffix head.
+        actual: usize,
+    },
+    /// A structural or cryptographic proof predicate failed.
+    #[error("invalid NiPoPoW proof structure: {0}")]
+    InvalidProofStructure(&'static str),
+}
+
+impl NipopowValidationError {
+    pub(crate) fn into_construction_error(self) -> NipopowProofError {
+        match self {
+            Self::ZeroKParameter => NipopowProofError::ZeroKParameter,
+            Self::InvalidMParameter(_)
+            | Self::InvalidKParameter(_)
+            | Self::SuffixLengthMismatch { .. }
+            | Self::InvalidProofStructure(_) => {
+                NipopowProofError::AutolykosPowSchemeError(AutolykosPowSchemeError::OutOfBounds)
+            }
+        }
+    }
+}
+
+/// `NipopowProof` construction and comparison errors.
+#[derive(PartialEq, Eq, Debug, Clone, thiserror::Error)]
 pub enum NipopowProofError {
     /// Errors from `AutolykosPowScheme`
     #[error("{0:?}")]
-    AutolykosPowSchemeError(AutolykosPowSchemeError),
+    AutolykosPowSchemeError(#[from] AutolykosPowSchemeError),
     /// `k` parameter == 0. Must be >= 1.
     #[error("k parameter == 0. Must be >= 1")]
     ZeroKParameter,
@@ -271,13 +469,14 @@ pub struct PoPowHeader {
 }
 
 impl PoPowHeader {
-    fn has_packable_interlinks(&self) -> bool {
+    fn has_canonical_interlink_runs(&self) -> bool {
         let Some(mut current) = self.interlinks.first() else {
             return false;
         };
         let max_run_length = usize::from(u8::MAX);
         let max_key_position = usize::from(u8::MAX);
         let mut run_length = 1usize;
+        let mut closed_runs = HashSet::new();
 
         for (position, interlink) in self.interlinks.iter().enumerate().skip(1) {
             if interlink == current {
@@ -289,6 +488,12 @@ impl PoPowHeader {
                 if position > max_key_position {
                     return false;
                 }
+                // Canonical update_interlinks output never reopens an id after
+                // a different run.
+                closed_runs.insert(*current);
+                if closed_runs.contains(interlink) {
+                    return false;
+                }
                 current = interlink;
                 run_length = 1;
             }
@@ -296,30 +501,41 @@ impl PoPowHeader {
         true
     }
 
-    /// Validates interlinks merkle root against provided proof
+    /// Validates the exact packed interlink leaves against the full extension root
     pub fn check_interlinks_proof(&self) -> bool {
         let proof_is_empty = self.interlinks_proof.get_indices().is_empty()
             && self.interlinks_proof.get_proofs().is_empty();
-        if self.interlinks.is_empty() {
-            return proof_is_empty;
+        if self.header.height == 1 {
+            return self.interlinks.is_empty() && proof_is_empty;
         }
-        if !self.has_packable_interlinks() {
+        if self.interlinks.is_empty() {
+            return false;
+        }
+        if !self.has_canonical_interlink_runs() {
             return false;
         }
 
-        let fields: Vec<ergo_merkle_tree::MerkleNode> =
-            NipopowAlgos::pack_interlinks(self.interlinks.clone())
-                .into_iter()
-                .map(|(k, v)| -> Vec<u8> {
-                    std::iter::once(2u8)
-                        .chain(k.iter().copied())
-                        .chain(v)
-                        .collect()
-                })
-                .map(ergo_merkle_tree::MerkleNode::from_bytes)
-                .collect();
-        let tree = ergo_merkle_tree::MerkleTree::new(fields);
-        self.interlinks_proof.valid(tree.root_hash().as_ref())
+        let expected_leaf_hashes: Vec<_> = NipopowAlgos::pack_interlinks(self.interlinks.clone())
+            .into_iter()
+            .map(|(key, value)| -> Vec<u8> {
+                std::iter::once(2u8)
+                    .chain(key.iter().copied())
+                    .chain(value)
+                    .collect()
+            })
+            .map(MerkleNode::from_bytes)
+            .filter_map(|node| node.get_hash().copied())
+            .collect();
+        let proven_leaves = self.interlinks_proof.get_indices();
+
+        expected_leaf_hashes.len() == proven_leaves.len()
+            && expected_leaf_hashes
+                .iter()
+                .zip(proven_leaves)
+                .all(|(expected, proven)| expected == &proven.hash)
+            && self
+                .interlinks_proof
+                .valid(self.header.extension_root.as_ref())
     }
 }
 
@@ -340,12 +556,22 @@ impl ScorexSerializable for PoPowHeader {
     }
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
-        let header_size = r.get_u32()?;
-        let mut buf = vec![0; header_size as usize];
+        let header_size = r.get_u32()? as usize;
+        if header_size > MAX_POPOW_HEADER_BYTES {
+            return Err(ScorexParsingError::Io(
+                "header_size exceeds sanity limit".into(),
+            ));
+        }
+        let mut buf = vec![0; header_size];
         r.read_exact(&mut buf)?;
         let header = Header::scorex_parse(&mut std::io::Cursor::new(buf))?;
 
-        let interlinks_size = r.get_u32()?;
+        let interlinks_size = r.get_u32()? as usize;
+        if interlinks_size > MAX_POPOW_INTERLINKS {
+            return Err(ScorexParsingError::Io(
+                "interlinks_size exceeds sanity limit".into(),
+            ));
+        }
 
         let interlinks: Result<Vec<BlockId>, ScorexParsingError> = (0..interlinks_size)
             .map(|_| {
@@ -356,8 +582,14 @@ impl ScorexSerializable for PoPowHeader {
             .collect();
 
         let proof_bytes = r.get_u32()? as usize;
+        if proof_bytes > MAX_POPOW_PROOF_BYTES {
+            return Err(ScorexParsingError::Io(
+                "proof_bytes exceeds sanity limit".into(),
+            ));
+        }
         let mut proof_buf = vec![0u8; proof_bytes];
         r.read_exact(&mut proof_buf)?;
+        validate_batch_merkle_proof_frame(&proof_buf)?;
         let interlinks_proof = BatchMerkleProof::scorex_parse_bytes(&proof_buf);
 
         Ok(Self {
@@ -404,19 +636,21 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any::<u32>(),
-                any::<u32>(),
+                1_u32..=MAX_NIPOPOW_PROOF_ELEMENTS as u32,
                 vec(any::<PoPowHeader>(), 1..10),
                 any::<PoPowHeader>(),
-                vec(any::<Header>(), 1..10),
+                vec(any::<Header>(), 0..10),
             )
-                .prop_map(|(m, k, prefix, suffix_head, suffix_tail)| NipopowProof {
-                    popow_algos: NipopowAlgos::default(),
-                    m,
-                    k,
-                    prefix,
-                    suffix_head,
-                    suffix_tail,
+                .prop_map(|(m, prefix, suffix_head, suffix_tail)| {
+                    let k = suffix_tail.len() as u32 + 1;
+                    NipopowProof {
+                        popow_algos: NipopowAlgos::default(),
+                        m,
+                        k,
+                        prefix,
+                        suffix_head,
+                        suffix_tail,
+                    }
                 })
                 .boxed()
         }
@@ -424,26 +658,30 @@ mod arbitrary {
 }
 
 #[cfg(test)]
-#[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used, clippy::panic)]
 pub mod tests {
     use super::*;
-    use ergo_chain_types::Digest32;
-    use ergo_merkle_tree::BatchMerkleProof;
-    use proptest::prelude::*;
-    use proptest::strategy::ValueTree;
-    use proptest::test_runner::TestRunner;
-    use sigma_ser::scorex_serialize_roundtrip;
-    proptest! {
+    use ergo_chain_types::{
+        ADDigest, AutolykosSolution, Digest32, EcPoint, ExtensionCandidate, Votes,
+    };
+    use ergo_merkle_tree::{BatchMerkleProof, MerkleNode, MerkleTree, NodeSide};
 
-        #![proptest_config(ProptestConfig::with_cases(64))]
+    #[cfg(feature = "arbitrary")]
+    mod property_tests {
+        use super::*;
+        use proptest::prelude::*;
+        use sigma_ser::scorex_serialize_roundtrip;
 
-        #[test]
-        fn nipopowproof_roundtrip(v in any::<NipopowProof>()) {
-            prop_assert_eq![scorex_serialize_roundtrip(&v), v];
+        proptest! {
+
+            #![proptest_config(ProptestConfig::with_cases(64))]
+
+            #[test]
+            fn nipopowproof_roundtrip(v in any::<NipopowProof>()) {
+                prop_assert_eq![scorex_serialize_roundtrip(&v), v];
+            }
+
         }
-
-
     }
 
     /// Build a `BlockId` filled with the given byte. Used by the
@@ -453,20 +691,30 @@ pub mod tests {
         BlockId(Digest32::from([byte; 32]))
     }
 
-    /// Generate one valid base `Header` via the proptest `Arbitrary` impl,
-    /// then return a customizing closure. The closure rewrites the
-    /// `id`, `parent_id`, and `height` fields without rebuilding the rest
-    /// of the (irrelevant-to-this-test) header content. We only need the
-    /// three fields above because `has_valid_connections` only inspects
-    /// `header.id`, `header.parent_id`, and `PoPowHeader::interlinks`.
+    /// Return a deterministic header template that callers can customize.
     fn header_factory() -> impl Fn(BlockId, BlockId, u32) -> Header {
-        let mut runner = TestRunner::default();
-        let base = any::<Box<Header>>()
-            .new_tree(&mut runner)
-            .unwrap()
-            .current();
+        let base = Header {
+            version: 2,
+            id: id_from_byte(0),
+            parent_id: id_from_byte(0),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits: 0,
+            height: 1,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::<EcPoint>::default(),
+                pow_onetime_pk: None,
+                nonce: vec![0; 8],
+                pow_distance: None,
+            },
+            votes: Votes([0, 0, 0]),
+            unparsed_bytes: Box::new([]),
+        };
         move |id, parent_id, height| {
-            let mut h = (*base).clone();
+            let mut h = base.clone();
             h.id = id;
             h.parent_id = parent_id;
             h.height = height;
@@ -484,6 +732,253 @@ pub mod tests {
             interlinks,
             interlinks_proof: BatchMerkleProof::new(vec![], vec![]),
         }
+    }
+
+    fn extension_tree(fields: &[([u8; 2], Vec<u8>)]) -> MerkleTree {
+        MerkleTree::new(
+            fields
+                .iter()
+                .map(|(key, value)| {
+                    let leaf: Vec<u8> = std::iter::once(2u8)
+                        .chain(key.iter().copied())
+                        .chain(value.iter().copied())
+                        .collect();
+                    MerkleNode::from_bytes(leaf)
+                })
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    /// Build a structurally valid proof whose suffix contains exactly `k`
+    /// headers. A genesis suffix head needs neither interlinks nor a Merkle
+    /// proof, so this fixture isolates parameter validation from cryptography.
+    pub(crate) fn valid_proof(m: u32, k: u32) -> NipopowProof {
+        assert!(k >= 1);
+        let mk_header = header_factory();
+        let suffix_head_id = id_from_byte(0x40);
+        let suffix_head = pop_header(mk_header(suffix_head_id, id_from_byte(0), 1), vec![]);
+        let mut suffix_tail = Vec::new();
+        let mut parent_id = suffix_head_id;
+        for index in 1..k {
+            let id = id_from_byte(0x40_u8.wrapping_add(index as u8));
+            suffix_tail.push(mk_header(id, parent_id, index + 1));
+            parent_id = id;
+        }
+        NipopowProof {
+            popow_algos: NipopowAlgos::default(),
+            m,
+            k,
+            prefix: vec![],
+            suffix_head,
+            suffix_tail,
+        }
+    }
+
+    fn legacy_out_of_bounds_error() -> NipopowProofError {
+        NipopowProofError::AutolykosPowSchemeError(AutolykosPowSchemeError::OutOfBounds)
+    }
+
+    #[test]
+    fn new_rejects_zero_m() {
+        let proof = valid_proof(1, 1);
+        assert_eq!(
+            NipopowProof::new(
+                0,
+                proof.k,
+                proof.prefix,
+                proof.suffix_head,
+                proof.suffix_tail,
+            )
+            .unwrap_err(),
+            legacy_out_of_bounds_error()
+        );
+    }
+
+    #[test]
+    fn parameter_bounds_accept_sanity_limit() {
+        let max = MAX_NIPOPOW_PROOF_ELEMENTS as u32;
+        assert_eq!(NipopowProof::validate_parameters(max, max), Ok(()));
+    }
+
+    #[test]
+    fn new_rejects_zero_k() {
+        let proof = valid_proof(1, 1);
+        assert_eq!(
+            NipopowProof::new(
+                proof.m,
+                0,
+                proof.prefix,
+                proof.suffix_head,
+                proof.suffix_tail,
+            )
+            .unwrap_err(),
+            NipopowProofError::ZeroKParameter
+        );
+    }
+
+    #[test]
+    fn new_rejects_m_above_sanity_limit() {
+        let proof = valid_proof(1, 1);
+        assert_eq!(
+            NipopowProof::new(
+                20_001,
+                proof.k,
+                proof.prefix,
+                proof.suffix_head,
+                proof.suffix_tail,
+            )
+            .unwrap_err(),
+            legacy_out_of_bounds_error()
+        );
+    }
+
+    #[test]
+    fn new_rejects_k_above_sanity_limit() {
+        let proof = valid_proof(1, 1);
+        assert_eq!(
+            NipopowProof::new(
+                proof.m,
+                20_001,
+                proof.prefix,
+                proof.suffix_head,
+                proof.suffix_tail,
+            )
+            .unwrap_err(),
+            legacy_out_of_bounds_error()
+        );
+    }
+
+    #[test]
+    fn new_rejects_suffix_length_not_equal_to_k() {
+        let proof = valid_proof(6, 1);
+        assert_eq!(
+            NipopowProof::new(
+                proof.m,
+                2,
+                proof.prefix,
+                proof.suffix_head,
+                proof.suffix_tail,
+            )
+            .unwrap_err(),
+            legacy_out_of_bounds_error()
+        );
+    }
+
+    #[test]
+    fn parser_rejects_zero_m() {
+        let bytes = valid_proof(0, 1).scorex_serialize_bytes().unwrap();
+        assert!(NipopowProof::scorex_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn parser_rejects_suffix_length_not_equal_to_k() {
+        let mut proof = valid_proof(6, 2);
+        proof.k = 1;
+        let bytes = proof.scorex_serialize_bytes().unwrap();
+        let mut cursor = std::io::Cursor::new(bytes.as_slice());
+        assert!(NipopowProof::scorex_parse(&mut cursor).is_err());
+        assert!(
+            cursor.position() < bytes.len() as u64,
+            "suffix mismatch must be rejected before parsing tail elements"
+        );
+    }
+
+    #[test]
+    fn comparison_rejects_different_m() {
+        assert!(!valid_proof(6, 1)
+            .is_better_than(&valid_proof(7, 1))
+            .unwrap());
+    }
+
+    #[test]
+    fn comparison_rejects_different_k() {
+        assert!(!valid_proof(6, 1)
+            .is_better_than(&valid_proof(6, 2))
+            .unwrap());
+    }
+
+    #[test]
+    fn comparison_prefers_valid_proof_to_invalid_proof() {
+        let valid = valid_proof(6, 2);
+        let mut invalid = valid.clone();
+        invalid.suffix_tail[0].parent_id = id_from_byte(0xff);
+
+        assert!(valid.is_better_than(&invalid).unwrap());
+        assert!(!invalid.is_better_than(&valid).unwrap());
+    }
+
+    #[test]
+    fn validate_accepts_consistent_proof() {
+        let proof = valid_proof(6, 2);
+        assert_eq!(proof.validate(), Ok(()));
+        assert!(proof.is_valid());
+    }
+
+    #[test]
+    fn validate_rejects_zero_m() {
+        let proof = valid_proof(0, 1);
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::InvalidMParameter(0))
+        );
+    }
+
+    #[test]
+    fn validate_rejects_zero_k() {
+        let mut proof = valid_proof(6, 1);
+        proof.k = 0;
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::ZeroKParameter)
+        );
+    }
+
+    #[test]
+    fn validate_rejects_suffix_length_not_equal_to_k() {
+        let mut proof = valid_proof(6, 1);
+        proof.k = 2;
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::SuffixLengthMismatch {
+                expected: 2,
+                actual: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn validate_rejects_connection_failure() {
+        let mut proof = valid_proof(6, 2);
+        proof.suffix_tail[0].parent_id = id_from_byte(0xff);
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::InvalidProofStructure("connections"))
+        );
+        assert!(!proof.is_valid());
+    }
+
+    #[test]
+    fn validate_rejects_height_failure() {
+        let mut proof = valid_proof(6, 2);
+        proof.suffix_tail[0].height = 1;
+        assert!(proof.has_valid_connections());
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::InvalidProofStructure("heights"))
+        );
+    }
+
+    #[test]
+    fn validate_rejects_interlink_proof_failure() {
+        let mut proof = valid_proof(6, 1);
+        proof.suffix_head.header.height = 2;
+        assert!(proof.has_valid_connections());
+        assert_eq!(
+            proof.validate(),
+            Err(NipopowValidationError::InvalidProofStructure(
+                "interlink proofs"
+            ))
+        );
     }
 
     /// Constructs a deliberately-skipped prefix and asserts the JVM-tolerant
@@ -606,5 +1101,828 @@ pub mod tests {
             "broken suffix tail (parent_id chain violation) must still be \
              rejected after the prefix-tolerance fix"
         );
+    }
+
+    #[test]
+    fn full_root_accepts_a_complete_mixed_extension_proof() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let mut fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        fields.push(([0x02, 0x00], vec![0x01]));
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let proof = NipopowAlgos::proof_for_interlink_vector(&extension).unwrap();
+        let full_root = extension_tree(&fields).root_hash();
+        assert!(proof.valid(full_root.as_ref()));
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = full_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: proof,
+        };
+
+        assert!(popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_rejects_a_one_byte_header_root_mutation() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let mut fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        fields.push(([0x02, 0x00], vec![0x01]));
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let proof = NipopowAlgos::proof_for_interlink_vector(&extension).unwrap();
+        let full_root = extension_tree(&fields).root_hash();
+        let mut wrong_root = full_root;
+        wrong_root.0[0] ^= 1;
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = wrong_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: proof,
+        };
+
+        assert!(!popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_rejects_an_interlink_mutation_with_the_original_proof() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let mut fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        fields.push(([0x02, 0x00], vec![0x01]));
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let proof = NipopowAlgos::proof_for_interlink_vector(&extension).unwrap();
+        let full_root = extension_tree(&fields).root_hash();
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = full_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks: vec![id_from_byte(0x11), id_from_byte(0x33)],
+            interlinks_proof: proof,
+        };
+
+        assert!(!popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_rejects_an_incomplete_interlink_disclosure() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let mut fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        let first_interlink_key = fields[0].0;
+        fields.push(([0x02, 0x00], vec![0x01]));
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let incomplete_proof =
+            NipopowAlgos::extension_batch_proof_for(&extension, &[first_interlink_key]).unwrap();
+        let full_root = extension_tree(&fields).root_hash();
+        assert!(incomplete_proof.valid(full_root.as_ref()));
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = full_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: incomplete_proof,
+        };
+
+        assert!(!popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_rejects_an_extra_disclosed_extension_leaf() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let mut fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        fields.push(([0x02, 0x00], vec![0x01]));
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let all_keys: Vec<_> = fields.iter().map(|(key, _)| *key).collect();
+        let overcomplete_proof =
+            NipopowAlgos::extension_batch_proof_for(&extension, &all_keys).unwrap();
+        let full_root = extension_tree(&fields).root_hash();
+        assert!(overcomplete_proof.valid(full_root.as_ref()));
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = full_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: overcomplete_proof,
+        };
+
+        assert!(!popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_rejects_an_interlinks_only_proof_under_a_mixed_root() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let interlink_fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        let interlinks_only = ExtensionCandidate::new(interlink_fields.clone()).unwrap();
+        let legacy_proof = NipopowAlgos::proof_for_interlink_vector(&interlinks_only).unwrap();
+        let mut mixed_fields = interlink_fields.clone();
+        mixed_fields.push(([0x02, 0x00], vec![0x01]));
+        let legacy_root = extension_tree(&interlink_fields).root_hash();
+        let mixed_root = extension_tree(&mixed_fields).root_hash();
+        assert!(legacy_proof.valid(legacy_root.as_ref()));
+        assert!(!legacy_proof.valid(mixed_root.as_ref()));
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = mixed_root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: legacy_proof,
+        };
+
+        assert!(!popow_header.check_interlinks_proof());
+    }
+
+    #[test]
+    fn full_root_keeps_interlinks_only_extensions_compatible() {
+        let interlinks = vec![id_from_byte(0x11), id_from_byte(0x22)];
+        let fields = NipopowAlgos::pack_interlinks(interlinks.clone());
+        let extension = ExtensionCandidate::new(fields.clone()).unwrap();
+        let proof = NipopowAlgos::proof_for_interlink_vector(&extension).unwrap();
+        let root = extension_tree(&fields).root_hash();
+        assert!(proof.valid(root.as_ref()));
+
+        let make_header = header_factory();
+        let mut header = make_header(id_from_byte(0x31), id_from_byte(0x30), 2);
+        header.extension_root = root;
+        let popow_header = PoPowHeader {
+            header,
+            interlinks,
+            interlinks_proof: proof,
+        };
+
+        assert!(popow_header.check_interlinks_proof());
+    }
+
+    fn jvm_nipopow_fixture() -> (serde_json::Value, Vec<u8>) {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/nipopow-full-root-mixed-nipopow-proof.json"
+        ))
+        .unwrap();
+        let bytes = base16::decode(fixture["bytes_hex"].as_str().unwrap()).unwrap();
+        (fixture, bytes)
+    }
+
+    fn fixture_usize(fixture: &serde_json::Value, field: &str) -> usize {
+        usize::try_from(fixture[field].as_u64().unwrap()).unwrap()
+    }
+
+    fn fixture_u8(fixture: &serde_json::Value, field: &str) -> u8 {
+        u8::try_from(fixture[field].as_u64().unwrap()).unwrap()
+    }
+
+    /// Parse the Rust-owned core and validate the one-byte JVM envelope.
+    ///
+    /// `continuous` remains an adapter concern: it is checked here, but is
+    /// intentionally not represented by the Rust `NipopowProof` core type.
+    fn parse_jvm_nipopow_fixture(
+        bytes: &[u8],
+        core_length: usize,
+        terminal_mode: u8,
+    ) -> Result<NipopowProof, String> {
+        if terminal_mode > 1 {
+            return Err(format!("invalid JVM terminal mode {terminal_mode}"));
+        }
+        if bytes.len()
+            != core_length
+                .checked_add(1)
+                .ok_or("fixture length overflow")?
+        {
+            return Err(format!(
+                "expected one terminal byte after {core_length} core bytes, got {} total bytes",
+                bytes.len()
+            ));
+        }
+
+        let mut cursor = std::io::Cursor::new(bytes);
+        let proof = NipopowProof::scorex_parse(&mut cursor).map_err(|err| err.to_string())?;
+        let parsed_core_length =
+            usize::try_from(cursor.position()).map_err(|err| err.to_string())?;
+        if parsed_core_length != core_length {
+            return Err(format!(
+                "Rust parser stopped at {parsed_core_length}, expected {core_length}"
+            ));
+        }
+        let terminal = bytes
+            .get(parsed_core_length)
+            .copied()
+            .ok_or("missing JVM terminal byte")?;
+        if terminal != terminal_mode {
+            return Err(format!(
+                "JVM terminal mode {terminal} does not match expected {terminal_mode}"
+            ));
+        }
+
+        proof.validate().map_err(|err| err.to_string())?;
+        Ok(proof)
+    }
+
+    fn read_fixture_vlq(bytes: &[u8], offset: &mut usize) -> Result<u32, String> {
+        let mut value = 0_u32;
+        for shift in (0..35).step_by(7) {
+            let byte = bytes.get(*offset).copied().ok_or("truncated fixture VLQ")?;
+            *offset = offset.checked_add(1).ok_or("fixture offset overflow")?;
+            value |= u32::from(byte & 0x7f) << shift;
+            if byte & 0x80 == 0 {
+                return Ok(value);
+            }
+        }
+        Err("fixture VLQ exceeds u32".to_owned())
+    }
+
+    fn fixture_suffix_head_range(bytes: &[u8]) -> std::ops::Range<usize> {
+        let mut offset = 0;
+        read_fixture_vlq(bytes, &mut offset).unwrap();
+        read_fixture_vlq(bytes, &mut offset).unwrap();
+        let prefix_count = read_fixture_vlq(bytes, &mut offset).unwrap();
+        for _ in 0..prefix_count {
+            let frame_length =
+                usize::try_from(read_fixture_vlq(bytes, &mut offset).unwrap()).unwrap();
+            offset = offset.checked_add(frame_length).unwrap();
+        }
+        let suffix_head_length =
+            usize::try_from(read_fixture_vlq(bytes, &mut offset).unwrap()).unwrap();
+        let end = offset.checked_add(suffix_head_length).unwrap();
+        assert!(end <= bytes.len());
+        offset..end
+    }
+
+    fn single_subslice_offset(bytes: &[u8], range: std::ops::Range<usize>, needle: &[u8]) -> usize {
+        assert!(!needle.is_empty());
+        let matches = bytes[range.clone()]
+            .windows(needle.len())
+            .enumerate()
+            .filter_map(|(index, window)| (window == needle).then_some(range.start + index))
+            .collect::<Vec<_>>();
+        assert_eq!(matches.len(), 1, "fixture mutation target must be unique");
+        matches[0]
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_roundtrips_at_the_explicit_core_boundary() {
+        let (fixture, bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+
+        assert_eq!(
+            fixture["format"].as_str().unwrap(),
+            "scorex-nipopow-proof-with-jvm-mode-v1"
+        );
+        assert_eq!(bytes.len(), core_length + 1);
+        assert_eq!(
+            base16::encode_lower(sigma_util::hash::sha256_hash(&bytes).as_slice()),
+            fixture["sha256"].as_str().unwrap()
+        );
+
+        let mut cursor = std::io::Cursor::new(bytes.as_slice());
+        let parsed = NipopowProof::scorex_parse(&mut cursor).unwrap();
+        assert_eq!(cursor.position(), core_length as u64);
+        assert_eq!(&bytes[core_length..], &[terminal_mode]);
+        assert_eq!(parsed.m, fixture["m"].as_u64().unwrap() as u32);
+        assert_eq!(parsed.k, fixture["k"].as_u64().unwrap() as u32);
+        assert_eq!(parsed.prefix.len(), fixture_usize(&fixture, "prefix_count"));
+        assert_eq!(
+            parsed.suffix_tail.len() + 1,
+            fixture_usize(&fixture, "suffix_count")
+        );
+        assert_eq!(
+            parsed.suffix_tail.len(),
+            fixture_usize(&fixture, "suffix_tail_count")
+        );
+        assert_eq!(
+            parsed.suffix_head.header.extension_root.to_string(),
+            fixture["extension_root"].as_str().unwrap()
+        );
+        assert_eq!(
+            parsed.suffix_head.interlinks,
+            vec![id_from_byte(0x11), id_from_byte(0x22)]
+        );
+        assert!(parsed.prefix[0].check_interlinks_proof());
+        assert!(parsed.suffix_head.check_interlinks_proof());
+        assert_eq!(parsed.validate(), Ok(()));
+        assert_eq!(
+            parsed.scorex_serialize_bytes().unwrap(),
+            bytes[..core_length]
+        );
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_ok());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_extension_root_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        let extension_root = base16::decode(fixture["extension_root"].as_str().unwrap()).unwrap();
+        let root_offset =
+            single_subslice_offset(&bytes, fixture_suffix_head_range(&bytes), &extension_root);
+        bytes[root_offset] ^= 1;
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_disclosed_interlink_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        let interlink = [0x22; 32];
+        let interlink_offset =
+            single_subslice_offset(&bytes, fixture_suffix_head_range(&bytes), &interlink);
+        bytes[interlink_offset] ^= 1;
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_m_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        assert_eq!(bytes[0], 1);
+        bytes[0] = 0;
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_k_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        assert_eq!(&bytes[..2], &[1, 2]);
+        bytes[1] = 1;
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_nested_header_frame_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        let suffix_head_range = fixture_suffix_head_range(&bytes);
+        let nested_size_offset = suffix_head_range.start;
+        let mut after_size = nested_size_offset;
+        assert_eq!(read_fixture_vlq(&bytes, &mut after_size).unwrap(), 218);
+        assert_eq!(bytes[nested_size_offset], 0xda);
+        bytes[nested_size_offset] = 0xd9;
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_missing_terminal_byte() {
+        let (fixture, bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+
+        assert!(
+            parse_jvm_nipopow_fixture(&bytes[..bytes.len() - 1], core_length, terminal_mode)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_extra_terminal_byte() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        bytes.push(terminal_mode);
+
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+    }
+
+    #[test]
+    fn jvm_nipopow_fixture_rejects_terminal_mode_mutation() {
+        let (fixture, mut bytes) = jvm_nipopow_fixture();
+        let core_length = fixture_usize(&fixture, "rust_core_length");
+        let terminal_mode = fixture_u8(&fixture, "terminal_continuous_byte");
+        let last = bytes.len() - 1;
+        bytes[last] = 1;
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, terminal_mode).is_err());
+
+        bytes[last] = 2;
+        assert!(parse_jvm_nipopow_fixture(&bytes, core_length, 2).is_err());
+    }
+
+    #[test]
+    fn full_root_cross_runtime_fixture_roundtrips_and_rejects_mutations() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/nipopow-full-root-mixed-popow-header.json"
+        ))
+        .unwrap();
+        let bytes_hex = fixture["bytes_hex"].as_str().unwrap();
+        let bytes = base16::decode(bytes_hex).unwrap();
+
+        assert_eq!(bytes.len(), fixture["length"].as_u64().unwrap() as usize);
+        assert_eq!(
+            base16::encode_lower(sigma_util::hash::sha256_hash(&bytes).as_slice()),
+            fixture["sha256"].as_str().unwrap()
+        );
+
+        let parsed = PoPowHeader::scorex_parse_bytes(&bytes).unwrap();
+        assert_eq!(parsed.scorex_serialize_bytes().unwrap(), bytes);
+        assert_eq!(
+            parsed.header.extension_root.to_string(),
+            fixture["extension_root"].as_str().unwrap()
+        );
+        assert!(parsed.check_interlinks_proof());
+
+        let mut wrong_root = parsed.clone();
+        wrong_root.header.extension_root.0[0] ^= 1;
+        assert!(!wrong_root.check_interlinks_proof());
+
+        let mut wrong_interlink = parsed;
+        wrong_interlink.interlinks[1] = id_from_byte(0x33);
+        assert!(!wrong_interlink.check_interlinks_proof());
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum FrameSite {
+        Prefix(usize),
+        SuffixHead,
+        SuffixTail(usize),
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum DeclaredSizeMutation {
+        Delta(i64),
+        Override(u32),
+        Raw(&'static [u8]),
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    struct FrameMutation {
+        site: FrameSite,
+        declared_size: DeclaredSizeMutation,
+        filler_len: usize,
+    }
+
+    fn sample_framing_proof() -> NipopowProof {
+        let mut proof = valid_proof(6, 3);
+        proof.prefix = vec![proof.suffix_head.clone(), proof.suffix_head.clone()];
+        proof
+    }
+
+    fn frame_sites(proof: &NipopowProof) -> Vec<FrameSite> {
+        let mut sites = (0..proof.prefix.len())
+            .map(FrameSite::Prefix)
+            .collect::<Vec<_>>();
+        sites.push(FrameSite::SuffixHead);
+        sites.extend((0..proof.suffix_tail.len()).map(FrameSite::SuffixTail));
+        sites
+    }
+
+    fn write_test_frame<T: ScorexSerializable>(
+        output: &mut Vec<u8>,
+        value: &T,
+        site: FrameSite,
+        mutation: FrameMutation,
+    ) {
+        let frame = value.scorex_serialize_bytes().unwrap();
+        if site == mutation.site {
+            match mutation.declared_size {
+                DeclaredSizeMutation::Delta(delta) => {
+                    let declared = i64::try_from(frame.len()).unwrap() + delta;
+                    output.put_u32(u32::try_from(declared).unwrap()).unwrap();
+                }
+                DeclaredSizeMutation::Override(declared) => {
+                    output.put_u32(declared).unwrap();
+                }
+                DeclaredSizeMutation::Raw(raw) => output.extend_from_slice(raw),
+            }
+        } else {
+            output.put_u32(u32::try_from(frame.len()).unwrap()).unwrap();
+        }
+        output.extend_from_slice(&frame);
+        if site == mutation.site {
+            output.resize(output.len() + mutation.filler_len, 0x7f);
+        }
+    }
+
+    fn serialize_with_frame_mutation(proof: &NipopowProof, mutation: FrameMutation) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.put_u32(proof.m).unwrap();
+        bytes.put_u32(proof.k).unwrap();
+        bytes
+            .put_u32(u32::try_from(proof.prefix.len()).unwrap())
+            .unwrap();
+        for (index, prefix) in proof.prefix.iter().enumerate() {
+            write_test_frame(&mut bytes, prefix, FrameSite::Prefix(index), mutation);
+        }
+        write_test_frame(
+            &mut bytes,
+            &proof.suffix_head,
+            FrameSite::SuffixHead,
+            mutation,
+        );
+        bytes
+            .put_u32(u32::try_from(proof.suffix_tail.len()).unwrap())
+            .unwrap();
+        for (index, header) in proof.suffix_tail.iter().enumerate() {
+            write_test_frame(&mut bytes, header, FrameSite::SuffixTail(index), mutation);
+        }
+        bytes
+    }
+
+    #[test]
+    fn declared_element_frames_reject_overstatement_without_filler() {
+        let proof = sample_framing_proof();
+        for site in frame_sites(&proof) {
+            let bytes = serialize_with_frame_mutation(
+                &proof,
+                FrameMutation {
+                    site,
+                    declared_size: DeclaredSizeMutation::Delta(1),
+                    filler_len: 0,
+                },
+            );
+            assert!(
+                NipopowProof::scorex_parse_bytes(&bytes).is_err(),
+                "accepted over-declared {site:?} without filler"
+            );
+        }
+    }
+
+    #[test]
+    fn declared_element_frames_reject_understatement() {
+        let proof = sample_framing_proof();
+        for site in frame_sites(&proof) {
+            let bytes = serialize_with_frame_mutation(
+                &proof,
+                FrameMutation {
+                    site,
+                    declared_size: DeclaredSizeMutation::Delta(-1),
+                    filler_len: 0,
+                },
+            );
+            assert!(
+                NipopowProof::scorex_parse_bytes(&bytes).is_err(),
+                "accepted under-declared {site:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn declared_element_frames_accept_matching_filler() {
+        let proof = sample_framing_proof();
+        let canonical =
+            NipopowProof::scorex_parse_bytes(&proof.scorex_serialize_bytes().unwrap()).unwrap();
+        for site in frame_sites(&proof) {
+            let bytes = serialize_with_frame_mutation(
+                &proof,
+                FrameMutation {
+                    site,
+                    declared_size: DeclaredSizeMutation::Delta(1),
+                    filler_len: 1,
+                },
+            );
+            assert_eq!(
+                NipopowProof::scorex_parse_bytes(&bytes).unwrap(),
+                canonical,
+                "padded {site:?} changed the proof"
+            );
+        }
+    }
+
+    fn serialize_popow_header_with_nested_frames(
+        value: &PoPowHeader,
+        header_frame: &[u8],
+        proof_frame: &[u8],
+    ) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes
+            .put_u32(u32::try_from(header_frame.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(header_frame);
+        bytes
+            .put_u32(u32::try_from(value.interlinks.len()).unwrap())
+            .unwrap();
+        for interlink in &value.interlinks {
+            bytes.extend_from_slice(&interlink.0 .0);
+        }
+        bytes
+            .put_u32(u32::try_from(proof_frame.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(proof_frame);
+        bytes
+    }
+
+    #[test]
+    fn nested_header_frame_accepts_trailing_padding() {
+        let value = sample_framing_proof().suffix_head;
+        let canonical_header_frame = value.header.scorex_serialize_bytes().unwrap();
+        let proof_frame = value.interlinks_proof.scorex_serialize_bytes().unwrap();
+        let canonical_bytes = serialize_popow_header_with_nested_frames(
+            &value,
+            &canonical_header_frame,
+            &proof_frame,
+        );
+        let canonical = PoPowHeader::scorex_parse_bytes(&canonical_bytes).unwrap();
+        let mut header_frame = canonical_header_frame;
+        header_frame.push(0x7f);
+        let bytes = serialize_popow_header_with_nested_frames(&value, &header_frame, &proof_frame);
+
+        assert_eq!(PoPowHeader::scorex_parse_bytes(&bytes).unwrap(), canonical);
+    }
+
+    #[test]
+    fn nested_merkle_proof_frame_rejects_trailing_padding() {
+        let value = sample_framing_proof().suffix_head;
+        let header_frame = value.header.scorex_serialize_bytes().unwrap();
+        let mut proof_frame = value.interlinks_proof.scorex_serialize_bytes().unwrap();
+        proof_frame.push(0x7f);
+        let bytes = serialize_popow_header_with_nested_frames(&value, &header_frame, &proof_frame);
+
+        assert!(PoPowHeader::scorex_parse_bytes(&bytes).is_err());
+    }
+
+    fn assert_merkle_count_preflight(indices_len: u32, proofs_len: u32, label: &str) {
+        let value = sample_framing_proof().suffix_head;
+        let header_frame = value.header.scorex_serialize_bytes().unwrap();
+        let mut proof_frame = BatchMerkleProof::new(vec![], vec![])
+            .scorex_serialize_bytes()
+            .unwrap();
+        assert_eq!(proof_frame.len(), 8);
+        proof_frame[..4].copy_from_slice(&indices_len.to_be_bytes());
+        proof_frame[4..8].copy_from_slice(&proofs_len.to_be_bytes());
+        let bytes = serialize_popow_header_with_nested_frames(&value, &header_frame, &proof_frame);
+
+        let error = PoPowHeader::scorex_parse_bytes(&bytes).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("does not fit declared proof frame"),
+            "unexpected {label} preflight message: {error}"
+        );
+    }
+
+    #[test]
+    fn merkle_index_count_outside_declared_frame_is_rejected_before_parse() {
+        assert_merkle_count_preflight(1, 0, "index");
+    }
+
+    #[test]
+    fn merkle_proof_count_outside_declared_frame_is_rejected_before_parse() {
+        assert_merkle_count_preflight(0, 1, "proof");
+    }
+
+    #[test]
+    fn declared_element_frames_reject_sizes_above_caps() {
+        let proof = sample_framing_proof();
+        let cases = [
+            (FrameSite::Prefix(0), MAX_POPOW_HEADER_ELEMENT_BYTES + 1),
+            (FrameSite::SuffixHead, MAX_POPOW_HEADER_ELEMENT_BYTES + 1),
+            (FrameSite::SuffixTail(0), MAX_POPOW_HEADER_BYTES + 1),
+        ];
+        for (site, declared) in cases {
+            let bytes = serialize_with_frame_mutation(
+                &proof,
+                FrameMutation {
+                    site,
+                    declared_size: DeclaredSizeMutation::Override(u32::try_from(declared).unwrap()),
+                    filler_len: 0,
+                },
+            );
+            assert!(
+                NipopowProof::scorex_parse_bytes(&bytes).is_err(),
+                "accepted {site:?} above its declared-size cap"
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_suffix_tail_frame_size_is_rejected() {
+        const MALFORMED_VLQ: &[u8] = &[0x80; 10];
+
+        let proof = sample_framing_proof();
+        let bytes = serialize_with_frame_mutation(
+            &proof,
+            FrameMutation {
+                site: FrameSite::SuffixTail(0),
+                declared_size: DeclaredSizeMutation::Raw(MALFORMED_VLQ),
+                filler_len: 0,
+            },
+        );
+        assert!(NipopowProof::scorex_parse_bytes(&bytes).is_err());
+    }
+
+    fn popow_header_bytes_with_merkle_counts(indices_len: u32, proofs_len: u32) -> Vec<u8> {
+        let header = header_factory()(id_from_byte(0x81), id_from_byte(0x80), 2);
+        let header_bytes = header.scorex_serialize_bytes().unwrap();
+
+        let mut proof_frame = Vec::new();
+        proof_frame.extend_from_slice(&indices_len.to_be_bytes());
+        proof_frame.extend_from_slice(&proofs_len.to_be_bytes());
+        for index in 0..indices_len {
+            proof_frame.extend_from_slice(&index.to_be_bytes());
+            proof_frame.extend_from_slice(&[0x11; 32]);
+        }
+        for _ in 0..proofs_len {
+            proof_frame.extend_from_slice(&[0x22; 32]);
+            proof_frame.push(NodeSide::Left as u8);
+        }
+
+        let mut bytes = Vec::new();
+        bytes
+            .put_u32(u32::try_from(header_bytes.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(&header_bytes);
+        bytes.put_u32(1).unwrap();
+        bytes.extend_from_slice(id_from_byte(0x11).0.as_ref());
+        bytes
+            .put_u32(u32::try_from(proof_frame.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(&proof_frame);
+        bytes
+    }
+
+    #[test]
+    fn parser_rejects_prefix_count_above_cap_before_frame_read() {
+        let mut bytes = Vec::new();
+        bytes.put_u32(1).unwrap();
+        bytes.put_u32(1).unwrap();
+        bytes
+            .put_u32(u32::try_from(MAX_NIPOPOW_PROOF_ELEMENTS + 1).unwrap())
+            .unwrap();
+
+        let error = NipopowProof::scorex_parse_bytes(&bytes).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("num_prefixes exceeds sanity limit"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_nested_header_size_above_cap_before_allocation() {
+        let mut bytes = Vec::new();
+        bytes.put_u32(10_001).unwrap();
+
+        let error = PoPowHeader::scorex_parse_bytes(&bytes).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("header_size exceeds sanity limit"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_interlink_count_above_cap_before_allocation() {
+        let header = header_factory()(id_from_byte(0x91), id_from_byte(0x90), 2);
+        let header_bytes = header.scorex_serialize_bytes().unwrap();
+        let mut bytes = Vec::new();
+        bytes
+            .put_u32(u32::try_from(header_bytes.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(&header_bytes);
+        bytes.put_u32(10_001).unwrap();
+
+        let error = PoPowHeader::scorex_parse_bytes(&bytes).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("interlinks_size exceeds sanity limit"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_merkle_frame_size_above_cap_before_allocation() {
+        let header = header_factory()(id_from_byte(0xa1), id_from_byte(0xa0), 2);
+        let header_bytes = header.scorex_serialize_bytes().unwrap();
+        let mut bytes = Vec::new();
+        bytes
+            .put_u32(u32::try_from(header_bytes.len()).unwrap())
+            .unwrap();
+        bytes.extend_from_slice(&header_bytes);
+        bytes.put_u32(0).unwrap();
+        bytes.put_u32(1_000_001).unwrap();
+
+        let error = PoPowHeader::scorex_parse_bytes(&bytes).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("proof_bytes exceeds sanity limit"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_impossible_singleton_merkle_proof_depth() {
+        let bytes = popow_header_bytes_with_merkle_counts(1, u32::BITS + 1);
+
+        assert!(PoPowHeader::scorex_parse_bytes(&bytes).is_err());
     }
 }

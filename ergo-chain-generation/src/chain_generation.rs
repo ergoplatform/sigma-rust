@@ -468,7 +468,14 @@ mod tests {
             suffix_head: proof.suffix_head.clone(),
             suffix_tail: proof.suffix_tail.clone(),
         };
+        assert_eq!(
+            disconnected_proof.validate(),
+            Err(ergo_nipopow::NipopowValidationError::InvalidProofStructure(
+                "connections"
+            ))
+        );
         assert!(proof.is_better_than(&disconnected_proof).unwrap());
+        assert!(!disconnected_proof.is_better_than(&proof).unwrap());
     }
 
     #[test]
