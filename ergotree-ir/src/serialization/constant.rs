@@ -88,4 +88,26 @@ mod tests {
         assert!(c_res.is_err());
         assert!(matches!(c_res, Err(SigmaParsingError::ValueOutOfBounds(_))));
     }
+
+    #[test]
+    fn parse_option_nonzero_data_tag_is_some() {
+        // The JVM reads the Option DATA tag via `getOption`, which treats ANY
+        // nonzero tag byte as Some (sigma `Extensions.getOption`:
+        // `if (tag != 0) Some(getValue) else None`) — tag 0x02 parses as
+        // Some(5) and must not be rejected.
+        let constant_bytes = [0x28, 0x02, 0x0a]; // SOption(SInt): tag 0x02, Int 5
+        let expected = Constant {
+            tpe: SType::SOption(Arc::new(SType::SInt)),
+            v: Literal::Opt(Some(Literal::Int(5).into())),
+        };
+        let c = Constant::sigma_parse_bytes(&constant_bytes).unwrap();
+        assert_eq!(c, expected);
+
+        // The same constant segregated in a v3 tree (the conformance vector
+        // `SOption.nonzero_data_tag`, header size bit cleared) hydrates as
+        // Some(5) through the versioned tree-parse path.
+        let tree_bytes = base16::decode("130128020a7300").unwrap();
+        let tree = crate::ergo_tree::ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
+        assert_eq!(tree.get_constants().unwrap().as_slice(), &[expected]);
+    }
 }

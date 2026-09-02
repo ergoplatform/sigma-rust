@@ -178,7 +178,13 @@ lazy_static! {
                 SType::SColl(SType::SByte.into()),
                 SType::SInt,
             ],
-            t_range: SType::SBoolean.into(),
+            // powHit computes the Autolykos-2 PoW hit value (a big integer), not a
+            // boolean. Scala `SGlobalMethods.powHit` returns `SUnsignedBigInt`
+            // (methods.scala) and `powHit_eval` yields an `UnsignedBigInt`; the
+            // interpreter `POW_HIT_EVAL_FN` already produces `Value::UnsignedBigInt`.
+            // Mis-typing this as `SBoolean` made `Coll[..].map(powHit).exists(UnsignedBigInt => Boolean)`
+            // fail parse-time type-checking, wedging testnet block 28,474.
+            t_range: SType::SUnsignedBigInt.into(),
             tpe_params: vec![],
         },
         explicit_type_args: vec![],
@@ -235,6 +241,8 @@ mod test {
     };
 
     use super::{DECODE_NBITS_METHOD, DESERIALIZE_METHOD, ENCODE_NBITS_METHOD};
+    use crate::ergo_tree::ErgoTree;
+    use crate::serialization::SigmaSerializable;
     proptest! {
        #[test]
        fn test_deserialize_method_roundtrip(v in any::<SType>()) {
@@ -270,5 +278,33 @@ mod test {
         let mc =
             MethodCall::new(Expr::Global, DECODE_NBITS_METHOD.clone(), vec![1i64.into()]).unwrap();
         roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+    }
+
+    /// Regression: `Global.powHit` returns `SUnsignedBigInt` (the Autolykos-2 hit
+    /// value), not `SBoolean`. Mirrors Scala `SGlobalMethods.powHit` and the
+    /// interpreter's `POW_HIT_EVAL_FN` (which yields `Value::UnsignedBigInt`).
+    #[test]
+    fn powhit_returns_unsigned_bigint() {
+        assert_eq!(
+            POW_HIT_METHOD.tpe().t_range.as_ref(),
+            &SType::SUnsignedBigInt
+        );
+    }
+
+    /// Real-block regression: testnet block 28,474 tx[4] input[1], spending box
+    /// `1d746ebe5da0a0df46de9c34c60c5ed642b07fbff7c4cbf46dc93b1cd4a95166`. An
+    /// Autolykos-2 verify of the form
+    /// `coll.map(x => Global.powHit(..)).exists((u: UnsignedBigInt) => u > ..)`.
+    /// With `powHit` mis-typed `SBoolean`, the mapped collection resolved to
+    /// `Coll[Boolean]` and `Exists::new` rejected the `UnsignedBigInt => Boolean`
+    /// predicate ("Invalid condition tpe"), wedging the node off testnet here.
+    /// The JVM (6.0.3) accepts this canonical block. The header carries the size
+    /// flag, so the body type error surfaces at `proposition()`, not parse.
+    #[test]
+    fn powhit_coll_hof_tree_parses() {
+        let tree_hex = "1bb8042204000200040004100400041004000402040404060408040a040c040e041004120400040804b803040204400442040804c003040004080440040804ee020400040806207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed04a09c010402d807d601b2a4730000d602e4c672010464d6038301027301d604e5e3000e7203d605e4dc640a7202027204e5e3010e7203d606d901060e7cb4720673027303d607b2a5730400d1edaeaddad901080ed801d60ab472087305b172088cb0830a047306730773087309730a730b730c730d730e730f860283000e7310d9010b4c4c1ad804d60d8c720b01d60e8c720d02d60f9a9a720e73117312d6109a9a9a720f731373149c7eb2720a720f000473158602b38c720d0183010eb4720a720e7210721001017205d901080ed801d60adad9010a0ed801d60cdad9010c0edc6a04dd01b4720c731673176801720a8602db680d720cb47a7edb6809720c0573187319017208dc6a08dd05731adad9010b0ecbb4720b731b731c0172088c720a018c720a02dad9010b0edc6a05dd01b4720b731d731e04017208d90108099172089ddad9010a0edad9010c099ddb060e731f720c01db060e7eda720601720a060172057e7320099683060193c17207c1720193db6401e4dc640e72020283010e7204e5e3020e7203db6401e4c67207046493e4c67207050499e4c672010504732193e4c67207060699e4c6720106067eda72060172050693e4c672070705e4c67201070593e4c672070805e4c672010805";
+        let bytes = base16::decode(tree_hex).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        tree.proposition().unwrap();
     }
 }

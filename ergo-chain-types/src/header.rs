@@ -91,8 +91,9 @@ impl Header {
         w.write_all(&self.votes.0)?;
 
         // For block version >= 2, this new byte encodes length of possible new fields.
-        // Set to 0 for now, so no new fields.
-        if self.version > 1 {
+        // Set to 0 for now, so no new fields. `version` is a signed Byte in the JVM,
+        // so a version >= 0x80 is negative and does not gate these fields -- compare signed.
+        if (self.version as i8) > 1 {
             w.put_u8(self.unparsed_bytes.len().try_into()?)?;
             w.write_all(&self.unparsed_bytes)?;
         }
@@ -139,7 +140,9 @@ impl ScorexSerializable for Header {
 
         // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
         // 0, we read new fields but do nothing, as semantics of the fields is not known.
-        let unparsed_bytes: Box<[u8]> = if version > 1 {
+        // `version` is a signed Byte in the JVM, so a version >= 0x80 is negative and skips
+        // this region (the AutolykosSolution parse then shifts accordingly) -- compare signed.
+        let unparsed_bytes: Box<[u8]> = if (version as i8) > 1 {
             let new_field_size = r.get_u8()?;
             if new_field_size > 0 {
                 let mut field_bytes: Vec<u8> = vec![0; new_field_size as usize];
@@ -505,6 +508,48 @@ mod tests {
                 )
                 .unwrap()
             )
+        );
+    }
+}
+
+#[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(test)]
+mod version_signedness_tests {
+    use crate::header::Header;
+    use sigma_ser::ScorexSerializable;
+
+    // SANTA ask 21 / V6-ARITY: the JVM (`HeaderWithoutPow`) reads `version` as a
+    // signed `Byte`, so a version byte 0x80 = -128 <= 1 SKIPS `unparsedBytes`,
+    // shifting the AutolykosSolution parse so `minerPk` reads as the infinity point.
+    // sigma-rust read `version` unsigned (128 > 1), consumed `unparsedBytes`, and
+    // parsed a different `minerPk` -- a deserialization fork vs sigma-state 6.0.3.
+    // The two witnesses are identical except the leading version byte.
+    const HEADER_V80: &str = "80ac2101807f0000ca01ff0119db227f202201007f62000177a080005d440896d05d3f80dcff7f5e7f59007294c180808d0158d1ff6ba10000f901c7f0ef87dcfff17fffacb6ff7f7f1180d2ff7f1e24ffffe1ff937f807f0797b9ff6ebdae007e5c8c00b8403d3701557181c8df800001b6d5009e2201c6ff807d71808c00019780f087adb3fcdbc0b3441480887f80007f4b01cf7f013ff1ffff564a0000b9a54f00770e807f41ff88c00240000080c0250000000003bedaee069ff4829500b3c07c4d5fe6b3ea3d3bf76c5c28c1d4dcdb1bed0ade0c0000000000003105";
+
+    fn miner_pk_hex(header_hex: &str) -> String {
+        let bytes = base16::decode(header_hex).unwrap();
+        let h = Header::scorex_parse_bytes(&bytes).unwrap();
+        base16::encode_lower(
+            &h.autolykos_solution
+                .miner_pk
+                .scorex_serialize_bytes()
+                .unwrap(),
+        )
+    }
+
+    #[test]
+    fn version_0x80_skips_unparsed_bytes_miner_pk_is_infinity() {
+        // signed -128 <= 1 -> skip unparsedBytes -> minerPk = point at infinity (33 zero bytes)
+        assert_eq!(miner_pk_hex(HEADER_V80), "00".repeat(33));
+    }
+
+    #[test]
+    fn version_0x7f_control_reads_unparsed_bytes_miner_pk_is_real() {
+        // 127 > 1 in both signed and unsigned readings -> reads unparsedBytes (fix does not change it)
+        let header_v7f = format!("7f{}", &HEADER_V80[2..]);
+        assert_eq!(
+            miner_pk_hex(&header_v7f),
+            "03bedaee069ff4829500b3c07c4d5fe6b3ea3d3bf76c5c28c1d4dcdb1bed0ade0c"
         );
     }
 }

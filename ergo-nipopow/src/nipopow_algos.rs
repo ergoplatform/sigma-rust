@@ -12,6 +12,13 @@ use ergo_chain_types::{BlockId, Digest32, ExtensionCandidate};
 
 /// Prefix for Block Interlinks
 pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
+
+/// Default value for [`NipopowAlgos::use_last_epochs`] — the number of epochs
+/// the difficulty adjustment looks back over. Matches the value used by Ergo
+/// mainnet AND testnet (`useLastEpochs = 8` in
+/// `ergo-core/src/main/resources/application.conf`).
+pub const DEFAULT_USE_LAST_EPOCHS: u32 = 8;
+
 /// A set of utilities for working with NiPoPoW protocol.
 ///
 /// Based on papers:
@@ -22,10 +29,33 @@ pub const INTERLINK_VECTOR_PREFIX: u8 = 0x01;
 ///
 /// Please note that for KMZ17 we're using the version published @ Financial Cryptography 2020,
 /// which is different from previously published versions on IACR eprint.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NipopowAlgos {
     /// The proof-of-work scheme
     pub pow_scheme: AutolykosPowScheme,
+    /// Number of last epochs the difficulty adjustment looks back over.
+    ///
+    /// This is the Rust analog of the JVM `chainSettings.useLastEpochs`
+    /// field. It is consumed by [`NipopowProof::has_valid_connections`] to
+    /// compute the maximum allowed gap between adjacent prefix entries —
+    /// JVM-built proofs include continuous-mode difficulty-recalculation
+    /// headers and naturally-skipped entries from sparse-superlevel walks,
+    /// so the verifier needs a tolerant lookback window to accept them.
+    ///
+    /// Default is [`DEFAULT_USE_LAST_EPOCHS`] (= 8), matching Ergo mainnet
+    /// and testnet `application.conf`. A future port of `ChainSettings` can
+    /// replace this single field with the full struct without changing the
+    /// connection-check semantics.
+    pub use_last_epochs: u32,
+}
+
+impl Default for NipopowAlgos {
+    fn default() -> Self {
+        Self {
+            pow_scheme: AutolykosPowScheme::default(),
+            use_last_epochs: DEFAULT_USE_LAST_EPOCHS,
+        }
+    }
 }
 
 impl NipopowAlgos {
@@ -196,36 +226,50 @@ impl NipopowAlgos {
         NipopowProof::new(m, k, prefix, suffix_head, suffix_tail)
     }
     /// Packs interlinks into key-value format of the block extension.
+    ///
+    /// Each duplicate-run of `BlockId`s in the input is packed into a single
+    /// `([INTERLINK_VECTOR_PREFIX, first_pos], [qty, blockid_bytes...])` entry,
+    /// where `first_pos` is the input-vector index of the run's first element.
+    /// This matches JVM Ergo's `org.ergoplatform.modifiers.history.popow.NipopowAlgos`
+    /// encoding — the Merkle-leaf hash of each entry depends on `first_pos`, so a
+    /// sequential distinct-group counter (used here pre-fix) produces leaves that
+    /// hash differently and break `check_interlinks_proof` against JVM-generated
+    /// proofs.
     pub fn pack_interlinks(interlinks: Vec<BlockId>) -> Vec<([u8; 2], Vec<u8>)> {
+        if interlinks.is_empty() {
+            return vec![];
+        }
         let mut res = vec![];
-        let mut ix_distinct_block_ids = 0;
-        let mut curr_block_id_count = 1;
+        let mut curr_block_id_count: u8 = 1;
         let mut curr_block_id = interlinks[0];
-        for id in interlinks.into_iter().skip(1) {
-            if id == curr_block_id {
+        let mut curr_first_pos: usize = 0;
+        for (i, id) in interlinks.iter().enumerate().skip(1) {
+            if *id == curr_block_id {
                 curr_block_id_count += 1;
             } else {
                 let block_id_bytes: Vec<u8> = curr_block_id.0.into();
                 let packed_value = std::iter::once(curr_block_id_count)
                     .chain(block_id_bytes)
                     .collect();
-                res.push((
-                    [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-                    packed_value,
-                ));
-                curr_block_id = id;
+                #[allow(clippy::expect_used)]
+                let ix_byte: u8 = curr_first_pos
+                    .try_into()
+                    .expect("interlinks first-position byte index > 255");
+                res.push(([INTERLINK_VECTOR_PREFIX, ix_byte], packed_value));
+                curr_block_id = *id;
                 curr_block_id_count = 1;
-                ix_distinct_block_ids += 1;
+                curr_first_pos = i;
             }
         }
         let block_id_bytes: Vec<u8> = curr_block_id.0.into();
         let packed_value = std::iter::once(curr_block_id_count)
             .chain(block_id_bytes)
             .collect();
-        res.push((
-            [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-            packed_value,
-        ));
+        #[allow(clippy::expect_used)]
+        let ix_byte: u8 = curr_first_pos
+            .try_into()
+            .expect("interlinks first-position byte index > 255");
+        res.push(([INTERLINK_VECTOR_PREFIX, ix_byte], packed_value));
         res
     }
     /// Unpacks interlinks from key-value format of block extension.
@@ -347,4 +391,46 @@ fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTr
         .map(ergo_merkle_tree::MerkleNode::from_bytes)
         .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
     ergo_merkle_tree::MerkleTree::new(leafs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn blockid(byte: u8) -> BlockId {
+        BlockId(Digest32::from([byte; 32]))
+    }
+
+    #[test]
+    fn pack_interlinks_keys_are_first_occurrence_positions() {
+        // JVM Ergo encodes ExtensionKV keys as [INTERLINK_VECTOR_PREFIX, pos_of_first_occurrence]
+        // where pos is the index of the first interlink in each duplicate-run within the input
+        // vector. Verified against mainnet block 1784124 (11/11 leaf hashes match with this
+        // encoding; 2/11 with the prior sequential distinct_ix counter).
+        let a = blockid(0xa0);
+        let b = blockid(0xb0);
+        let c = blockid(0xc0);
+        let d = blockid(0xd0);
+        // [A, B, B, B, B, C, D] — positions 0, 1..4 (run), 5, 6
+        let interlinks = vec![a, b, b, b, b, c, d];
+
+        let packed = NipopowAlgos::pack_interlinks(interlinks);
+
+        assert_eq!(packed.len(), 4);
+        assert_eq!(packed[0].0, [INTERLINK_VECTOR_PREFIX, 0]);
+        assert_eq!(packed[1].0, [INTERLINK_VECTOR_PREFIX, 1]);
+        assert_eq!(packed[2].0, [INTERLINK_VECTOR_PREFIX, 5]);
+        assert_eq!(packed[3].0, [INTERLINK_VECTOR_PREFIX, 6]);
+
+        assert_eq!(packed[0].1[0], 1);
+        assert_eq!(packed[1].1[0], 4);
+        assert_eq!(packed[2].1[0], 1);
+        assert_eq!(packed[3].1[0], 1);
+    }
+
+    #[test]
+    fn pack_interlinks_empty_returns_empty() {
+        let packed = NipopowAlgos::pack_interlinks(vec![]);
+        assert!(packed.is_empty());
+    }
 }

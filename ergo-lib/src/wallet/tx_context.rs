@@ -10,7 +10,6 @@ use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionE
 use crate::ergotree_ir::chain::ergo_box::BoxId;
 use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
 use ergotree_ir::chain::context::TxIoVec;
-use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
 use ergotree_ir::serialization::SigmaSerializable;
@@ -104,25 +103,26 @@ impl TransactionContext<Transaction> {
     // TODO: costing
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
-        // Check that input sum does not overflow
-        let input_sum = BoxValue::new(
-            self.boxes_to_spend
-                .iter()
-                .map(|b| b.value.as_u64())
-                .sum::<u64>(),
-        )
-        .map_err(|_| TxValidationError::InputSumOverflow)?;
+        // Check that input sum does not overflow. The reference implementation
+        // sums with Math.addExact over longs (validateStateful), so every
+        // addition is checked — a plain sum would panic in debug builds and
+        // wrap in release builds before any bound check could fire.
+        let input_sum = self
+            .boxes_to_spend
+            .iter()
+            .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
+            .ok_or(TxValidationError::InputSumOverflow)?;
         // Check that output sum does not overflow and is equal to ERG amount in inputs
         let output_sum = self
             .spending_tx
             .outputs
             .iter()
-            .map(|b| b.value.as_u64())
-            .sum();
-        if *input_sum.as_u64() != output_sum {
+            .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
+            .ok_or(TxValidationError::OutputSumOverflow)?;
+        if input_sum != output_sum {
             return Err(TxValidationError::ErgPreservationError(
-                *input_sum.as_u64(),
-                output_sum,
+                input_sum as u64,
+                output_sum as u64,
             ));
         }
 
@@ -313,7 +313,7 @@ mod test {
     use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
     use crate::chain::transaction::prover_result::ProverResult;
     use crate::chain::transaction::unsigned::UnsignedTransaction;
-    use crate::chain::transaction::{Input, Transaction, UnsignedInput};
+    use crate::chain::transaction::{Input, Transaction, TxId, UnsignedInput};
     use crate::wallet::Wallet;
 
     use super::TransactionContext;
@@ -567,6 +567,85 @@ mod test {
                 break;
             }
         }
+    }
+
+    fn huge_value_box(index: u16) -> ErgoBox {
+        ErgoBox::new(
+            BoxValue::try_from(i64::MAX as u64).unwrap(),
+            force_any_val::<ErgoTree>(),
+            None,
+            NonMandatoryRegisters::empty(),
+            0,
+            force_any_val::<TxId>(),
+            index,
+        )
+        .unwrap()
+    }
+
+    fn input_for(b: &ErgoBox) -> Input {
+        Input {
+            box_id: b.box_id(),
+            spending_proof: ProverResult {
+                proof: ProofBytes::Empty,
+                extension: ContextExtension::empty(),
+            },
+        }
+    }
+
+    // Aggregate ERG overflow must surface as a validation error (issue #881):
+    // the reference implementation sums with Math.addExact, so an overflowing
+    // aggregate is trapped at the addition — not a panic (debug) or a wrapped
+    // total flowing into the preservation check (release). Three i64::MAX
+    // boxes are each individually valid but their sum exceeds the i64 domain.
+    #[test]
+    fn validate_input_sum_overflow() {
+        let boxes: Vec<ErgoBox> = (0..3).map(huge_value_box).collect();
+        let inputs: Vec<Input> = boxes.iter().map(input_for).collect();
+        let output = ErgoBoxCandidate {
+            value: BoxValue::SAFE_USER_MIN,
+            ergo_tree: force_any_val::<ErgoTree>(),
+            tokens: None,
+            additional_registers: NonMandatoryRegisters::empty(),
+            creation_height: 0,
+        };
+        let tx = Transaction::new_from_vec(inputs, vec![], vec![output]).unwrap();
+        let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+        let state_context: ErgoStateContext = force_any_val();
+        assert!(matches!(
+            tx_context.validate(&state_context),
+            Err(TxValidationError::InputSumOverflow)
+        ));
+    }
+
+    #[test]
+    fn validate_output_sum_overflow() {
+        let input_box = ErgoBox::new(
+            BoxValue::SAFE_USER_MIN,
+            force_any_val::<ErgoTree>(),
+            None,
+            NonMandatoryRegisters::empty(),
+            0,
+            force_any_val::<TxId>(),
+            0,
+        )
+        .unwrap();
+        let inputs = vec![input_for(&input_box)];
+        let outputs: Vec<ErgoBoxCandidate> = (0..3)
+            .map(|_| ErgoBoxCandidate {
+                value: BoxValue::try_from(i64::MAX as u64).unwrap(),
+                ergo_tree: force_any_val::<ErgoTree>(),
+                tokens: None,
+                additional_registers: NonMandatoryRegisters::empty(),
+                creation_height: 0,
+            })
+            .collect();
+        let tx = Transaction::new_from_vec(inputs, vec![], outputs).unwrap();
+        let tx_context = TransactionContext::new(tx, vec![input_box], vec![]).unwrap();
+        let state_context: ErgoStateContext = force_any_val();
+        assert!(matches!(
+            tx_context.validate(&state_context),
+            Err(TxValidationError::OutputSumOverflow)
+        ));
     }
 
     proptest! {

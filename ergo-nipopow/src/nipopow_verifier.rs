@@ -42,7 +42,7 @@ impl NipopowVerifier {
                     if new_proof.is_better_than(p)? {
                         self.best_proof = Some(new_proof);
                     }
-                } else {
+                } else if new_proof.is_valid() {
                     self.best_proof = Some(new_proof);
                 }
             }

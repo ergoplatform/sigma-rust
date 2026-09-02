@@ -255,11 +255,13 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
         &mut self,
         get_value: impl Fn(&mut Self) -> Result<T, E>,
     ) -> Result<Option<T>, E> {
-        let is_opt = self.get_u8()?;
-        Ok(match is_opt {
-            1 => Some(get_value(self)?),
-            // Should only ever be 0 or 1
-            _ => None,
+        let tag = self.get_u8()?;
+        // Any nonzero tag means Some: scorex/sigma `getOption` reads
+        // `if (tag != 0) Some(getValue) else None` (sigma `Extensions.getOption`).
+        Ok(if tag != 0 {
+            Some(get_value(self)?)
+        } else {
+            None
         })
     }
 }
@@ -1012,5 +1014,19 @@ mod tests {
             prop_assert_eq!(&bytes_i64(i as i64), &expected_bytes);
             prop_assert_eq!(&bytes_i32(i as i32), &expected_bytes);
         }
+    }
+
+    #[test]
+    fn option_any_nonzero_tag_is_some() {
+        // scorex/sigma `getOption` reads `if (tag != 0) Some(..) else None`
+        // (sigma `Extensions.getOption`) — any nonzero tag byte means Some.
+        let get = |bytes: &[u8]| -> Result<Option<u8>, VlqEncodingError> {
+            let mut r = Cursor::new(bytes.to_vec());
+            r.get_option(|r| r.get_u8().map_err(VlqEncodingError::from))
+        };
+        assert_eq!(get(&[0, 5]).unwrap(), None);
+        assert_eq!(get(&[1, 5]).unwrap(), Some(5));
+        assert_eq!(get(&[2, 5]).unwrap(), Some(5));
+        assert_eq!(get(&[255, 5]).unwrap(), Some(5));
     }
 }
