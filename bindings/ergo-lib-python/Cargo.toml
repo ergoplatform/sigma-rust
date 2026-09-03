@@ -1,6 +1,7 @@
 [package]
 name = "ergo-lib-python"
-version = "0.28.0"
+version = "0.29.0"
+publish = false
 license = "CC0-1.0"
 authors = ["Kamal Ahmad <kamalahmad22@pm.me>"]
 edition.workspace = true

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
+
+### Changed
+- Serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2`; downstream implementations using those traits may need to update their I/O imports and error types.
+
 ## [0.28.0] - 2024-08-09
 ## [0.27.1] - 2023-12-02
 ## [0.27.0] - 2023-12-02

@@ -1,0 +1,98 @@
+name: Release preflight
+
+"on":
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "**/Cargo.toml"
+      - "Cargo.lock"
+      - "**/Cargo.lock"
+      - ".cargo/**"
+      - "release.toml"
+      - "**/release.toml"
+      - "CONTRIBUTING.md"
+      - "**/CHANGELOG.md"
+      - "bindings/ergo-lib-wasm/package.json"
+      - "bindings/ergo-lib-wasm/package-lock.json"
+      - "bindings/ergo-lib-wasm/scripts/**"
+      - ".github/workflows/release_preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-package:
+    name: Package Rust workspace candidates
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.91.1
+      - name: Package workspace candidates
+        run: >-
+          cargo package --workspace --exclude ergo-p2p
+          --exclude ergo-chain-generation --exclude ergo-lib-python
+      - name: Dry-run publish workspace candidates
+        run: >-
+          cargo publish --workspace --dry-run --exclude ergo-p2p
+          --exclude ergo-chain-generation --exclude ergo-lib-python
+
+  wasm-packages:
+    name: Package final WASM artifacts
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.91.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.13.1"
+      - name: Assert Node and npm versions
+        run: |
+          test "$(node --version)" = "v24.13.1"
+          test "$(npm --version)" = "11.8.0"
+      - name: Install pinned wasm-pack
+        run: |
+          archive="$RUNNER_TEMP/wasm-pack-v0.14.0-x86_64-unknown-linux-musl.tar.gz"
+          curl --fail --location --silent --show-error --retry 3 \
+            --output "$archive" \
+            https://github.com/wasm-bindgen/wasm-pack/releases/download/v0.14.0/wasm-pack-v0.14.0-x86_64-unknown-linux-musl.tar.gz
+          echo "278a8d668085821f4d1a637bd864f1713f872b0ae3a118c77562a308c0abfe8d  $archive" | sha256sum --check --strict
+          tar --extract --gzip --file "$archive" --directory "$RUNNER_TEMP"
+          install --directory "$RUNNER_TEMP/bin"
+          install "$RUNNER_TEMP/wasm-pack-v0.14.0-x86_64-unknown-linux-musl/wasm-pack" "$RUNNER_TEMP/bin/wasm-pack"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          test "$(wasm-pack --version)" = "wasm-pack 0.14.0"
+      - name: Install WASM package dependencies
+        working-directory: bindings/ergo-lib-wasm
+        run: npm ci
+      - name: Build final Node and browser packages
+        working-directory: bindings/ergo-lib-wasm
+        run: |
+          npm run build-nodejs
+          npm run build-browser
+      - name: Assert generated package identities
+        working-directory: bindings/ergo-lib-wasm
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const expected = [
+            ["pkg-nodejs/package.json", "ergo-lib-wasm-nodejs@0.29.0"],
+            ["pkg-browser/package.json", "ergo-lib-wasm-browser@0.29.0"],
+          ];
+          for (const [path, identity] of expected) {
+            const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+            if (`${pkg.name}@${pkg.version}` !== identity) {
+              throw new Error(`${path}: expected ${identity}, got ${pkg.name}@${pkg.version}`);
+            }
+          }
+          NODE
+      - name: Dry-run pack Node WASM package
+        working-directory: bindings/ergo-lib-wasm/pkg-nodejs
+        run: npm pack --dry-run
+      - name: Dry-run pack browser WASM package
+        working-directory: bindings/ergo-lib-wasm/pkg-browser
+        run: npm pack --dry-run

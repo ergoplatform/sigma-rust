@@ -1,6 +1,7 @@
 [package]
 name = "ergo-p2p"
-version = "0.3.0"
+version = "0.4.0"
+publish = false
 license = "CC0-1.0"
 authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 description = "Ergo peer-to-peer networking library"
@@ -14,9 +15,9 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-sigma-ser = { workspace = true }
+sigma-ser = { workspace = true, features = ["std"] }
 sigma-util = { workspace = true }
-ergo-chain-types = { workspace = true }
+ergo-chain-types = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
 bounded-vec = { workspace = true }
@@ -24,7 +25,7 @@ proptest-derive = {workspace = true, optional = true }
 futures = { workspace = true }
 tracing = "0.1"
 tracing-error = { version = "0.2.0", features = ["traced-error"] }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["net"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
 tower = { version = "0.5.2", features = ["retry", "discover", "load", "load-shed", "timeout", "util", "buffer"] }

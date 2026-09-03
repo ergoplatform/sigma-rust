@@ -1,6 +1,6 @@
 name: Tests
 
-on:
+"on":
   push:
     branches:
       - master
@@ -60,6 +60,15 @@ jobs:
         with:
           command: nextest
           args: run --verbose
+
+  c_rest_callback_tests:
+    name: C REST callback tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.91.1
+      - name: Run C REST callback tests
+        run: "cargo test -p ergo-lib-c-core --features rest rest::api::callback::tests::"
 
   test_coverage:
     name: Code coverage in tests

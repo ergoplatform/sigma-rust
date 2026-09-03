@@ -5,14 +5,14 @@
 #
 name: Python CI
 
-on:
+"on":
   push:
     branches:
       - develop
       - main
       - master
     tags:
-      - "*"
+      - "ergo-lib-python-v*"
   pull_request:
   workflow_dispatch:
 
@@ -157,23 +157,31 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, musllinux, windows, macos, sdist]
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ergo-lib-python-v')) || github.event_name == 'workflow_dispatch' }}
+    needs: [linux, musllinux, windows, macos, sdist, test]
     permissions:
       # Use to sign the release artifacts
       id-token: write
-      # Used to upload release artifacts
-      contents: write
+      # Used to check out the release source
+      contents: read
       # Used to generate artifact attestation
       attestations: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Verify release tag matches crate version
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ergo-lib-python-v') }}
+        run: |
+          expected_tag="ergo-lib-python-v$(cargo metadata --no-deps --format-version 1 --manifest-path bindings/ergo-lib-python/Cargo.toml | jq -r '.packages[] | select(.name == "ergo-lib-python") | .version')"
+          test "$GITHUB_REF_NAME" = "$expected_tag"
       - uses: actions/download-artifact@v4
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: "wheels-*/*"
       - name: Publish to PyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ergo-lib-python-v') }}
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
