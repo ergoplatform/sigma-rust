@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core3::io::Write;
 use num_bigint::{BigUint, ToBigInt};
+use num_traits::Zero;
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{
     ScorexParsingError, ScorexSerializable, ScorexSerializationError, ScorexSerializeResult,
@@ -99,10 +100,15 @@ impl Header {
         Ok(data)
     }
     /// Check that proof of work was valid for header. Only Autolykos2 is supported
+    /// Returns [`AutolykosPowSchemeError::OutOfBounds`] if the decoded difficulty is zero.
     pub fn check_pow(&self) -> Result<bool, AutolykosPowSchemeError> {
         if self.version != 1 {
             let hit = AutolykosPowScheme::default().pow_hit(self)?;
-            let target = order_bigint() / decode_compact_bits(self.n_bits);
+            let difficulty = decode_compact_bits(self.n_bits);
+            if difficulty.is_zero() {
+                return Err(AutolykosPowSchemeError::OutOfBounds);
+            }
+            let target = order_bigint() / difficulty;
             #[allow(clippy::unwrap_used)] // unsigned -> signed conversion never fails
             Ok(hit.to_bigint().unwrap() < target)
         } else {
@@ -404,6 +410,72 @@ mod arbitrary {
                 )
                 .boxed()
         }
+    }
+}
+
+#[cfg(test)]
+mod pow_boundary_tests {
+    use super::*;
+
+    fn header(n_bits: u32) -> Header {
+        Header {
+            version: 2,
+            id: BlockId(Digest32::zero()),
+            parent_id: BlockId(Digest32::zero()),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits,
+            height: 1,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::new(crate::ec_point::generator()),
+                pow_onetime_pk: None,
+                nonce: vec![0; 8],
+                pow_distance: None,
+            },
+            votes: Votes([0; 3]),
+            unparsed_bytes: Box::new([]),
+        }
+    }
+
+    #[test]
+    fn check_pow_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_truncated_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0x01003456).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_signed_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0x03800000).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_nonzero_compact_boundaries_preserved() {
+        assert_eq!(header(0x01010000).check_pow(), Ok(true));
+        assert_eq!(header(0x03000001).check_pow(), Ok(true));
+        assert_eq!(header(0x01810000).check_pow(), Ok(false));
+        assert_eq!(header(0xff7fffff).check_pow(), Ok(false));
+        let mut unsupported = header(0);
+        unsupported.version = 1;
+        assert_eq!(
+            unsupported.check_pow(),
+            Err(AutolykosPowSchemeError::Unsupported)
+        );
     }
 }
 
