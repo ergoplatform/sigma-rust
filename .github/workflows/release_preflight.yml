@@ -65,7 +65,7 @@ jobs:
           install --directory "$RUNNER_TEMP/bin"
           install "$RUNNER_TEMP/wasm-pack-v0.14.0-x86_64-unknown-linux-musl/wasm-pack" "$RUNNER_TEMP/bin/wasm-pack"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-          test "$(wasm-pack --version)" = "wasm-pack 0.14.0"
+          test "$("$RUNNER_TEMP/bin/wasm-pack" --version)" = "wasm-pack 0.14.0"
       - name: Install WASM package dependencies
         working-directory: bindings/ergo-lib-wasm
         run: npm ci
