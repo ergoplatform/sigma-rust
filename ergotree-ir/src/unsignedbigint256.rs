@@ -78,9 +78,9 @@ impl UnsignedBigInt {
         Some(Self::from_wide((self_wide + other_wide).checked_rem(modulus_wide)?).unwrap())
     }
 
-    /// Calculate (self - other) % modulus
+    /// Calculate (self - other) % modulus. Returns None if modulus == 0
     pub fn checked_mod_sub(&self, other: Self, modulus: Self) -> Option<Self> {
-        let other_inv = modulus.checked_sub(&(other % modulus))?;
+        let other_inv = modulus.checked_sub(&other.checked_rem(&modulus)?)?;
         self.checked_mod_add(other_inv, modulus)
     }
 
@@ -96,6 +96,9 @@ impl UnsignedBigInt {
     /// Compute modular inverse x such that (self * x) mod modulus = 1
     /// Returns None if modulus == 0 or inverse does not exist
     pub fn mod_inv(&self, modulus: Self) -> Option<Self> {
+        if modulus.is_zero() {
+            return None;
+        }
         /// Run the extended euclidean algorithm ax + by = gcd(a, b). Returns (gcd(a, b), x).
         fn extended_euclidean(a: UnsignedBigInt, b: UnsignedBigInt) -> (BInt<5>, BInt<5>) {
             let mut a = (a % b).widen_to().cast_signed();
@@ -354,6 +357,53 @@ mod arbitrary {
                 .prop_map(|bytes| Self::from_be_slice(&bytes[..]).unwrap())
                 .boxed()
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod modular_boundary_tests {
+    use super::UnsignedBigInt;
+
+    #[test]
+    fn mod_sub_zero_modulus_returns_none() {
+        assert_eq!(
+            UnsignedBigInt::from(5u32).checked_mod_sub(3u32.into(), 0u32.into()),
+            None
+        );
+    }
+
+    #[test]
+    fn mod_inv_zero_modulus_returns_none() {
+        assert_eq!(UnsignedBigInt::from(3u32).mod_inv(0u32.into()), None);
+    }
+
+    #[test]
+    fn modular_nonzero_boundaries() {
+        let max = UnsignedBigInt::from_be_slice(&[0xff; 32]).unwrap();
+        assert_eq!(
+            max.checked_mod_sub(1u32.into(), 1u32.into()),
+            Some(0u32.into())
+        );
+        assert_eq!(
+            UnsignedBigInt::from(1u32).checked_mod_sub(3u32.into(), 5u32.into()),
+            Some(3u32.into())
+        );
+        assert_eq!(
+            UnsignedBigInt::from(0u32).checked_mod_sub(1u32.into(), max),
+            Some(max - 1u32.into())
+        );
+        assert_eq!(
+            UnsignedBigInt::from(3u32).mod_inv(1u32.into()),
+            Some(0u32.into())
+        );
+        assert_eq!(
+            UnsignedBigInt::from(3u32).mod_inv(7u32.into()),
+            Some(5u32.into())
+        );
+        assert_eq!(UnsignedBigInt::from(2u32).mod_inv(4u32.into()), None);
+        assert_eq!(UnsignedBigInt::from(0u32).mod_inv(7u32.into()), None);
+        assert_eq!(UnsignedBigInt::from(1u32).mod_inv(max), Some(1u32.into()));
     }
 }
 

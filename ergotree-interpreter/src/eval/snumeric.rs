@@ -495,6 +495,25 @@ mod test {
         .into();
         try_eval_out_wo_ctx(&mc)
     }
+    #[test]
+    fn eval_subtract_mod_zero_modulus_arithmetic_exception() {
+        assert!(matches!(
+            eval_modular_op(
+                &SUBTRACT_MOD_METHOD_DESC,
+                &[5u32.into(), 3u32.into(), 0u32.into()]
+            ),
+            Err(EvalError::Spanned(err)) if matches!(*err.error, EvalError::ArithmeticException(_))
+        ));
+    }
+
+    #[test]
+    fn eval_mod_inverse_zero_modulus_arithmetic_exception() {
+        assert!(matches!(
+            eval_modular_op(&MOD_INVERSE_METHOD_DESC, &[3u32.into(), 0u32.into()]),
+            Err(EvalError::Spanned(err)) if matches!(*err.error, EvalError::ArithmeticException(_))
+        ));
+    }
+
     trait Numeric:
         LiftIntoSType
         + TryExtractFrom<Value<'static>>
