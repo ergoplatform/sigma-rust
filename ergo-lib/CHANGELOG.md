@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2`; downstream implementations using those traits may need to update their I/O imports and error types.
+- The WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
+
+### Fixed
+- Correct unsigned 256-bit division in the C API and return errors for zero-modulus subtraction and inversion.
+- Return an error when `Header.check_pow` receives a compact difficulty that decodes to zero.
+- Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
+- Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
+- Repair release-preflight environment setup so GitHub can schedule the package validation jobs.
 
 ## [0.28.0] - 2024-08-09
 ## [0.27.1] - 2023-12-02
