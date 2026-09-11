@@ -25,9 +25,9 @@ jobs:
   rust-package:
     name: Package Rust workspace candidates
     runs-on: ubuntu-latest
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
     steps:
+      - name: Set Cargo target directory
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cargo-target" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.1
       - name: Package workspace candidates
@@ -42,9 +42,9 @@ jobs:
   wasm-packages:
     name: Package final WASM artifacts
     runs-on: ubuntu-latest
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
     steps:
+      - name: Set Cargo target directory
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cargo-target" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.1
       - uses: actions/setup-node@v4
