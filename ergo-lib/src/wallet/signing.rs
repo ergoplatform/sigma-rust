@@ -173,12 +173,12 @@ pub fn sign_reduced_transaction(
     reduced_tx: ReducedTransaction,
     tx_hints: Option<&TransactionHintsBag>,
 ) -> Result<Transaction, TxSigningError> {
+    reduced_tx.validate()?;
     let tx = reduced_tx.unsigned_tx.clone();
     let message_to_sign = tx.bytes_to_sign()?;
+    let inputs = reduced_tx.reduced_inputs();
     let signed_inputs = tx.inputs.enumerated().try_mapped(|(idx, input)| {
-        let inputs = reduced_tx.reduced_inputs();
-
-        // `idx` is valid since it's indexing over `tx.inputs`
+        // validate() checked that every unsigned input has a reduction.
         #[allow(clippy::unwrap_used)]
         let reduced_input = inputs.get(idx).unwrap();
         let mut hints_bag = HintsBag::empty();

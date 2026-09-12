@@ -25,9 +25,9 @@ jobs:
   rust-package:
     name: Package Rust workspace candidates
     runs-on: ubuntu-latest
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
     steps:
+      - name: Set Cargo target directory
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cargo-target" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.1
       - name: Package workspace candidates
@@ -42,9 +42,9 @@ jobs:
   wasm-packages:
     name: Package final WASM artifacts
     runs-on: ubuntu-latest
-    env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/cargo-target
     steps:
+      - name: Set Cargo target directory
+        run: echo "CARGO_TARGET_DIR=$RUNNER_TEMP/cargo-target" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.91.1
       - uses: actions/setup-node@v4
@@ -65,7 +65,7 @@ jobs:
           install --directory "$RUNNER_TEMP/bin"
           install "$RUNNER_TEMP/wasm-pack-v0.14.0-x86_64-unknown-linux-musl/wasm-pack" "$RUNNER_TEMP/bin/wasm-pack"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-          test "$(wasm-pack --version)" = "wasm-pack 0.14.0"
+          test "$("$RUNNER_TEMP/bin/wasm-pack" --version)" = "wasm-pack 0.14.0"
       - name: Install WASM package dependencies
         working-directory: bindings/ergo-lib-wasm
         run: npm ci

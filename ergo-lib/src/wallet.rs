@@ -158,23 +158,26 @@ impl Wallet {
     }
 
     /// Generate commitments for P2PK inputs using deterministic nonces. \
+    /// Rejects unsupported reductions and inputs without a matching secret key.
+    /// Trivial true inputs need no commitments; trivial false inputs are rejected.
     /// See: [`Wallet::sign_transaction_deterministic`]
     pub fn generate_deterministic_commitments(
         &self,
         reduced_tx: &ReducedTransaction,
         aux_rand: &[u8],
     ) -> Result<TransactionHintsBag, TxSigningError> {
+        reduced_tx.validate()?;
         let mut tx_hints = TransactionHintsBag::empty();
         let msg = reduced_tx.unsigned_tx.bytes_to_sign()?;
         for (index, input) in reduced_tx.reduced_inputs().iter().enumerate() {
-            if let Some(bag) = self::deterministic::generate_commitments_for(
+            let bag = self::deterministic::generate_commitments_for(
                 &*self.prover,
                 &input.sigma_prop,
                 &msg,
                 aux_rand,
-            ) {
-                tx_hints.add_hints_for_input(index, bag)
-            };
+            )
+            .map_err(|error| TxSigningError::ProverError(error, index))?;
+            tx_hints.add_hints_for_input(index, bag);
         }
         Ok(tx_hints)
     }
@@ -185,7 +188,8 @@ impl Wallet {
     /// is not available, `sign_transaction_deterministic` can be used to generate the nonce using a hash of the private key and message. \
     /// Additionally `aux_rand` can be optionally supplied with up 32 bytes of entropy.
     /// # Limitations
-    /// Only inputs that reduce to a single public key can be signed. Thus proveDhTuple, n-of-n and t-of-n signatures can not be produced using this method
+    /// Inputs must reduce to a single public key with a matching wallet secret, or to trivial true.
+    /// Other reductions, including proveDhTuple, n-of-n, t-of-n and trivial false, are rejected before proving.
     pub fn sign_transaction_deterministic(
         &self,
         tx_context: TransactionContext<UnsignedTransaction>,
