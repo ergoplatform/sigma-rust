@@ -337,6 +337,39 @@ mod tests {
         assert_eq!(sigma_serialize_roundtrip(&e), e);
     }
 
+    /// Regression test for ergo-node-rust mainnet sync failure at block 1,711,120 tx[1]
+    /// (`dce90de114a7d36cb2dd724c04ccc11b461a02bd2a783ef820234046cb47ff2c`,
+    /// block id `bcfb89f0d7c3c6c3f13d885e037c79e349a1ffa37301cb899a1a24c8f47ba49f`).
+    /// `output[0]` uses `blake2b256(getVar[Coll[Byte]](1))` directly (no `.get`),
+    /// which the JVM v6.0.3 reference node parses cleanly because its
+    /// `OneArgumentOperationSerializer` does an unchecked `asValue[T]` cast at parse
+    /// time. sigma-rust must match that leniency at parse time; runtime behavior
+    /// (`EvalError::UnexpectedValue`) stays the same.
+    #[test]
+    fn parse_block_1711120_output0() {
+        use crate::ergo_tree::ErgoTree;
+        let hex = "00ea02d193b4cbe3010e040004300e183092aafc2966e1c791f619b14b084b26d41825661c6c040bd40801";
+        let bytes = base16::decode(hex).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        // Round-trip: serialized bytes must match the input exactly.
+        let reser = tree.sigma_serialize_bytes().unwrap();
+        assert_eq!(reser, bytes, "round-trip bytes must be identical");
+    }
+
+    /// Companion regression for `output[2]` of the same tx. This box has the
+    /// constant-segregation header (`0x10`) and uses `0xea` (SIGMA_AND) deeper in the
+    /// tree body. Already passes today, but pinned here so a future regression that
+    /// only breaks `output[0]` is caught alongside one that breaks `output[2]`.
+    #[test]
+    fn parse_block_1711120_output2() {
+        use crate::ergo_tree::ErgoTree;
+        let hex = "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304";
+        let bytes = base16::decode(hex).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        let reser = tree.sigma_serialize_bytes().unwrap();
+        assert_eq!(reser, bytes, "round-trip bytes must be identical");
+    }
+
     proptest! {
 
         #[test]
