@@ -25,11 +25,27 @@ pub enum VlqEncodingError {
     /// Fail to decode a value from bytes
     #[error("VLQ decoding failed")]
     VlqDecodingFailed,
+    /// A read started past the position limit (the reference impl's rule 1014
+    /// `CheckPositionLimit`). Kept DISTINCT from [`VlqEncodingError::Io`] (EOF):
+    /// the JVM treats this as a soft-forkable `ValidationException` (a
+    /// size-flagged tree degrades to `Unparsed`), whereas EOF/truncation is a
+    /// hard reject. See [`ReadSigmaVlqExt::check_position_limit`].
+    #[error("read position exceeds the position limit")]
+    PositionLimitExceeded,
 }
 
 impl From<io::Error> for VlqEncodingError {
     fn from(error: io::Error) -> Self {
-        VlqEncodingError::Io(error.to_string())
+        // `check_position_limit` is the sole producer of `InvalidData` on this
+        // (core2) reader path, so route it to the distinct soft-forkable variant
+        // rather than collapsing it into `Io` (EOF). Keeping them apart is
+        // consensus-critical: the sized-`ErgoTree` degrade gate must DEGRADE
+        // position-limit (rule 1014) but REJECT a hard EOF.
+        if error.kind() == io::ErrorKind::InvalidData {
+            VlqEncodingError::PositionLimitExceeded
+        } else {
+            VlqEncodingError::Io(error.to_string())
+        }
     }
 }
 
