@@ -69,6 +69,37 @@ fn upcast_to_byte(in_v: Value) -> Result<Value, EvalError> {
     }
 }
 
+/// Numeric "width" used to coerce mismatched arithmetic operands to the wider
+/// type, ordered Byte<Short<Int<Long<BigInt. Returns `None` for `UnsignedBigInt`
+/// and non-numeric values, which keep the existing same-type-only arith path.
+pub(crate) fn numeric_width(v: &Value) -> Option<u8> {
+    match v {
+        Value::Byte(_) => Some(0),
+        Value::Short(_) => Some(1),
+        Value::Int(_) => Some(2),
+        Value::Long(_) => Some(3),
+        Value::BigInt(_) => Some(4),
+        _ => None,
+    }
+}
+
+/// Coerce a numeric `Value` up to the given `width` (the wider operand's), reusing
+/// the `Upcast` conversions. Pure conversion. Only ever called on the narrower
+/// operand, so the BigInt arm never gets a BigInt input.
+pub(crate) fn coerce_numeric_to<'a>(
+    v: Value<'a>,
+    width: u8,
+    ctx: &Context,
+) -> Result<Value<'a>, EvalError> {
+    match width {
+        4 => upcast_to_bigint(v, ctx),
+        3 => upcast_to_long(v),
+        2 => upcast_to_int(v),
+        1 => upcast_to_short(v),
+        _ => Ok(v),
+    }
+}
+
 impl Evaluable for Upcast {
     fn eval<'ctx>(
         &self,
