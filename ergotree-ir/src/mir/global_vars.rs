@@ -23,6 +23,8 @@ pub enum GlobalVars {
     SelfBox,
     /// When interpreted evaluates to a ByteArrayConstant built from Context.minerPubkey
     MinerPubKey,
+    /// When interpreted evaluates to a AvlTreeConstant built from Context.lastBlockUtxoRoot
+    LastBlockUtxoRootHash,
     /// GroupElement (EcPoint) generator
     GroupGenerator,
 }
@@ -36,6 +38,7 @@ impl GlobalVars {
             GlobalVars::Height => SType::SInt,
             GlobalVars::SelfBox => SType::SBox,
             GlobalVars::MinerPubKey => SType::SColl(Arc::new(SType::SByte)),
+            GlobalVars::LastBlockUtxoRootHash => SType::SAvlTree,
             GlobalVars::GroupGenerator => SType::SGroupElement,
         }
     }
@@ -50,6 +53,7 @@ impl HasOpCode for GlobalVars {
             GlobalVars::Outputs => OpCode::OUTPUTS,
             GlobalVars::Height => OpCode::HEIGHT,
             GlobalVars::MinerPubKey => OpCode::MINER_PUBKEY,
+            GlobalVars::LastBlockUtxoRootHash => OpCode::LAST_BLOCK_UTXO_ROOT_HASH,
             GlobalVars::GroupGenerator => OpCode::GROUP_GENERATOR,
         }
     }
@@ -63,6 +67,7 @@ impl Display for GlobalVars {
             GlobalVars::Outputs => write!(f, "OUTPUTS"),
             GlobalVars::Height => write!(f, "HEIGHT"),
             GlobalVars::MinerPubKey => write!(f, "MINER_PUBKEY"),
+            GlobalVars::LastBlockUtxoRootHash => write!(f, "LastBlockUtxoRootHash"),
             GlobalVars::GroupGenerator => write!(f, "GROUP_GENERATOR"),
         }
     }
@@ -88,6 +93,7 @@ mod tests {
                 Just(Height),
                 Just(SelfBox),
                 Just(MinerPubKey),
+                Just(LastBlockUtxoRootHash),
                 Just(GroupGenerator)
             ]
             .boxed()
