@@ -11,7 +11,6 @@ use ergotree_ir::mir::subst_const::SubstConstants;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
-use ergotree_ir::serialization::SigmaSerializable;
 use sigma_util::AsVecI8;
 use sigma_util::AsVecU8;
 
@@ -55,24 +54,20 @@ impl Evaluable for SubstConstants {
         }
 
         if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = script_bytes_v {
-            // Substitue constants with repeated calls to `ErgoTree::with_constant`.
-            let mut ergo_tree = ErgoTree::sigma_parse_bytes(&b.as_vec_u8())?;
-            let num_constants = ergo_tree.constants_len().map_err(to_misc_err)?;
-            for (ix, i) in positions.iter().enumerate() {
-                if *i < num_constants {
-                    ergo_tree = ergo_tree
-                        .with_constant(*i, new_constants[ix].clone())
-                        .map_err(to_misc_err)?;
-                } else {
-                    return Err(EvalError::Misc(format!(
-                        "SubstConstants: positions[{}] == {} is an out of bound index with \
-                       respect to the serialized ErgoTree's constant list",
-                        ix, *i
-                    )));
-                }
-            }
+            // Byte-level substitution mirroring sigma-state's
+            // `ErgoTreeSerializer.substituteConstants`: the tree body is never
+            // parsed and out-of-range positions are a no-op, so a malformed
+            // body or an OOB position returns the original bytes (JVM parity)
+            // instead of erroring.
+            let (new_bytes, _num_constants) = ErgoTree::substitute_constants(
+                b.as_vec_u8(),
+                &positions,
+                &new_constants,
+                ctx.tree_version(),
+            )
+            .map_err(to_misc_err)?;
             Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
-                ergo_tree.sigma_serialize_bytes()?.as_vec_i8().into(),
+                new_bytes.as_vec_i8().into(),
             ))))
         } else {
             Err(EvalError::Misc(format!(
