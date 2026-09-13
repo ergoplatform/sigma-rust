@@ -288,16 +288,19 @@ mod tests {
                 items: vec![
                     ValDef {
                         id: lhs_val_id,
+                        tpe_args: vec![],
                         rhs: Box::new(Expr::Const(42i32.into())),
                     }
                     .into(),
                     ValDef {
                         id: rhs_val_id,
+                        tpe_args: vec![],
                         rhs: Box::new(Expr::Const(0i32.into())),
                     }
                     .into(),
                     ValDef {
                         id: res_val_id,
+                        tpe_args: vec![],
                         rhs: Box::new(
                             BinOp {
                                 kind: ArithOp::Divide.into(),
@@ -357,6 +360,7 @@ mod tests {
             BlockValue {
                 items: vec![ValDef {
                     id: v1_id,
+                    tpe_args: vec![],
                     rhs: Box::new(Expr::Const(99999999i32.into())),
                 }
                 .into()],

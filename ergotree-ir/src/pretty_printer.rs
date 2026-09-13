@@ -135,6 +135,7 @@ mod tests {
             BlockValue {
                 items: vec![ValDef {
                     id: val_id,
+                    tpe_args: vec![],
                     rhs: Box::new(Expr::Const(1i32.into())),
                 }
                 .into()],
@@ -166,6 +167,7 @@ mod tests {
             BlockValue {
                 items: vec![ValDef {
                     id: val_id,
+                    tpe_args: vec![],
                     rhs: Box::new(
                         BinOp {
                             kind: ArithOp::Divide.into(),
@@ -199,7 +201,7 @@ mod tests {
         check_spans(
             expr,
             expect![[
-                r#"BlockValue(Spanned { source_span: SourceSpan { offset: 0, length: 26 }, expr: BlockValue { items: [ValDef(Spanned { source_span: SourceSpan { offset: 4, length: 14 }, expr: ValDef { id: ValId(1), rhs: BinOp(Spanned { source_span: SourceSpan { offset: 13, length: 5 }, expr: BinOp { kind: Arith(Divide), left: Const("4: SInt"), right: Const("2: SInt") } }) } })], result: ValUse(ValUse { val_id: ValId(1), tpe: SInt }) } })"#
+                r#"BlockValue(Spanned { source_span: SourceSpan { offset: 0, length: 26 }, expr: BlockValue { items: [ValDef(Spanned { source_span: SourceSpan { offset: 4, length: 14 }, expr: ValDef { id: ValId(1), tpe_args: [], rhs: BinOp(Spanned { source_span: SourceSpan { offset: 13, length: 5 }, expr: BinOp { kind: Arith(Divide), left: Const("4: SInt"), right: Const("2: SInt") } }) } })], result: ValUse(ValUse { val_id: ValId(1), tpe: SInt }) } })"#
             ]],
         );
     }
