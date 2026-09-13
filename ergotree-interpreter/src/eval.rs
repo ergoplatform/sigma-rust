@@ -259,6 +259,11 @@ fn smethod_eval_fn(method: &SMethod) -> Result<EvalFn, EvalError> {
         },
         sbox::TYPE_CODE => match method.method_id() {
             sbox::VALUE_METHOD_ID => self::sbox::VALUE_EVAL_FN,
+            sbox::PROPOSITION_BYTES_METHOD_ID => self::sbox::PROPOSITION_BYTES_EVAL_FN,
+            sbox::BYTES_METHOD_ID => self::sbox::BYTES_EVAL_FN,
+            sbox::BYTES_WITHOUT_REF_METHOD_ID => self::sbox::BYTES_WITHOUT_REF_EVAL_FN,
+            sbox::ID_METHOD_ID => self::sbox::ID_EVAL_FN,
+            sbox::CREATION_INFO_METHOD_ID => self::sbox::CREATION_INFO_EVAL_FN,
             sbox::GET_REG_METHOD_ID => self::sbox::GET_REG_EVAL_FN,
             sbox::TOKENS_METHOD_ID => self::sbox::TOKENS_EVAL_FN,
             method_id => {
