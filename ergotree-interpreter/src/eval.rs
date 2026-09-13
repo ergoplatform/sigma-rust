@@ -537,4 +537,24 @@ mod test {
         "#]]
         .assert_eq(&res.diag.to_string());
     }
+
+    // Regression: `inner` returns a bare `InvalidResultType` (eval.rs match arm
+    // for non-Boolean/non-SigmaProp Value) when the expression reduces to e.g.
+    // an Int. That bare variant enters the Err(_) diagnostic retry arm, the
+    // spanned re-eval also returns bare, and `wrap_spanned_with_src` used to
+    // panic. The fix in error.rs wraps any variant — assert reduce_to_crypto
+    // returns Err instead of panicking.
+    #[test]
+    fn reduce_to_crypto_non_sigma_prop_result_returns_err_not_panic() {
+        use super::EvalError;
+        let tree = ErgoTree::try_from(Expr::Const(42i32.into())).unwrap();
+        let ctx = force_any_val::<Context>();
+        let res = reduce_to_crypto(&tree, &ctx);
+        assert!(
+            matches!(res, Err(EvalError::SpannedWithSource(_))),
+            "expected Err(SpannedWithSource) after wrap_spanned_with_src \
+             fix, got {:?}",
+            res
+        );
+    }
 }
