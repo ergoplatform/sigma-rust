@@ -41,9 +41,18 @@ impl Evaluable for Expr {
             Expr::BlockValue(op) => op.expr().eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
-            Expr::ConstPlaceholder(_) => Err(EvalError::UnexpectedExpr(
-                ("ConstPlaceholder is not supported").to_string(),
-            )),
+            Expr::ConstPlaceholder(cp) => {
+                let constant = ctx
+                    .constants
+                    .and_then(|cs| cs.get(cp.id as usize))
+                    .ok_or_else(|| {
+                        EvalError::UnexpectedExpr(format!(
+                            "ConstPlaceholder({}): constant not found",
+                            cp.id
+                        ))
+                    })?;
+                Ok(Value::from(constant.v.clone()))
+            }
             Expr::Collection(op) => op.eval(env, ctx),
             Expr::ValDef(_) => Err(EvalError::UnexpectedExpr(
                 ("ValDef should be evaluated in BlockValue").to_string(),
@@ -105,5 +114,40 @@ impl<T: Evaluable> Evaluable for Spanned<T> {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         self.expr.eval(env, ctx)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::constant::ConstantPlaceholder;
+    use ergotree_ir::types::stype::SType;
+    use sigma_test_util::force_any_val;
+
+    #[test]
+    fn eval_const_placeholder_with_constants_in_ctx() {
+        let expr = Expr::ConstPlaceholder(ConstantPlaceholder {
+            id: 0,
+            tpe: SType::SInt,
+        });
+        let constants = vec![Constant::from(42i32)];
+        let base_ctx = force_any_val::<Context>();
+        let ctx = base_ctx.with_constants(&constants);
+        let mut env = Env::empty();
+        let result = expr.eval(&mut env, &ctx).unwrap();
+        assert_eq!(result, Value::from(42i32));
+    }
+
+    #[test]
+    fn eval_const_placeholder_without_constants_errors() {
+        let expr = Expr::ConstPlaceholder(ConstantPlaceholder {
+            id: 0,
+            tpe: SType::SInt,
+        });
+        let ctx = force_any_val::<Context>();
+        let mut env = Env::empty();
+        assert!(expr.eval(&mut env, &ctx).is_err());
     }
 }

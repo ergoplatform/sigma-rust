@@ -154,35 +154,72 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
             })
     }
 
-    let expr = tree.proposition()?;
-    let expr = if tree.has_deserialize() {
-        expr.substitute_deserialize(ctx)?
-    } else {
-        expr
-    };
-    let res = inner(&expr, ctx);
-    if let Ok(reduction) = res {
-        if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) {
-            let (_, printed_expr_str) = expr
+    // Deserialize trees need an owned Expr for substitute_deserialize.
+    // This is the rare path — most scripts don't have deserialize nodes.
+    if tree.has_deserialize() {
+        let expr = tree.proposition()?;
+        let expr = expr.substitute_deserialize(ctx)?;
+        let res = inner(&expr, ctx);
+        return match res {
+            Ok(reduction) if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) => {
+                let (_, printed_expr_str) = expr
+                    .pretty_print()
+                    .map_err(|e| EvalError::Misc(e.to_string()))?;
+                Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(false),
+                    cost: reduction.cost,
+                    diag: ReductionDiagnosticInfo {
+                        env: reduction.diag.env,
+                        pretty_printed_expr: Some(printed_expr_str),
+                    },
+                })
+            }
+            Ok(reduction) => Ok(reduction),
+            Err(_) => {
+                let (spanned_expr, printed_expr_str) = expr
+                    .pretty_print()
+                    .map_err(|e| EvalError::Misc(e.to_string()))?;
+                inner(&spanned_expr, ctx)
+                    .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
+            }
+        };
+    }
+
+    // Common path: lazy constant resolution — no clone, no tree walk.
+    // ConstPlaceholder nodes are resolved on-demand during evaluation
+    // by looking up ctx.constants[placeholder.id].
+    let root = tree.root_expr()?;
+    let constants = tree.constants()?;
+    let ctx = ctx.with_constants(constants);
+    let res = inner(root, &ctx);
+    match res {
+        Ok(reduction) if reduction.sigma_prop == SigmaBoolean::TrivialProp(false) => {
+            // Diagnostic path: use proposition() for fully-resolved pretty-printing.
+            // This clones, but only on the rare false-reduction diagnostic path.
+            let resolved = tree.proposition()?;
+            let (_, printed_expr_str) = resolved
                 .pretty_print()
                 .map_err(|e| EvalError::Misc(e.to_string()))?;
-            let new_reduction = ReductionResult {
+            Ok(ReductionResult {
                 sigma_prop: SigmaBoolean::TrivialProp(false),
                 cost: reduction.cost,
                 diag: ReductionDiagnosticInfo {
                     env: reduction.diag.env,
                     pretty_printed_expr: Some(printed_expr_str),
                 },
-            };
-            return Ok(new_reduction);
-        } else {
-            return Ok(reduction);
+            })
+        }
+        Ok(reduction) => Ok(reduction),
+        Err(_) => {
+            // Error path: use proposition() for fully-resolved spanned re-evaluation.
+            let resolved = tree.proposition()?;
+            let (spanned_expr, printed_expr_str) = resolved
+                .pretty_print()
+                .map_err(|e| EvalError::Misc(e.to_string()))?;
+            inner(&spanned_expr, &ctx)
+                .map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
         }
     }
-    let (spanned_expr, printed_expr_str) = expr
-        .pretty_print()
-        .map_err(|e| EvalError::Misc(e.to_string()))?;
-    inner(&spanned_expr, ctx).map_err(|e| e.wrap_spanned_with_src(printed_expr_str.to_string()))
 }
 
 /// Expects SigmaProp constant value and returns it's value. Otherwise, returns an error.
@@ -442,7 +479,18 @@ pub mod test_util {
         expr: &Expr,
         ctx: &'ctx Context<'ctx>,
     ) -> Result<T, EvalError> {
-        let expr = expr.clone().substitute_deserialize(ctx)?;
+        // Mirror `Interpreter.fullReduction`: a deserialize-bearing segregated
+        // tree is reduced from its constants-substituted proposition, not the
+        // lazy placeholder form used for ordinary trees. Values are identical
+        // either way; the distinction becomes observable once JIT costing
+        // lands (Constant vs ConstantPlaceholder visit costs).
+        let expr = match ctx.constants {
+            Some(constants) if expr.has_deserialize() => {
+                expr.clone().substitute_constants(constants)?
+            }
+            _ => expr.clone(),
+        };
+        let expr = expr.substitute_deserialize(ctx)?;
         try_eval_out(&expr, ctx)
     }
 
@@ -536,5 +584,40 @@ mod test {
             v1: 1
         "#]]
         .assert_eq(&res.diag.to_string());
+    }
+
+    #[test]
+    fn reduce_to_crypto_with_constant_segregation() {
+        // Build a simple script: { 1 == 1 } with constant segregation enabled
+        use ergotree_ir::ergo_tree::ErgoTreeHeader;
+        use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
+
+        let expr: Expr = Expr::BoolToSigmaProp(BoolToSigmaProp {
+            input: Box::new(
+                BinOp {
+                    kind: BinOpKind::Relation(RelationOp::Eq),
+                    left: Box::new(Expr::Const(1i32.into())),
+                    right: Box::new(Expr::Const(1i32.into())),
+                }
+                .into(),
+            ),
+        });
+        let tree = ErgoTree::new(ErgoTreeHeader::v1(true), &expr).unwrap();
+        // Verify this tree actually uses constant segregation
+        assert!(
+            tree.header().unwrap().is_constant_segregation(),
+            "tree must use constant segregation"
+        );
+        // The root should contain ConstPlaceholder nodes, not Const nodes
+        let root = tree.root_expr().unwrap();
+        let has_placeholders = format!("{:?}", root).contains("ConstPlaceholder");
+        assert!(
+            has_placeholders,
+            "root should contain ConstPlaceholder nodes"
+        );
+
+        let ctx = force_any_val::<Context>();
+        let res = reduce_to_crypto(&tree, &ctx).unwrap();
+        assert_eq!(res.sigma_prop, SigmaBoolean::TrivialProp(true));
     }
 }

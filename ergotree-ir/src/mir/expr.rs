@@ -394,7 +394,7 @@ impl Expr {
     }
 
     /// Returns true if the [`Expr`] has deserialize nodes, see: [`DeserializeContext`] and [`DeserializeRegister`]
-    pub(crate) fn has_deserialize(&self) -> bool {
+    pub fn has_deserialize(&self) -> bool {
         self.iter().any(|c| {
             matches!(
                 c,
