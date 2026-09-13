@@ -26,8 +26,14 @@ const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
         Value::Short(obj) => obj.to_be_bytes().to_vec().into(),
         Value::Int(obj) => obj.to_be_bytes().to_vec().into(),
         Value::Long(obj) => obj.to_be_bytes().to_vec().into(),
-        Value::BigInt(obj) => obj.to_be_bytes().to_vec().into(),
-        Value::UnsignedBigInt(obj) => obj.to_be_bytes().to_vec().into(),
+        // BigInt/UnsignedBigInt use a minimal-length big-endian encoding, not a
+        // fixed 32 bytes: JVM `BigInt.toBytes` = `BigInteger.toByteArray` (signed
+        // two's-complement, minimal length, `0 -> [0]`) and
+        // `UnsignedBigInt.toBytes` = `BigIntegers.asUnsignedByteArray` (unsigned,
+        // minimal length, `0 -> []`). `to_be_vec` already implements both (it is
+        // what serialization uses); `to_be_bytes` is the fixed-width form.
+        Value::BigInt(obj) => obj.to_be_vec().into(),
+        Value::UnsignedBigInt(obj) => obj.to_be_vec().into(),
         other => {
             return Err(EvalError::UnexpectedValue(format!(
                 "Expected numeric type, got {other:?}"
@@ -60,8 +66,10 @@ static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
         Value::Short(obj) => to_bits(obj.to_be_bytes().as_slice()),
         Value::Int(obj) => to_bits(obj.to_be_bytes().as_slice()),
         Value::Long(obj) => to_bits(obj.to_be_bytes().as_slice()),
-        Value::BigInt(obj) => to_bits(obj.to_be_bytes().as_slice()),
-        Value::UnsignedBigInt(obj) => to_bits(obj.to_be_bytes().as_slice()),
+        // Minimal-length bytes, as in TO_BYTES_EVAL_FN: JVM `toBits` derives from
+        // the same big-endian byte sequence, so it is minimal-length too.
+        Value::BigInt(obj) => to_bits(obj.to_be_vec().as_slice()),
+        Value::UnsignedBigInt(obj) => to_bits(obj.to_be_vec().as_slice()),
         other => {
             return Err(EvalError::UnexpectedValue(format!(
                 "Expected numeric type, got {other:?}"
@@ -677,6 +685,115 @@ mod test {
     fn bitwise_or_byte() {
         assert_eq!(bitwise_or(127i8, -128i8, &snumeric::sbyte::METHODS), -1i8);
     }
+
+    fn eval_to_bytes<T: Numeric>(v: T, methods: &[SMethod]) -> Vec<i8> {
+        let mc: Expr = MethodCall::new(
+            <T as Into<Constant>>::into(v).into(),
+            methods
+                .iter()
+                .find(|method| method.method_id() == TO_BYTES_METHOD_ID)
+                .unwrap()
+                .clone(),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        eval_out_wo_ctx::<Vec<i8>>(&mc)
+    }
+    fn eval_to_bits<T: Numeric>(v: T, methods: &[SMethod]) -> Vec<bool> {
+        let mc: Expr = MethodCall::new(
+            <T as Into<Constant>>::into(v).into(),
+            methods
+                .iter()
+                .find(|method| method.method_id() == TO_BITS_METHOD_ID)
+                .unwrap()
+                .clone(),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        eval_out_wo_ctx::<Vec<bool>>(&mc)
+    }
+
+    // Byte/bit-exact `toBytes`/`toBits` against the blessed v6 vectors
+    // (BigInt_6.0_features / UnsignedBigInt_methods). The JVM emits a
+    // minimal-length big-endian encoding: signed two's-complement for BigInt
+    // (`BigInteger.toByteArray`, `0 -> [0]`) and unsigned for UnsignedBigInt
+    // (`asUnsignedByteArray`, `0 -> []`).
+    #[test]
+    fn bigint_to_bytes_minimal_length() {
+        let cases: &[(i64, &[i8])] = &[
+            (0, &[0]),
+            (127, &[127]),        // vector #17
+            (32767, &[127, -1]),  // vector #18
+            (-32768, &[-128, 0]), // vector #19
+            (255, &[0, -1]),      // sign-pad: high bit set -> leading 0x00
+            (-1, &[-1]),
+            (-55, &[-55]), // 0xc9
+        ];
+        for (input, expected) in cases {
+            assert_eq!(
+                eval_to_bytes(BigInt256::from(*input), &snumeric::sbigint::METHODS),
+                expected.to_vec(),
+                "BigInt({}).toBytes",
+                input,
+            );
+        }
+    }
+    #[test]
+    fn bigint_to_bits_minimal_length() {
+        // vector #21 CBigInt(83) and #22 CBigInt(-55).
+        assert_eq!(
+            eval_to_bits(BigInt256::from(83i64), &snumeric::sbigint::METHODS),
+            vec![false, true, false, true, false, false, true, true], // 0x53
+        );
+        assert_eq!(
+            eval_to_bits(BigInt256::from(-55i64), &snumeric::sbigint::METHODS),
+            vec![true, true, false, false, true, false, false, true], // 0xc9
+        );
+        assert_eq!(
+            eval_to_bits(BigInt256::from(0i64), &snumeric::sbigint::METHODS),
+            vec![false; 8], // 0x00
+        );
+    }
+    #[test]
+    fn unsigned_bigint_to_bytes_minimal_length() {
+        let cases: &[(u64, &[i8])] = &[
+            (0, &[]),            // empty: asUnsignedByteArray drops the zero
+            (127, &[127]),       // vector #12
+            (255, &[-1]),        // unsigned: no sign byte (contrast BigInt 255)
+            (32767, &[127, -1]), // vector #13
+        ];
+        for (input, expected) in cases {
+            assert_eq!(
+                eval_to_bytes(
+                    UnsignedBigInt::from(*input),
+                    &snumeric::sunsignedbigint::METHODS,
+                ),
+                expected.to_vec(),
+                "UnsignedBigInt({}).toBytes",
+                input,
+            );
+        }
+    }
+    #[test]
+    fn unsigned_bigint_to_bits_minimal_length() {
+        // vector #15 CUnsignedBigInt(83); zero -> empty.
+        assert_eq!(
+            eval_to_bits(
+                UnsignedBigInt::from(83u64),
+                &snumeric::sunsignedbigint::METHODS,
+            ),
+            vec![false, true, false, true, false, false, true, true],
+        );
+        assert_eq!(
+            eval_to_bits(
+                UnsignedBigInt::from(0u64),
+                &snumeric::sunsignedbigint::METHODS,
+            ),
+            Vec::<bool>::new(),
+        );
+    }
     proptest! {
         #[test]
         fn byte_big_endian_roundtrip(byte in any::<i8>()) {
@@ -719,7 +836,16 @@ mod test {
             bits_roundtrip(long, &snumeric::slong::METHODS);
         }
         #[test]
-        fn to_bits_bigint(bigint in any::<BigInt256>()) {
+        fn to_bits_bigint(
+            // Non-negative only: bits_roundtrip reconstructs via an unsigned
+            // positional sum, which matches signed minimal two's-complement bits
+            // only for non-negative values. Negatives are covered byte-exactly by
+            // `bigint_to_bits_minimal_length`.
+            bigint in any::<[u8; 32]>().prop_map(|mut b| {
+                b[0] &= 0x7f;
+                BigInt256::from_be_slice(&b).unwrap()
+            })
+        ) {
             bits_roundtrip(bigint, &snumeric::sbigint::METHODS);
         }
         #[test]
