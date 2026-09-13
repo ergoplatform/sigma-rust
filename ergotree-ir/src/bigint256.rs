@@ -210,7 +210,15 @@ impl CheckedRem for BigInt256 {
         if v.is_negative() {
             return None;
         }
-        self.0.checked_rem(v.0).map(Self)
+        // Use mathematical modulo (always non-negative for positive divisor),
+        // matching JVM BigInteger.mod() semantics.
+        // Rust's checked_rem returns the remainder which can be negative.
+        let rem = self.0.checked_rem(v.0)?;
+        if rem.is_negative() {
+            Some(Self(rem + v.0))
+        } else {
+            Some(Self(rem))
+        }
     }
 }
 
