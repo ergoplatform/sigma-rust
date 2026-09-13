@@ -126,6 +126,16 @@ impl TokenAmount {
     pub fn as_u64(&self) -> &u64 {
         &self.0
     }
+
+    /// Create from u64 without a bounds check, for wire parsing: the reference
+    /// implementation parses token amounts with `r.getULong()` and no range check
+    /// (`ErgoBoxCandidate.parseBodyWithIndexedDigests`), so amounts outside
+    /// `[MIN_RAW, MAX_RAW]` must hydrate (and amounts in `[2^63, 2^64)` surface
+    /// as their signed view at eval, e.g. `SELF.tokens(0)._2`). Bounds stay
+    /// enforced in the construction API (`try_from`) used by transaction building.
+    pub(crate) const fn from_u64_unbounded(v: u64) -> Self {
+        TokenAmount(v)
+    }
 }
 
 /// BoxValue errors
