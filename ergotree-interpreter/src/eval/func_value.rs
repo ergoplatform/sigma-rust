@@ -8,10 +8,19 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 
 impl Evaluable for FuncValue {
-    fn eval<'ctx>(&self, _env: &mut Env, _ctx: &Context<'ctx>) -> Result<Value<'ctx>, EvalError> {
+    fn eval<'ctx>(
+        &self,
+        env: &mut Env<'ctx>,
+        _ctx: &Context<'ctx>,
+    ) -> Result<Value<'ctx>, EvalError> {
         Ok(Value::Lambda(Lambda {
             args: self.args().to_vec(),
             body: self.body().clone().into(),
+            // The JVM's `FuncValue.eval` returns a closure over the defining
+            // env — capture it so a lambda that escapes its creation site
+            // (returned from another lambda, bound to a `val`) still sees
+            // these bindings when applied.
+            captured: env.bindings(),
         }))
     }
 }

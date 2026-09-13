@@ -8,6 +8,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use snumeric::numeric_method_evalfn;
 
 use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::mir::value::Lambda;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
@@ -203,6 +204,43 @@ pub(crate) trait Evaluable {
         ctx: &Context<'ctx>,
         // TODO for JIT costing: cost_accum: &mut CostAccumulator,
     ) -> Result<Value<'ctx>, EvalError>;
+}
+
+/// Per-lambda invoker mirroring the JVM's closure semantics: `FuncValue.eval`
+/// returns a closure over the *defining* environment, and each application
+/// evaluates the body in that captured env extended with the argument
+/// bindings (`env1 = env + (argId -> value)`) — the caller's environment at
+/// application time plays no role.
+///
+/// The captured base is materialized once per lambda value; each `invoke`
+/// overwrites the argument slot(s), which matches Scala's per-call extension
+/// because an argument binding always shadows a same-id captured binding.
+pub(crate) struct LambdaInvoker<'l, 'ctx> {
+    lambda: &'l Lambda<'ctx>,
+    env: Env<'ctx>,
+}
+
+impl<'l, 'ctx> LambdaInvoker<'l, 'ctx> {
+    pub(crate) fn new(lambda: &'l Lambda<'ctx>) -> Self {
+        let mut env = Env::empty();
+        for (idx, v) in &lambda.captured {
+            env.insert(*idx, v.clone());
+        }
+        Self { lambda, env }
+    }
+
+    /// Bind `args` positionally to the lambda's parameters and evaluate the
+    /// body in the captured environment.
+    pub(crate) fn invoke(
+        &mut self,
+        ctx: &Context<'ctx>,
+        args: Vec<Value<'ctx>>,
+    ) -> Result<Value<'ctx>, EvalError> {
+        for (arg, v) in self.lambda.args.iter().zip(args) {
+            self.env.insert(arg.idx, v);
+        }
+        self.lambda.body.eval(&mut self.env, ctx)
+    }
 }
 
 type EvalFn = for<'ctx> fn(

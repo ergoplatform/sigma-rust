@@ -28,6 +28,7 @@ use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
 use super::expr::Expr;
 use super::func_value::FuncArg;
+use super::val_def::ValId;
 
 extern crate derive_more;
 use derive_more::From;
@@ -211,11 +212,17 @@ where
 
 /// Lambda
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Lambda {
+pub struct Lambda<'ctx> {
     /// Argument placeholders
     pub args: Vec<FuncArg>,
     /// Body
     pub body: Box<Expr>,
+    /// Bindings captured from the defining environment. The JVM's
+    /// `FuncValue.eval` returns a closure over the env it was created in, so
+    /// a lambda that escapes its creation site (returned from another lambda,
+    /// bound to a `val`) still sees those bindings when applied — the
+    /// caller's environment at application time plays no role.
+    pub captured: Vec<(ValId, Value<'ctx>)>,
 }
 
 /// Runtime value
@@ -262,7 +269,7 @@ pub enum Value<'ctx> {
     /// Optional value
     Opt(Option<Box<Value<'ctx>>>),
     /// lambda
-    Lambda(Lambda),
+    Lambda(Lambda<'ctx>),
 }
 
 impl<'ctx> Value<'ctx> {
@@ -304,7 +311,15 @@ impl<'ctx> Value<'ctx> {
             Value::Global => Value::Global,
             Value::CBox(c) => Value::CBox(c.to_static()),
             Value::Opt(opt) => Value::Opt(Option::as_ref(opt).map(|o| o.to_static()).map(Box::new)),
-            Value::Lambda(l) => Value::Lambda(l.clone()),
+            Value::Lambda(l) => Value::Lambda(Lambda {
+                args: l.args.clone(),
+                body: l.body.clone(),
+                captured: l
+                    .captured
+                    .iter()
+                    .map(|(k, v)| (*k, v.to_static()))
+                    .collect(),
+            }),
         }
     }
 }
