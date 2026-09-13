@@ -12,6 +12,7 @@ mod tests {
     use ergotree_ir::mir::deserialize_register::DeserializeRegister;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
+    use ergotree_ir::mir::if_op::If;
     use ergotree_ir::mir::value::Value;
     use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::stype::SType;
@@ -94,6 +95,46 @@ mod tests {
         .into();
         let ctx = make_ctx_with_self_box(b);
         assert_eq!(try_eval_with_deserialize::<i32>(&expr, &ctx).unwrap(), 1i32);
+    }
+
+    // Each actually-substituted register charges the JVM's deserialization
+    // complexity — `bytes.length × CostPerByteDeserialized(2)` block = bytes
+    // × 20 JitCost (`ErgoLikeInterpreter.substDeserialize` →
+    // `deserializeMeasured`) — while an absent register falling back to
+    // `default` charges nothing. The dead-branch shape keeps the evaluated
+    // path identical between the two runs, isolating the substitution charge.
+    #[test]
+    fn deserialize_register_substitution_charges_per_byte() {
+        let inner_expr: Expr = false.into();
+        let reg_bytes = inner_expr.sigma_serialize_bytes().unwrap();
+        let deser: Expr = DeserializeRegister {
+            reg: NonMandatoryRegisterId::R4.into(),
+            tpe: SType::SBoolean,
+            default: Some(Box::new(false.into())),
+        }
+        .into();
+        // if (true) true else deserializeRegister(R4, default = false)
+        let expr: Expr = If {
+            condition: Expr::Const(true.into()).into(),
+            true_branch: Expr::Const(true.into()).into(),
+            false_branch: deser.into(),
+        }
+        .into();
+        let run = |b: ErgoBox| -> u64 {
+            let ctx = make_ctx_with_self_box(b);
+            let before = ctx.jit_cost_value();
+            assert!(try_eval_with_deserialize::<bool>(&expr, &ctx).unwrap());
+            ctx.jit_cost_value() - before
+        };
+        let with_reg = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![Constant::from(reg_bytes.clone())].try_into().unwrap());
+        let without_reg =
+            force_any_val::<ErgoBox>().with_additional_registers(NonMandatoryRegisters::empty());
+        assert_eq!(
+            run(with_reg) - run(without_reg),
+            reg_bytes.len() as u64 * 20,
+            "substituting a present register must charge its bytes × 20 JitCost"
+        );
     }
 
     #[test]

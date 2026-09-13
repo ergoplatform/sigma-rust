@@ -17,6 +17,7 @@ impl SigmaSerializable for ConstantPlaceholder {
             Ok(ConstantPlaceholder {
                 id,
                 tpe: c.tpe.clone(),
+                resolved: None,
             })
         } else {
             Err(SigmaParsingError::ConstantForPlaceholderNotFound(id))

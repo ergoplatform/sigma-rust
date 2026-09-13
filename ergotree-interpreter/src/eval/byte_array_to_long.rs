@@ -15,6 +15,7 @@ impl Evaluable for ByteArrayToLong {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(16)?; // ByteArrayToLong = Fixed(16)
         let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
         if input.len() < 8 {
             return Err(UnexpectedValue(

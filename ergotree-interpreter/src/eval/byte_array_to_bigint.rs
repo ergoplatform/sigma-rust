@@ -17,6 +17,7 @@ impl Evaluable for ByteArrayToBigInt {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(30)?; // ByteArrayToBigInt = Fixed(30)
         let input = self.input.eval(env, ctx)?.try_extract_into::<Vec<u8>>()?;
         if input.is_empty() {
             return Err(UnexpectedValue(

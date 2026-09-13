@@ -12,6 +12,7 @@ impl Evaluable for SizeOf {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(14)?; // SizeOf = Fixed(14)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::Coll(coll) => Ok((coll.len() as i32).into()),

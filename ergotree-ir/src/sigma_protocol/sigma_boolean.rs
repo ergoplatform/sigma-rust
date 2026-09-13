@@ -174,6 +174,28 @@ pub enum SigmaBoolean {
     SigmaConjecture(SigmaConjecture),
 }
 
+impl SigmaBoolean {
+    /// Number of nodes in the sigma tree, matching sigma-state's
+    /// `SigmaBoolean.size` (used to cost `SigmaPropBytes`): a `ProveDlog` or
+    /// `TrivialProp` leaf counts as 1, a `ProveDhTuple` as 4 (one node per
+    /// EcPoint), and a conjecture as 1 plus the sizes of its children.
+    pub fn size(&self) -> usize {
+        match self {
+            SigmaBoolean::TrivialProp(_) => 1,
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(_)) => 1,
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDhTuple(_)) => 4,
+            SigmaBoolean::SigmaConjecture(c) => {
+                let children = match c {
+                    SigmaConjecture::Cand(cand) => &cand.items,
+                    SigmaConjecture::Cor(cor) => &cor.items,
+                    SigmaConjecture::Cthreshold(ct) => &ct.children,
+                };
+                1 + children.iter().map(|ch| ch.size()).sum::<usize>()
+            }
+        }
+    }
+}
+
 impl HasOpCode for SigmaBoolean {
     /// get OpCode for serialization
     fn op_code(&self) -> OpCode {
@@ -419,6 +441,7 @@ mod arbitrary {
 }
 
 #[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -434,5 +457,34 @@ mod tests {
             v in any::<SigmaBoolean>()) {
                 prop_assert_eq![sigma_serialize_roundtrip(&v), v]
         }
+
+        // `size` matches sigma-state's `SigmaBoolean.size` (the node count used
+        // to cost `SigmaPropBytes`): a `ProveDlog` leaf is 1 node, a
+        // `ProveDHTuple` is 4 (one node per EcPoint).
+        #[test]
+        fn prove_dlog_size_is_one(dlog in any::<ProveDlog>()) {
+            prop_assert_eq!(SigmaBoolean::from(dlog).size(), 1);
+        }
+
+        #[test]
+        fn prove_dh_tuple_size_is_four(dht in any::<ProveDhTuple>()) {
+            prop_assert_eq!(SigmaBoolean::from(dht).size(), 4);
+        }
+    }
+
+    // A conjecture's size is 1 plus the sizes of its children (sigma-state
+    // `totalSize(children) + 1`): CAND[TrivialProp, TrivialProp] = 1 + 1 + 1.
+    #[test]
+    fn conjecture_size_is_one_plus_children() {
+        assert_eq!(SigmaBoolean::TrivialProp(true).size(), 1);
+        let cand = SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {
+            items: vec![
+                SigmaBoolean::TrivialProp(true),
+                SigmaBoolean::TrivialProp(false),
+            ]
+            .try_into()
+            .unwrap(),
+        }));
+        assert_eq!(cand.size(), 3);
     }
 }

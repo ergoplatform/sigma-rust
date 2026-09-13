@@ -205,6 +205,11 @@ impl OpCode {
 impl SigmaSerializable for OpCode {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.0)?;
+        // Each serialized op code is one byte (PutByteCost) -- the JVM writes it via the
+        // costed `w.put(opCode)` (`ValueSerializer`/`SigmaBoolean.serializer`); charged when
+        // reached under `Global.serialize` (SigmaBoolean nodes, box-register tuple
+        // expressions); gated, no-op otherwise.
+        w.add_put_byte_cost();
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

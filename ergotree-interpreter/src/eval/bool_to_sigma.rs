@@ -15,6 +15,7 @@ impl Evaluable for BoolToSigmaProp {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(15)?; // BoolToSigmaProp = Fixed(15)
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bool = input_v.try_extract_into::<bool>()?;
         Ok((SigmaProp::new(SigmaBoolean::TrivialProp(input_v_bool))).into())

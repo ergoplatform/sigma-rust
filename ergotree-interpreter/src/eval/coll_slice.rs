@@ -26,6 +26,10 @@ impl Evaluable for Slice {
         }?;
         let from = from_v.try_extract_into::<i32>()?;
         let until = until_v.try_extract_into::<i32>()?;
+        // Scala charges based on requested range size (max(0, until - from)),
+        // not input length or clipped output length — costing is pre-clipping.
+        let n_items = 0i32.max(until - from) as u32;
+        ctx.add_per_item_jit_cost(10, 2, 100, n_items)?;
         // intersection of the range with collection bounds
         // to preserve the Scala version semantics of slice op
         // see https://github.com/ergoplatform/sigma-rust/issues/724
@@ -152,5 +156,59 @@ mod tests {
         .unwrap()
         .into();
         assert_eq!(eval_out_wo_ctx::<Vec<i64>>(&expr), Vec::<i64>::new());
+    }
+
+    // Bug 7 regression: Slice cost must scale with the requested range
+    // (max(0, until - from)) per Scala semantics, not with the input collection
+    // length. Pre-fix, sigma-rust charged based on `input_vec.len()`, so
+    // slicing a tiny window from a huge collection was overpriced (and a tx
+    // building a giant intermediate just to slice 1 element could exceed the
+    // cost limit even though the requested work was trivial).
+    #[test]
+    fn slice_charges_output_not_input_size() {
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        use crate::eval::test_util::try_eval_out;
+
+        let run = |coll: Vec<i64>, from: i32, until: i32| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let expr: Expr = Slice::new(
+                Expr::Const(coll.into()),
+                Expr::Const(from.into()),
+                Expr::Const(until.into()),
+            )
+            .unwrap()
+            .into();
+            let _: Vec<i64> = try_eval_out(&expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+
+        // Same requested range (until - from = 2), wildly different input sizes.
+        // Const eval is fixed (5 JIT regardless of payload), so the only way
+        // the deltas can diverge is if Slice's per-item charge is reading
+        // input length — the bug.
+        let small_input = run((0..5i64).collect(), 0, 2);
+        let large_input = run((0..1000i64).collect(), 0, 2);
+        assert_eq!(
+            small_input, large_input,
+            "Slice cost must depend on (until - from), not input length. \
+             Got {} JIT for 5-elem input vs {} JIT for 1000-elem input.",
+            small_input, large_input,
+        );
+
+        // And the requested range MUST drive the cost: a larger requested range
+        // (200 items, even though clipped to 5) is more expensive than a
+        // 2-item range. n_items = max(0, 200 - 0) = 200 → 2 chunks of 100;
+        // n_items = max(0, 2 - 0) = 2 → 1 chunk. Per-chunk cost = 2 JIT.
+        let large_range = run((0..5i64).collect(), 0, 200);
+        assert!(
+            large_range > small_input,
+            "Slice cost must scale with requested range. small_input={}, \
+             large_range={}",
+            small_input,
+            large_range,
+        );
     }
 }

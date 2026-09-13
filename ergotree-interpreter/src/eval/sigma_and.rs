@@ -16,6 +16,7 @@ impl Evaluable for SigmaAnd {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_per_item_jit_cost(10, 2, 1, self.items.len() as u32)?;
         let items_v_res = self.items.try_mapped_ref(|it| it.eval(env, ctx));
         let items_sigmabool = items_v_res?
             .try_mapped(|it| it.try_extract_into::<SigmaProp>())?

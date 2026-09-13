@@ -1,5 +1,4 @@
 use crate::eval::EvalError;
-use crate::eval::Evaluable;
 
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -18,7 +17,7 @@ use super::EvalFn;
 use alloc::sync::Arc;
 use core::convert::TryFrom;
 
-pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     Ok(Value::Int({
         let normalized_input_vals: Vec<Value> = match obj {
             Value::Coll(coll) => Ok(coll.as_vec()),
@@ -37,13 +36,29 @@ pub(crate) static INDEX_OF_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
             .ok_or_else(|| EvalError::NotFound("indexOf: missing second arg".to_string()))?
             .try_extract_into::<i32>()?
             .max(0);
-
-        normalized_input_vals
-            .into_iter()
-            .skip(from as usize)
-            .position(|it| it == target_element)
-            .map(|idx| idx as i32 + from)
-            .unwrap_or(-1)
+        let len = normalized_input_vals.len();
+        let start = (from as usize).min(len);
+        // Scan from `start`, comparing each element with the target through
+        // the cost-charging DataValueComparer: JVM `indexOf_eval` calls
+        // `equalDataValues(xs(i), elem)` per step, charging the element-type
+        // equality cost (EQ_PRIM=3, EQ_BIGINT=5, EQ_GroupElement=172, ...). A
+        // bare `==` here left that per-comparison cost uncharged.
+        let mut found = None;
+        for (offset, it) in normalized_input_vals.iter().skip(start).enumerate() {
+            if crate::eval::data_value_comparer::eq_with_cost(it, &target_element, ctx)? {
+                found = Some(offset);
+                break;
+            }
+        }
+        // indexOf also charges PerItemCost(20, 10, 2) over the iterations
+        // actually performed (Scala's `i - start`): from `start` to the found
+        // index (inclusive) or to the collection end -- not the full length.
+        let iterations = match found {
+            Some(off) => off + 1,
+            None => len - start,
+        };
+        ctx.add_per_item_jit_cost(20, 10, 2, iterations as u32)?;
+        found.map(|off| (start + off) as i32).unwrap_or(-1)
     }))
 };
 
@@ -80,19 +95,16 @@ pub(crate) fn flatmap_eval<'ctx>(
             return Err(EvalError::UnexpectedValue(unsupported_msg));
         }
     }
+    // ADD_TO_ENV charged once per INPUT element (distinct from the output-length
+    // per-item charge below, which scales with the flattened result).
     let mut lambda_call = |arg: Value<'ctx>| {
-        let func_arg = lambda.args.first().ok_or_else(|| {
-            EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
-        })?;
-        let orig_val = env.get(func_arg.idx).cloned();
-        env.insert(func_arg.idx, arg);
-        let res = lambda.body.eval(env, ctx);
-        if let Some(orig_val) = orig_val {
-            env.insert(func_arg.idx, orig_val);
-        } else {
-            env.remove(&func_arg.idx);
-        }
-        res
+        crate::eval::eval_lambda_1arg(
+            lambda,
+            arg,
+            env,
+            ctx,
+            "flatmap: lambda has empty arguments list",
+        )
     };
     let mapper_input_tpe = lambda
         .args
@@ -120,18 +132,20 @@ pub(crate) fn flatmap_eval<'ctx>(
             input_v
         ))),
     }?;
-    normalized_input_vals
+    let values = normalized_input_vals
         .iter()
         .map(|item| lambda_call(item.clone()))
-        .collect::<Result<Vec<Value>, EvalError>>()
-        .map(|values| {
-            CollKind::from_vec_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)
-        })
-        .and_then(|v| v) // flatten <Result<Result<Value, _>, _>
-        .map(Value::Coll)
+        .collect::<Result<Vec<Value>, EvalError>>()?;
+    let coll =
+        CollKind::from_vec_vec(lambda.body.tpe(), values).map_err(EvalError::TryExtractFrom)?;
+    // flatMap cost scales with the OUTPUT (flattened) length, not the input
+    // length, matching Scala's `flatMap_eval` (addSeqCost over `res.length`
+    // after building the result, post the per-item lambda calls).
+    ctx.add_per_item_jit_cost(60, 10, 8, coll.len() as u32)?;
+    Ok(Value::Coll(coll))
 }
 
-pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let (type_1, coll_1) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -139,6 +153,8 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
             obj
         ))),
     }?;
+    let n = coll_1.len() as u32;
+    ctx.add_per_item_jit_cost(10, 1, 10, n)?;
     let arg_1 = args
         .first()
         .cloned()
@@ -162,7 +178,7 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     }
 };
 
-pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
     let input_len = match obj {
         Value::Coll(coll) => Ok(coll.len()),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -170,6 +186,7 @@ pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
             obj
         ))),
     }?;
+    ctx.add_per_item_jit_cost(20, 2, 16, input_len as u32)?;
     let indices_i32 = (0..input_len)
         .map(|i| Ok(Value::Int(i32::try_from(i)?)))
         .collect::<Result<Arc<[_]>, core::num::TryFromIntError>>();
@@ -185,7 +202,7 @@ pub(crate) static INDICES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     }
 };
 
-pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let (input_tpe, normalized_input_vals) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -193,6 +210,8 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
             obj
         ))),
     }?;
+    let n = normalized_input_vals.len() as u32;
+    ctx.add_per_item_jit_cost(30, 2, 10, n)?;
     let from_index_val = args
         .first()
         .cloned()
@@ -226,7 +245,7 @@ pub(crate) static PATCH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::Coll(CollKind::from_collection(input_tpe, res)?))
 };
 
-pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let (input_tpe, normalized_input_vals) = match obj {
         Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -234,7 +253,8 @@ pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
             obj
         ))),
     }?;
-
+    let n = normalized_input_vals.len() as u32;
+    ctx.add_per_item_jit_cost(20, 1, 10, n)?;
     let target_index_val = args
         .first()
         .cloned()
@@ -260,7 +280,7 @@ pub(crate) static UPDATED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
 };
 
 pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
-    |_mc, _env, _ctx, obj, args| {
+    |_mc, _env, ctx, obj, args| {
         let (input_tpe, normalized_input_vals) = match obj {
             Value::Coll(coll) => Ok((coll.elem_tpe().clone(), coll.as_vec())),
             _ => Err(EvalError::UnexpectedValue(format!(
@@ -268,7 +288,8 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
                 obj
             ))),
         }?;
-
+        let n = normalized_input_vals.len() as u32;
+        ctx.add_per_item_jit_cost(20, 2, 10, n)?;
         let indexes_arg = args.first().cloned().ok_or_else(|| {
             EvalError::NotFound("updated: missing first arg (indexes)".to_string())
         })?;
@@ -335,21 +356,30 @@ pub(crate) static UPDATE_MANY_EVAL_FN: EvalFn =
         Ok(Value::Coll(CollKind::from_collection(input_tpe, &res[..])?))
     };
 
-pub(crate) static REVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static REVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "Reverse: expected Coll, found {obj:?}"
         )));
     };
+    // Scala `reverse_eval` charges `Append.costKind` = PerItemCost(20, 2, 100)
+    // over the receiver `xs.length` via `addSeqCost` (methods.scala ~1135;
+    // transformers.scala:74). A flat 20 omitted the per-chunk term (JVM charges
+    // 20+2 = 22 for a non-empty single chunk) -> 2 undercharge.
+    ctx.add_per_item_jit_cost(20, 2, 100, coll.len() as u32)?;
     Ok(Value::from(coll.reverse()))
 };
 
-pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "endsWith: expected Coll, found {obj:?}"
         )));
     };
+    // Scala `startsWith_eval` charges `Zip_CostKind` = PerItemCost(10, 1, 10)
+    // over the receiver `xs.length` via `addSeqCost` (methods.scala ~1155).
+    // A flat 20 overcharged by 9 for n<=10 (JVM charges 10+1 = 11).
+    ctx.add_per_item_jit_cost(10, 1, 10, coll.len() as u32)?;
     let Some(Value::Coll(prefix)) = args.first() else {
         return Err(EvalError::UnexpectedValue(format!(
             "startsWith: expected Coll argument, found {:?}",
@@ -366,12 +396,16 @@ pub(crate) static STARTS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::from(coll.starts_with(prefix)))
 };
 
-pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "endsWith: expected Coll, found {obj:?}"
         )));
     };
+    // Scala `endsWith_eval` charges `Zip_CostKind` = PerItemCost(10, 1, 10)
+    // over the receiver `xs.length` via `addSeqCost` (methods.scala ~1175).
+    // A flat 20 overcharged by 9 for n<=10 (JVM charges 10+1 = 11).
+    ctx.add_per_item_jit_cost(10, 1, 10, coll.len() as u32)?;
     let Some(Value::Coll(suffix)) = args.first() else {
         return Err(EvalError::UnexpectedValue(format!(
             "endsWith: expected Coll argument, found {:?}",
@@ -388,7 +422,8 @@ pub(crate) static ENDS_WITH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::from(coll.ends_with(suffix)))
 };
 
-pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(30)?;
     let Value::Coll(coll) = obj else {
         return Err(EvalError::UnexpectedValue(format!(
             "get: expected Coll, found {obj:?}"
@@ -476,6 +511,97 @@ mod tests {
     }
 
     #[test]
+    fn index_of_cost_scales_with_iterations() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        let coll: Vec<i64> = (1..=16).collect();
+        let index_of = |target: i64| -> Expr {
+            MethodCall::new(
+                coll.clone().into(),
+                scoll::INDEX_OF_METHOD.clone().with_concrete_types(
+                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                ),
+                vec![target.into(), 0i32.into()],
+            )
+            .unwrap()
+            .into()
+        };
+        let cost_of = |target: i64| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: i32 = try_eval_out(&index_of(target), &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+        // indexOf charges, per iteration performed (Scala's `i - start`), both
+        // the loop's PerItemCost(20, 10, 2) and the element-type equality cost
+        // (EQ_PRIM_COST=3 for Long, via eq_with_cost). Finding 1 at index 0 is
+        // 1 iteration; finding 16 at index 15 is 16. The rest of the tree is
+        // identical, so the delta isolates the per-iteration scaling:
+        //   PerItemCost: (20+10*8) - (20+10*1) = 70
+        //   element eq:  3 * (16 - 1)          = 45   (EQ_PRIM_COST per compare)
+        //   total                              = 115
+        // Pre-iterations-fix the PerItemCost delta was 0; pre-eq-fix (bare ==)
+        // the eq delta was 0.
+        let delta = cost_of(16) - cost_of(1);
+        assert_eq!(
+            delta, 115,
+            "indexOf cost must scale with iterations: PerItemCost 70 + \
+             per-comparison EQ_PRIM_COST 3*15 = 45 -> 115; got {}",
+            delta,
+        );
+    }
+
+    #[test]
+    fn index_of_charges_element_eq_cost() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::bigint256::BigInt256;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // B3: each indexOf comparison is charged the element type's equality
+        // cost via eq_with_cost. Holding the iteration count fixed (target at
+        // index 0 => 1 comparison) and varying only the element type isolates
+        // that charge: everything else (the single PerItemCost iteration, the
+        // coll and target Constants, the method-call tree) is type-independent,
+        // so the cost difference is exactly EQ_BIGINT_COST(5) - EQ_PRIM_COST(3)
+        // = 2. Pre-fix (bare ==, uncharged) the difference was 0.
+        let cost_of = |coll: Constant, target: Constant, t: SType| -> u64 {
+            let expr: Expr = MethodCall::new(
+                coll.into(),
+                scoll::INDEX_OF_METHOD
+                    .clone()
+                    .with_concrete_types(&[(STypeVar::t(), t)].iter().cloned().collect()),
+                vec![target.into(), 0i32.into()],
+            )
+            .unwrap()
+            .into();
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _: i32 = try_eval_out(&expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+        let long_cost = cost_of(vec![5i64].into(), 5i64.into(), SType::SLong);
+        let bigint = BigInt256::from(5i64);
+        let bigint_coll = Constant {
+            tpe: SType::SColl(Arc::new(SType::SBigInt)),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::from(vec![Constant::from(bigint).v]),
+                elem_tpe: SType::SBigInt,
+            }),
+        };
+        let bigint_cost = cost_of(bigint_coll, bigint.into(), SType::SBigInt);
+        assert_eq!(
+            bigint_cost - long_cost,
+            2,
+            "indexOf must charge the element-type eq cost per comparison \
+             (EQ_BIGINT_COST 5 - EQ_PRIM_COST 3 = 2); got {}",
+            bigint_cost - long_cost,
+        );
+    }
+
+    #[test]
     fn eval_flatmap() {
         let coll_const = Constant {
             tpe: SType::SColl(Arc::new(SType::SColl(Arc::new(SType::SLong)))),
@@ -521,6 +647,102 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
         assert_eq!(res, vec![0, 1, 0]);
+    }
+
+    #[test]
+    fn flatmap_charges_add_to_env_per_input() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // `inner.flatMap(x => x.reverse)` over a Coll[Coll[Long]].
+        let flatmap_reverse = |inner: Vec<Vec<i64>>| -> Expr {
+            let items: Arc<[Literal]> = Arc::from(
+                inner
+                    .into_iter()
+                    .map(|v| Constant::from(v).v)
+                    .collect::<Vec<_>>(),
+            );
+            let coll_const = Constant {
+                tpe: SType::SColl(Arc::new(SType::SColl(Arc::new(SType::SLong)))),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    items,
+                    elem_tpe: SType::SColl(Arc::new(SType::SLong)),
+                }),
+            };
+            let body: Expr = MethodCall::new(
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: SType::SColl(Arc::new(SType::SLong)),
+                }
+                .into(),
+                scoll::REVERSE_METHOD.clone().with_concrete_types(
+                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                ),
+                vec![],
+            )
+            .unwrap()
+            .into();
+            MethodCall::new(
+                coll_const.into(),
+                scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                    &[
+                        (STypeVar::iv(), SType::SColl(Arc::new(SType::SLong))),
+                        (STypeVar::ov(), SType::SLong),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
+                ),
+                vec![FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::SColl(Arc::new(SType::SLong)),
+                    }],
+                    body,
+                )
+                .into()],
+            )
+            .unwrap()
+            .into()
+        };
+
+        let cost_of = |expr: &Expr| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _ = try_eval_out::<Vec<i64>>(expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+
+        // Standalone `[7].reverse` measures one lambda-body evaluation `r`:
+        // inside flatMap the body's only difference is a ValUse vs Constant
+        // receiver, and both are Fixed(5), so the per-input body cost equals
+        // this.
+        let reverse_standalone: Expr = MethodCall::new(
+            Constant::from(vec![7i64]).into(),
+            scoll::REVERSE_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let r = cost_of(&reverse_standalone);
+
+        // 1 -> 2 input elements adds exactly one body eval (`r`) + one
+        // ADD_TO_ENV_COST(5). Output length 1 -> 2 stays in the first chunk of
+        // PerItemCost(60,10,8), so that charge is unchanged. Pre-fix the delta
+        // was just `r`; the +5 is the per-input ADD_TO_ENV this fix adds.
+        let one = cost_of(&flatmap_reverse(vec![vec![7]]));
+        let two = cost_of(&flatmap_reverse(vec![vec![7], vec![8]]));
+        assert_eq!(
+            two - one,
+            r + 5,
+            "flatMap must charge ADD_TO_ENV_COST(5) per input element: delta {} \
+             should equal one body eval {} + 5",
+            two - one,
+            r,
+        );
     }
 
     #[test]
@@ -995,5 +1217,93 @@ mod tests {
         assert_eq!(get(vec![1, 2], -1), None);
         assert_eq!(get(vec![1, 2], 2), None);
         assert_eq!(get(vec![], 0), None);
+    }
+
+    #[test]
+    fn scoll_methods_charge_scala_costkinds() {
+        use crate::eval::test_util::eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // Isolate a method's costKind exactly as snumeric's
+        // `numeric_method_charges_costkind`: a MethodCall node charges Fixed(4)
+        // (method_call.rs) and evaluates the receiver and each arg separately,
+        // so `full_mc_cost - receiver_cost - arg_cost` leaves `4 + costKind`.
+        //
+        // reverse uses Append.costKind = PerItemCost(20, 2, 100); startsWith and
+        // endsWith use Zip_CostKind = PerItemCost(10, 1, 10) -- both over the
+        // receiver length `xs.length` (methods.scala 1124/1143/1163). For a
+        // 3-element receiver each is one chunk: reverse 20+2 = 22, starts/ends
+        // 10+1 = 11. Pre-fix all three charged a flat 20.
+        let obj_expr: Expr = Constant::from(vec![1i64, 2i64, 3i64]).into();
+
+        let ctx = force_any_val::<Context>();
+        // Standalone receiver eval cost -- the same Constant is re-evaluated
+        // inside each MethodCall below, so this delta is reused as the subtrahend.
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i64>>(&obj_expr, &ctx);
+        let obj_cost = ctx.jit_cost_value() - mark;
+
+        // reverse (no args): 4 + Append.costKind(20,2,100) over len 3 = 4 + 22
+        let reverse_mc: Expr = MethodCall::new(
+            obj_expr.clone(),
+            scoll::REVERSE_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+            vec![],
+        )
+        .unwrap()
+        .into();
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i64>>(&reverse_mc, &ctx);
+        assert_eq!(
+            (ctx.jit_cost_value() - mark) - obj_cost,
+            4 + 22,
+            "reverse must charge MethodCall Fixed(4) + Append.costKind PerItemCost(20,2,100)",
+        );
+
+        // startsWith (1 arg): 4 + Zip_CostKind(10,1,10) over len 3 = 4 + 11
+        let prefix_expr: Expr = Constant::from(vec![1i64, 2i64]).into();
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i64>>(&prefix_expr, &ctx);
+        let prefix_cost = ctx.jit_cost_value() - mark;
+        let starts_mc: Expr = MethodCall::new(
+            obj_expr.clone(),
+            scoll::STARTS_WITH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+            vec![prefix_expr],
+        )
+        .unwrap()
+        .into();
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<bool>(&starts_mc, &ctx);
+        assert_eq!(
+            (ctx.jit_cost_value() - mark) - obj_cost - prefix_cost,
+            4 + 11,
+            "startsWith must charge MethodCall Fixed(4) + Zip_CostKind PerItemCost(10,1,10)",
+        );
+
+        // endsWith (1 arg): 4 + Zip_CostKind(10,1,10) over len 3 = 4 + 11
+        let suffix_expr: Expr = Constant::from(vec![2i64, 3i64]).into();
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i64>>(&suffix_expr, &ctx);
+        let suffix_cost = ctx.jit_cost_value() - mark;
+        let ends_mc: Expr = MethodCall::new(
+            obj_expr.clone(),
+            scoll::ENDS_WITH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+            vec![suffix_expr],
+        )
+        .unwrap()
+        .into();
+        let mark = ctx.jit_cost_value();
+        let _ = eval_out::<bool>(&ends_mc, &ctx);
+        assert_eq!(
+            (ctx.jit_cost_value() - mark) - obj_cost - suffix_cost,
+            4 + 11,
+            "endsWith must charge MethodCall Fixed(4) + Zip_CostKind PerItemCost(10,1,10)",
+        );
     }
 }

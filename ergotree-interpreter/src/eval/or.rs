@@ -16,6 +16,7 @@ impl Evaluable for Or {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
+        ctx.add_per_item_jit_cost(5, 5, 64, input_v_bools.len() as u32)?;
         Ok(input_v_bools.iter().any(|b| *b).into())
     }
 }

@@ -66,6 +66,8 @@ impl core::fmt::Display for Cor {
 impl SigmaSerializable for Cor {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u16(self.items.len() as u16)?;
+        // child count is Scala `putUShort` => PutUnsignedNumericCost(3) under `Global.serialize`
+        w.add_put_numeric_cost();
         self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 

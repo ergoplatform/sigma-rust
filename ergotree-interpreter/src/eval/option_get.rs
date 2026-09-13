@@ -13,6 +13,7 @@ impl Evaluable for OptionGet {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(15)?; // OptionGet = Fixed(15)
         let v = self.input.eval(env, ctx)?;
         match v {
             Value::Opt(opt_v) => opt_v

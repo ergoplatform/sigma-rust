@@ -1,4 +1,3 @@
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use ergotree_ir::mir::coll_exists::Exists;
 use ergotree_ir::mir::constant::TryExtractInto;
@@ -19,22 +18,13 @@ impl Evaluable for Exists {
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut condition_call = |arg: Value<'ctx>| match &condition_v {
-            Value::Lambda(func_value) => {
-                let func_arg = func_value.args.first().ok_or_else(|| {
-                    EvalError::NotFound(
-                        "Exists: evaluated condition has empty arguments list".to_string(),
-                    )
-                })?;
-                let orig_val = env.get(func_arg.idx).cloned();
-                env.insert(func_arg.idx, arg);
-                let res = func_value.body.eval(env, ctx);
-                if let Some(orig_val) = orig_val {
-                    env.insert(func_arg.idx, orig_val);
-                } else {
-                    env.remove(&func_arg.idx);
-                }
-                res
-            }
+            Value::Lambda(func_value) => crate::eval::eval_lambda_1arg(
+                func_value,
+                arg,
+                env,
+                ctx,
+                "Exists: evaluated condition has empty arguments list",
+            ),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected Exists::condition to be Value::FuncValue got: {0:?}",
                 input_v_clone
@@ -56,6 +46,7 @@ impl Evaluable for Exists {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(3, 1, 10, normalized_input_vals.len() as u32)?;
 
         for item in normalized_input_vals {
             let res = condition_call(item)?.try_extract_into::<bool>()?;

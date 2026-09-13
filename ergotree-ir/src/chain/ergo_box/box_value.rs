@@ -164,6 +164,7 @@ impl From<BoxValue> for Constant {
 impl SigmaSerializable for BoxValue {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u64(self.0)?;
+        w.add_put_numeric_cost();
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

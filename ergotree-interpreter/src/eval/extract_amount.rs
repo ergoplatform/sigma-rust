@@ -12,6 +12,7 @@ impl Evaluable for ExtractAmount {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(8)?; // ExtractAmount = Fixed(8)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::CBox(b) => Ok(Value::Long(b.value.as_i64())),
