@@ -40,13 +40,60 @@ impl fmt::Display for ContextExtension {
     }
 }
 
+/// Scala 2.12 immutable.HashMap hash improvement function.
+/// Used to predict the HAMT (Hash Array Mapped Trie) iteration order
+/// that the Ergo node (Scala 2.12) uses for ContextExtension serialization.
+///
+/// The Ergo node's ContextExtension uses `scala.collection.immutable.Map` which,
+/// for 5+ entries, becomes a HashMap with hash-based iteration order. This order
+/// differs from sigma-rust's BTreeMap/IndexMap sorted order, causing bytes_to_sign
+/// divergence and transaction rejection.
+///
+/// See: <https://github.com/scala/scala/blob/v2.12.20/src/library/scala/collection/immutable/HashMap.scala>
+/// See: <https://github.com/ergoplatform/sigma-rust/issues/763>
+fn scala_212_improve(hc: i32) -> i32 {
+    let mut h: i32 = hc.wrapping_add(!(hc.wrapping_shl(9)));
+    h = h ^ (((h as u32) >> 14) as i32);
+    h = h.wrapping_add(h.wrapping_shl(4));
+    h ^ (((h as u32) >> 10) as i32)
+}
+
+/// Compute a sort key that matches Scala 2.12 HashMap's HAMT iteration order.
+/// The HAMT uses 5 bits per level from the improved hash, iterating slots 0-31
+/// at each level. The sort key encodes levels from outermost (most significant)
+/// to innermost (least significant).
+fn scala_212_hamt_sort_key(key: u8) -> u64 {
+    let hash = scala_212_improve(key as i32) as u32;
+    let mut sort_key: u64 = 0;
+    for level in 0..7 {
+        sort_key <<= 5;
+        sort_key |= ((hash >> (level * 5)) & 0x1f) as u64;
+    }
+    sort_key
+}
+
 impl SigmaSerializable for ContextExtension {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.values.len() as u8)?;
-        self.values.iter().try_for_each(|(idx, c)| {
-            w.put_u8(*idx)?;
-            c.sigma_serialize(w)
-        })?;
+        if self.values.len() >= 5 {
+            // For 5+ entries, Scala 2.12 uses HashMap which iterates in HAMT order
+            // (based on hash of keys). We must match this order for bytes_to_sign
+            // compatibility with the Ergo node.
+            // See: https://github.com/ergoplatform/sigma-rust/issues/763
+            let mut entries: alloc::vec::Vec<_> = self.values.iter().collect();
+            entries.sort_by_key(|(&idx, _)| scala_212_hamt_sort_key(idx));
+            for (&idx, c) in entries {
+                w.put_u8(idx)?;
+                c.sigma_serialize(w)?;
+            }
+        } else {
+            // For 1-4 entries, Scala uses Map1-Map4 which preserves insertion order.
+            // IndexMap also preserves insertion order, so they match.
+            self.values.iter().try_for_each(|(idx, c)| {
+                w.put_u8(*idx)?;
+                c.sigma_serialize(w)
+            })?;
+        }
         Ok(())
     }
 
@@ -174,6 +221,77 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
     }
+    #[test]
+    fn test_scala_212_improve() {
+        // Verify that the improve function produces distinct hashes and that
+        // the lowest 5 bits (HAMT level-0 slot) match the empirically observed
+        // Ergo node iteration order for keys 0-5: [0, 5, 1, 2, 3, 4].
+        // Level-0 slots: key→slot: 0→0, 1→7, 2→14, 3→20, 4→29, 5→1
+        assert_eq!((scala_212_improve(0) as u32) & 0x1f, 0);
+        assert_eq!((scala_212_improve(1) as u32) & 0x1f, 7);
+        assert_eq!((scala_212_improve(2) as u32) & 0x1f, 14);
+        assert_eq!((scala_212_improve(3) as u32) & 0x1f, 20);
+        assert_eq!((scala_212_improve(4) as u32) & 0x1f, 29);
+        assert_eq!((scala_212_improve(5) as u32) & 0x1f, 1);
+    }
+
+    #[test]
+    fn test_hamt_sort_order_6_entries() {
+        // For keys {0,1,2,3,4,5}, the Scala 2.12 HashMap HAMT iterates in order
+        // [0, 5, 1, 2, 3, 4] due to the improve hash function's slot assignments.
+        // This was verified empirically against the Ergo node.
+        let mut keys: Vec<u8> = vec![0, 1, 2, 3, 4, 5];
+        keys.sort_by_key(|&k| scala_212_hamt_sort_key(k));
+        assert_eq!(keys, vec![0, 5, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_serialize_order_5plus_entries() {
+        // Verify that serialization of 6-entry ContextExtension produces entries
+        // in Scala 2.12 HAMT iteration order, not insertion/sorted order.
+        use crate::serialization::SigmaSerializable;
+        let mut ext = ContextExtension::empty();
+        for i in 0..6u8 {
+            ext.values.insert(i, Constant::from(i as i32));
+        }
+        let bytes = ext.sigma_serialize_bytes().unwrap();
+        // bytes[0] = count (6)
+        assert_eq!(bytes[0], 6);
+        // After count, each entry is: key_byte, serialized_constant
+        // Extract just the key bytes (every entry is key + 2 bytes for SInt constant)
+        let mut keys = Vec::new();
+        let mut pos = 1;
+        while pos < bytes.len() {
+            keys.push(bytes[pos]);
+            // SInt constants serialize as type_byte + vlq_value (2 bytes for small ints)
+            let c = Constant::sigma_parse_bytes(&bytes[pos + 1..]).unwrap();
+            pos += 1 + c.sigma_serialize_bytes().unwrap().len();
+        }
+        assert_eq!(keys, vec![0, 5, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_serialize_order_4_entries_unchanged() {
+        // Verify that serialization of 4-entry ContextExtension preserves
+        // insertion order (Scala Map1-Map4 behavior).
+        use crate::serialization::SigmaSerializable;
+        let mut ext = ContextExtension::empty();
+        for i in 0..4u8 {
+            ext.values.insert(i, Constant::from(i as i32));
+        }
+        let bytes = ext.sigma_serialize_bytes().unwrap();
+        assert_eq!(bytes[0], 4);
+        let mut keys = Vec::new();
+        let mut pos = 1;
+        while pos < bytes.len() {
+            keys.push(bytes[pos]);
+            let c = Constant::sigma_parse_bytes(&bytes[pos + 1..]).unwrap();
+            pos += 1 + c.sigma_serialize_bytes().unwrap().len();
+        }
+        // 4 entries: insertion order preserved
+        assert_eq!(keys, vec![0, 1, 2, 3]);
+    }
+
     #[cfg(feature = "json")]
     mod json {
         use super::*;
