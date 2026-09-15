@@ -9,7 +9,7 @@ use derive_more::{From, Into};
 
 use crate::error_conversion::to_js;
 use ergo_lib::chain::ergo_state_context::Headers;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 /// Block header
 #[wasm_bindgen]
@@ -126,15 +126,13 @@ impl TryFrom<BlockHeaders> for Headers {
     type Error = JsValue;
     fn try_from(bs: BlockHeaders) -> Result<Self, Self::Error> {
         let headers: Vec<Header> = bs.0.into_iter().map(Header::from).collect();
-        if headers.len() == 10 {
-            #[allow(clippy::unwrap_used)]
-            Ok(headers.try_into().unwrap())
-        } else {
-            Err(js_sys::Error::new(&format!(
-                "Incorrect number of block headers, expected 10 but got {}",
-                headers.len()
+        let count = headers.len();
+        Headers::from_vec(headers).map_err(|_| {
+            js_sys::Error::new(&format!(
+                "Incorrect number of block headers, expected 1..=10 but got {}",
+                count
             ))
-            .into())
-        }
+            .into()
+        })
     }
 }
