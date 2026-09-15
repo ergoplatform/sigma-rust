@@ -199,6 +199,13 @@ pub enum NipopowProofError {
     /// Chain must be of length `>= k + m`
     #[error("Chain must be of length `>= k + m`")]
     ChainTooShort,
+    /// A `PopowHeaderReader` lookup returned `None` for a header that the
+    /// proof construction algorithm expected to be present (genesis, an
+    /// interlink target, the suffix head, or a header in the suffix tail).
+    /// Indicates the reader is inconsistent with the chain it claims to
+    /// expose.
+    #[error("Popow header reader returned None for an expected header")]
+    MissingPopowHeader,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
