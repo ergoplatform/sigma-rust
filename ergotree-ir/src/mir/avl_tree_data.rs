@@ -70,10 +70,19 @@ pub struct AvlTreeData {
 
 impl SigmaSerializable for AvlTreeData {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        // Meter each put to match Scala `AvlTreeData.serializer` under `Global.serialize`:
+        // digest = putBytes(33-byte ADDigest) => PutChunkCost(33)=36; treeFlags = putUByte =>
+        // PutByteCost (charged via the virtual `put`); keyLength & valueLength use the no-info
+        // `putUInt` which writes to the underlying writer directly and is not metered (0); the
+        // option tag byte is PutByteCost. (ADDigest is in ergo-chain-types and can't reach the
+        // cost sink, so record its chunk here at the delegating site.)
         self.digest.scorex_serialize(w)?;
+        w.add_put_chunk_cost(33);
         w.put_u8(self.tree_flags.0)?;
+        w.add_put_byte_cost();
         w.put_u32(self.key_length)?;
         self.value_length_opt.sigma_serialize(w)?;
+        w.add_put_byte_cost();
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

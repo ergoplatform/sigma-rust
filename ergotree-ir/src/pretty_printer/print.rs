@@ -112,7 +112,14 @@ impl Print for Expr {
             Expr::BinOp(v) => v.expr().print(w),
             Expr::GlobalVars(v) => v.print(w),
             Expr::ByIndex(v) => v.expr().print(w),
-            Expr::ConstPlaceholder(_) => Ok(self.clone()),
+            Expr::ConstPlaceholder(cp) => match &cp.resolved {
+                // A resolved placeholder at pretty-print time (the common
+                // case post-`resolve_placeholders`) is rendered as the
+                // underlying constant — the distinction is only meaningful
+                // to the JIT costing layer.
+                Some(c) => Expr::Const(c.clone()).print(w),
+                None => Ok(self.clone()),
+            },
             Expr::SubstConstants(v) => v.expr().print(w),
             Expr::ByteArrayToLong(v) => v.expr().print(w),
             Expr::ByteArrayToBigInt(v) => v.expr().print(w),

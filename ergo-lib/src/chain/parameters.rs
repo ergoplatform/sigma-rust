@@ -115,6 +115,7 @@ impl Default for Parameters {
         parameters_table.insert(Parameter::DataInputCost, 100);
         parameters_table.insert(Parameter::OutputCost, 100);
         parameters_table.insert(Parameter::MaxBlockSize, 512 * 1024);
+        parameters_table.insert(Parameter::MaxBlockCost, 1000000);
         parameters_table.insert(Parameter::BlockVersion, 1);
         Self { parameters_table }
     }

@@ -16,6 +16,7 @@ impl Evaluable for And {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
+        ctx.add_per_item_jit_cost(10, 5, 32, input_v_bools.len() as u32)?;
         Ok(input_v_bools.iter().all(|b| *b).into())
     }
 }
@@ -42,5 +43,22 @@ mod tests {
             let res = eval_out::<bool>(&expr, &ctx);
             prop_assert_eq!(res, bools.iter().all(|b| *b));
         }
+    }
+
+    #[test]
+    fn and_empty_jit_cost() {
+        // santa eval fixture `and_empty` (tree 00960d00): And over an empty
+        // Coll[Boolean] constant. Cost = Const(empty coll) 5 + And per-item at
+        // n=0 (base 10 + one chunk * per_chunk 5 = 15, post n=0 chunks fix) = 20.
+        // Matches the JVM under activated=3 (was 15 before the n=0 fix).
+        let expr: Expr = And {
+            input: Expr::Const(Vec::<bool>::new().into()).into(),
+        }
+        .into();
+        let ctx = force_any_val::<Context>();
+        let before = ctx.jit_cost_value();
+        let res = eval_out::<bool>(&expr, &ctx);
+        assert!(res); // all() over empty = true
+        assert_eq!(ctx.jit_cost_value() - before, 20);
     }
 }

@@ -13,6 +13,7 @@ impl Evaluable for LongToByteArray {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(17)?; // LongToByteArray = Fixed(17)
         let mut val = self.input.eval(env, ctx)?.try_extract_into::<i64>()?;
         let mut buf = vec![42_i8; 8];
         for i in (0..8).rev() {

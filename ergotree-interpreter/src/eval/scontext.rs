@@ -15,6 +15,7 @@ use super::EvalError;
 use super::EvalFn;
 
 pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.dataInputs: expected object of Value::Context, got {:?}",
@@ -30,6 +31,7 @@ pub(crate) static DATA_INPUTS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(20)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.selfBoxIndex: expected object of Value::Context, got {:?}",
@@ -45,6 +47,7 @@ pub(crate) static SELF_BOX_INDEX_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| 
 };
 
 pub(crate) static HEADERS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.headers: expected object of Value::Context, got {:?}",
@@ -58,6 +61,7 @@ pub(crate) static HEADERS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static PRE_HEADER_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.preHeader: expected object of Value::Context, got {:?}",
@@ -68,6 +72,7 @@ pub(crate) static PRE_HEADER_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.LastBlockUtxoRootHash: expected object of Value::Context, got {:?}",
@@ -85,6 +90,7 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_mc, _env, ctx, o
 };
 
 pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(20)?;
     if obj != Value::Context {
         return Err(EvalError::UnexpectedValue(format!(
             "Context.preHeader: expected object of Value::Context, got {:?}",
@@ -100,6 +106,7 @@ pub(crate) static MINER_PUBKEY_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
 };
 
 pub(crate) static GET_VAR_FROM_INPUT_EVAL_FN: EvalFn = |mc, _env, ctx, _obj, args| {
+    ctx.add_jit_cost(10)?;
     #[allow(clippy::unreachable)] // getVarFromInput output type is always SOption[T]
     let SType::SOption(output_tpe) = &*mc.tpe().t_range
     else {

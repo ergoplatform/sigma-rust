@@ -12,6 +12,7 @@ impl Evaluable for Tuple {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(15)?; // Tuple = Fixed(15)
         let items_v = self.items.try_mapped_ref(|i| i.eval(env, ctx));
         Ok(Value::Tup(items_v?))
     }

@@ -12,6 +12,7 @@ impl Evaluable for OptionIsDefined {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(10)?; // OptionIsDefined = Fixed(10)
         let v = self.input.eval(env, ctx)?;
         match v {
             Value::Opt(opt_v) => Ok(opt_v.is_some().into()),

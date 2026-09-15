@@ -12,6 +12,7 @@ impl Evaluable for ExtractBytesWithNoRef {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(12)?; // ExtractBytesWithNoRef = Fixed(12)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::CBox(b) => Ok(b.bytes_without_ref()?.into()),

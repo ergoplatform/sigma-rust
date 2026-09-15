@@ -21,22 +21,13 @@ impl Evaluable for Map {
         let mapper_v = self.mapper.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut mapper_call = |arg: Value<'ctx>| match &mapper_v {
-            Value::Lambda(func_value) => {
-                let func_arg = func_value.args.first().ok_or_else(|| {
-                    EvalError::NotFound(
-                        "Map: evaluated mapper has empty arguments list".to_string(),
-                    )
-                })?;
-                let orig_val = env.get(func_arg.idx).cloned();
-                env.insert(func_arg.idx, arg);
-                let res = func_value.body.eval(env, ctx);
-                if let Some(orig_val) = orig_val {
-                    env.insert(func_arg.idx, orig_val);
-                } else {
-                    env.remove(&func_arg.idx);
-                }
-                res
-            }
+            Value::Lambda(func_value) => crate::eval::eval_lambda_1arg(
+                func_value,
+                arg,
+                env,
+                ctx,
+                "Map: evaluated mapper has empty arguments list",
+            ),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected mapper to be Value::FuncValue got: {0:?}",
                 input_v_clone
@@ -68,6 +59,7 @@ impl Evaluable for Map {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(20, 1, 10, normalized_input_vals.len() as u32)?;
         normalized_input_vals
             .iter()
             .map(|item| mapper_call(item.clone()))

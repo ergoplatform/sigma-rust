@@ -13,6 +13,7 @@ impl Evaluable for OptionGetOrElse {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(20)?; // OptionGetOrElse = Fixed(20)
         let v = self.input.eval(env, ctx)?;
         let mut default_v = || self.default.eval(env, ctx);
         match v {

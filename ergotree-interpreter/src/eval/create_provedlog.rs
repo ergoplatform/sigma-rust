@@ -13,6 +13,7 @@ impl Evaluable for CreateProveDlog {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(10)?; // CreateProveDlog = Fixed(10)
         let value_v = self.input.eval(env, ctx)?;
         match value_v {
             Value::GroupElement(ecpoint) => {

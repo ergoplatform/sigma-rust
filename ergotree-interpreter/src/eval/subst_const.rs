@@ -58,6 +58,11 @@ impl Evaluable for SubstConstants {
             // Substitue constants with repeated calls to `ErgoTree::with_constant`.
             let mut ergo_tree = ErgoTree::sigma_parse_bytes(&b.as_vec_u8())?;
             let num_constants = ergo_tree.constants_len().map_err(to_misc_err)?;
+            // Charge based on the template's constants count, matching Scala's
+            // `ErgoTreeSerializer.substituteConstants` — the walk visits every
+            // constant in the template regardless of how many positions the
+            // caller asks to replace.
+            ctx.add_per_item_jit_cost(100, 100, 1, num_constants as u32)?;
             for (ix, i) in positions.iter().enumerate() {
                 if *i < num_constants {
                     ergo_tree = ergo_tree
@@ -205,5 +210,73 @@ mod tests {
         } else {
             unreachable!();
         }
+    }
+
+    // Bug 3 regression: SubstConstants cost must be charged based on the
+    // template tree's `constants_len()`, not on the caller-supplied positions
+    // count. Build one 3-constant template and run substitution twice with
+    // different position counts — after the fix, total JIT cost must be
+    // identical since the template walk is the same. Pre-fix, the two runs
+    // diverged because the charge scaled with positions.len().
+    #[test]
+    #[allow(clippy::identity_op)]
+    fn subst_const_cost_uses_template_count_not_positions_len() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // Template tree with 3 constants (a + b * c).
+        let expr = Expr::BinOp(
+            BinOp {
+                kind: BinOpKind::Arith(ArithOp::Plus),
+                left: Box::new(Expr::Const(1i32.into())),
+                right: Box::new(Expr::BinOp(
+                    BinOp {
+                        kind: BinOpKind::Arith(ArithOp::Multiply),
+                        left: Box::new(Expr::Const(2i32.into())),
+                        right: Box::new(Expr::Const(3i32.into())),
+                    }
+                    .into(),
+                )),
+            }
+            .into(),
+        );
+        let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
+        assert_eq!(ergo_tree.constants_len().unwrap(), 3);
+        let tree_bytes = ergo_tree.sigma_serialize_bytes().unwrap();
+        let script_bytes_expr: Expr = Expr::Const(Constant::from(tree_bytes));
+
+        let run = |positions: Vec<i32>, new_vals: Vec<i32>| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let script_bytes: Box<Expr> = Box::new(script_bytes_expr.clone());
+            let positions_expr: Box<Expr> = Box::new(Expr::Const(Constant::from(positions)));
+            let new_values_expr: Box<Expr> = Box::new(Expr::Const(Constant::from(new_vals)));
+            let subst = Expr::SubstConstants(
+                SubstConstants {
+                    script_bytes,
+                    positions: positions_expr,
+                    new_values: new_values_expr,
+                }
+                .into(),
+            );
+            let _: Value = try_eval_out(&subst, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+
+        let delta_1_position = run(vec![0], vec![999]);
+        let delta_3_positions = run(vec![0, 1, 2], vec![999, 888, 777]);
+
+        // Both runs walk the same 3-constant template, so SubstConstants-specific
+        // cost must be identical. `Expr::Const` eval is fixed (5 JIT) regardless
+        // of payload size, so the Const arms used to feed positions/new_values
+        // don't contribute differently. Any non-zero difference indicates the
+        // old positions.len()-based charge leaked back in.
+        assert_eq!(
+            delta_1_position, delta_3_positions,
+            "SubstConstants cost must depend on template's constants_len (3), \
+             not on positions.len() (1 vs 3). Deltas diverged: {} vs {}",
+            delta_1_position, delta_3_positions,
+        );
     }
 }

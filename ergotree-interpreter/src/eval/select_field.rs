@@ -12,6 +12,7 @@ impl Evaluable for SelectField {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(10)?; // SelectField = Fixed(10)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::Tup(items) => items

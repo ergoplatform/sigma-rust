@@ -14,6 +14,7 @@ impl Evaluable for MethodCall {
         env: &mut Env<'ctx>,
         ectx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ectx.add_jit_cost(4)?; // MethodCall = Fixed(4)
         let ov = self.obj.eval(env, ectx)?;
         let argsv: Result<Vec<Value>, EvalError> =
             self.args.iter().map(|arg| arg.eval(env, ectx)).collect();

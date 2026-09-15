@@ -1,10 +1,21 @@
 //! Context(blockchain) for the interpreter
 use core::cell::Cell;
+use core::fmt;
 
 use crate::chain::ergo_box::ErgoBox;
 use crate::{chain::context_extension::ContextExtension, ergo_tree::ErgoTreeVersion};
 use bounded_vec::BoundedVec;
 use ergo_chain_types::{Header, PreHeader};
+
+/// Error returned when JIT cost limit is exceeded during evaluation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CostLimitExceeded(pub u64);
+
+impl fmt::Display for CostLimitExceeded {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "JIT cost limit ({}) exceeded", self.0)
+    }
+}
 
 /// BoundedVec type for Tx inputs, output_candidates and outputs
 pub type TxIoVec<T> = BoundedVec<T, 1, { i16::MAX as usize }>;
@@ -33,6 +44,10 @@ pub struct Context<'ctx> {
     /// ContextExtension provider for inputs of transaction
     #[debug(skip)]
     pub extension_provider: &'ctx dyn ContextExtensionProvider,
+    /// Accumulated JIT cost of evaluation
+    pub jit_cost: Cell<u64>,
+    /// JIT cost limit (None = unlimited, e.g. during signing)
+    pub jit_cost_limit: Option<u64>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -50,6 +65,52 @@ impl<'ctx> Context<'ctx> {
     /// Version of ergotree being evaluated under context
     pub fn tree_version(&self) -> ErgoTreeVersion {
         self.tree_version.get()
+    }
+
+    /// Add JIT cost and check limit. Saturating addition prevents accumulator
+    /// wraparound on pathological inputs (e.g., per-tx init cost for txs with
+    /// many inputs/tokens can exceed `u32::MAX`).
+    pub fn add_jit_cost(&self, amount: u64) -> Result<(), CostLimitExceeded> {
+        let new = self.jit_cost.get().saturating_add(amount);
+        self.jit_cost.set(new);
+        if let Some(limit) = self.jit_cost_limit {
+            if new > limit {
+                return Err(CostLimitExceeded(limit));
+            }
+        }
+        Ok(())
+    }
+
+    /// Add per-item JIT cost: `base + chunks(n_items) * per_chunk`, where
+    /// `chunks(n)` mirrors Scala consensus `PerItemCost.chunks`:
+    /// `(n - 1) / chunk_size + 1` using signed (toward-zero) division.
+    ///
+    /// This differs from naive ceiling division only at `n_items == 0`:
+    /// for `chunk_size >= 2` an empty collection still costs one chunk (Scala
+    /// charges `base + per_chunk`), while for `chunk_size == 1` it costs zero
+    /// chunks (`base` only).
+    pub fn add_per_item_jit_cost(
+        &self,
+        base: u32,
+        per_chunk: u32,
+        chunk_size: u32,
+        n_items: u32,
+    ) -> Result<(), CostLimitExceeded> {
+        // i64 (not u32) division so `n_items - 1` can't underflow at n=0;
+        // `.max(0)` is defensive (never negative for `chunk_size >= 1`).
+        let chunks = ((n_items as i64 - 1) / chunk_size as i64 + 1).max(0) as u32;
+        let cost = base + chunks * per_chunk;
+        self.add_jit_cost(u64::from(cost))
+    }
+
+    /// Read the accumulated JIT cost
+    pub fn jit_cost_value(&self) -> u64 {
+        self.jit_cost.get()
+    }
+
+    /// Reset JIT cost accumulator (used between input evaluations)
+    pub fn reset_jit_cost(&self) {
+        self.jit_cost.set(0);
     }
 }
 
@@ -126,6 +187,8 @@ pub mod arbitrary {
                             extension_provider: Box::leak(
                                 DummyContextExtensionProvider(extensions).into(),
                             ),
+                            jit_cost: Cell::new(0),
+                            jit_cost_limit: None,
                         }
                     },
                 )

@@ -13,6 +13,7 @@ impl Evaluable for PropertyCall {
         env: &mut Env<'ctx>,
         ectx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ectx.add_jit_cost(4)?; // PropertyCall = Fixed(4)
         let ov = self.obj.eval(env, ectx)?;
         smethod_eval_fn(&self.method)?(&self.method, env, ectx, ov, vec![])
     }

@@ -16,6 +16,7 @@ impl Evaluable for XorOf {
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bools = input_v.try_extract_into::<Vec<bool>>()?;
+        ctx.add_per_item_jit_cost(20, 5, 32, input_v_bools.len() as u32)?;
         Ok(input_v_bools.into_iter().fold(false, |a, b| a ^ b).into())
     }
 }

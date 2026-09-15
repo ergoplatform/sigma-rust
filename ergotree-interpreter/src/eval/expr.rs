@@ -17,9 +17,11 @@ impl Evaluable for Expr {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        //ctx.cost_accum.add_cost_of(self)?;
         let res = match self {
-            Expr::Const(c) => Ok(Value::from(c.v.clone())),
+            Expr::Const(c) => {
+                ctx.add_jit_cost(5)?; // Constant = Fixed(5)
+                Ok(Value::from(c.v.clone()))
+            }
             Expr::SubstConstants(op) => op.expr().eval(env, ctx),
             Expr::ByteArrayToLong(op) => op.expr().eval(env, ctx),
             Expr::ByteArrayToBigInt(op) => op.expr().eval(env, ctx),
@@ -32,8 +34,14 @@ impl Evaluable for Expr {
             Expr::MethodCall(op) => op.expr().eval(env, ctx),
             Expr::PropertyCall(op) => op.expr().eval(env, ctx),
             Expr::BinOp(op) => op.expr().eval(env, ctx),
-            Expr::Global => Ok(Value::Global),
-            Expr::Context => Ok(Value::Context),
+            Expr::Global => {
+                ctx.add_jit_cost(5)?; // Global = Fixed(5)
+                Ok(Value::Global)
+            }
+            Expr::Context => {
+                ctx.add_jit_cost(1)?; // Context = Fixed(1)
+                Ok(Value::Context)
+            }
             Expr::OptionGet(v) => v.expr().eval(env, ctx),
             Expr::Apply(op) => op.eval(env, ctx),
             Expr::FuncValue(op) => op.eval(env, ctx),
@@ -41,9 +49,15 @@ impl Evaluable for Expr {
             Expr::BlockValue(op) => op.expr().eval(env, ctx),
             Expr::SelectField(op) => op.eval(env, ctx),
             Expr::ExtractAmount(op) => op.eval(env, ctx),
-            Expr::ConstPlaceholder(_) => Err(EvalError::UnexpectedExpr(
-                ("ConstPlaceholder is not supported").to_string(),
-            )),
+            Expr::ConstPlaceholder(cp) => match &cp.resolved {
+                Some(c) => {
+                    ctx.add_jit_cost(1)?; // ConstPlaceholder = Fixed(1)
+                    Ok(Value::from(c.v.clone()))
+                }
+                None => Err(EvalError::UnexpectedExpr(
+                    "ConstPlaceholder without resolved value".to_string(),
+                )),
+            },
             Expr::Collection(op) => op.eval(env, ctx),
             Expr::ValDef(_) => Err(EvalError::UnexpectedExpr(
                 ("ValDef should be evaluated in BlockValue").to_string(),

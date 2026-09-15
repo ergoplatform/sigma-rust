@@ -47,6 +47,9 @@ impl HasStaticOpCode for Tuple {
 impl SigmaSerializable for Tuple {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         w.put_u8(self.items.len() as u8)?;
+        // item count is one byte (PutByteCost) -- Scala `TupleSerializer`'s `putUByte`;
+        // charged when a box-register tuple expression is serialized under `Global.serialize`
+        w.add_put_byte_cost();
         self.items.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 

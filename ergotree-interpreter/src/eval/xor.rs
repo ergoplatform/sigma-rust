@@ -28,6 +28,7 @@ impl Evaluable for Xor {
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(l_byte))),
                 Value::Coll(CollKind::NativeColl(NativeColl::CollByte(r_byte))),
             ) => {
+                ctx.add_per_item_jit_cost(10, 2, 128, l_byte.len() as u32)?;
                 let xor = helper_xor(&l_byte, &r_byte);
                 Ok(CollKind::NativeColl(NativeColl::CollByte(xor)).into())
             }

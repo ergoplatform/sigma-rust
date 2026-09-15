@@ -1,4 +1,3 @@
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use ergotree_ir::mir::coll_forall::ForAll;
 use ergotree_ir::mir::constant::TryExtractInto;
@@ -19,22 +18,13 @@ impl Evaluable for ForAll {
         let condition_v = self.condition.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut condition_call = |arg: Value<'ctx>| match &condition_v {
-            Value::Lambda(func_value) => {
-                let func_arg = func_value.args.first().ok_or_else(|| {
-                    EvalError::NotFound(
-                        "ForAll: evaluated condition has empty arguments list".to_string(),
-                    )
-                })?;
-                let orig_val = env.get(func_arg.idx).cloned();
-                env.insert(func_arg.idx, arg);
-                let res = func_value.body.eval(env, ctx);
-                if let Some(orig_val) = orig_val {
-                    env.insert(func_arg.idx, orig_val);
-                } else {
-                    env.remove(&func_arg.idx);
-                }
-                res
-            }
+            Value::Lambda(func_value) => crate::eval::eval_lambda_1arg(
+                func_value,
+                arg,
+                env,
+                ctx,
+                "ForAll: evaluated condition has empty arguments list",
+            ),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected ForAll::condition to be Value::FuncValue got: {0:?}",
                 input_v_clone
@@ -56,6 +46,7 @@ impl Evaluable for ForAll {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(3, 1, 10, normalized_input_vals.len() as u32)?;
 
         for item in normalized_input_vals {
             let res = condition_call(item)?.try_extract_into::<bool>()?;
@@ -129,5 +120,55 @@ mod tests {
     #[test]
     fn eval_false() {
         check(vec![1, 2]);
+    }
+
+    // Bug 6 regression: each lambda invocation inside ForAll (and Map/Filter/
+    // Fold/Exists) must charge ADD_TO_ENV_COST (5 JIT) — matching Scala's
+    // per-iteration env binding cost. Pre-fix, coll ops only paid the collection
+    // base/chunk cost, underpricing scripts that rely on large collections.
+    // Short-circuit correctness is verified by the 4-iter vs 1-iter delta.
+    #[test]
+    fn forall_charges_add_to_env_per_iteration() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        let run = |coll: Vec<i32>, predicate_const: bool| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let body: Expr = Expr::Const(predicate_const.into());
+            let expr: Expr = ForAll::new(
+                coll.into(),
+                FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::SInt,
+                    }],
+                    body,
+                )
+                .into(),
+            )
+            .unwrap()
+            .into();
+            let _: bool = try_eval_out(&expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+
+        // All-true predicate → 4 lambda invocations (no short-circuit).
+        let delta_full = run(vec![1, 2, 3, 4], true);
+        // All-false predicate → ForAll short-circuits on item 0, 1 invocation.
+        let delta_short = run(vec![1, 2, 3, 4], false);
+
+        // Per invocation: ADD_TO_ENV_COST (5) + Const body eval (5) = 10 JIT.
+        // Full-eval runs 3 more iterations than short-circuit, so delta is
+        // 3 × 10 = 30. Pre-fix only body charged per iteration → delta 3 × 5 = 15.
+        assert_eq!(
+            delta_full - delta_short,
+            30,
+            "ForAll must charge ADD_TO_ENV_COST (5) per lambda invocation on \
+             top of the Const body (5). Got {} JIT delta between full-eval \
+             (4 iters) and short-circuit (1 iter); expected 30.",
+            delta_full - delta_short,
+        );
     }
 }

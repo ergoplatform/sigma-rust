@@ -30,6 +30,8 @@ impl TxId {
 impl SigmaSerializable for TxId {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         self.0.scorex_serialize(w)?;
+        // Digest32 writes a 32-byte block; Scala meters it as putBytes(32) = PutChunkCost.
+        w.add_put_chunk_cost(32);
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {

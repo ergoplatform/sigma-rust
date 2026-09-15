@@ -9,6 +9,7 @@ use crate::eval::Evaluable;
 
 impl Evaluable for FuncValue {
     fn eval<'ctx>(&self, _env: &mut Env, _ctx: &Context<'ctx>) -> Result<Value<'ctx>, EvalError> {
+        _ctx.add_jit_cost(5)?; // FuncValue = Fixed(5)
         Ok(Value::Lambda(Lambda {
             args: self.args().to_vec(),
             body: self.body().clone().into(),

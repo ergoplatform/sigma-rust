@@ -1,4 +1,3 @@
-use alloc::string::ToString;
 use ergotree_ir::mir::coll_fold::Fold;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
@@ -20,26 +19,23 @@ impl Evaluable for Fold {
         let fold_op_v = self.fold_op.eval(env, ctx)?;
         let input_v_clone = input_v.clone();
         let mut fold_op_call = |arg: Value<'ctx>| match &fold_op_v {
-            Value::Lambda(func_value) => {
-                let func_arg = func_value
-                    .args
-                    .first()
-                    .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
-                let orig_val = env.get(func_arg.idx).cloned();
-                env.insert(func_arg.idx, arg);
-                let res = func_value.body.eval(env, ctx);
-                if let Some(orig_val) = orig_val {
-                    env.insert(func_arg.idx, orig_val);
-                } else {
-                    env.remove(&func_arg.idx);
-                }
-                res
-            }
+            Value::Lambda(func_value) => crate::eval::eval_lambda_1arg(
+                func_value,
+                arg,
+                env,
+                ctx,
+                "empty argument for fold op",
+            ),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "expected fold_op to be Value::FuncValue got: {0:?}",
                 input_v_clone
             ))),
         };
+        let n_items = match &input_v {
+            Value::Coll(coll) => coll.len() as u32,
+            _ => 0,
+        };
+        ctx.add_per_item_jit_cost(3, 1, 10, n_items)?;
         match input_v {
             Value::Coll(coll) => match coll {
                 CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {
