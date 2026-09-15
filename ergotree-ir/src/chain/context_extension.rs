@@ -202,8 +202,54 @@ mod arbitrary {
 #[allow(clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::{serialization::sigma_serialize_roundtrip, unsignedbigint256::UnsignedBigInt};
+    use crate::{
+        serialization::{sigma_serialize_roundtrip, SigmaSerializable},
+        unsignedbigint256::UnsignedBigInt,
+    };
     use proptest::prelude::*;
+
+    const SCALA_212_HAMT_ORDER_8: [u8; 8] = [0, 5, 1, 6, 2, 7, 3, 4];
+
+    const SCALA_212_HAMT_ORDER_32: [u8; 32] = [
+        0, 5, 10, 24, 25, 14, 20, 29, 1, 6, 28, 21, 9, 13, 2, 17, 22, 27, 12, 7, 3, 18, 16, 31, 11,
+        26, 23, 8, 30, 19, 4, 15,
+    ];
+
+    // Ordering only: the JVM ContextExtension serializer allows at most 127 entries.
+    const SCALA_212_HAMT_ORDER_128: [u8; 128] = [
+        69, 101, 0, 88, 115, 5, 120, 10, 56, 42, 24, 37, 25, 52, 14, 110, 125, 20, 46, 93, 57, 78,
+        29, 106, 121, 84, 61, 89, 116, 1, 74, 6, 60, 117, 85, 102, 28, 38, 70, 21, 33, 92, 65, 97,
+        9, 53, 109, 124, 77, 96, 13, 41, 73, 105, 2, 32, 34, 45, 64, 17, 22, 44, 59, 118, 27, 71,
+        12, 54, 49, 86, 113, 81, 76, 7, 39, 98, 103, 91, 66, 108, 3, 80, 35, 112, 123, 48, 63, 18,
+        95, 50, 67, 16, 127, 31, 11, 72, 43, 99, 87, 104, 40, 26, 55, 114, 23, 8, 75, 119, 58, 82,
+        36, 30, 51, 19, 107, 4, 126, 79, 94, 47, 15, 68, 62, 90, 111, 122, 83, 100,
+    ];
+
+    const SCALA_212_CONTEXT_EXTENSION_8_BYTES: [u8; 25] = [
+        8, 0, 4, 0, 5, 4, 10, 1, 4, 2, 6, 4, 12, 2, 4, 4, 7, 4, 14, 3, 4, 6, 4, 4, 8,
+    ];
+
+    fn context_extension_with_int_constants(
+        keys: impl IntoIterator<Item = u8>,
+    ) -> ContextExtension {
+        let mut ext = ContextExtension::empty();
+        for key in keys {
+            ext.values.insert(key, Constant::from(key as i32));
+        }
+        ext
+    }
+
+    fn serialized_keys(ext: &ContextExtension) -> Vec<u8> {
+        let bytes = ext.sigma_serialize_bytes().unwrap();
+        let mut keys = Vec::new();
+        let mut pos = 1;
+        while pos < bytes.len() {
+            keys.push(bytes[pos]);
+            let constant = Constant::sigma_parse_bytes(&bytes[pos + 1..]).unwrap();
+            pos += 1 + constant.sigma_serialize_bytes().unwrap().len();
+        }
+        keys
+    }
 
     #[test]
     #[should_panic]
@@ -226,7 +272,7 @@ mod tests {
         // Verify that the improve function produces distinct hashes and that
         // the lowest 5 bits (HAMT level-0 slot) match the empirically observed
         // Ergo node iteration order for keys 0-5: [0, 5, 1, 2, 3, 4].
-        // Level-0 slots: key→slot: 0→0, 1→7, 2→14, 3→20, 4→29, 5→1
+        // Level-0 slots: key->slot: 0->0, 1->7, 2->14, 3->20, 4->29, 5->1
         assert_eq!((scala_212_improve(0) as u32) & 0x1f, 0);
         assert_eq!((scala_212_improve(1) as u32) & 0x1f, 7);
         assert_eq!((scala_212_improve(2) as u32) & 0x1f, 14);
@@ -246,10 +292,62 @@ mod tests {
     }
 
     #[test]
+    fn test_hamt_sort_order_matches_scala_212_golden_vectors() {
+        let mut keys_8: Vec<u8> = (0..8).collect();
+        keys_8.sort_by_key(|&k| scala_212_hamt_sort_key(k));
+        assert_eq!(keys_8.as_slice(), &SCALA_212_HAMT_ORDER_8);
+
+        let mut keys_32: Vec<u8> = (0..32).collect();
+        keys_32.sort_by_key(|&k| scala_212_hamt_sort_key(k));
+        assert_eq!(keys_32.as_slice(), &SCALA_212_HAMT_ORDER_32);
+
+        let mut keys_128: Vec<u8> = (0..128).collect();
+        keys_128.sort_by_key(|&k| scala_212_hamt_sort_key(k));
+        assert_eq!(keys_128.as_slice(), &SCALA_212_HAMT_ORDER_128);
+    }
+
+    #[test]
+    fn test_serialize_order_matches_scala_212_golden_vectors() {
+        let ext_8 = context_extension_with_int_constants(0..8);
+        let bytes_8 = ext_8.sigma_serialize_bytes().unwrap();
+        assert_eq!(bytes_8, SCALA_212_CONTEXT_EXTENSION_8_BYTES);
+        assert_eq!(serialized_keys(&ext_8).as_slice(), &SCALA_212_HAMT_ORDER_8);
+
+        let ext_32 = context_extension_with_int_constants(0..32);
+        assert_eq!(
+            serialized_keys(&ext_32).as_slice(),
+            &SCALA_212_HAMT_ORDER_32
+        );
+    }
+
+    #[test]
+    fn test_serialize_all_five_entry_insertion_orders() {
+        // Scala 2.12 switches from Map4 insertion order to HashMap traversal at five entries.
+        // For these keys the JVM order is [0, 5, 1, 2, 3], distinct from numeric order.
+        const EXPECTED_BYTES: [u8; 16] = [5, 0, 4, 0, 5, 4, 10, 1, 4, 2, 2, 4, 4, 3, 4, 6];
+
+        fn check_permutations(keys: &mut [u8; 5], start: usize) -> usize {
+            if start == keys.len() {
+                let ext = context_extension_with_int_constants(keys.iter().copied());
+                assert_eq!(ext.sigma_serialize_bytes().unwrap(), EXPECTED_BYTES);
+                return 1;
+            }
+            let mut checked = 0;
+            for next in start..keys.len() {
+                keys.swap(start, next);
+                checked += check_permutations(keys, start + 1);
+                keys.swap(start, next);
+            }
+            checked
+        }
+
+        assert_eq!(check_permutations(&mut [0, 1, 2, 3, 5], 0), 120);
+    }
+
+    #[test]
     fn test_serialize_order_5plus_entries() {
         // Verify that serialization of 6-entry ContextExtension produces entries
         // in Scala 2.12 HAMT iteration order, not insertion/sorted order.
-        use crate::serialization::SigmaSerializable;
         let mut ext = ContextExtension::empty();
         for i in 0..6u8 {
             ext.values.insert(i, Constant::from(i as i32));
@@ -274,7 +372,6 @@ mod tests {
     fn test_serialize_order_4_entries_unchanged() {
         // Verify that serialization of 4-entry ContextExtension preserves
         // insertion order (Scala Map1-Map4 behavior).
-        use crate::serialization::SigmaSerializable;
         let mut ext = ContextExtension::empty();
         for i in 0..4u8 {
             ext.values.insert(i, Constant::from(i as i32));
