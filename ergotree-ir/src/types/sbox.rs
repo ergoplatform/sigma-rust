@@ -21,6 +21,16 @@ pub const TYPE_CODE: TypeCode = TypeCode::SBOX;
 pub static TYPE_NAME: &str = "Box";
 /// Box.value property
 pub const VALUE_METHOD_ID: MethodId = MethodId(1);
+/// Box.propositionBytes property (JVM `PropositionBytesMethod`, op-form `ExtractScriptBytes`)
+pub const PROPOSITION_BYTES_METHOD_ID: MethodId = MethodId(2);
+/// Box.bytes property (JVM `BytesMethod`, op-form `ExtractBytes`)
+pub const BYTES_METHOD_ID: MethodId = MethodId(3);
+/// Box.bytesWithoutRef property (JVM `BytesWithoutRefMethod`, op-form `ExtractBytesWithNoRef`)
+pub const BYTES_WITHOUT_REF_METHOD_ID: MethodId = MethodId(4);
+/// Box.id property (JVM `IdMethod`, op-form `ExtractId`)
+pub const ID_METHOD_ID: MethodId = MethodId(5);
+/// Box.creationInfo property (JVM `creationInfoMethod`, op-form `ExtractCreationInfo`)
+pub const CREATION_INFO_METHOD_ID: MethodId = MethodId(6);
 /// Box.Rx property
 pub const GET_REG_METHOD_ID: MethodId = MethodId(7);
 /// Box.tokens property
@@ -32,6 +42,11 @@ lazy_static! {
         vec![
             GET_REG_METHOD_DESC.clone(),
             VALUE_METHOD_DESC.clone(),
+            PROPOSITION_BYTES_METHOD_DESC.clone(),
+            BYTES_METHOD_DESC.clone(),
+            BYTES_WITHOUT_REF_METHOD_DESC.clone(),
+            ID_METHOD_DESC.clone(),
+            CREATION_INFO_METHOD_DESC.clone(),
             TOKENS_METHOD_DESC.clone()
         ]
     ;
@@ -51,6 +66,100 @@ lazy_static! {
     };
     /// Box.value
     pub static ref VALUE_METHOD: SMethod = SMethod::new(STypeCompanion::Box, VALUE_METHOD_DESC.clone(),);
+}
+
+// The byte-array accessor method-forms (propositionBytes / bytes / bytesWithoutRef / id)
+// mirror the JVM `commonBoxMethods` entries (methods.scala, SBoxMethods): each is a zero-arg
+// PropertyCall `SFunc(SBox, Coll[Byte])`, present from v5Methods with NO version gate, evaluated
+// JVM-side via `MethodCall.eval`'s `invokeFixed` reflection over the op-form's `costKind`.
+lazy_static! {
+    static ref PROPOSITION_BYTES_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: PROPOSITION_BYTES_METHOD_ID,
+        name: "propositionBytes",
+        tpe: SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SColl(SType::SByte.into())),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![],
+        min_version: ErgoTreeVersion::V0
+    };
+    /// Box.propositionBytes
+    pub static ref PROPOSITION_BYTES_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Box, PROPOSITION_BYTES_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref BYTES_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: BYTES_METHOD_ID,
+        name: "bytes",
+        tpe: SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SColl(SType::SByte.into())),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![],
+        min_version: ErgoTreeVersion::V0
+    };
+    /// Box.bytes
+    pub static ref BYTES_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Box, BYTES_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref BYTES_WITHOUT_REF_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: BYTES_WITHOUT_REF_METHOD_ID,
+        name: "bytesWithoutRef",
+        tpe: SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SColl(SType::SByte.into())),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![],
+        min_version: ErgoTreeVersion::V0
+    };
+    /// Box.bytesWithoutRef
+    pub static ref BYTES_WITHOUT_REF_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Box, BYTES_WITHOUT_REF_METHOD_DESC.clone(),);
+}
+
+lazy_static! {
+    static ref ID_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: ID_METHOD_ID,
+        name: "id",
+        tpe: SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::SColl(SType::SByte.into())),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![],
+        min_version: ErgoTreeVersion::V0
+    };
+    /// Box.id
+    pub static ref ID_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Box, ID_METHOD_DESC.clone(),);
+}
+
+// creationInfo returns `(Int, Coll[Byte])` — the tx block height paired with the serialized
+// transaction id followed by the box's output index (JVM `ExtractCreationInfo.OpType`).
+lazy_static! {
+    static ref CREATION_INFO_METHOD_DESC: SMethodDesc = SMethodDesc {
+        method_id: CREATION_INFO_METHOD_ID,
+        name: "creationInfo",
+        tpe: SFunc {
+            t_dom: vec![SType::SBox],
+            t_range: Box::new(SType::STuple(STuple::pair(
+                SType::SInt,
+                SType::SColl(SType::SByte.into())
+            ))),
+            tpe_params: vec![],
+        },
+        explicit_type_args: vec![],
+        min_version: ErgoTreeVersion::V0
+    };
+    /// Box.creationInfo
+    pub static ref CREATION_INFO_METHOD: SMethod =
+        SMethod::new(STypeCompanion::Box, CREATION_INFO_METHOD_DESC.clone(),);
 }
 
 lazy_static! {
@@ -104,6 +213,20 @@ mod tests {
     #[test]
     fn test_from_ids() {
         assert!(SMethod::from_ids(TYPE_CODE, VALUE_METHOD_ID).map(|e| e.name()) == Ok("value"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, PROPOSITION_BYTES_METHOD_ID).map(|e| e.name())
+                == Ok("propositionBytes")
+        );
+        assert!(SMethod::from_ids(TYPE_CODE, BYTES_METHOD_ID).map(|e| e.name()) == Ok("bytes"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, BYTES_WITHOUT_REF_METHOD_ID).map(|e| e.name())
+                == Ok("bytesWithoutRef")
+        );
+        assert!(SMethod::from_ids(TYPE_CODE, ID_METHOD_ID).map(|e| e.name()) == Ok("id"));
+        assert!(
+            SMethod::from_ids(TYPE_CODE, CREATION_INFO_METHOD_ID).map(|e| e.name())
+                == Ok("creationInfo")
+        );
         assert!(SMethod::from_ids(TYPE_CODE, GET_REG_METHOD_ID).map(|e| e.name()) == Ok("getReg"));
         assert!(SMethod::from_ids(TYPE_CODE, TOKENS_METHOD_ID).map(|e| e.name()) == Ok("tokens"));
     }
