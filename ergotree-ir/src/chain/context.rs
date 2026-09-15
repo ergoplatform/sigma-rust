@@ -2,6 +2,7 @@
 use core::cell::Cell;
 
 use crate::chain::ergo_box::ErgoBox;
+use crate::mir::constant::Constant;
 use crate::{chain::context_extension::ContextExtension, ergo_tree::ErgoTreeVersion};
 use bounded_vec::BoundedVec;
 use ergo_chain_types::{Header, PreHeader};
@@ -33,6 +34,9 @@ pub struct Context<'ctx> {
     /// ContextExtension provider for inputs of transaction
     #[debug(skip)]
     pub extension_provider: &'ctx dyn ContextExtensionProvider,
+    /// Constants from ErgoTree for lazy ConstPlaceholder resolution during evaluation.
+    /// None when constants were already substituted (e.g. via proposition()).
+    pub constants: Option<&'ctx [Constant]>,
 }
 
 impl<'ctx> Context<'ctx> {
@@ -50,6 +54,19 @@ impl<'ctx> Context<'ctx> {
     /// Version of ergotree being evaluated under context
     pub fn tree_version(&self) -> ErgoTreeVersion {
         self.tree_version.get()
+    }
+
+    /// Create a copy of this context with constants set for lazy ConstPlaceholder resolution.
+    /// The returned Context may have a shorter lifetime 'a to accommodate
+    /// the constants reference alongside the existing borrowed fields.
+    pub fn with_constants<'a>(&self, constants: &'a [Constant]) -> Context<'a>
+    where
+        'ctx: 'a,
+    {
+        Context {
+            constants: Some(constants),
+            ..self.clone()
+        }
     }
 }
 
@@ -126,6 +143,7 @@ pub mod arbitrary {
                             extension_provider: Box::leak(
                                 DummyContextExtensionProvider(extensions).into(),
                             ),
+                            constants: None,
                         }
                     },
                 )

@@ -148,4 +148,49 @@ mod tests {
             UnsignedBigInt::zero()
         );
     }
+
+    // `Interpreter.fullReduction` reduces a deserialize-bearing SEGREGATED tree
+    // from its constants-substituted proposition, not the lazy placeholder form
+    // it uses for ordinary trees; `try_eval_with_deserialize` mirrors that
+    // conditionality. Values are identical either way — the distinction becomes
+    // observable once JIT costing lands (Constant vs ConstantPlaceholder visit
+    // costs; the costing lineage pins the blessed cost 20 on these trees). This
+    // drives the substituted route end-to-end over the conformance vector trees
+    // `{ if (true) true else deserializeContext[Boolean](0|1) }`, with both
+    // vars bound to valid serialized scripts (this branch substitutes eagerly
+    // over the whole tree, dead branches included).
+    #[test]
+    fn deserialize_bearing_segregated_tree_evals_substituted() {
+        let inner_bytes: Constant = Expr::from(true).sigma_serialize_bytes().unwrap().into();
+        for hex in [
+            "1b0d02010101019573007301d40100", // deserializeContext(0) on the dead branch
+            "1b0d02010101019573007301d40101", // deserializeContext(1) on the dead branch
+        ] {
+            let bytes: Vec<u8> = (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+                .collect();
+            // Clear the size bit and drop the size byte (non-SigmaProp root —
+            // the conformance runner's lenient parse path).
+            let mut lenient = Vec::with_capacity(bytes.len() - 1);
+            lenient.push(bytes[0] & !0x08);
+            lenient.extend_from_slice(&bytes[2..]);
+            let tree = ErgoTree::sigma_parse_bytes(&lenient).unwrap();
+
+            let ctx_ext = ContextExtension {
+                values: [(0u8, inner_bytes.clone()), (1u8, inner_bytes.clone())]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            };
+            let mut ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+            ctx.pre_header.version = 4;
+            ctx.tree_version.set(ErgoTreeVersion::V3);
+            let constants = tree.constants().unwrap();
+            let eval_ctx = ctx.with_constants(constants);
+            assert!(
+                try_eval_with_deserialize::<bool>(tree.root_expr().unwrap(), &eval_ctx).unwrap()
+            );
+        }
+    }
 }

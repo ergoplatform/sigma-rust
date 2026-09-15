@@ -238,6 +238,19 @@ impl ErgoTree {
         }
     }
 
+    /// Returns a reference to the root expression without cloning or substituting constants.
+    /// Use this with [`Context::with_constants`] for lazy ConstPlaceholder resolution
+    /// during evaluation, avoiding the deep clone that [`proposition`](Self::proposition) performs.
+    pub fn root_expr(&self) -> Result<&Expr, ErgoTreeError> {
+        Ok(&self.parsed_tree()?.root)
+    }
+
+    /// Returns a reference to the segregated constants array.
+    /// Empty when the tree does not use constant segregation.
+    pub fn constants(&self) -> Result<&[Constant], ErgoTreeError> {
+        Ok(&self.parsed_tree()?.constants)
+    }
+
     /// Check if ErgoTree root has [`crate::mir::deserialize_context::DeserializeContext`] or [`crate::mir::deserialize_register::DeserializeRegister`] nodes
     pub fn has_deserialize(&self) -> bool {
         match self {
