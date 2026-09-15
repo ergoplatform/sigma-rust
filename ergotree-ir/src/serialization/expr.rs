@@ -110,6 +110,9 @@ impl Expr {
                 OpCode::OUTPUTS => Ok(Expr::GlobalVars(GlobalVars::Outputs)),
                 OpCode::MINER_PUBKEY => Ok(Expr::GlobalVars(GlobalVars::MinerPubKey)),
                 OpCode::GROUP_GENERATOR => Ok(Expr::GlobalVars(GlobalVars::GroupGenerator)),
+                OpCode::LAST_BLOCK_UTXO_ROOT_HASH => {
+                    Ok(Expr::GlobalVars(GlobalVars::LastBlockUtxoRootHash))
+                }
                 OpCode::GLOBAL => Ok(Expr::Global),
                 OpCode::PROPERTY_CALL => {
                     Ok(Expr::PropertyCall(PropertyCall::sigma_parse(r)?.into()))
