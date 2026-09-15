@@ -55,6 +55,13 @@ impl ErgoTreeHeader {
         let version = ErgoTreeVersion::parse_version(header_byte);
         let has_size = header_byte & Self::HAS_SIZE_FLAG != 0;
         let is_constant_segregation = header_byte & Self::CONSTANT_SEGREGATION_FLAG != 0;
+        // JVM `CheckHeaderSizeBit` (ValidationRules Rule-1012, applied in
+        // `ErgoTreeSerializer` right after the header byte is read): for any
+        // version > 0 the size bit must be set. Reject otherwise, mirroring the
+        // JVM `ValidationException` (a malformed v>0 header without the size slot).
+        if version != ErgoTreeVersion::V0 && !has_size {
+            return Err(ErgoTreeHeaderError::InvalidSizeBit(version.0));
+        }
         Ok(ErgoTreeHeader {
             version,
             is_constant_segregation,
@@ -117,6 +124,9 @@ pub enum ErgoTreeHeaderError {
     /// IO error
     #[error("IO error: {0}")]
     IoError(String),
+    /// Size bit not set for a version > 0 header (JVM Rule-1012 `CheckHeaderSizeBit`)
+    #[error("For version greater than 0, size bit should be set (version {0})")]
+    InvalidSizeBit(u8),
 }
 
 /// ErgoTree version 0..=7, should fit in 3 bits
@@ -150,4 +160,32 @@ pub enum ErgoTreeVersionError {
     /// Invalid version
     #[error("Invalid version: {0}")]
     InvalidVersion(u8),
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    // JVM Rule-1012 (`CheckHeaderSizeBit`): a version > 0 header MUST set the
+    // size bit (0x08); v0 has no such requirement. Header byte layout: low 3
+    // bits = version, 0x08 = size, 0x10 = constant segregation.
+    #[test]
+    fn header_rule_1012_size_bit_required_for_version_gt_0() {
+        // v0 without size bit: allowed
+        assert!(ErgoTreeHeader::new(0x00).is_ok());
+        // v>0 WITH size bit: allowed
+        assert!(ErgoTreeHeader::new(0x09).unwrap().has_size()); // v1 + size
+        assert!(ErgoTreeHeader::new(0x0b).unwrap().has_size()); // v3 + size
+                                                                // v>0 WITHOUT size bit: rejected (Rule-1012)
+        for hb in [0x01u8, 0x02, 0x03] {
+            assert_eq!(
+                ErgoTreeHeader::new(hb),
+                Err(ErgoTreeHeaderError::InvalidSizeBit(hb & 0x07)),
+                "header 0x{:02x} (version {}, no size bit) must be rejected",
+                hb,
+                hb & 0x07
+            );
+        }
+    }
 }
