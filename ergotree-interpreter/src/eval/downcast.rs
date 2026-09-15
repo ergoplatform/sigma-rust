@@ -145,6 +145,37 @@ mod tests {
         Downcast::new(c.into().into(), return_type).unwrap().into()
     }
 
+    /// Regression (testnet ~block 2666): `reduce_to_crypto` must propagate the
+    /// evaluated tree's ErgoTree version into the context — mirroring the JVM's
+    /// `withVersions(.., ergoTree.version)`. A V3 tree doing a `BigInt -> Long`
+    /// downcast (gated on `tree_version >= V3`) must succeed even when the caller
+    /// (e.g. the node) leaves `tree_version` at its `V0` default; otherwise
+    /// sigma-rust rejects a downcast the JVM accepts — a consensus divergence.
+    #[test]
+    fn reduce_to_crypto_propagates_tree_version() {
+        use crate::eval::reduce_to_crypto;
+        use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
+        use ergotree_ir::mir::bin_op::{BinOp, RelationOp};
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+
+        // { BigInt(67500000000).toLong == 67500000000L }  -> Boolean
+        let expr: Expr = BinOp {
+            kind: RelationOp::Eq.into(),
+            left: Box::new(downcast(BigInt256::from(67500000000i64), SType::SLong)),
+            right: Box::new(Constant::from(67500000000i64).into()),
+        }
+        .into();
+        // header byte: version 3 (0b011) | has-size (0b1000) = 0x0b
+        let tree = ErgoTree::new(ErgoTreeHeader::new(0x0b).unwrap(), &expr).unwrap();
+
+        let ctx = force_any_val::<Context>();
+        ctx.tree_version.set(ErgoTreeVersion::V0); // simulate a caller that doesn't set it
+        let reduction = reduce_to_crypto(&tree, &ctx).unwrap();
+        assert_eq!(reduction.sigma_prop, SigmaBoolean::TrivialProp(true));
+        // reduce_to_crypto must have set the context version from the tree:
+        assert_eq!(ctx.tree_version(), ErgoTreeVersion::V3);
+    }
+
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
 

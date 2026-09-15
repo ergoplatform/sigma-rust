@@ -154,6 +154,13 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
             })
     }
 
+    // The JVM interpreter wraps reduction in `withVersions(.., ergoTree.version)`;
+    // mirror that by setting the eval context's tree version from the tree being
+    // reduced. Otherwise version-gated ops (e.g. BigInt downcast, gated on
+    // `tree_version >= V3`) see the `Cell`'s `V0` default and reject valid V3
+    // trees the JVM accepts — a consensus divergence on any caller (the node)
+    // that doesn't set it.
+    ctx.tree_version.set(tree.header()?.version());
     let expr = tree.proposition()?;
     let expr = if tree.has_deserialize() {
         expr.substitute_deserialize(ctx)?
