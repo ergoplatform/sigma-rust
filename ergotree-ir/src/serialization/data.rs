@@ -29,6 +29,7 @@ use crate::unsignedbigint256::UnsignedBigInt;
 use ergo_chain_types::EcPoint;
 
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::types::TypeCode;
 use alloc::sync::Arc;
 use core::convert::TryInto;
 
@@ -196,14 +197,47 @@ impl DataSerializer {
             SHeader if r.tree_version() >= ErgoTreeVersion::V3 => {
                 Literal::Header(Box::new(Header::scorex_parse(r)?))
             }
-            STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
-            SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
+            // Non-serializable constant data types: mirror sigma-state's
+            // `CoreDataSerializer` fallback + rule 1009 (`CheckSerializableTypeCode`).
+            // A type code that is neither `OptionTypeCode` (36) nor `> LastDataType`
+            // (111) is NOT soft-forkable — the JVM throws a hard `SerializerException`
+            // that escapes `deserializeErgoTree`'s `UnparsedErgoTree` fallback, so a
+            // size-flagged tree carrying one is rejected (`NonSerializableTypeCode`).
+            // `SOption` (36) and `SFunc` (112 > 111) ARE soft-forkable and keep the
+            // degradable `NotSupported` (a size-flagged tree carrying one degrades to
+            // `Unparsed`, matching the JVM soft-fork).
+            STypeVar(_) => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::STYPE_VAR.value(),
+                ))
+            }
+            SAny => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SANY.value(),
+                ))
+            }
             SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),
             SFunc(_) => return Err(SigmaParsingError::NotSupported("SFunc data")),
-            SContext => return Err(SigmaParsingError::NotSupported("SContext data")),
-            SHeader => return Err(SigmaParsingError::NotSupported("SHeader data")),
-            SPreHeader => return Err(SigmaParsingError::NotSupported("SPreHeader data")),
-            SGlobal => return Err(SigmaParsingError::NotSupported("SGlobal data")),
+            SContext => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SCONTEXT.value(),
+                ))
+            }
+            SHeader => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SHEADER.value(),
+                ))
+            }
+            SPreHeader => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SPRE_HEADER.value(),
+                ))
+            }
+            SGlobal => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SGLOBAL.value(),
+                ))
+            }
         })
     }
 }
