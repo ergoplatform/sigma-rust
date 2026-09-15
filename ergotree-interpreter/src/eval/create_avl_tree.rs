@@ -29,7 +29,12 @@ impl Evaluable for CreateAvlTree {
         };
 
         let tree_flags = AvlTreeFlags::parse(flags_v);
-        let digest = ADDigest::try_from(digest_v.as_vec_u8()).map_err(map_eval_err)?;
+        // CreateAvlTree keeps its 33-byte digest validation (behavior unchanged);
+        // the field is now `Vec<u8>` only so `updateDigest` can hold other lengths.
+        let digest = ADDigest::try_from(digest_v.as_vec_u8())
+            .map_err(map_eval_err)?
+            .0
+            .to_vec();
 
         Ok(Value::AvlTree(Box::new(AvlTreeData {
             tree_flags,
@@ -84,7 +89,7 @@ mod tests {
         .into();
 
         let tree = eval_out_wo_ctx::<AvlTreeData>(&expr);
-        assert_eq!(tree.digest, initial_digest);
+        assert_eq!(tree.digest, initial_digest.0.to_vec());
         assert_eq!(tree.key_length, 1);
         assert_eq!(tree.value_length_opt, None);
         assert_eq!(tree.tree_flags, flags);

@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use ergo_chain_types::ADDigest;
 use sigma_ser::ScorexSerializable;
 
@@ -58,8 +59,13 @@ impl AvlTreeFlags {
 /// value length, and access flags are stored in an instance of the datatype.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct AvlTreeData {
-    /// Authenticated tree digest: root hash along with tree height
-    pub digest: ADDigest,
+    /// Authenticated tree digest: root hash along with tree height. Normally
+    /// 33 bytes (`ADDigest` = 32-byte root hash + height byte), but
+    /// `updateDigest` may set an arbitrary-length value — the reference
+    /// `CAvlTree.updateDigest` stores any `Coll[Byte]` without a length check.
+    /// Such a value exists only in memory: the parser always reads exactly 33
+    /// bytes, matching the JVM `AvlTreeData.serializer` (`getBytes(DigestSize)`).
+    pub digest: Vec<u8>,
     /// Allowed modifications
     pub tree_flags: AvlTreeFlags,
     /// All the elements under the tree have the same length
@@ -70,14 +76,19 @@ pub struct AvlTreeData {
 
 impl SigmaSerializable for AvlTreeData {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        self.digest.scorex_serialize(w)?;
+        // Mirror the JVM `AvlTreeData.serializer`: write the digest bytes raw
+        // (`putBytes`), whatever their length. The parser always reads exactly
+        // 33 bytes, so a non-33 digest (only producible in memory via
+        // `updateDigest`) does not round-trip — same as the reference impl.
+        w.write_all(&self.digest)?;
         w.put_u8(self.tree_flags.0)?;
         w.put_u32(self.key_length)?;
         self.value_length_opt.sigma_serialize(w)?;
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let digest = ADDigest::scorex_parse(r)?;
+        // Always read exactly `DigestSize` (33) bytes, matching the JVM parser.
+        let digest = ADDigest::scorex_parse(r)?.0.to_vec();
         let tree_flags = AvlTreeFlags::parse(r.get_u8()?);
         let key_length = r.get_u32()?;
         let value_length_opt = <Option<Box<u32>> as SigmaSerializable>::sigma_parse(r)?;
@@ -104,7 +115,9 @@ mod arbitrary {
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
             (
-                any::<ADDigest>(),
+                // 33-byte digests only: a non-33 digest is producible solely in
+                // memory via `updateDigest` and does not survive serialization.
+                any::<ADDigest>().prop_map(|d| d.0.to_vec()),
                 any::<AvlTreeFlags>(),
                 any::<u32>(),
                 any::<OptBox>(),
