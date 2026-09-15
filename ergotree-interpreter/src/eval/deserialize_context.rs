@@ -6,6 +6,7 @@ mod tests {
     use ergotree_ir::mir::deserialize_context::DeserializeContext;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
+    use ergotree_ir::mir::if_op::If;
     use ergotree_ir::mir::value::Value;
     use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::stype::SType;
@@ -71,6 +72,59 @@ mod tests {
         let extension = ContextExtension::empty();
         let ctx = force_any_val::<Context>().with_extension(&extension);
         assert!(try_eval_with_deserialize::<bool>(&expr, &ctx).is_err());
+    }
+
+    // Regression for testnet block 111,927: a `DeserializeContext` over an
+    // absent context var sitting on a dead `if` branch must NOT sink reduction.
+    // Substitution walks the whole tree but, mirroring the JVM
+    // `Interpreter.substDeserialize` `else None`, leaves the absent-var node in
+    // place; the live branch then reduces normally. A leftover node on the
+    // *live* path still errors at eval (see `eval_id_not_found`).
+    #[test]
+    fn eval_absent_var_on_dead_branch() {
+        let deser: Expr = DeserializeContext {
+            tpe: SType::SBoolean,
+            id: 0,
+        }
+        .into();
+        // if (true) true else deserializeContext(0)
+        let expr: Expr = If {
+            condition: Expr::Const(true.into()).into(),
+            true_branch: Expr::Const(true.into()).into(),
+            false_branch: deser.into(),
+        }
+        .into();
+        let extension = ContextExtension::empty();
+        let ctx = force_any_val::<Context>().with_extension(&extension);
+        assert!(try_eval_with_deserialize::<bool>(&expr, &ctx).unwrap());
+    }
+
+    // Parity with the JVM `Interpreter.substDeserialize` inner `case _ => None`:
+    // a context var that is present but not a `Coll[Byte]` is not substituted,
+    // so a dead-branch deserialize over a wrong-typed var does not sink
+    // reduction either. (A wrong-typed var on the *live* path still errors at
+    // eval — see `eval_context_extension_wrong_type`.)
+    #[test]
+    fn eval_wrong_type_var_on_dead_branch() {
+        let deser: Expr = DeserializeContext {
+            tpe: SType::SBoolean,
+            id: 0,
+        }
+        .into();
+        // if (true) true else deserializeContext(0)
+        let expr: Expr = If {
+            condition: Expr::Const(true.into()).into(),
+            true_branch: Expr::Const(true.into()).into(),
+            false_branch: deser.into(),
+        }
+        .into();
+        // var 0 present but an Int, not a Coll[Byte]
+        let ctx_ext_val: Constant = 1i32.into();
+        let ctx_ext = ContextExtension {
+            values: [(0u8, ctx_ext_val)].iter().cloned().collect(),
+        };
+        let ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        assert!(try_eval_with_deserialize::<bool>(&expr, &ctx).unwrap());
     }
 
     #[test]
