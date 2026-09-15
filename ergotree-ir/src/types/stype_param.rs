@@ -1,4 +1,3 @@
-use core::convert::TryInto;
 use core::fmt::Formatter;
 use core::hash::Hash;
 
@@ -6,7 +5,6 @@ use alloc::string::String;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
-use bounded_vec::BoundedVec;
 
 use crate::mir::expr::InvalidArgumentError;
 use crate::serialization::sigma_byte_reader::SigmaByteRead;
@@ -19,7 +17,7 @@ use crate::serialization::SigmaSerializeResult;
 #[derive(PartialEq, Eq, Clone, Hash)]
 pub struct STypeVar {
     /// Type variable name (e.g. "T")
-    name_bytes: BoundedVec<u8, 1, 254>,
+    name_bytes: Vec<u8>,
 }
 
 impl core::fmt::Debug for STypeVar {
@@ -29,20 +27,18 @@ impl core::fmt::Debug for STypeVar {
 }
 
 impl STypeVar {
-    /// Creates type variable from UTF8 text string of 1..255 length or returns an error
+    /// Creates a type variable from a UTF8 text string (name length is a `u8`, so 0..=255 bytes)
     pub fn new_from_str(name: &'static str) -> Result<Self, InvalidArgumentError> {
         Ok(Self {
-            name_bytes: name.to_string().into_bytes().try_into()?,
+            name_bytes: name.to_string().into_bytes(),
         })
     }
 
-    /// Creates type variable from bytes of UTF8 text string of 1..255 length or returns an error
+    /// Creates a type variable from bytes of a UTF8 text string (name length 0..=255), or returns an error if not valid UTF8
     pub fn new_from_bytes(bytes: Vec<u8>) -> Result<Self, InvalidArgumentError> {
         // test if its UTF8
         Ok(match String::from_utf8(bytes.clone()) {
-            Ok(_) => Self {
-                name_bytes: bytes.try_into()?,
-            },
+            Ok(_) => Self { name_bytes: bytes },
             Err(_) => {
                 return Err(InvalidArgumentError(format!(
                     "STypeVar: cannot decode {:?} from UTF8",
@@ -55,7 +51,7 @@ impl STypeVar {
     /// Returns text representation (e.g "T", etc.)
     pub fn as_string(&self) -> String {
         #[allow(clippy::unwrap_used)]
-        String::from_utf8(self.name_bytes.as_vec().clone()).unwrap()
+        String::from_utf8(self.name_bytes.clone()).unwrap()
     }
 
     /// "T" type variable
@@ -95,4 +91,34 @@ impl SigmaSerializable for STypeVar {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct STypeParam {
     pub(crate) ident: STypeVar,
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    // The JVM `TypeSerializer.deserialize` reads the type-var name length via
+    // `getUByte()` (0..=255, no bound) then `new String(getBytes(len))`, so an
+    // empty name (len 0) and a 255-byte name both deserialize. The previous
+    // `BoundedVec<u8, 1, 254>` over-rejected both -- a divergence from sigma-state.
+    // See sigma-state core/.../serialization/TypeSerializer.scala:202-206.
+
+    #[test]
+    fn parse_name_length_0() {
+        // u8 length 0x00, zero name bytes -> STypeVar("")
+        let tv = STypeVar::sigma_parse_bytes(&[0x00u8]).unwrap();
+        assert_eq!(tv.as_string(), "");
+        assert_eq!(tv.sigma_serialize_bytes().unwrap(), vec![0x00u8]);
+    }
+
+    #[test]
+    fn parse_name_length_255() {
+        // u8 length 0xff (255), then 255 'a' bytes -> STypeVar("a" * 255)
+        let mut bytes = vec![0xffu8];
+        bytes.extend_from_slice(&[b'a'; 255]);
+        let tv = STypeVar::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(tv.as_string(), "a".repeat(255));
+        assert_eq!(tv.sigma_serialize_bytes().unwrap(), bytes);
+    }
 }
