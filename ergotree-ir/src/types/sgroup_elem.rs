@@ -32,7 +32,13 @@ lazy_static! {
     pub(crate) static ref METHOD_DESC: Vec<SMethodDesc> =
         vec![
             GET_ENCODED_METHOD_DESC.clone(),
-            NEGATE_METHOD_DESC.clone()
+            NEGATE_METHOD_DESC.clone(),
+            // expUnsigned (v6/V3): defined + evaluable, but previously absent from
+            // this registry, so `from_ids` rejected it (UnknownMethodId) and any
+            // ErgoTree using it failed to deserialize — while the JVM parses + evals
+            // it. (exponentiate/multiply are intentionally absent: they serialize as
+            // dedicated `Exponentiate`/`MultiplyGroup` ops, not method calls.)
+            EXPONENTIATE_UNSIGNED_METHOD_DESC.clone(),
         ]
     ;
 }
@@ -123,5 +129,13 @@ mod tests {
                 == Ok("getEncoded")
         );
         assert!(SMethod::from_ids(TYPE_CODE, NEGATE_METHOD_ID).map(|e| e.name()) == Ok("negate"));
+        // Regression: expUnsigned (method 6, v6/V3) must be resolvable by the
+        // deserializer. It was defined + evaluable but missing from METHOD_DESC,
+        // so `from_ids` returned UnknownMethodId and any tree using it failed to
+        // parse (the JVM parses + evals it — a consensus divergence).
+        assert!(
+            SMethod::from_ids(TYPE_CODE, EXPONENTIATE_UNSIGNED_METHOD_ID).map(|e| e.method_id())
+                == Ok(EXPONENTIATE_UNSIGNED_METHOD_ID)
+        );
     }
 }
