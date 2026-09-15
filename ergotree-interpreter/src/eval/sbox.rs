@@ -80,12 +80,20 @@ pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
+    use alloc::boxed::Box;
+
+    use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::ergo_tree::ErgoTreeVersion;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::extract_amount::ExtractAmount;
+    use ergotree_ir::mir::extract_reg_as::ExtractRegisterAs;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::method_call::MethodCall;
+    use ergotree_ir::mir::option_get::OptionGet;
     use ergotree_ir::mir::property_call::PropertyCall;
+    use ergotree_ir::mir::unary_op::OneArgOpTryBuild;
+    use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::sbox;
     use ergotree_ir::types::stype::SType;
     use ergotree_ir::types::stype_param::STypeVar;
@@ -102,6 +110,65 @@ mod tests {
             .into();
         let ctx = force_any_val::<Context>();
         assert_eq!(eval_out::<i64>(&expr, &ctx), ctx.self_box.value.as_i64());
+    }
+
+    // JVM-blessed vectors (santa-eval `Box.signed_view_u64`): box value and token
+    // amounts are unbounded u64 on the wire (reference impl reads `getULong()` with
+    // no range check); values in `[2^63, 2^64)` hydrate and surface as their signed
+    // (negative) view at eval, like the JVM's Long.
+    #[test]
+    fn eval_box_signed_view_u64() {
+        fn ctx_with_self_box(bytes_hex: &str) -> Context<'static> {
+            let b = ErgoBox::sigma_parse_bytes(&base16::decode(bytes_hex).unwrap()).unwrap();
+            let ctx = force_any_val::<Context>();
+            Context {
+                self_box: Box::leak(Box::new(b)),
+                ..ctx
+            }
+        }
+        let value_expr: Expr = ExtractAmount {
+            input: Box::new(GlobalVars::SelfBox.into()),
+        }
+        .into();
+        let r0_expr: Expr = OptionGet::try_build(
+            ExtractRegisterAs::new(
+                GlobalVars::SelfBox.into(),
+                0,
+                SType::SOption(SType::SLong.into()),
+            )
+            .unwrap()
+            .into(),
+        )
+        .unwrap()
+        .into();
+        let tokens_expr: Expr =
+            PropertyCall::new(GlobalVars::SelfBox.into(), sbox::TOKENS_METHOD.clone())
+                .unwrap()
+                .into();
+
+        // box value = 2^63 → SELF.value / SELF.R0[Long].get = Long(-2^63)
+        let ctx = ctx_with_self_box("808080808080808080010008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(eval_out::<i64>(&value_expr, &ctx), i64::MIN);
+        assert_eq!(eval_out::<i64>(&r0_expr, &ctx), i64::MIN);
+
+        // box value = u64::MAX → Long(-1)
+        let ctx = ctx_with_self_box("ffffffffffffffffff010008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(eval_out::<i64>(&value_expr, &ctx), -1i64);
+        assert_eq!(eval_out::<i64>(&r0_expr, &ctx), -1i64);
+
+        // token amount = 2^63 → SELF.tokens(0)._2 = Long(-2^63)
+        let ctx = ctx_with_self_box("c0843d0008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000107070707070707070707070707070707070707070707070707070707070707078080808080808080800100000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(
+            eval_out::<Vec<(Vec<i8>, i64)>>(&tokens_expr, &ctx)[0].1,
+            i64::MIN
+        );
+
+        // token amount = u64::MAX → SELF.tokens(0)._2 = Long(-1)
+        let ctx = ctx_with_self_box("c0843d0008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179800010707070707070707070707070707070707070707070707070707070707070707ffffffffffffffffff0100000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(
+            eval_out::<Vec<(Vec<i8>, i64)>>(&tokens_expr, &ctx)[0].1,
+            -1i64
+        );
     }
 
     #[test]
