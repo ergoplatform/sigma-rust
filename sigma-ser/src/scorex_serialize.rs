@@ -140,7 +140,7 @@ impl<T: ScorexSerializable> ScorexSerializable for Vec<T> {
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(T::scorex_parse(r)?);
         }
@@ -225,5 +225,17 @@ mod test {
         fn box_roundtrip(val in any::<Option<Box<u32>>>()) {
             assert_eq!(scorex_serialize_roundtrip(&val), val);
         }
+    }
+
+    /// A huge declared count followed by no elements must return Err without
+    /// allocating a multi-gigabyte Vec (the pre-fix code called
+    /// `Vec::with_capacity(0x7FFFFFFF)` which SIGABRT'd on overcommit=0).
+    #[test]
+    fn vec_scorex_parse_huge_count_no_data_returns_err() {
+        // VLQ-encode u32::MAX as the count, then provide zero element bytes
+        let mut buf = Vec::new();
+        WriteSigmaVlqExt::put_u32(&mut Cursor::new(&mut buf), u32::MAX).unwrap();
+        let result = Vec::<u32>::scorex_parse(&mut Cursor::new(&buf[..]));
+        assert!(result.is_err());
     }
 }

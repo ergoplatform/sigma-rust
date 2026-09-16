@@ -382,6 +382,7 @@ impl SigmaSerializable for ErgoTree {
             if header.has_size() {
                 let tree_size_bytes = r.get_u32()?;
                 let body_pos = r.position()?;
+                r.check_remaining(tree_size_bytes as usize)?;
                 let mut buf = vec![0u8; tree_size_bytes as usize];
                 r.read_exact(buf.as_mut_slice())?;
                 let mut inner_r =
@@ -781,5 +782,23 @@ mod tests {
         .into();
         let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &no_deserialize_expr).unwrap();
         assert!(!has_deserialize(tree));
+    }
+
+    /// A sized ErgoTree header declaring a huge body length with only a few bytes
+    /// of actual data must return Err without allocating gigabytes.  Before the
+    /// fix, `vec![0u8; 0x7FFFFFFF]` from a 5-byte VLQ prefix SIGABRT'd the
+    /// process.
+    #[test]
+    fn sized_tree_huge_body_length_no_data_returns_err() {
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        // Build: v1 header with size flag, then VLQ u32::MAX as tree_size_bytes
+        let header = ErgoTreeHeader::v1(true); // size flag set
+        let mut data = Vec::new();
+        let mut w = crate::serialization::sigma_byte_writer::SigmaByteWriter::new(&mut data, None);
+        header.sigma_serialize(&mut w).unwrap();
+        w.put_u32(u32::MAX).unwrap(); // tree_size_bytes = ~4 GB
+                                      // no body bytes follow
+        let result = ErgoTree::sigma_parse_bytes(&data);
+        assert!(result.is_err());
     }
 }

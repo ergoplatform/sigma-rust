@@ -177,7 +177,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(T::sigma_parse(r)?);
         }
@@ -269,5 +269,27 @@ pub fn roundtrip_new_feature<T: SigmaSerializable + core::fmt::Debug + PartialEq
             *v,
             sigma_serialize_roundtrip_versioned(v, version.into()).expect("roundtrip failed")
         );
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+    /// A huge declared count followed by no elements must return Err without
+    /// allocating a multi-gigabyte Vec.
+    #[test]
+    fn vec_sigma_parse_huge_count_no_data_returns_err() {
+        // VLQ-encode u32::MAX as the count, provide zero element bytes
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        w.put_u32(u32::MAX).unwrap();
+        let cursor = Cursor::new(&data[..]);
+        let mut r = SigmaByteReader::new(cursor, ConstantStore::empty());
+        let result = Vec::<u32>::sigma_parse(&mut r);
+        assert!(result.is_err());
     }
 }
