@@ -133,6 +133,7 @@ impl DataSerializer {
             SLong => Literal::Long(r.get_i64()?),
             SString => {
                 let len = r.get_u32()?;
+                r.check_remaining(len as usize)?;
                 let mut buf = vec![0; len as usize];
                 r.read_exact(&mut buf)?;
                 Literal::String(String::from_utf8_lossy(&buf).into())

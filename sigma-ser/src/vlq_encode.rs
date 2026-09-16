@@ -262,6 +262,27 @@ pub trait ReadSigmaVlqExt: io::Read + io::Seek {
             _ => None,
         })
     }
+
+    /// Check that the stream has at least `needed` bytes remaining from the
+    /// current position, returning `Err(UnexpectedEof)` if not.  Use before
+    /// allocating a buffer whose size was read off the wire, to avoid a
+    /// multi-gigabyte allocation from a hostile five-byte prefix.
+    ///
+    /// Mirrors the JVM `VLQByteBufferReader.getBytes(size)` which checks
+    /// `size > buf.remaining` before allocating.
+    #[allow(clippy::seek_from_current)]
+    fn check_remaining(&mut self, needed: usize) -> Result<(), io::Error> {
+        let pos = self.seek(io::SeekFrom::Current(0))?;
+        let end = self.seek(io::SeekFrom::End(0))?;
+        self.seek(io::SeekFrom::Start(pos))?;
+        if (needed as u64) > end.saturating_sub(pos) {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "declared byte length exceeds remaining stream",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// Mark all types implementing `Read` as implementing the extension.
@@ -278,6 +299,7 @@ mod tests {
     use alloc::vec;
     use core3::io::Cursor;
     use core3::io::Read;
+    use core3::io::Seek;
     use core3::io::Write;
     use proptest::collection;
 
@@ -1012,5 +1034,26 @@ mod tests {
             prop_assert_eq!(&bytes_i64(i as i64), &expected_bytes);
             prop_assert_eq!(&bytes_i32(i as i32), &expected_bytes);
         }
+    }
+
+    #[test]
+    #[allow(clippy::seek_from_current)]
+    fn check_remaining_rejects_when_insufficient() {
+        let mut r = Cursor::new(vec![0u8; 4]);
+        // asking for more than the stream holds → UnexpectedEof
+        assert!(r.check_remaining(5).is_err());
+        // asking for exactly what remains → ok
+        assert!(r.check_remaining(4).is_ok());
+        // position unchanged after the check
+        assert_eq!(r.seek(io::SeekFrom::Current(0)).unwrap(), 0);
+    }
+
+    #[test]
+    fn check_remaining_tracks_position() {
+        let mut r = Cursor::new(vec![0u8; 10]);
+        r.get_u8().unwrap(); // advance past byte 0
+                             // 9 bytes remain
+        assert!(r.check_remaining(10).is_err());
+        assert!(r.check_remaining(9).is_ok());
     }
 }

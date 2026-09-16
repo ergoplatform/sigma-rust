@@ -289,14 +289,14 @@ impl SigmaSerializable for Transaction {
 
             // parse transaction inputs
             let inputs_count = r.get_u16()?;
-            let mut inputs = Vec::with_capacity(inputs_count as usize);
+            let mut inputs = Vec::new();
             for _ in 0..inputs_count {
                 inputs.push(Input::sigma_parse(r)?);
             }
 
             // parse transaction data inputs
             let data_inputs_count = r.get_u16()?;
-            let mut data_inputs = Vec::with_capacity(data_inputs_count as usize);
+            let mut data_inputs = Vec::new();
             for _ in 0..data_inputs_count {
                 data_inputs.push(DataInput::sigma_parse(r)?);
             }
@@ -308,15 +308,14 @@ impl SigmaSerializable for Transaction {
                     "too many tokens in transaction".to_string(),
                 ));
             }
-            let mut token_ids =
-                IndexSet::with_capacity_and_hasher(tokens_count as usize, Default::default());
+            let mut token_ids = IndexSet::with_hasher(Default::default());
             for _ in 0..tokens_count {
                 token_ids.insert(TokenId::sigma_parse(r)?);
             }
 
             // parse outputs
             let outputs_count = r.get_u16()?;
-            let mut outputs = Vec::with_capacity(outputs_count as usize);
+            let mut outputs = Vec::new();
             for _ in 0..outputs_count {
                 outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests(
                     Some(&token_ids),
@@ -551,5 +550,19 @@ mod tests {
             "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
             tx_id_str
         )
+    }
+
+    /// Transaction::sigma_parse with a huge declared inputs count but no data
+    /// must return Err without a multi-gigabyte pre-allocation.
+    #[test]
+    fn transaction_parse_huge_inputs_count_returns_err() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        let mut data = Vec::new();
+        let mut w =
+            ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter::new(&mut data, None);
+        w.put_u16(u16::MAX).unwrap();
+        let result = Transaction::sigma_parse_bytes(&data);
+        assert!(result.is_err());
     }
 }
