@@ -288,17 +288,10 @@ impl TransactionHintsBag {
 
     /// Replacing Hints for an input index
     pub fn replace_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
+        // Separate secret commitments (CommitmentHint) from other hints
+        let (secret, public): (Vec<Hint>, Vec<Hint>) = hints_bag.hints
             .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
+            .partition(|hint| matches!(hint, Hint::CommitmentHint(_)));
 
         self.secret_hints.insert(index, HintsBag { hints: secret });
         self.public_hints.insert(index, HintsBag { hints: public });
@@ -306,46 +299,31 @@ impl TransactionHintsBag {
 
     /// Adding hints for a input index
     pub fn add_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let mut public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
+        let (secret, public): (Vec<Hint>, Vec<Hint>) = hints_bag.hints
             .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let mut secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let old_secret: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in old_secret {
-            secret.push(hint.clone());
-        }
+            .partition(|hint| matches!(hint, Hint::CommitmentHint(_)));
 
-        let old_public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in old_public {
-            public.push(hint.clone());
-        }
-        self.secret_hints.insert(index, HintsBag { hints: secret });
-        self.public_hints.insert(index, HintsBag { hints: public });
+        // Get existing hints or empty bags
+        let empty_bag = HintsBag::empty();
+        let mut existing_secret = self.secret_hints.get(&index).unwrap_or(&empty_bag).hints.clone();
+        let mut existing_public = self.public_hints.get(&index).unwrap_or(&empty_bag).hints.clone();
+
+        // Combine with new hints
+        existing_secret.extend(secret);
+        existing_public.extend(public);
+
+        self.secret_hints.insert(index, HintsBag { hints: existing_secret });
+        self.public_hints.insert(index, HintsBag { hints: existing_public });
     }
 
     /// Outputting HintsBag corresponding for an index
     pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
-        let mut hints: Vec<Hint> = Vec::new();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let secrets: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in secrets {
-            hints.push(hint.clone());
-        }
-        let public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in public {
-            hints.push(hint.clone());
-        }
-        let hints_bag: HintsBag = HintsBag { hints };
-        hints_bag
+        let empty_bag = HintsBag::empty();
+        let mut all_hints = Vec::new();
+
+        all_hints.extend(self.secret_hints.get(&index).unwrap_or(&empty_bag).hints.clone());
+        all_hints.extend(self.public_hints.get(&index).unwrap_or(&empty_bag).hints.clone());
+
+        HintsBag { hints: all_hints }
     }
 }
