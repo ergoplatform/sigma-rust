@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2`; downstream implementations using those traits may need to update their I/O imports and error types.
 - The WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
+- `Address::script()` output for P2SH changes for every caller: the box script reads context variable 126 through `OptionGet` (sigma-state 6.x `Pay2SHAddress.script`), so a spender puts the serialized proposition in variable 126. `Address::recreate_from_ergo_tree` now classifies that 6.x tree as P2SH where it returned P2S; it also recognizes the 5.x form (variable 1 with `OptionGet`), and returns P2S for a tree in the form sigma-rust 0.28.0 and earlier wrote (`GetVar(1)` hashed without `OptionGet`), whose bytes do not parse.
 
 ### Fixed
 - Correct unsigned 256-bit division in the C API and return errors for zero-modulus subtraction and inversion.
@@ -17,7 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
 - Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
 - Repair release-preflight environment setup so GitHub can schedule the package validation jobs.
-- `Address::script()` for P2SH now writes the sigma-state 6.x box script (context variable 126 read through `OptionGet`, header `0x00`). The previous script hashed the `Option` returned by `GetVar(1)`; the reference node rejects spends of such boxes and sigma-rust could not parse the tree back. `Address::recreate_from_ergo_tree` recognizes both the 6.x (variable 126) and the 5.x (variable 1) P2SH forms.
+- P2SH `Address::script()` hashed the `Option` returned by `GetVar(1)` instead of the `Coll[Byte]` inside it; an ergo 6.0.6 node rejected spends of such boxes and sigma-rust could not parse the tree back. It now writes the sigma-state 6.x form.
 
 ## [0.28.0] - 2024-08-09
 ## [0.27.1] - 2023-12-02
