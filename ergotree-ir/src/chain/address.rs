@@ -44,16 +44,17 @@ use thiserror::Error;
 ///
 /// Mirrors `Pay2SHAddress.scriptId` in sigmastate-interpreter
 /// (`data/shared/src/main/scala/org/ergoplatform/ErgoAddress.scala`): `126` since
-/// sigma-state 6.0, `1` in sigma-state 5.x (see [`LEGACY_P2SH_SCRIPT_VAR_ID`]).
+/// sigma-state 6.0, `1` in sigma-state 5.x (see [`P2SH_SCRIPT_VAR_ID_V5`]).
 /// [`Address::script`] writes this id; the spending input must carry the serialized
 /// script (`Coll[Byte]`) in this context extension variable.
 pub const P2SH_SCRIPT_VAR_ID: u8 = 126;
 
-/// Context variable id used by the P2SH box script before sigma-state 6.0.
+/// Context variable id used by the P2SH box script in sigma-state 5.x, the form Fleet SDK
+/// and the explorer write today.
 ///
-/// Boxes guarded by that form still exist, so [`Address::recreate_from_ergo_tree`]
+/// Boxes guarded by that form exist, so [`Address::recreate_from_ergo_tree`]
 /// recognizes it; [`Address::script`] never writes it.
-pub const LEGACY_P2SH_SCRIPT_VAR_ID: u8 = 1;
+pub const P2SH_SCRIPT_VAR_ID_V5: u8 = 1;
 
 /**
 * An address is a short string corresponding to some script used to protect a box. Unlike (string-encoded) binary
@@ -125,9 +126,11 @@ impl Address {
     ///
     /// A tree is recognized as P2SH only when it hashes `OptionGet(GetVar(id, Coll[Byte]))`
     /// and deserializes `DeserializeContext(id, SigmaProp)` with the same `id`, and that id
-    /// is [`P2SH_SCRIPT_VAR_ID`] (sigma-state 6.x) or [`LEGACY_P2SH_SCRIPT_VAR_ID`]
-    /// (sigma-state 5.x, Fleet SDK). The form written by sigma-rust 0.28.0 and earlier
-    /// (`GetVar(1)` hashed without `OptionGet`) is not recognized and yields P2S.
+    /// is [`P2SH_SCRIPT_VAR_ID`] (sigma-state 6.x) or [`P2SH_SCRIPT_VAR_ID_V5`]
+    /// (sigma-state 5.x, Fleet SDK), the hash constant is 24 bytes, and the tree header is
+    /// version 0 without constant segregation (the header [`Address::script`] writes).
+    /// The form written by sigma-rust 0.28.0 and earlier (`GetVar(1)` hashed without
+    /// `OptionGet`) is not recognized and yields P2S.
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
             Ok(expr) => Ok(match expr {
@@ -148,7 +151,7 @@ impl Address {
                                 expr: BinOp { kind, left, right },
                             }),
                             SType::SSigmaProp,
-                            P2SH_SCRIPT_VAR_ID | LEGACY_P2SH_SCRIPT_VAR_ID,
+                            P2SH_SCRIPT_VAR_ID | P2SH_SCRIPT_VAR_ID_V5,
                         ) = (*input.clone(), tpe.clone(), *id)
                         {
                             if let (
@@ -181,18 +184,19 @@ impl Address {
                                         CollByte(v),
                                     ) = (from_tpe, from_v, until_tpe, until_v, bytes)
                                     {
-                                        // The hashed bytes must be the ones deserialized:
-                                        // `OptionGet(GetVar(id))` with the same `id`.
-                                        if p2sh_script_var_id(&hash_input) == Some(*id) {
-                                            let script_hash = v.as_vec_u8();
-                                            return <[u8; 24]>::try_from(script_hash)
-                                                .map(Address::P2SH)
-                                                .map_err(|_| {
-                                                    AddressError::UnexpectedErgoTree(
-                                                        tree.clone().into(),
-                                                        String::from("Failed to create P2SH address, invalid script hash."),
-                                                    )
-                                                });
+                                        // The hashed bytes must be the ones deserialized
+                                        // (`OptionGet(GetVar(id))` with the same `id`), the
+                                        // hash must be 24 bytes, and the header must be the
+                                        // one `Address::script` writes (v0, no constant
+                                        // segregation); anything else is P2S.
+                                        if p2sh_script_var_id(&hash_input) == Some(*id)
+                                            && tree.header().ok() == Some(ErgoTreeHeader::v0(false))
+                                        {
+                                            if let Ok(script_hash) =
+                                                <[u8; 24]>::try_from(v.as_vec_u8())
+                                            {
+                                                return Ok(Address::P2SH(script_hash));
+                                            }
                                         }
                                     }
                                 }
@@ -234,7 +238,7 @@ impl Address {
     /// For [`Address::P2SH`] this writes the sigma-state 6.x box script, which reads the
     /// serialized script (`Coll[Byte]`) from context variable [`P2SH_SCRIPT_VAR_ID`] (126)
     /// through `OptionGet`. It will not rebuild a box funded with the 5.x form (variable
-    /// [`LEGACY_P2SH_SCRIPT_VAR_ID`], as written by sigma-state 5.x and Fleet SDK): the
+    /// [`P2SH_SCRIPT_VAR_ID_V5`], as written by sigma-state 5.x and Fleet SDK): the
     /// address alone does not tell which form guards a box, so a spender must read the
     /// funded box's script to know which context variable to populate.
     pub fn script(&self) -> Result<ErgoTree, SigmaParsingError> {
@@ -788,6 +792,11 @@ mod p2sh_tests {
     // hash), DeserializeContext(deserialize_id, SigmaProp))` with header 0x00, built in
     // memory so that ill-typed hash inputs can be tested.
     fn p2sh_shaped_tree(hash_input: Expr, deserialize_id: u8) -> ErgoTree {
+        let expr = p2sh_shaped_expr(hash_input, deserialize_id, hash().to_vec());
+        ErgoTree::new(ErgoTreeHeader::v0(false), &expr).unwrap()
+    }
+
+    fn p2sh_shaped_expr(hash_input: Expr, deserialize_id: u8, hash_bytes: Vec<u8>) -> Expr {
         let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
             input: Box::new(hash_input),
         });
@@ -803,7 +812,7 @@ mod p2sh_tests {
             BinOp {
                 kind: Relation(RelationOp::Eq),
                 left: Box::new(slice_expr),
-                right: Box::new(Expr::Const(Constant::from(hash().to_vec()))),
+                right: Box::new(Expr::Const(Constant::from(hash_bytes))),
             }
             .into(),
         );
@@ -814,8 +823,7 @@ mod p2sh_tests {
         let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
             input: Box::from(hash_equals),
         });
-        let and_expr = Expr::SigmaAnd(SigmaAnd::new(vec![sigma_prop, script_is_correct]).unwrap());
-        ErgoTree::new(ErgoTreeHeader::v0(false), &and_expr).unwrap()
+        Expr::SigmaAnd(SigmaAnd::new(vec![sigma_prop, script_is_correct]).unwrap())
     }
 
     fn get_var_bytes(var_id: u8) -> Expr {
@@ -833,10 +841,7 @@ mod p2sh_tests {
     // spend with `ClassCastException: scala.Some cannot be cast to sigma.Coll`, and
     // `ErgoTree::sigma_parse_bytes` rejects its bytes (`CalcBlake2b256` input type check).
     fn legacy_var1_no_option_get_tree() -> ErgoTree {
-        p2sh_shaped_tree(
-            get_var_bytes(LEGACY_P2SH_SCRIPT_VAR_ID),
-            LEGACY_P2SH_SCRIPT_VAR_ID,
-        )
+        p2sh_shaped_tree(get_var_bytes(P2SH_SCRIPT_VAR_ID_V5), P2SH_SCRIPT_VAR_ID_V5)
     }
 
     #[test]
@@ -868,8 +873,8 @@ mod p2sh_tests {
     fn recreate_p2s_for_mismatched_get_var_and_deserialize_context_ids() {
         // GetVar(1) hashed, DeserializeContext(126) run, and the reverse.
         for (get_var_id, deserialize_id) in [
-            (LEGACY_P2SH_SCRIPT_VAR_ID, P2SH_SCRIPT_VAR_ID),
-            (P2SH_SCRIPT_VAR_ID, LEGACY_P2SH_SCRIPT_VAR_ID),
+            (P2SH_SCRIPT_VAR_ID_V5, P2SH_SCRIPT_VAR_ID),
+            (P2SH_SCRIPT_VAR_ID, P2SH_SCRIPT_VAR_ID_V5),
         ] {
             let hash_input = Expr::OptionGet(
                 OptionGet::try_build(get_var_bytes(get_var_id))
@@ -929,5 +934,73 @@ mod p2sh_tests {
             Address::recreate_from_ergo_tree(&tree).unwrap(),
             Address::P2S(base16::decode(&hex).unwrap())
         );
+    }
+
+    fn option_get_var(var_id: u8) -> Expr {
+        Expr::OptionGet(OptionGet::try_build(get_var_bytes(var_id)).unwrap().into())
+    }
+
+    #[test]
+    fn recreate_p2s_for_v1_header() {
+        // The 6.x P2SH expression under a v1 header, which `Address::script` does not
+        // write: `script()` could not rebuild these bytes, so the tree is P2S.
+        let expr = p2sh_shaped_expr(
+            option_get_var(P2SH_SCRIPT_VAR_ID),
+            P2SH_SCRIPT_VAR_ID,
+            hash().to_vec(),
+        );
+        for header in [ErgoTreeHeader::v1(false), ErgoTreeHeader::v1(true)] {
+            let tree = ErgoTree::new(header.clone(), &expr).unwrap();
+            let bytes = tree.sigma_serialize_bytes().unwrap();
+            let parsed = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+            assert_eq!(parsed.header().unwrap(), header);
+            assert_eq!(
+                Address::recreate_from_ergo_tree(&parsed).unwrap(),
+                Address::P2S(bytes),
+                "header {:?}",
+                header
+            );
+        }
+    }
+
+    #[test]
+    fn recreate_p2s_for_segregated_constants_header() {
+        // Header 0x10: version 0 with constant segregation. `proposition()` substitutes
+        // the constants back, so the expression matches; the header check rejects it.
+        let expr = p2sh_shaped_expr(
+            option_get_var(P2SH_SCRIPT_VAR_ID),
+            P2SH_SCRIPT_VAR_ID,
+            hash().to_vec(),
+        );
+        let tree = ErgoTree::new(ErgoTreeHeader::v0(true), &expr).unwrap();
+        let bytes = tree.sigma_serialize_bytes().unwrap();
+        assert_eq!(bytes[0], 0x10);
+        let parsed = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&parsed).unwrap(),
+            Address::P2S(bytes)
+        );
+    }
+
+    #[test]
+    fn recreate_p2s_for_hash_constant_not_24_bytes() {
+        // A P2SH-shaped tree whose hash constant is not 24 bytes yields a P2S address,
+        // not an error.
+        for len in [23usize, 25, 32] {
+            let expr = p2sh_shaped_expr(
+                option_get_var(P2SH_SCRIPT_VAR_ID),
+                P2SH_SCRIPT_VAR_ID,
+                vec![0xabu8; len],
+            );
+            let tree = ErgoTree::new(ErgoTreeHeader::v0(false), &expr).unwrap();
+            let bytes = tree.sigma_serialize_bytes().unwrap();
+            let parsed = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+            assert_eq!(
+                Address::recreate_from_ergo_tree(&parsed).unwrap(),
+                Address::P2S(bytes),
+                "hash length {}",
+                len
+            );
+        }
     }
 }

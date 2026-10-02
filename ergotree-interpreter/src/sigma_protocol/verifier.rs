@@ -456,7 +456,7 @@ mod p2sh_tests {
     use ergotree_ir::chain::address::Address;
     use ergotree_ir::chain::context_extension::ContextExtension;
     use ergotree_ir::mir::constant::Constant;
-    use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::expr::{Expr, SubstDeserializeError};
     use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProofOfKnowledgeTree};
     use sigma_test_util::force_any_val;
@@ -521,6 +521,28 @@ mod p2sh_tests {
         let (tree, prop_bytes) = p2sh_box_tree(&secret);
         let ext = extension_with(1, &prop_bytes);
         let ctx = force_any_val::<Context>().with_extension(&ext);
-        assert!(reduce_to_crypto(&tree, &ctx).is_err());
+        // Substituting `DeserializeContext(126)` fails before `OptionGet(GetVar(126))` runs.
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap_err(),
+            EvalError::SubstDeserializeError(SubstDeserializeError::ExtensionKeyNotFound(126))
+        );
+    }
+
+    #[test]
+    fn p2sh_script_with_var_126_of_other_proposition_reduces_to_false() {
+        // Variable 126 holds a well-formed proposition whose hash is not the address's:
+        // reduction succeeds and the hash comparison makes the result false.
+        let secret = DlogProverInput::random();
+        let (tree, _) = p2sh_box_tree(&secret);
+        let other = DlogProverInput::random();
+        let other_prop_bytes = Expr::Const(other.public_image().into())
+            .sigma_serialize_bytes()
+            .unwrap();
+        let ext = extension_with(126, &other_prop_bytes);
+        let ctx = force_any_val::<Context>().with_extension(&ext);
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            SigmaBoolean::TrivialProp(false)
+        );
     }
 }
