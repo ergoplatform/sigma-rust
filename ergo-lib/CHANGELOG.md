@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
 - Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
 - Repair release-preflight environment setup so GitHub can schedule the package validation jobs.
+- `Address::script()` for P2SH now writes the sigma-state 6.x box script (context variable 126 read through `OptionGet`, header `0x00`). The previous script hashed the `Option` returned by `GetVar(1)`; the reference node rejects spends of such boxes and sigma-rust could not parse the tree back. `Address::recreate_from_ergo_tree` recognizes both the 6.x (variable 126) and the 5.x (variable 1) P2SH forms.
 
 ## [0.28.0] - 2024-08-09
 ## [0.27.1] - 2023-12-02

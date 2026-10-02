@@ -12,7 +12,9 @@ use crate::mir::constant::{Constant, Literal};
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::expr::Expr;
 use crate::mir::get_var::GetVar;
+use crate::mir::option_get::OptionGet;
 use crate::mir::sigma_and::SigmaAnd;
+use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl::CollByte;
 use crate::serialization::SigmaParsingError;
@@ -37,6 +39,21 @@ use core::convert::{TryFrom, TryInto};
 use sigma_util::hash::blake2b256_hash;
 use sigma_util::AsVecU8;
 use thiserror::Error;
+
+/// Context variable id from which the P2SH box script reads the serialized script.
+///
+/// Mirrors `Pay2SHAddress.scriptId` in sigmastate-interpreter
+/// (`data/shared/src/main/scala/org/ergoplatform/ErgoAddress.scala`): `126` since
+/// sigma-state 6.0, `1` in sigma-state 5.x (see [`LEGACY_P2SH_SCRIPT_VAR_ID`]).
+/// [`Address::script`] writes this id; the spending input must carry the serialized
+/// script (`Coll[Byte]`) in this context extension variable.
+pub const P2SH_SCRIPT_VAR_ID: u8 = 126;
+
+/// Context variable id used by the P2SH box script before sigma-state 6.0.
+///
+/// Boxes guarded by that form still exist, so [`Address::recreate_from_ergo_tree`]
+/// recognizes it; [`Address::script`] never writes it.
+pub const LEGACY_P2SH_SCRIPT_VAR_ID: u8 = 1;
 
 /**
 * An address is a short string corresponding to some script used to protect a box. Unlike (string-encoded) binary
@@ -105,6 +122,10 @@ impl Address {
     /// At some point in the past a user entered an address from which the ErgoTree was built.
     /// Re-create the address from this ErgoTree.
     /// `tree` - ErgoTree that was created from an Address
+    ///
+    /// A P2SH tree is recognized with the script read from context variable
+    /// [`P2SH_SCRIPT_VAR_ID`] (sigma-state 6.x) or [`LEGACY_P2SH_SCRIPT_VAR_ID`]
+    /// (sigma-state 5.x, Fleet SDK, and sigma-rust before the 6.x form was adopted).
     pub fn recreate_from_ergo_tree(tree: &ErgoTree) -> Result<Address, AddressError> {
         match tree.proposition() {
             Ok(expr) => Ok(match expr {
@@ -125,8 +146,8 @@ impl Address {
                                 expr: BinOp { kind, left, right },
                             }),
                             SType::SSigmaProp,
-                            1,
-                        ) = (*input.clone(), tpe.clone(), id)
+                            P2SH_SCRIPT_VAR_ID | LEGACY_P2SH_SCRIPT_VAR_ID,
+                        ) = (*input.clone(), tpe.clone(), *id)
                         {
                             if let (
                                 Relation(RelationOp::Eq),
@@ -218,15 +239,22 @@ impl Address {
             }
             Address::P2S(bytes) => ErgoTree::sigma_parse_bytes(bytes),
             Address::P2SH(script_hash) => {
+                // sigma-state 6.x `Pay2SHAddress.script`:
+                // SigmaAnd(
+                //   EQ(Slice(CalcBlake2b256(GetVarByteArray(126).get), 0, 24), hash).toSigmaProp,
+                //   DeserializeContext(126, SSigmaProp))
+                // in an ErgoTree with header 0x00 (version 0, no constant segregation).
                 let get_var_expr = Expr::GetVar(
                     GetVar {
-                        var_id: 1,
+                        var_id: P2SH_SCRIPT_VAR_ID,
                         var_tpe: SType::SColl(Arc::new(SType::SByte)),
                     }
                     .into(),
                 );
+                // GetVar yields Option[Coll[Byte]]; CalcBlake2b256 needs the Coll[Byte] inside.
+                let script_bytes_expr = Expr::OptionGet(OptionGet::try_build(get_var_expr)?.into());
                 let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
-                    input: Box::new(get_var_expr),
+                    input: Box::new(script_bytes_expr),
                 });
                 let slice_expr = Expr::Slice(
                     Slice {
@@ -246,7 +274,7 @@ impl Address {
                 );
                 let script_is_correct = Expr::DeserializeContext(DeserializeContext {
                     tpe: SType::SSigmaProp,
-                    id: 1,
+                    id: P2SH_SCRIPT_VAR_ID,
                 });
                 let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
                     input: Box::from(hash_equals),
@@ -618,5 +646,172 @@ mod tests {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
             prop_assert![encoder.parse_address_from_str(&s).is_err()];
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod p2sh_tests {
+    use super::*;
+
+    // Testnet P2SH address qQqAgn6N6hrNTTu2s19HJg52NK37GENqoeo2W6i of `proveDlog(pk)`,
+    // pk = 03f2dab42d7333f37f527841998d5212468d0e7a0b7e091709501ed9be8e2fc7f3;
+    // hash = blake2b256(08cd ++ pk)[0..24].
+    const ADDRESS: &str = "qQqAgn6N6hrNTTu2s19HJg52NK37GENqoeo2W6i";
+    const HASH: &str = "62d1e48400494bfedf9bf70d4af152428fb46f32bf05d199";
+    // Box script written for ADDRESS by sigmastate-js 0.6.3 (sigma-state 6.x
+    // `Pay2SHAddress.script`, variable 126). The same form for another key was spent on
+    // a node, see `p2sh_script_matches_tree_spent_on_node`.
+    const REFERENCE_TREE: &str =
+        "00ea02d193b4cbe4e37e0e040004300e1862d1e48400494bfedf9bf70d4af152428fb46f32bf05d199d4087e";
+    // Legacy form, variable 1 with OptionGet (sigma-state 5.x, Fleet SDK).
+    const LEGACY_V1_OPTION_GET_TREE: &str =
+        "00ea02d193b4cbe4e3010e040004300e1862d1e48400494bfedf9bf70d4af152428fb46f32bf05d199d40801";
+    // Legacy form, variable 1 without OptionGet (sigma-rust before this fix).
+    const LEGACY_V1_NO_OPTION_GET_TREE: &str =
+        "00ea02d193b4cbe3010e040004300e1862d1e48400494bfedf9bf70d4af152428fb46f32bf05d199d40801";
+
+    fn hash() -> [u8; 24] {
+        base16::decode(HASH).unwrap().try_into().unwrap()
+    }
+
+    fn tree_from_hex(hex: &str) -> ErgoTree {
+        ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn p2sh_script_matches_reference_bytes() {
+        let address = AddressEncoder::unchecked_parse_address_from_str(ADDRESS).unwrap();
+        assert_eq!(address, Address::P2SH(hash()));
+        let tree = address.script().unwrap();
+        assert_eq!(
+            base16::encode_lower(&tree.sigma_serialize_bytes().unwrap()),
+            REFERENCE_TREE
+        );
+    }
+
+    #[test]
+    fn p2sh_script_matches_tree_spent_on_node() {
+        // Testnet P2SH address of `proveDlog(pk)`, pk =
+        // 0254e96de17274a4e0ba3c61b95ed96ee6104f0baa52fd7c5e73a8b946d67d06b4. A box with
+        // exactly these tree bytes was spent (var 126 = 08cd ++ pk) on an ergo 6.0.6 devnet node.
+        let address = AddressEncoder::unchecked_parse_address_from_str(
+            "rNoPVtL9L9cuzgqQqkPsqo9VginDU6dBAtBamSU",
+        )
+        .unwrap();
+        let tree = address.script().unwrap();
+        assert_eq!(
+            base16::encode_lower(&tree.sigma_serialize_bytes().unwrap()),
+            "00ea02d193b4cbe4e37e0e040004300e18c0a470aaba05a2ea5af472095898300cf8ca7707244df4f9d4087e"
+        );
+    }
+
+    #[test]
+    fn p2sh_script_roundtrips_through_bytes() {
+        let tree = Address::P2SH(hash()).script().unwrap();
+        let bytes = tree.sigma_serialize_bytes().unwrap();
+        let parsed = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(parsed.proposition().is_ok());
+        assert_eq!(parsed, tree);
+        assert_eq!(parsed.sigma_serialize_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn p2sh_script_recreates_p2sh_address() {
+        let tree = Address::P2SH(hash()).script().unwrap();
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&tree).unwrap(),
+            Address::P2SH(hash())
+        );
+        let parsed = ErgoTree::sigma_parse_bytes(&tree.sigma_serialize_bytes().unwrap()).unwrap();
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&parsed).unwrap(),
+            Address::P2SH(hash())
+        );
+    }
+
+    #[test]
+    fn recreate_p2sh_from_reference_tree_bytes() {
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&tree_from_hex(REFERENCE_TREE)).unwrap(),
+            Address::P2SH(hash())
+        );
+    }
+
+    #[test]
+    fn recreate_p2sh_from_legacy_var1_option_get_tree() {
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&tree_from_hex(LEGACY_V1_OPTION_GET_TREE)).unwrap(),
+            Address::P2SH(hash())
+        );
+    }
+
+    // The form `Address::script` wrote before the 6.x form was adopted. It hashes the
+    // `Option` returned by `GetVar`, so it is ill-typed: the reference node rejects a
+    // spend with `ClassCastException: scala.Some cannot be cast to sigma.Coll`, and
+    // `ErgoTree::sigma_parse_bytes` rejects its bytes (`CalcBlake2b256` input type
+    // check). Trees built in memory by older sigma-rust versions are still recognized.
+    fn legacy_var1_no_option_get_tree() -> ErgoTree {
+        let get_var_expr = Expr::GetVar(
+            GetVar {
+                var_id: LEGACY_P2SH_SCRIPT_VAR_ID,
+                var_tpe: SType::SColl(Arc::new(SType::SByte)),
+            }
+            .into(),
+        );
+        let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
+            input: Box::new(get_var_expr),
+        });
+        let slice_expr = Expr::Slice(
+            Slice {
+                input: Box::new(hash_expr),
+                from: Box::new(0i32.into()),
+                until: Box::new(24i32.into()),
+            }
+            .into(),
+        );
+        let hash_equals = Expr::BinOp(
+            BinOp {
+                kind: Relation(RelationOp::Eq),
+                left: Box::new(slice_expr),
+                right: Box::new(Expr::Const(Constant::from(hash().to_vec()))),
+            }
+            .into(),
+        );
+        let script_is_correct = Expr::DeserializeContext(DeserializeContext {
+            tpe: SType::SSigmaProp,
+            id: LEGACY_P2SH_SCRIPT_VAR_ID,
+        });
+        let sigma_prop = Expr::BoolToSigmaProp(BoolToSigmaProp {
+            input: Box::from(hash_equals),
+        });
+        let and_expr = Expr::SigmaAnd(SigmaAnd::new(vec![sigma_prop, script_is_correct]).unwrap());
+        ErgoTree::new(ErgoTreeHeader::v0(false), &and_expr).unwrap()
+    }
+
+    #[test]
+    fn recreate_p2sh_from_legacy_var1_no_option_get_tree() {
+        let tree = legacy_var1_no_option_get_tree();
+        assert_eq!(
+            base16::encode_lower(&tree.sigma_serialize_bytes().unwrap()),
+            LEGACY_V1_NO_OPTION_GET_TREE
+        );
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&tree).unwrap(),
+            Address::P2SH(hash())
+        );
+    }
+
+    #[test]
+    fn recreate_p2s_for_other_deserialize_context_var() {
+        // Same shape as the reference form but with variable 2: not a P2SH tree.
+        let hex = REFERENCE_TREE
+            .replace("e37e0e", "e3020e")
+            .replace("d4087e", "d40802");
+        let tree = tree_from_hex(&hex);
+        assert_eq!(
+            Address::recreate_from_ergo_tree(&tree).unwrap(),
+            Address::P2S(base16::decode(&hex).unwrap())
+        );
     }
 }
