@@ -224,64 +224,103 @@ fn check_input_preservation<T: ErgoBoxAssets>(
 #[error("Not enough coins for change box(es)")]
 pub struct NotEnoughCoinsForChangeBox(String);
 
-/// Split change tokens into a multiple boxes if over ErgoBox::MAX_TOKENS_COUNT distinct tokens
+/// Serialized size of a token in a box: 32 bytes for the token id plus the
+/// VLQ-encoded amount (1-10 bytes)
+fn token_serialized_size(token: &Token) -> usize {
+    let amount: u64 = token.amount.into();
+    let amount_vlq_len = if amount == 0 {
+        1
+    } else {
+        (64 - amount.leading_zeros() as usize + 6) / 7
+    };
+    32 + amount_vlq_len
+}
+
+/// Bytes to reserve on top of the serialized tokens when estimating the size
+/// of a change box. The selector does not know the change address ErgoTree,
+/// so this reserves a generous allowance for it (a P2PK tree is 36 bytes)
+/// plus the fixed-size box fields: tx id and index in the full box (34),
+/// creation height (4), token count (1), register count (1) and the box
+/// value VLQ (up to 10). Boxes built from change packed with this estimate
+/// stay within ErgoBox::MAX_BOX_SIZE; ErgoBoxCandidateBuilder remains the
+/// fail-closed check for unusually large change scripts.
+const CHANGE_BOX_OVERHEAD_BYTES: usize = 34 + 4 + 1 + 1 + 10 + 118;
+
+/// Split change tokens into multiple boxes if they do not fit into a single
+/// box, either by count (over ErgoBox::MAX_TOKENS_COUNT distinct tokens) or
+/// by serialized size (over ErgoBox::MAX_BOX_SIZE bytes once built)
 fn make_change_boxes(
     change_value: BoxValue,
     change_tokens: HashMap<TokenId, TokenAmount>,
 ) -> Result<Vec<ErgoBoxAssetsData>, NotEnoughCoinsForChangeBox> {
     if change_tokens.is_empty() {
-        Ok(vec![ErgoBoxAssetsData {
+        return Ok(vec![ErgoBoxAssetsData {
             value: change_value,
             tokens: None,
-        }])
-    } else if change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT {
-        #[allow(clippy::unwrap_used)]
-        // unwrap_used is ok here because we checked that change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT
-        Ok(vec![ErgoBoxAssetsData {
-            value: change_value,
-            tokens: Some(
-                BoxTokens::from_vec(change_tokens.into_iter().map(Token::from).collect()).unwrap(),
-            ),
-        }])
-    } else {
-        let mut change_boxes = vec![];
-        let mut change_tokens_left: Vec<Token> =
-            change_tokens.into_iter().map(Token::from).collect();
-        let mut change_value_left = change_value;
-        while !change_tokens_left.is_empty() {
-            if change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT {
-                #[allow(clippy::unwrap_used)]
-                // unwrap_used is ok here because we checked that change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT
-                let change_box = ErgoBoxAssetsData {
-                    value: change_value_left,
-                    tokens: Some(BoxTokens::from_vec(change_tokens_left).unwrap()),
-                };
-                change_boxes.push(change_box);
-                break;
-            } else {
-                #[allow(clippy::unwrap_used)] // safe for the box value upper bound
-                // doubled due to larger box size to accomodate so many tokens
-                let value = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
-                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT;
-                let drained_tokens: Vec<Token> =
-                    change_tokens_left.drain(..tokens_to_drain).collect();
-                #[allow(clippy::unwrap_used)]
-                // safe since tokens_to_drain is ErgoBox::MAX_TOKENS_COUNT
-                let change_box = ErgoBoxAssetsData {
-                    value,
-                    tokens: Some(BoxTokens::from_vec(drained_tokens).unwrap()),
-                };
-                change_boxes.push(change_box);
-                change_value_left = change_value_left.checked_sub(&value).map_err(|e| {
-                    NotEnoughCoinsForChangeBox(format!(
-                        "Not enough coins left ({:?}) for change box {:?}, error: {}",
-                        change_value_left, value, e
-                    ))
-                })?;
-            }
-        }
-        Ok(change_boxes)
+        }]);
     }
+    // greedily pack the tokens into boxes fitting both the token count and
+    // the estimated serialized size limits
+    let mut packed_boxes: Vec<(Vec<Token>, usize)> = vec![];
+    let mut current_tokens: Vec<Token> = vec![];
+    let mut current_tokens_size: usize = 0;
+    for token in change_tokens.into_iter().map(Token::from) {
+        let token_size = token_serialized_size(&token);
+        if !current_tokens.is_empty()
+            && (current_tokens.len() >= ErgoBox::MAX_TOKENS_COUNT
+                || current_tokens_size + token_size + CHANGE_BOX_OVERHEAD_BYTES
+                    > ErgoBox::MAX_BOX_SIZE)
+        {
+            packed_boxes.push((core::mem::take(&mut current_tokens), current_tokens_size));
+            current_tokens_size = 0;
+        }
+        current_tokens.push(token);
+        current_tokens_size += token_size;
+    }
+    if !current_tokens.is_empty() {
+        packed_boxes.push((current_tokens, current_tokens_size));
+    }
+
+    let mut change_boxes = vec![];
+    let mut change_value_left = change_value;
+    let last_box_idx = packed_boxes.len() - 1;
+    for (idx, (tokens, tokens_size)) in packed_boxes.into_iter().enumerate() {
+        let value = if idx == last_box_idx {
+            // the last box gets all the value left
+            change_value_left
+        } else {
+            // every other box gets at least the minimum value for its
+            // estimated size (doubled SAFE_USER_MIN for small boxes, as
+            // before), deducted from the change value
+            #[allow(clippy::unwrap_used)] // safe for the box value upper bound
+            let doubled_min = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
+            let size_min = BoxValue::try_from(
+                (tokens_size + CHANGE_BOX_OVERHEAD_BYTES - 34) as u64
+                    * BoxValue::MIN_VALUE_PER_BOX_BYTE as u64,
+            )
+            .unwrap_or(doubled_min);
+            let value = if size_min > doubled_min {
+                size_min
+            } else {
+                doubled_min
+            };
+            change_value_left = change_value_left.checked_sub(&value).map_err(|e| {
+                NotEnoughCoinsForChangeBox(format!(
+                    "Not enough coins left ({:?}) for change box {:?}, error: {}",
+                    change_value_left, value, e
+                ))
+            })?;
+            value
+        };
+        #[allow(clippy::unwrap_used)]
+        // safe since every packed box has at most ErgoBox::MAX_TOKENS_COUNT tokens
+        let change_box = ErgoBoxAssetsData {
+            value,
+            tokens: Some(BoxTokens::from_vec(tokens).unwrap()),
+        };
+        change_boxes.push(change_box);
+    }
+    Ok(change_boxes)
 }
 
 #[cfg(test)]
