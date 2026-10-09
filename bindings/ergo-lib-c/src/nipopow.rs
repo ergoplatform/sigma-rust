@@ -1,5 +1,4 @@
 //! Bindings for NiPoPow
-use paste::paste;
 
 use ergo_lib_c_core::{
     batchmerkleproof::BatchMerkleProofPtr,
@@ -204,4 +203,7 @@ pub unsafe extern "C" fn ergo_lib_popow_header_delete(ptr: PoPowHeaderPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(PoPowHeader);
+make_ffi_eq! {
+    eq_fn: ergo_lib_po_pow_header_eq,
+    const_ptr: ConstPoPowHeaderPtr
+}
