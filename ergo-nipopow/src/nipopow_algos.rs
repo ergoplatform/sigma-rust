@@ -66,7 +66,13 @@ impl NipopowAlgos {
                     args.push(h);
                 }
             }
-            if args.len() >= (m as usize) {
+            // The `!args.is_empty()` condition only matters for m == 0, which
+            // the reference implementation rejects with `require(m >= 1)` and
+            // which NipopowProof's constructors/validity checks reject as
+            // well: with no headers at the current level, no higher level can
+            // have any either, so the loop must stop instead of counting
+            // empty levels forever.
+            if args.len() >= (m as usize) && !args.is_empty() {
                 res.acc.insert(0, (res.level, args.len()));
                 res = Acc {
                     level: res.level + 1,
@@ -142,6 +148,9 @@ impl NipopowAlgos {
     ) -> Result<NipopowProof, NipopowProofError> {
         if k == 0 {
             return Err(NipopowProofError::ZeroKParameter);
+        }
+        if m == 0 {
+            return Err(NipopowProofError::ZeroMParameter);
         }
         if chain.len() < ((k + m) as usize) {
             return Err(NipopowProofError::ChainTooShort);
