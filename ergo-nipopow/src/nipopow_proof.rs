@@ -3,6 +3,7 @@ use ergo_chain_types::{autolykos_pow_scheme::AutolykosPowSchemeError, BlockId, H
 use ergo_merkle_tree::BatchMerkleProof;
 use serde::{Deserialize, Serialize};
 use sigma_ser::{
+    scorex_parse_bytes_exact,
     vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt},
     ScorexParsingError, ScorexSerializable, ScorexSerializeResult,
 };
@@ -160,7 +161,10 @@ impl ScorexSerializable for NipopowProof {
         let m = r.get_u32()?;
         let k = r.get_u32()?;
         let num_prefixes = r.get_u32()? as usize;
-        let mut prefix = Vec::with_capacity(num_prefixes);
+        // The count is taken from untrusted input (a proof received from a
+        // peer): cap the pre-allocation, as in Vec::scorex_parse — the
+        // buffer still grows to the real count as headers are parsed.
+        let mut prefix = Vec::with_capacity(num_prefixes.min(1024));
         for _ in 0..num_prefixes {
             let _size = r.get_u32()?;
             prefix.push(PoPowHeader::scorex_parse(r)?);
@@ -168,7 +172,7 @@ impl ScorexSerializable for NipopowProof {
         let _suffix_head_size = r.get_u32()?;
         let suffix_head = PoPowHeader::scorex_parse(r)?;
         let num_suffix_tail = r.get_u32()? as usize;
-        let mut suffix_tail = Vec::with_capacity(num_suffix_tail);
+        let mut suffix_tail = Vec::with_capacity(num_suffix_tail.min(1024));
         for _ in 0..num_suffix_tail {
             let _size = r.get_u32();
             suffix_tail.push(Header::scorex_parse(r)?);
@@ -258,8 +262,9 @@ impl ScorexSerializable for PoPowHeader {
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let header_size = r.get_u32()?;
-        let mut buf = vec![0; header_size as usize];
-        r.read_exact(&mut buf)?;
+        // The size prefix is untrusted: allocate only as bytes actually
+        // arrive, never the claimed size up front.
+        let buf = scorex_parse_bytes_exact(r, header_size as usize)?;
         let header = Header::scorex_parse(&mut std::io::Cursor::new(buf))?;
 
         let interlinks_size = r.get_u32()?;
@@ -273,8 +278,8 @@ impl ScorexSerializable for PoPowHeader {
             .collect();
 
         let proof_bytes = r.get_u32()? as usize;
-        let mut proof_buf = vec![0u8; proof_bytes];
-        r.read_exact(&mut proof_buf)?;
+        // Same untrusted size prefix as the header buffer above.
+        let proof_buf = scorex_parse_bytes_exact(r, proof_bytes)?;
         let interlinks_proof = BatchMerkleProof::scorex_parse_bytes(&proof_buf);
 
         Ok(Self {
@@ -351,6 +356,27 @@ pub mod tests {
     use super::*;
     use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
+
+    /// VLQ (unsigned LEB128) encoding of `u32::MAX`.
+    const VLQ_U32_MAX: [u8; 5] = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+
+    #[test]
+    fn nipopowproof_huge_prefix_count_is_error_not_huge_allocation() {
+        // m, k, then a prefix count of u32::MAX with no headers following
+        // must be a parse error; sizing the buffer by the count aborted the
+        // process with a ~1.5 TB allocation failure before this fix.
+        let mut bytes = vec![0u8, 0u8];
+        bytes.extend_from_slice(&VLQ_U32_MAX);
+        assert!(NipopowProof::scorex_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn popow_header_huge_header_size_is_error_not_huge_allocation() {
+        // A header size prefix of u32::MAX with no header bytes following
+        // must be a parse error, not a 4 GB up-front allocation.
+        assert!(PoPowHeader::scorex_parse_bytes(&VLQ_U32_MAX).is_err());
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(64))]
@@ -360,6 +386,33 @@ pub mod tests {
             prop_assert_eq![scorex_serialize_roundtrip(&v), v];
         }
 
+        #[test]
+        fn popow_header_huge_proof_size_is_error_not_huge_allocation(v in any::<PoPowHeader>()) {
+            // Valid header + no interlinks, then a proof size prefix of
+            // u32::MAX with no proof bytes following.
+            let header_bytes = v.header.scorex_serialize_bytes().unwrap();
+            let mut bytes = Vec::new();
+            bytes.put_u32(header_bytes.len() as u32).unwrap();
+            bytes.extend_from_slice(&header_bytes);
+            bytes.put_u32(0).unwrap();
+            bytes.extend_from_slice(&VLQ_U32_MAX);
+            prop_assert![PoPowHeader::scorex_parse_bytes(&bytes).is_err()];
+        }
+
+        #[test]
+        fn nipopowproof_huge_suffix_tail_count_is_error_not_huge_allocation(v in any::<PoPowHeader>()) {
+            // m, k, zero prefixes, a valid suffix head, then a suffix tail
+            // count of u32::MAX with no headers following.
+            let suffix_head_bytes = v.scorex_serialize_bytes().unwrap();
+            let mut bytes = Vec::new();
+            bytes.put_u32(0).unwrap();
+            bytes.put_u32(1).unwrap();
+            bytes.put_u32(0).unwrap();
+            bytes.put_u32(suffix_head_bytes.len() as u32).unwrap();
+            bytes.extend_from_slice(&suffix_head_bytes);
+            bytes.extend_from_slice(&VLQ_U32_MAX);
+            prop_assert![NipopowProof::scorex_parse_bytes(&bytes).is_err()];
+        }
 
     }
 }

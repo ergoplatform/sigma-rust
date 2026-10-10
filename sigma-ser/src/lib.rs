@@ -22,8 +22,8 @@ extern crate alloc;
 /// ScoreX Serialization
 mod scorex_serialize;
 pub use scorex_serialize::{
-    scorex_serialize_roundtrip, ScorexParsingError, ScorexSerializable, ScorexSerializationError,
-    ScorexSerializeResult,
+    scorex_parse_bytes_exact, scorex_serialize_roundtrip, ScorexParsingError, ScorexSerializable,
+    ScorexSerializationError, ScorexSerializeResult,
 };
 /// VLQ encoder
 pub mod vlq_encode;

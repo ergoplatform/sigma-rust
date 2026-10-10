@@ -140,12 +140,47 @@ impl<T: ScorexSerializable> ScorexSerializable for Vec<T> {
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        // The count is taken from untrusted input: pre-allocating it verbatim
+        // lets a few input bytes force an allocation vastly larger than the
+        // input itself, aborting the process (an allocation failure is not a
+        // recoverable parse error). Cap the pre-allocation; the buffer still
+        // grows to the real item count as items are parsed.
+        let mut items = Vec::with_capacity(items_count.min(1024) as usize);
         for _ in 0..items_count {
             items.push(T::scorex_parse(r)?);
         }
         Ok(items)
     }
+}
+
+/// Read exactly `len` bytes from `r`, growing the buffer only as bytes
+/// actually arrive. Reading into a `vec![0; len]` buffer instead allocates the
+/// full claimed length up front, so a length prefix taken from untrusted
+/// input can force an allocation vastly larger than the input itself and
+/// abort the process. Errors exactly like `read_exact` when the stream ends
+/// before `len` bytes have been read.
+pub fn scorex_parse_bytes_exact<R: ReadSigmaVlqExt>(
+    r: &mut R,
+    len: usize,
+) -> Result<Vec<u8>, ScorexParsingError> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    while buf.len() < len {
+        let want = core::cmp::min(chunk.len(), len - buf.len());
+        match r.read(&mut chunk[..want]) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "failed to fill whole buffer",
+                )
+                .into())
+            }
+            Ok(n) => buf.extend_from_slice(&chunk[..n]),
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(buf)
 }
 
 impl<T: ScorexSerializable, const L: usize, const U: usize> ScorexSerializable
@@ -209,6 +244,42 @@ mod test {
     use super::*;
     use proptest::collection::vec;
     use proptest::prelude::*;
+
+    /// VLQ (unsigned LEB128) encoding of `u32::MAX`.
+    const VLQ_U32_MAX: [u8; 5] = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+
+    #[test]
+    fn vec_parse_huge_count_is_error_not_huge_allocation() {
+        // A count prefix of u32::MAX with no items following must be a parse
+        // error; sizing the buffer by the count aborted the process with a
+        // ~17 GB allocation failure (for u32 items) before this fix.
+        assert!(Vec::<u32>::scorex_parse_bytes(&VLQ_U32_MAX).is_err());
+    }
+
+    #[test]
+    fn bytes_exact_reads_exact_bytes_and_errors_on_short_stream() {
+        let payload: [u8; 4] = [1, 2, 3, 4];
+        let mut reader = Cursor::new(&payload[..]);
+        assert_eq!(
+            scorex_parse_bytes_exact(&mut reader, 4).unwrap(),
+            payload.to_vec()
+        );
+
+        let mut reader = Cursor::new(&payload[..]);
+        // Same error as read_exact on a short stream.
+        assert_eq!(
+            scorex_parse_bytes_exact(&mut reader, 5),
+            Err(ScorexParsingError::Io(
+                "failed to fill whole buffer".to_string()
+            ))
+        );
+
+        let mut reader = Cursor::new(&payload[..]);
+        assert_eq!(
+            scorex_parse_bytes_exact(&mut reader, 0).unwrap(),
+            Vec::<u8>::new()
+        );
+    }
 
     proptest! {
         #[test]
