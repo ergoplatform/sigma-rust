@@ -133,8 +133,9 @@ impl DataSerializer {
             SLong => Literal::Long(r.get_i64()?),
             SString => {
                 let len = r.get_u32()?;
-                let mut buf = vec![0; len as usize];
-                r.read_exact(&mut buf)?;
+                // The length prefix is untrusted: allocate only as bytes
+                // actually arrive, never the claimed length up front.
+                let buf = super::serializable::sigma_parse_bytes_exact(r, len as usize)?;
                 Literal::String(String::from_utf8_lossy(&buf).into())
             }
             SBigInt => Literal::BigInt(BigInt256::sigma_parse(r)?),

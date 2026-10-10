@@ -177,7 +177,12 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        // The count is taken from untrusted input: pre-allocating it verbatim
+        // lets a few input bytes force an allocation vastly larger than the
+        // input itself, aborting the process (an allocation failure is not a
+        // recoverable parse error). Cap the pre-allocation; the buffer still
+        // grows to the real item count as items are parsed.
+        let mut items = Vec::with_capacity(items_count.min(1024) as usize);
         for _ in 0..items_count {
             items.push(T::sigma_parse(r)?);
         }
@@ -195,6 +200,36 @@ impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         Ok(Vec::<T>::sigma_parse(r)?.try_into()?)
     }
+}
+
+/// Read exactly `len` bytes from `r`, growing the buffer only as bytes
+/// actually arrive. Reading into a `vec![0; len]` buffer instead allocates the
+/// full claimed length up front, so a length prefix taken from untrusted
+/// input can force an allocation vastly larger than the input itself and
+/// abort the process. Errors exactly like `read_exact` when the stream ends
+/// before `len` bytes have been read.
+pub(crate) fn sigma_parse_bytes_exact<R: SigmaByteRead>(
+    r: &mut R,
+    len: usize,
+) -> Result<Vec<u8>, SigmaParsingError> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    while buf.len() < len {
+        let want = core::cmp::min(chunk.len(), len - buf.len());
+        match r.read(&mut chunk[..want]) {
+            Ok(0) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "failed to fill whole buffer",
+                )
+                .into())
+            }
+            Ok(n) => buf.extend_from_slice(&chunk[..n]),
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(buf)
 }
 
 /// Corresponds to `VLQ(UInt)` format from `ErgoTree` spec.
@@ -268,6 +303,65 @@ pub fn roundtrip_new_feature<T: SigmaSerializable + core::fmt::Debug + PartialEq
         assert_eq!(
             *v,
             sigma_serialize_roundtrip_versioned(v, version.into()).expect("roundtrip failed")
+        );
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use crate::mir::sigma_and::SigmaAnd;
+    use crate::serialization::data::DataSerializer;
+    use crate::types::stype::SType;
+
+    /// VLQ (unsigned LEB128) encoding of `u32::MAX`.
+    const VLQ_U32_MAX: [u8; 5] = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+
+    #[test]
+    fn vec_parse_huge_count_is_error_not_huge_allocation() {
+        // Regression for #944: SigmaAnd's items go through Vec::<Expr>::
+        // sigma_parse. A count prefix of u32::MAX with no items following
+        // must be a parse error; sizing the buffer by the count aborted the
+        // process with an ~859 GB allocation failure before this fix.
+        assert!(SigmaAnd::sigma_parse_bytes(&VLQ_U32_MAX).is_err());
+    }
+
+    #[test]
+    fn string_parse_huge_len_is_error_not_huge_allocation() {
+        // Regression for #944: a String literal whose length prefix claims
+        // u32::MAX bytes with nothing following must be a parse error.
+        let cursor = Cursor::new(&VLQ_U32_MAX[..]);
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        assert!(DataSerializer::sigma_parse(&SType::SString, &mut sr).is_err());
+    }
+
+    #[test]
+    fn bytes_exact_reads_exact_bytes_and_errors_on_short_stream() {
+        let payload: [u8; 4] = [1, 2, 3, 4];
+        let cursor = Cursor::new(&payload[..]);
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        assert_eq!(
+            sigma_parse_bytes_exact(&mut sr, 4).unwrap(),
+            payload.to_vec()
+        );
+
+        let cursor = Cursor::new(&payload[..]);
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        // Same error as read_exact on a short stream.
+        assert_eq!(
+            sigma_parse_bytes_exact(&mut sr, 5),
+            Err(SigmaParsingError::Io(
+                "failed to fill whole buffer".to_string()
+            ))
+        );
+
+        let cursor = Cursor::new(&payload[..]);
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        assert_eq!(
+            sigma_parse_bytes_exact(&mut sr, 0).unwrap(),
+            Vec::<u8>::new()
         );
     }
 }
