@@ -196,36 +196,32 @@ impl NipopowAlgos {
         NipopowProof::new(m, k, prefix, suffix_head, suffix_tail)
     }
     /// Packs interlinks into key-value format of the block extension.
+    ///
+    /// Each run of equal block ids is stored under a key whose second byte is
+    /// the index of the run's first occurrence in the vector, mirroring the
+    /// reference implementation (`NipopowAlgos.packInterlinks` in the Ergo
+    /// node, which keys each entry by the `zipWithIndex` position of the run's
+    /// head). The packed value is the run length followed by the block id.
     pub fn pack_interlinks(interlinks: Vec<BlockId>) -> Vec<([u8; 2], Vec<u8>)> {
         let mut res = vec![];
-        let mut ix_distinct_block_ids = 0;
-        let mut curr_block_id_count = 1;
-        let mut curr_block_id = interlinks[0];
-        for id in interlinks.into_iter().skip(1) {
-            if id == curr_block_id {
-                curr_block_id_count += 1;
-            } else {
-                let block_id_bytes: Vec<u8> = curr_block_id.0.into();
-                let packed_value = std::iter::once(curr_block_id_count)
-                    .chain(block_id_bytes)
-                    .collect();
-                res.push((
-                    [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-                    packed_value,
-                ));
-                curr_block_id = id;
-                curr_block_id_count = 1;
-                ix_distinct_block_ids += 1;
+        let mut run_start_ix = 0;
+        while run_start_ix < interlinks.len() {
+            let curr_block_id = interlinks[run_start_ix];
+            // The count is packed into a single byte; wrapping matches the
+            // reference implementation's `duplicatesQty.toByte`.
+            let mut curr_block_id_count: u8 = 1;
+            let mut next_ix = run_start_ix + 1;
+            while next_ix < interlinks.len() && interlinks[next_ix] == curr_block_id {
+                curr_block_id_count = curr_block_id_count.wrapping_add(1);
+                next_ix += 1;
             }
+            let block_id_bytes: Vec<u8> = curr_block_id.0.into();
+            let packed_value = std::iter::once(curr_block_id_count)
+                .chain(block_id_bytes)
+                .collect();
+            res.push(([INTERLINK_VECTOR_PREFIX, run_start_ix as u8], packed_value));
+            run_start_ix = next_ix;
         }
-        let block_id_bytes: Vec<u8> = curr_block_id.0.into();
-        let packed_value = std::iter::once(curr_block_id_count)
-            .chain(block_id_bytes)
-            .collect();
-        res.push((
-            [INTERLINK_VECTOR_PREFIX, ix_distinct_block_ids],
-            packed_value,
-        ));
         res
     }
     /// Unpacks interlinks from key-value format of block extension.
@@ -347,4 +343,83 @@ fn extension_merkletree(kv: &[([u8; 2], Vec<u8>)]) -> ergo_merkle_tree::MerkleTr
         .map(ergo_merkle_tree::MerkleNode::from_bytes)
         .collect::<Vec<ergo_merkle_tree::MerkleNode>>();
     ergo_merkle_tree::MerkleTree::new(leafs)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use ergo_chain_types::ExtensionCandidate;
+
+    fn block_id(byte: u8) -> BlockId {
+        BlockId(Digest32::from([byte; 32]))
+    }
+
+    fn packed_value(count: u8, byte: u8) -> Vec<u8> {
+        std::iter::once(count)
+            .chain(vec![byte; 32])
+            .collect::<Vec<u8>>()
+    }
+
+    #[test]
+    fn pack_interlinks_empty() {
+        // The reference implementation returns an empty sequence for an
+        // empty interlinks vector; this used to panic with an
+        // index-out-of-bounds on `interlinks[0]`.
+        assert!(NipopowAlgos::pack_interlinks(vec![]).is_empty());
+    }
+
+    #[test]
+    fn pack_interlinks_distinct_ids_keyed_by_position() {
+        let packed = NipopowAlgos::pack_interlinks(vec![block_id(1), block_id(2), block_id(3)]);
+        assert_eq!(
+            packed,
+            vec![
+                ([INTERLINK_VECTOR_PREFIX, 0], packed_value(1, 1)),
+                ([INTERLINK_VECTOR_PREFIX, 1], packed_value(1, 2)),
+                ([INTERLINK_VECTOR_PREFIX, 2], packed_value(1, 3)),
+            ]
+        );
+    }
+
+    #[test]
+    fn pack_interlinks_duplicate_run_keyed_by_first_occurrence() {
+        // Reference form for [A, A, B]: the B entry is keyed by 2, the index
+        // of its first (and only) occurrence, not by 1, its run ordinal.
+        let packed = NipopowAlgos::pack_interlinks(vec![block_id(7), block_id(7), block_id(9)]);
+        assert_eq!(
+            packed,
+            vec![
+                ([INTERLINK_VECTOR_PREFIX, 0], packed_value(2, 7)),
+                ([INTERLINK_VECTOR_PREFIX, 2], packed_value(1, 9)),
+            ]
+        );
+    }
+
+    #[test]
+    fn pack_interlinks_single_run() {
+        let packed = NipopowAlgos::pack_interlinks(vec![block_id(5), block_id(5), block_id(5)]);
+        assert_eq!(
+            packed,
+            vec![([INTERLINK_VECTOR_PREFIX, 0], packed_value(3, 5))]
+        );
+    }
+
+    #[test]
+    fn pack_unpack_interlinks_roundtrip_with_duplicate_runs() {
+        let interlinks = vec![
+            block_id(1),
+            block_id(1),
+            block_id(2),
+            block_id(3),
+            block_id(3),
+            block_id(3),
+        ];
+        let extension =
+            ExtensionCandidate::new(NipopowAlgos::pack_interlinks(interlinks.clone())).unwrap();
+        assert_eq!(
+            NipopowAlgos::unpack_interlinks(&extension).unwrap(),
+            interlinks
+        );
+    }
 }
