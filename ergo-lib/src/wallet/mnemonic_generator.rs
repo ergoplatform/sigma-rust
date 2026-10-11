@@ -194,6 +194,56 @@ mod tests {
     use unicode_normalization::UnicodeNormalization;
 
     #[test]
+    fn wordlists_have_2048_plain_words() {
+        // Every BIP39 wordlist has exactly 2048 words, and no word may carry
+        // a byte-order mark or any other invisible prefix: a generated phrase
+        // containing such a character derives a different seed in other
+        // wallets (NFKD normalization keeps U+FEFF) and the word itself is
+        // not found in the canonical list.
+        for lang in [
+            Language::ChineseSimplified,
+            Language::ChineseTraditional,
+            Language::English,
+            Language::French,
+            Language::Italian,
+            Language::Japanese,
+            Language::Korean,
+            Language::Spanish,
+        ] {
+            let words = WordList(lang).words();
+            assert_eq!(words.len(), 2048, "{lang} wordlist length");
+            assert!(
+                words.iter().all(|w| !w.contains('\u{FEFF}')),
+                "{lang} wordlist contains a word with U+FEFF"
+            );
+        }
+        assert_eq!(WordList(Language::French).words()[0], "abaisser");
+    }
+
+    #[test]
+    fn test_french_zero_entropy_vector() {
+        // The French counterpart of the well-known all-zero English vector
+        // ("abandon" x11 + "about"): word 0 repeated, then word 3 from the
+        // checksum nibble of SHA256(16 zero bytes).
+        let gen = MnemonicGenerator::new(Language::French, 128).unwrap();
+        let phrase = gen.from_entropy(vec![0u8; 16]).unwrap();
+        assert_eq!(
+            phrase,
+            "abaisser abaisser abaisser abaisser abaisser abaisser abaisser \
+             abaisser abaisser abaisser abaisser abeille"
+        );
+        // The generated phrase must derive the canonical BIP39 seed.
+        assert_eq!(
+            Mnemonic::to_seed(&phrase, "TREZOR"),
+            Mnemonic::to_seed(
+                "abaisser abaisser abaisser abaisser abaisser abaisser abaisser \
+                 abaisser abaisser abaisser abaisser abeille",
+                "TREZOR"
+            )
+        );
+    }
+
+    #[test]
     fn test_trezor_vectors() {
         // Tests against: https://github.com/trezor/python-mnemonic/blob/master/vectors.json
         let pass = "TREZOR";
