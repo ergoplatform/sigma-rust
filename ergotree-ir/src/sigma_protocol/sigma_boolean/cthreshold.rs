@@ -113,7 +113,19 @@ impl SigmaSerializable for Cthreshold {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let k = r.get_u16()? as u8; // safe because we serialized u8 as u16
+        // The wire carries k as a u16 (the reference implementation stores it
+        // as an Int), but this type holds it as a u8: the prover's polynomial
+        // arithmetic only takes byte inputs, and Atleast evaluation likewise
+        // rejects a bound above 255. An out-of-byte-range k must therefore be
+        // rejected, not truncated with `as u8` (256 would silently become
+        // k = 0, 300 would become k = 44), which would change the threshold
+        // the parsed proposition actually requires.
+        let k_wide = r.get_u16()?;
+        let k = u8::try_from(k_wide).map_err(|_| {
+            SigmaParsingError::ValueOutOfBounds(format!(
+                "Cthreshold k={k_wide} exceeds the maximum supported value of 255"
+            ))
+        })?;
         let items_count = r.get_u16()?;
         let mut items = Vec::with_capacity(items_count as usize);
         for _ in 0..items_count {
@@ -123,5 +135,79 @@ impl SigmaSerializable for Cthreshold {
             k,
             children: items.try_into()?,
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use crate::serialization::SigmaSerializable;
+    use crate::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaConjecture};
+
+    /// Hand-built wire form of a threshold proposition: Cthreshold opcode
+    /// (0x98), VLQ-encoded k, VLQ-encoded child count, then one opcode per
+    /// child (0xd3 = TrivialProp(true)). The k bytes are written out
+    /// literally so the payload does not depend on the serializer under test.
+    fn threshold_bytes(k_vlq: &[u8], n_children: u8) -> Vec<u8> {
+        let mut bytes = vec![0x98u8];
+        bytes.extend_from_slice(k_vlq);
+        bytes.push(n_children);
+        bytes.extend((0..n_children).map(|_| 0xd3u8));
+        bytes
+    }
+
+    fn parse(bytes: &[u8]) -> Result<Cthreshold, SigmaParsingError> {
+        match SigmaBoolean::sigma_parse_bytes(bytes)? {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(ct)) => Ok(ct),
+            other => panic!("expected Cthreshold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_k_256_is_rejected() {
+        // VLQ 256 = [0x80, 0x02]; the reference stores k as an Int (256), but
+        // truncating it to a byte would silently yield k = 0.
+        assert!(parse(&threshold_bytes(&[0x80, 0x02], 2)).is_err());
+    }
+
+    #[test]
+    fn parse_k_300_is_rejected() {
+        // VLQ 300 = [0xAC, 0x02]; truncation would silently yield k = 44, a
+        // different threshold than the bytes specify.
+        assert!(parse(&threshold_bytes(&[0xAC, 0x02], 2)).is_err());
+    }
+
+    #[test]
+    fn parse_k_255_is_accepted() {
+        // VLQ 255 = [0xFF, 0x01]; the largest byte-sized threshold.
+        let ct = parse(&threshold_bytes(&[0xFF, 0x01], 2)).unwrap();
+        assert_eq!(ct.k, 255);
+        assert_eq!(ct.children.len(), 2);
+    }
+
+    #[test]
+    fn parse_k_200_is_accepted() {
+        // VLQ 200 = [0xC8, 0x01]; above the signed-byte range but a valid u8:
+        // the limit is 255 (byte), not 127.
+        let ct = parse(&threshold_bytes(&[0xC8, 0x01], 2)).unwrap();
+        assert_eq!(ct.k, 200);
+    }
+
+    #[test]
+    fn roundtrip_k_255() {
+        let children: SigmaConjectureItems<SigmaBoolean> = vec![
+            SigmaBoolean::TrivialProp(true),
+            SigmaBoolean::TrivialProp(false),
+        ]
+        .try_into()
+        .unwrap();
+        let sb = SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+            k: 255,
+            children,
+        }));
+        let bytes = sb.sigma_serialize_bytes().unwrap();
+        assert_eq!(SigmaBoolean::sigma_parse_bytes(&bytes).unwrap(), sb);
     }
 }
