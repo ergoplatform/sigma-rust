@@ -174,8 +174,18 @@ impl SigmaSerializable for ReducedTransaction {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let bytes_len = r.get_u32()?;
-        let mut buf = vec![0u8; bytes_len as usize];
-        r.read_exact(buf.as_mut_slice())?;
+        // The length prefix is untrusted (a reduced transaction is built to
+        // be transferred and parsed elsewhere, e.g. by a cold wallet):
+        // allocate only as bytes actually arrive, never the claimed length
+        // up front. The Io error is mapped back so a short stream fails
+        // exactly like read_exact did.
+        let buf = sigma_ser::scorex_parse_bytes_exact(r, bytes_len as usize).map_err(|e| {
+            if let sigma_ser::ScorexParsingError::Io(msg) = e {
+                SigmaParsingError::Io(msg)
+            } else {
+                e.into()
+            }
+        })?;
         let tx = Transaction::sigma_parse_bytes(&buf)?;
         let input_pairs: TxIoVec<(ReducedInput, UnsignedInput)> =
             tx.inputs.try_mapped::<_, _, SigmaParsingError>(|input| {
@@ -309,6 +319,21 @@ mod tests {
             input
         });
         tx
+    }
+
+    #[test]
+    fn reduced_transaction_huge_bytes_len_is_error_not_huge_allocation() {
+        // The first field is the VLQ length of the embedded transaction.
+        // A length of u32::MAX (VLQ FF FF FF FF 0F) with no bytes following
+        // must be a parse error; sizing the buffer by the claimed length
+        // aborted the process with a 4 GB allocation failure before this fix.
+        let bytes: [u8; 5] = [0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+        assert_eq!(
+            ReducedTransaction::sigma_parse_bytes(&bytes),
+            Err(SigmaParsingError::Io(
+                "failed to fill whole buffer".to_string()
+            ))
+        );
     }
 
     #[test]
