@@ -272,8 +272,15 @@ impl NipopowAlgos {
             assert!(!prev_interlinks.is_empty());
             let genesis = prev_interlinks[0];
             let nipopow_algos = NipopowAlgos::default();
-            let prev_level = nipopow_algos.max_level_of(&prev_header)? as usize;
+            // Keep the level signed for the positivity check, mirroring the
+            // reference implementation (`maxLevelOf` returns an `Int` and
+            // `updateInterlinks` checks `prevLevel > 0` on it): a header
+            // whose PoW hit exceeds its target has a negative level, and
+            // casting that to `usize` first would turn it into a huge
+            // positive count for the `repeat_n` below.
+            let prev_level = nipopow_algos.max_level_of(&prev_header)?;
             if prev_level > 0 {
+                let prev_level = prev_level as usize;
                 // Adapted:
                 //   `(genesis +: tail.dropRight(prevLevel)) ++Seq.fill(prevLevel)(prevHeader.id)`
                 // from scala
