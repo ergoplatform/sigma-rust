@@ -193,9 +193,14 @@ impl EvalError {
         })
     }
 
-    /// Wrap eval error with source code
+    /// Wrap eval error with source code.
+    ///
+    /// `Spanned` variants are unwrapped and re-wrapped with `source` attached.
+    /// Other variants are wrapped with an empty span/env — reachable from the
+    /// diagnostic retry path in `reduce_to_crypto` when the deeper eval returns
+    /// a bare variant (e.g. `InvalidResultType`, `UnexpectedExpr`) without
+    /// having gone through `enrich_err`.
     pub fn wrap_spanned_with_src(self, source: String) -> Self {
-        #[allow(clippy::panic)]
         match self {
             EvalError::Spanned(e) => EvalError::SpannedWithSource(SpannedWithSourceEvalError {
                 error: e.error,
@@ -203,7 +208,12 @@ impl EvalError {
                 env: e.env,
                 source,
             }),
-            e => panic!("Expected Spanned, got {:?}", e),
+            e => EvalError::SpannedWithSource(SpannedWithSourceEvalError {
+                error: Box::new(e),
+                source_span: SourceSpan::empty(),
+                env: Env::empty().to_static(),
+                source,
+            }),
         }
     }
 }
@@ -391,5 +401,21 @@ mod tests {
         //     "#]],
         // );
         check_error_span(expr, (31, 4).into());
+    }
+
+    #[test]
+    fn wrap_spanned_with_src_handles_bare_variant() {
+        use super::EvalError;
+        let bare = EvalError::InvalidResultType;
+        let wrapped = bare.wrap_spanned_with_src("script source".to_string());
+        assert!(
+            matches!(&wrapped, EvalError::SpannedWithSource(_)),
+            "expected SpannedWithSource, got {:?}",
+            wrapped
+        );
+        if let EvalError::SpannedWithSource(swse) = wrapped {
+            assert_eq!(swse.source, "script source");
+            assert!(matches!(*swse.error, EvalError::InvalidResultType));
+        }
     }
 }
