@@ -220,6 +220,7 @@ impl Print for ValDef {
             source_span: SourceSpan { offset, length },
             expr: ValDef {
                 id: self.id,
+                tpe_args: self.tpe_args.clone(),
                 rhs: Box::new(rhs),
             },
         }
