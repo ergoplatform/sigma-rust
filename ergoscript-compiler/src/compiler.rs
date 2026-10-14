@@ -120,7 +120,7 @@ mod tests {
                 error: expected ‘+’, ‘-’, ‘*’, ‘/’, ‘val’, number, number, identifier, ‘-’ or ‘(’, but found an unrecognized token
                 line: 1
                 HSB.HEIGHT
-                  ^^"#]],
+                    ^"#]],
         );
     }
 }
