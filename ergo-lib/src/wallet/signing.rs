@@ -13,7 +13,7 @@ use ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
-use crate::chain::transaction::storage_rent::check_storage_rent_conditions;
+use crate::chain::transaction::storage_rent::storage_rent_spendable;
 use crate::wallet::TransactionHintsBag;
 use ergotree_interpreter::sigma_protocol::prover::ProofBytes;
 use ergotree_interpreter::sigma_protocol::prover::Prover;
@@ -241,21 +241,22 @@ pub fn sign_tx_input<'ctx>(
         hints_bag = bag.all_hints_for_input(input_idx);
     }
 
-    match check_storage_rent_conditions(input_box, state_context, context) {
-        // if input is storage rent set ProofBytes to empty because no proof is needed
-        Some(()) => Ok(Input::new(
+    // Spend by storage rent (empty proof) only when the rent branch would accept
+    // it; otherwise prove the script as usual.
+    if storage_rent_spendable(state_context, context) {
+        Ok(Input::new(
             unsigned_input.box_id,
             ProverResult {
                 proof: ProofBytes::Empty,
                 extension: context.extension.clone(),
             }
             .into(),
-        )),
-        // if input is not storage rent use prover
-        None => prover
+        ))
+    } else {
+        prover
             .prove(&input_box.ergo_tree, context, message_to_sign, &hints_bag)
             .map(|proof| Input::new(unsigned_input.box_id, proof.into()))
-            .map_err(|e| TxSigningError::ProverError(e, input_idx)),
+            .map_err(|e| TxSigningError::ProverError(e, input_idx))
     }
 }
 

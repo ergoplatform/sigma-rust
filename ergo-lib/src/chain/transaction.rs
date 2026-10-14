@@ -48,7 +48,7 @@ use crate::wallet::signing::TransactionContext;
 use crate::wallet::tx_context::TransactionContextError;
 
 use self::ergo_transaction::TxValidationError;
-use self::storage_rent::try_spend_storage_rent;
+use self::storage_rent::{storage_rent_verdict, StorageRentVerdict, STORAGE_CONTRACT_COST};
 use self::unsigned::UnsignedTransaction;
 
 use core::convert::TryFrom;
@@ -366,17 +366,18 @@ pub fn verify_tx_input_proof<'ctx>(
         .get_input_box(&input.box_id)
         .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
     let verifier = TestVerifier;
-    // Try spending in storage rent, if any condition is not satisfied fallback to normal script validation
-    match try_spend_storage_rent(input, input_box, state_context, ctx) {
-        Some(()) => Ok(VerificationResult {
-            result: true,
-            cost: 0,
+    // Storage-rent branch of `ErgoInterpreter.verify` (`ErgoInterpreter.scala:66-87`):
+    // a final verdict costing `StorageContractCost`, else ordinary script verification.
+    match storage_rent_verdict(&input.spending_proof.proof, state_context, ctx) {
+        StorageRentVerdict::Verdict(result) => Ok(VerificationResult {
+            result,
+            cost: STORAGE_CONTRACT_COST,
             diag: ReductionDiagnosticInfo {
                 env: Env::empty(),
                 pretty_printed_expr: None,
             },
         }),
-        None => verifier
+        StorageRentVerdict::NotApplicable => verifier
             .verify(
                 &input_box.ergo_tree,
                 ctx,
