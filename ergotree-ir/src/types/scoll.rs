@@ -65,8 +65,8 @@ lazy_static! {
         name: "indexOf",
         tpe: SFunc {
             t_dom: vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                STypeVar::t().into(),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                STypeVar::iv().into(),
                 SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
@@ -105,11 +105,11 @@ lazy_static! {
         name: "zip",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::ov()).into())
             ],
             SType::SColl(SType::STuple(STuple::pair(
-                STypeVar::t().into(), STypeVar::iv().into()
+                STypeVar::iv().into(), STypeVar::ov().into()
             )).into())
         ),
         explicit_type_args: vec![],
@@ -125,7 +125,7 @@ lazy_static! {
         name: "indices",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
             ],
             SType::SColl(SType::SInt.into())
         ),
@@ -142,12 +142,12 @@ lazy_static! {
         name: "patch",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -162,12 +162,12 @@ lazy_static! {
         name: "updated",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
-                SType::STypeVar(STypeVar::t())
+                SType::STypeVar(STypeVar::iv())
 
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -182,12 +182,12 @@ lazy_static! {
         name: "updateMany",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SColl(SType::SInt.into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
 
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -201,8 +201,8 @@ lazy_static! {
         method_id: REVERSE_METHOD_ID,
         name: "reverse",
         tpe: SFunc::new(
-            vec![SType::SColl(SType::STypeVar(STypeVar::t()).into())],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            vec![SType::SColl(SType::STypeVar(STypeVar::iv()).into())],
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V3
@@ -217,8 +217,8 @@ lazy_static! {
         name: "startsWith",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
             ],
             SType::SBoolean
         ),
@@ -235,8 +235,8 @@ lazy_static! {
         name: "endsWith",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
             ],
             SType::SBoolean
         ),
@@ -253,10 +253,10 @@ lazy_static! {
         name: "get",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt
             ],
-            SType::SOption(SType::STypeVar(STypeVar::t()).into())
+            SType::SOption(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V3
@@ -268,6 +268,48 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mir::method_call::MethodCall;
+
+    #[test]
+    fn test_zip_with_concrete_types_iv_ov() {
+        // Scala names Coll.zip's type variables IV and OV (see issue #642);
+        // substituting by those names must fully specialize the method.
+        let mc = MethodCall::new(
+            vec![1i64, 2i64].into(),
+            ZIP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![vec![true, false].into()],
+        )
+        .unwrap();
+        assert_eq!(
+            mc.tpe(),
+            SType::SColl(Arc::new(SType::STuple(STuple::pair(
+                SType::SLong,
+                SType::SBoolean
+            ))))
+        );
+    }
+
+    #[test]
+    fn test_index_of_with_concrete_types_iv() {
+        // Scala names Coll's element type variable IV (ThisType = Coll[IV]).
+        let mc = MethodCall::new(
+            vec![1i64, 2i64].into(),
+            INDEX_OF_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+            vec![2i64.into(), 0i32.into()],
+        )
+        .unwrap();
+        assert_eq!(mc.tpe(), SType::SInt);
+    }
 
     #[test]
     fn test_from_ids() {

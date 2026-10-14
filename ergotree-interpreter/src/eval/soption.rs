@@ -156,8 +156,8 @@ mod tests {
             opt_const.into(),
             soption::MAP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::r(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -204,8 +204,8 @@ mod tests {
             opt_const.into(),
             soption::MAP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::iv(), SType::SLong),
-                    (STypeVar::ov(), SType::SBoolean),
+                    (STypeVar::t(), SType::SLong),
+                    (STypeVar::r(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -248,7 +248,7 @@ mod tests {
             opt_const.into(),
             soption::FILTER_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -286,7 +286,7 @@ mod tests {
             opt_const.into(),
             soption::FILTER_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -325,7 +325,7 @@ mod tests {
             opt_const.into(),
             soption::FILTER_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
@@ -364,7 +364,7 @@ mod tests {
             opt_const.into(),
             soption::FILTER_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
             vec![FuncValue::new(
                 vec![FuncArg {
                     idx: 1.into(),
