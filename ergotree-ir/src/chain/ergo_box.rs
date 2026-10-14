@@ -349,6 +349,15 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     let value = BoxValue::sigma_parse(r)?;
     let ergo_tree = ErgoTree::sigma_parse(r)?;
     let creation_height = r.get_u32()?;
+    // `ErgoBoxCandidate.serializer` reads the creation height with `getUIntExact`
+    // (sigmastate v6.0.6 `ErgoBoxCandidate.scala:195`): a value above
+    // `Int.MaxValue` fails the parse, rejecting the box and any transaction
+    // output or Box-typed constant that contains it.
+    if creation_height > i32::MAX as u32 {
+        return Err(SigmaParsingError::ValueOutOfBounds(alloc::format!(
+            "box creation height {creation_height} exceeds Int.MaxValue (getUIntExact)"
+        )));
+    }
     let tokens_count = r.get_u8()?;
     let mut tokens = Vec::with_capacity(tokens_count as usize);
     for _ in 0..tokens_count {
@@ -557,3 +566,81 @@ mod tests {
     }
 }
 // += a + b
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod creation_height_bound_tests {
+    //! JVM parity: `ErgoBoxCandidate.serializer` reads the creation height with
+    //! `getUIntExact` (sigmastate v6.0.6 `ErgoBoxCandidate.scala:195`).
+    use super::*;
+    use crate::mir::constant::Constant;
+    use crate::mir::expr::Expr;
+    use crate::serialization::{SigmaParsingError, SigmaSerializable};
+
+    fn box_at(height: u32) -> ErgoBox {
+        ErgoBox::new(
+            BoxValue::SAFE_USER_MIN,
+            ErgoTree::try_from(Expr::Const(Constant::from(true))).unwrap(),
+            None,
+            NonMandatoryRegisters::empty(),
+            height,
+            TxId::zero(),
+            0,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn box_parses_at_int_max_creation_height() {
+        let bytes = box_at(i32::MAX as u32).sigma_serialize_bytes().unwrap();
+        assert_eq!(
+            ErgoBox::sigma_parse_bytes(&bytes).unwrap().creation_height,
+            i32::MAX as u32
+        );
+    }
+
+    #[test]
+    fn box_rejects_creation_height_above_int_max() {
+        for h in [0x8000_0000u32, u32::MAX] {
+            let bytes = box_at(h).sigma_serialize_bytes().unwrap();
+            assert!(
+                matches!(
+                    ErgoBox::sigma_parse_bytes(&bytes),
+                    Err(SigmaParsingError::ValueOutOfBounds(_))
+                ),
+                "height {h:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn box_candidate_rejects_creation_height_above_int_max() {
+        let b = box_at(0x8000_0000);
+        let candidate = ErgoBoxCandidate {
+            value: b.value,
+            ergo_tree: b.ergo_tree.clone(),
+            tokens: b.tokens.clone(),
+            additional_registers: b.additional_registers.clone(),
+            creation_height: b.creation_height,
+        };
+        let bytes = candidate.sigma_serialize_bytes().unwrap();
+        assert!(matches!(
+            ErgoBoxCandidate::sigma_parse_bytes(&bytes),
+            Err(SigmaParsingError::ValueOutOfBounds(_))
+        ));
+    }
+
+    #[test]
+    fn box_constant_rejects_embedded_creation_height_above_int_max() {
+        // The reachable form at block version >= 2: a Box-typed constant
+        // (context-extension variable or register) embedding such a box.
+        let bytes = Constant::from(box_at(0x8000_0000))
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert!(Constant::sigma_parse_bytes(&bytes).is_err());
+        let ok = Constant::from(box_at(i32::MAX as u32))
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert!(Constant::sigma_parse_bytes(&ok).is_ok());
+    }
+}
