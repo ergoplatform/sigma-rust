@@ -145,6 +145,7 @@ impl ErgoTree {
     fn sigma_parse_sized<R: SigmaByteRead>(
         r: &mut R,
         header: ErgoTreeHeader,
+        check_root_tpe: bool,
     ) -> Result<ParsedErgoTree, ErgoTreeError> {
         let constants = if header.is_constant_segregation() {
             ErgoTree::sigma_parse_constants(r)?
@@ -158,7 +159,10 @@ impl ErgoTree {
         #[allow(unused)]
         let has_deserialize = r.was_deserialize();
         r.set_deserialize(was_deserialize);
-        if root.tpe() != SType::SSigmaProp {
+        // Real consensus ErgoTrees are always SigmaProp-rooted. `check_root_tpe`
+        // is false only on the `arbitrary`-gated lenient test/conformance path
+        // (`sigma_parse_bytes_lenient`), which evaluates arbitrary-typed roots.
+        if check_root_tpe && root.tpe() != SType::SSigmaProp {
             return Err(ErgoTreeError::RootTpeError(root.tpe()));
         }
         Ok(ParsedErgoTree {
@@ -168,6 +172,113 @@ impl ErgoTree {
             #[cfg(feature = "std")]
             has_deserialize: has_deserialize.into(),
         })
+    }
+
+    /// Shared parse body for [`ErgoTree::sigma_parse`] (strict, `check_root_tpe =
+    /// true`) and the lenient test/conformance entry (`false`). The header is
+    /// parsed unconditionally, so Rule-1012 (`CheckHeaderSizeBit`) applies on both
+    /// paths; `check_root_tpe` only gates the sized path's `SigmaProp`-root check.
+    fn parse_with<R: SigmaByteRead>(
+        r: &mut R,
+        check_root_tpe: bool,
+    ) -> Result<Self, SigmaParsingError> {
+        let start_pos = r.position()?;
+        let header = ErgoTreeHeader::sigma_parse(r)?;
+        r.with_tree_version(header.version(), |r| {
+            if header.has_size() {
+                let tree_size_bytes = r.get_u32()?;
+                let body_pos = r.position()?;
+                let mut buf = vec![0u8; tree_size_bytes as usize];
+                r.read_exact(buf.as_mut_slice())?;
+                let mut inner_r =
+                    SigmaByteReader::new(Cursor::new(&mut buf[..]), ConstantStore::empty());
+                match inner_r.with_tree_version(header.version(), |inner_r| {
+                    ErgoTree::sigma_parse_sized(inner_r, header, check_root_tpe)
+                }) {
+                    Ok(parsed_tree) => Ok(parsed_tree.into()),
+                    Err(error) => {
+                        let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
+                        r.seek(io::SeekFrom::Start(start_pos))?;
+                        let mut bytes = vec![0; num_bytes as usize];
+                        r.read_exact(&mut bytes)?;
+                        Ok(ErgoTree::Unparsed {
+                            tree_bytes: bytes,
+                            error,
+                        })
+                    }
+                }
+            } else {
+                let constants = if header.is_constant_segregation() {
+                    ErgoTree::sigma_parse_constants(r)?
+                } else {
+                    vec![]
+                };
+                r.set_constant_store(ConstantStore::new(constants.clone()));
+                let root = Expr::sigma_parse(r)?;
+                Ok(ErgoTree::Parsed(ParsedErgoTree {
+                    header,
+                    constants,
+                    root,
+                    #[cfg(feature = "std")]
+                    has_deserialize: OnceLock::new(),
+                }))
+            }
+        })
+    }
+
+    /// Parse an ErgoTree from bytes WITHOUT the `SigmaProp` root-type check.
+    /// Mirrors sigma-state's `ErgoTreeSerializer.deserializeErgoTree(.., checkType
+    /// = false)` (a `private[sigma]` overload): the real header parse runs (so
+    /// Rule-1012 `CheckHeaderSizeBit` applies — a malformed v>0 header missing the
+    /// size bit is still rejected), constants and the root expression are parsed,
+    /// but a non-`SigmaProp` root yields a parsed tree instead of `Unparsed`.
+    ///
+    /// `arbitrary`-gated test/conformance support (the same surface as
+    /// `test_util`): it is NOT part of the default-shipped API — production parsing
+    /// (`sigma_parse` / `sigma_parse_bytes`) keeps the root check, as real
+    /// ErgoTrees are always `SigmaProp`-rooted. Used by this crate's and
+    /// `ergotree-interpreter`'s blessed-byte eval tests and by the SANTA runner.
+    #[cfg(feature = "arbitrary")]
+    pub fn sigma_parse_bytes_lenient(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
+        let cursor = Cursor::new(bytes);
+        let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        // Outer version is a convenience default (matching `sigma_parse_bytes`);
+        // `parse_with` resets it from the parsed header.
+        sr.with_tree_version(ErgoTreeVersion::MAX_SCRIPT_VERSION, |sr| {
+            ErgoTree::parse_with(sr, false)
+        })
+    }
+
+    /// Lenient parse of an *unsized* expression-rooted tree fixture — i.e. bytes
+    /// whose `v>0` header has the size bit cleared and the size slot dropped (the
+    /// historic blessed-byte test convention). Restores the size bit + size slot so
+    /// the bytes are well-formed (Rule-1012 satisfied) and parses via
+    /// [`Self::sigma_parse_bytes_lenient`]. `arbitrary`-gated test support only.
+    #[cfg(feature = "arbitrary")]
+    pub fn sigma_parse_bytes_lenient_from_unsized(
+        unsized_bytes: &[u8],
+    ) -> Result<Self, SigmaParsingError> {
+        if unsized_bytes.is_empty() {
+            return ErgoTree::sigma_parse_bytes_lenient(unsized_bytes);
+        }
+        let body = &unsized_bytes[1..];
+        let mut sized = Vec::with_capacity(unsized_bytes.len() + 4);
+        sized.push(unsized_bytes[0] | 0x08); // restore the size bit (0x08)
+                                             // VLQ-encode the body length as the restored size slot.
+        let mut n = body.len() as u32;
+        loop {
+            let mut byte = (n & 0x7f) as u8;
+            n >>= 7;
+            if n != 0 {
+                byte |= 0x80;
+            }
+            sized.push(byte);
+            if n == 0 {
+                break;
+            }
+        }
+        sized.extend_from_slice(body);
+        ErgoTree::sigma_parse_bytes_lenient(&sized)
     }
 
     fn sigma_parse_constants<R: SigmaByteRead>(
@@ -376,48 +487,8 @@ impl SigmaSerializable for ErgoTree {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let start_pos = r.position()?;
-        let header = ErgoTreeHeader::sigma_parse(r)?;
-        r.with_tree_version(header.version(), |r| {
-            if header.has_size() {
-                let tree_size_bytes = r.get_u32()?;
-                let body_pos = r.position()?;
-                let mut buf = vec![0u8; tree_size_bytes as usize];
-                r.read_exact(buf.as_mut_slice())?;
-                let mut inner_r =
-                    SigmaByteReader::new(Cursor::new(&mut buf[..]), ConstantStore::empty());
-                match inner_r.with_tree_version(header.version(), |inner_r| {
-                    ErgoTree::sigma_parse_sized(inner_r, header)
-                }) {
-                    Ok(parsed_tree) => Ok(parsed_tree.into()),
-                    Err(error) => {
-                        let num_bytes = (body_pos - start_pos) + tree_size_bytes as u64;
-                        r.seek(io::SeekFrom::Start(start_pos))?;
-                        let mut bytes = vec![0; num_bytes as usize];
-                        r.read_exact(&mut bytes)?;
-                        Ok(ErgoTree::Unparsed {
-                            tree_bytes: bytes,
-                            error,
-                        })
-                    }
-                }
-            } else {
-                let constants = if header.is_constant_segregation() {
-                    ErgoTree::sigma_parse_constants(r)?
-                } else {
-                    vec![]
-                };
-                r.set_constant_store(ConstantStore::new(constants.clone()));
-                let root = Expr::sigma_parse(r)?;
-                Ok(ErgoTree::Parsed(ParsedErgoTree {
-                    header,
-                    constants,
-                    root,
-                    #[cfg(feature = "std")]
-                    has_deserialize: OnceLock::new(),
-                }))
-            }
-        })
+        // Strict production parse: enforce the SigmaProp root-type check.
+        ErgoTree::parse_with(r, true)
     }
 }
 
@@ -570,6 +641,66 @@ mod tests {
         // no constant segregation, Expr is invalid
         let bytes = [ErgoTreeHeader::v0(false).serialized(), 0, 1];
         assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
+    fn deserialization_rejects_v3_header_without_size_bit_rule_1012() {
+        // SANTA Rule1012_header_size_bit vector: header byte 0x03 = version 3,
+        // size bit (0x08) NOT set. The JVM rejects at header parse (Rule-1012
+        // `CheckHeaderSizeBit`: "For version greater then 0, size bit should be
+        // set."); sigma-rust used to parse + evaluate it (to Long -1).
+        let bytes = base16::decode("03050101017300").unwrap();
+        assert!(
+            ErgoTree::sigma_parse_bytes(&bytes).is_err(),
+            "v3 header without the size bit must be rejected (Rule-1012)"
+        );
+        // The lenient parse runs the same header parse, so Rule-1012 fires there too.
+        assert!(
+            ErgoTree::sigma_parse_bytes_lenient(&bytes).is_err(),
+            "lenient parse must still reject a v3 header without the size bit"
+        );
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_accepts_non_sigmaprop_root() {
+        // Strict parse rejects a non-SigmaProp root on a sized tree (→ Unparsed);
+        // the lenient parse (mirror of `deserializeErgoTree(checkType = false)`)
+        // accepts it as a Parsed tree with the root accessible.
+        let expr: Expr = 1i32.into(); // Int root, not SigmaProp
+        let real = ErgoTree::new(ErgoTreeHeader::v1(true), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert!(
+            ErgoTree::sigma_parse_bytes(&real)
+                .unwrap()
+                .parsed_tree()
+                .is_err(),
+            "strict parse must not Parse a non-SigmaProp root"
+        );
+        let lenient = ErgoTree::sigma_parse_bytes_lenient(&real).unwrap();
+        assert!(lenient.parsed_tree().is_ok());
+        assert_eq!(lenient.proposition().unwrap().tpe(), SType::SInt);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_from_unsized_roundtrips() {
+        // The blessed-byte tests store expression-rooted trees in the historic
+        // "unsized" form (size bit cleared + size slot dropped). `from_unsized`
+        // must restore them and parse leniently. Derive the unsized form from a
+        // real sized tree and confirm the round-trip.
+        let expr: Expr = 1i32.into();
+        let real = ErgoTree::new(ErgoTreeHeader::v1(true), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert!(real[1] < 0x80, "test assumes a single-byte size VLQ");
+        // unsized = header with size bit cleared, then the body (drop the size slot)
+        let mut unsized_bytes = vec![real[0] & !0x08];
+        unsized_bytes.extend_from_slice(&real[2..]);
+        let tree = ErgoTree::sigma_parse_bytes_lenient_from_unsized(&unsized_bytes).unwrap();
+        assert!(tree.parsed_tree().is_ok());
+        assert_eq!(tree.proposition().unwrap().tpe(), SType::SInt);
     }
 
     #[test]
