@@ -1,5 +1,6 @@
 //! Main "remote" type for [Vote]()
 use crate::{Base16DecodedBytes, Base16EncodedBytes};
+use alloc::string::String;
 use alloc::vec::Vec;
 use thiserror::Error;
 
@@ -38,6 +39,11 @@ pub enum VotesError {
     /// Invalid byte array size
     #[error("Votes: Invalid byte array size ({0})")]
     InvalidSize(#[from] core::array::TryFromSliceError),
+    /// Invalid byte value in the JSON array encoding
+    #[error(
+        "Votes: Invalid byte value ({0}) in JSON array encoding: expected an integer in 0..=255"
+    )]
+    InvalidByteValue(String),
 }
 
 impl TryFrom<Base16DecodedBytes> for Votes {
