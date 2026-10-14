@@ -452,7 +452,7 @@ pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args
     };
 
     let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-    let mut bv = BatchAVLVerifier::new(
+    let mut bv = match BatchAVLVerifier::new(
         &starting_digest,
         &proof,
         AVLTree::new(
@@ -465,8 +465,16 @@ pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args
         ),
         None,
         None,
-    )
-    .map_err(map_eval_err)?;
+    ) {
+        Ok(bv) => bv,
+        // The reference impl's verifier construction never throws: with a proof
+        // that does not match the tree digest it yields a verifier with no
+        // reconstructed tree, every operation fails (and `insertOrUpdate_eval`
+        // discards per-op failures), and the final digest is None — so the
+        // method returns None rather than erroring
+        // (`CErgoTreeEvaluator.insertOrUpdate_eval`).
+        Err(_) => return Ok(Value::Opt(None)),
+    };
     for (key, value) in entries {
         if bv
             .perform_one_operation(&Operation::InsertOrUpdate(KeyValue {
@@ -499,6 +507,8 @@ mod tests {
 
     use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
     use ergotree_ir::{
+        chain::context::Context,
+        ergo_tree::ErgoTree,
         mir::{
             avl_tree_data::{AvlTreeData, AvlTreeFlags},
             constant::{Constant, Literal},
@@ -506,6 +516,7 @@ mod tests {
             method_call::MethodCall,
             value::CollKind,
         },
+        serialization::SigmaSerializable,
         types::{savltree, stuple::STuple, stype::SType},
     };
     use proptest::prelude::*;
@@ -836,6 +847,105 @@ mod tests {
             unreachable!();
         }
     }
+
+    // A structurally-valid proof generated from a DIFFERENT tree: the reference
+    // impl's verifier construction never throws — it yields a verifier with no
+    // reconstructed tree, every operation fails (discarded), the final digest is
+    // None, and `insertOrUpdate` returns None (`insertOrUpdate_eval`).
+    #[test]
+    fn eval_avl_insert_or_update_bad_proof() {
+        // tree A: non-empty (one committed insert), so its digest cannot match
+        // the empty-tree digest the wrong proof starts from
+        let mut prover_a = BatchAVLProver::new(
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                1,
+                None,
+            ),
+            true,
+        );
+        prover_a
+            .perform_one_operation(&Operation::Insert(KeyValue {
+                key: Bytes::from(vec![5u8]),
+                value: Bytes::from(50u64.to_be_bytes().to_vec()),
+            }))
+            .unwrap();
+        prover_a.generate_proof();
+        let tree_a_digest = ADDigest::scorex_parse_bytes(&prover_a.digest().unwrap()).unwrap();
+
+        // proof from tree B (empty start) inserting key 1
+        let mut prover_b = BatchAVLProver::new(
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                1,
+                None,
+            ),
+            true,
+        );
+        prover_b
+            .perform_one_operation(&Operation::InsertOrUpdate(KeyValue {
+                key: Bytes::from(vec![1u8]),
+                value: Bytes::from(10u64.to_be_bytes().to_vec()),
+            }))
+            .unwrap();
+        let wrong_proof: Constant = prover_b
+            .generate_proof()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
+
+        let obj = Expr::Const(
+            AvlTreeData {
+                digest: tree_a_digest,
+                tree_flags: AvlTreeFlags::new(true, true, false),
+                key_length: 1,
+                value_length_opt: None,
+            }
+            .into(),
+        );
+        let pair1 = Literal::Tup(mk_pair(1u8, 10u64).into());
+        let entries = Constant {
+            tpe: SType::SColl(Arc::new(SType::STuple(STuple::pair(
+                SType::SColl(Arc::new(SType::SByte)),
+                SType::SColl(Arc::new(SType::SByte)),
+            )))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::new([pair1]),
+                elem_tpe: SType::STuple(STuple::pair(
+                    SType::SColl(Arc::new(SType::SByte)),
+                    SType::SColl(Arc::new(SType::SByte)),
+                )),
+            }),
+        };
+        let expr: Expr = MethodCall::new(
+            obj,
+            savltree::INSERT_OR_UPDATE_METHOD.clone(),
+            vec![entries.into(), wrong_proof.into()],
+        )
+        .unwrap()
+        .into();
+
+        let res = eval_out_wo_ctx::<Value>(&expr);
+        assert!(matches!(res, Value::Opt(None)));
+    }
+
+    // JVM-blessed byte vector (santa-eval `AvlTree.insertOrUpdate`, entry
+    // `insertOrUpdate#bad-proof`): v3 tree carrying the AvlTree, the entries,
+    // and the wrong-tree proof as segregated constants; blessed None. The
+    // blessed header `1b` + size VLQ `f801` is rewritten to the non-sized `13`
+    // (size-bit cleared, size dropped) because the sized parse path rejects
+    // non-SigmaProp roots — the same lenient deserialize the conformance
+    // runner applies to expression-rooted corpus trees; body bytes verbatim.
+    #[test]
+    fn eval_avl_insert_or_update_bad_proof_blessed_bytes() {
+        let tree_bytes = base16::decode("130464fb2b77372d81da43ce2d72714aec79ae5fcac20a9aff426fe6afb476a6fbc02c04072001080e209a39c57d13039b50bfe4aa21b2c8238be31d133db1fbe4549b16d9b94338b4e20e08000000005a17a0320e8f0103fcbfd9e0c4781263bb161625674719024acef64654799a00c41cc148bdc4a891028f23c5ee24a49084f24812ee9dbcdc9e11974b05cad682c21e88fca866bc85cec4e67333f14133fce4ed7bbf147642b3e7b2b8324268ea6ded1be0caa2da237f000000005a17a000039594489172346c6b22ac52210d14be7fdb02f6ec52b9e525b3a9c77114374cd900ff0402dc641073000283013c0e0e8602730173027303").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
+        let expr = tree.proposition().unwrap();
+        let ctx = force_any_val::<Context>();
+        let res = try_eval_out_with_version::<Value>(&expr, &ctx, 3, 3).unwrap();
+        assert!(matches!(res, Value::Opt(None)));
+    }
+
     proptest! {
         #[test]
         fn eval_avl_digest(v in any::<AvlTreeData>()) {
