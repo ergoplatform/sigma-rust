@@ -45,6 +45,12 @@ impl<'ctx> Env<'ctx> {
     pub fn get(&self, idx: ValId) -> Option<&Value<'ctx>> {
         self.store.get(&idx)
     }
+
+    /// Snapshot the current bindings — used to capture the defining
+    /// environment when a `FuncValue` evaluates to a lambda value.
+    pub(crate) fn bindings(&self) -> Vec<(ValId, Value<'ctx>)> {
+        self.store.iter().map(|(&k, v)| (k, v.clone())).collect()
+    }
     /// Convert borrowed data to Arc
     pub(crate) fn to_static(&'ctx self) -> Env<'static> {
         Env {
