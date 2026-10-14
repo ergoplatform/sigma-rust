@@ -2,6 +2,7 @@
 use crate::mir::constant::Constant;
 use crate::mir::constant::TryExtractFromError;
 use crate::mir::expr::Expr;
+use crate::serialization::sigma_parse_bytes_exact;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
@@ -382,8 +383,9 @@ impl SigmaSerializable for ErgoTree {
             if header.has_size() {
                 let tree_size_bytes = r.get_u32()?;
                 let body_pos = r.position()?;
-                let mut buf = vec![0u8; tree_size_bytes as usize];
-                r.read_exact(buf.as_mut_slice())?;
+                // The size prefix is untrusted: allocate only as bytes
+                // actually arrive, never the claimed size up front.
+                let mut buf = sigma_parse_bytes_exact(r, tree_size_bytes as usize)?;
                 let mut inner_r =
                     SigmaByteReader::new(Cursor::new(&mut buf[..]), ConstantStore::empty());
                 match inner_r.with_tree_version(header.version(), |inner_r| {
@@ -523,6 +525,17 @@ mod tests {
             prop_assert_eq!(&res.template_bytes().unwrap(), &v.template_bytes().unwrap());
             prop_assert_eq![res, v];
         }
+    }
+
+    #[test]
+    fn sized_tree_with_huge_claimed_size_is_error_not_huge_allocation() {
+        // Regression for #944: header with the has-size flag set, then the
+        // VLQ encoding of u32::MAX as the claimed tree size, and no body
+        // bytes at all. Parsing must fail with an EOF error; sizing the body
+        // buffer by the claimed size aborted the process with an allocation
+        // failure before this fix.
+        let bytes: [u8; 6] = [0x08, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F];
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
     }
 
     #[test]
