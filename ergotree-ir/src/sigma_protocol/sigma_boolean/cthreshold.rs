@@ -113,8 +113,17 @@ impl SigmaSerializable for Cthreshold {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let k = r.get_u16()? as u8; // safe because we serialized u8 as u16
+        // The wire format carries k as u16 (as in sigmastate, which keeps the
+        // full range), but this type's k is a byte: our polynomial arithmetic
+        // can take only byte inputs, and Atleast evaluation already rejects a
+        // bound above 255. Reject an out-of-range k here instead of silently
+        // truncating it into a different threshold (256 as u8 == 0).
+        let k = r.get_u16()?;
+        let k = u8::try_from(k).map_err(|_| {
+            SigmaParsingError::ValueOutOfBounds(format!("Cthreshold k={} does not fit into u8", k))
+        })?;
         let items_count = r.get_u16()?;
+
         let mut items = Vec::with_capacity(items_count as usize);
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
@@ -123,5 +132,68 @@ impl SigmaSerializable for Cthreshold {
             k,
             children: items.try_into()?,
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+    use crate::ergo_tree::ErgoTreeVersion;
+    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+    use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+    /// Hand-build the wire bytes of a Cthreshold proposition with the given
+    /// raw (u16) threshold and `children` TrivialProp(true) children.
+    fn cthreshold_bytes(k: u16, children: u16) -> Vec<u8> {
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        w.with_tree_version(ErgoTreeVersion::MAX_SCRIPT_VERSION, |w| {
+            Cthreshold::OP_CODE.sigma_serialize(w)?;
+            w.put_u16(k)?;
+            w.put_u16(children)?;
+            for _ in 0..children {
+                OpCode::TRIVIAL_PROP_TRUE.sigma_serialize(w)?;
+            }
+            Ok::<(), SigmaParsingError>(())
+        })
+        .unwrap();
+        data
+    }
+
+    fn parse_cthreshold(k: u16, children: u16) -> Result<Cthreshold, SigmaParsingError> {
+        match SigmaBoolean::sigma_parse_bytes(&cthreshold_bytes(k, children))? {
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(c)) => Ok(c),
+            other => panic!("expected Cthreshold, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parse_k_above_byte_range_is_rejected() {
+        // The reference implementation keeps k in the full u16 range, while
+        // this implementation's domain is a byte (see `reduce`); a wire k that
+        // does not fit must be rejected instead of silently truncated
+        // (256 as u8 == 0, 300 as u8 == 44).
+        for k in [256u16, 300, u16::MAX] {
+            let res = parse_cthreshold(k, 2);
+            assert!(
+                matches!(res, Err(SigmaParsingError::ValueOutOfBounds(_))),
+                "k={} must be rejected as out of bounds, got {:?}",
+                k,
+                res
+            );
+        }
+    }
+
+    #[test]
+    fn parse_k_within_byte_range_is_preserved() {
+        for k in [0u16, 1, 200, 255] {
+            let c = parse_cthreshold(k, 2)
+                .unwrap_or_else(|e| panic!("k={} must parse, got {:?}", k, e));
+            assert_eq!(c.k as u16, k);
+            assert_eq!(c.children.len(), 2);
+        }
     }
 }
