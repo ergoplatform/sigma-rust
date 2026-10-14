@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2`; downstream implementations using those traits may need to update their I/O imports and error types.
 - The WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
+- `Address::script()` for P2SH writes the sigma-state 6.x form, which reads the serialized proposition from context variable 126 (`P2SH_SCRIPT_VAR_ID`). Spenders of boxes funded by Fleet SDK or sigma-state 5.x (variable 1, `P2SH_SCRIPT_VAR_ID_V5`) must read the box script to know which variable to populate. `Address::recreate_from_ergo_tree` now classifies the 6.x tree as P2SH, and still classifies the variable-1 form as P2SH where sigma-state 6.x classifies it as P2S.
 
 ### Fixed
 - Correct unsigned 256-bit division in the C API and return errors for zero-modulus subtraction and inversion.
@@ -17,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
 - Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
 - Repair release-preflight environment setup so GitHub can schedule the package validation jobs.
+- `Address::script()` for P2SH hashed `GetVar` without `OptionGet` in 0.28.0 (the only version tested; the code is unchanged since #407). An ergo 6.0.6 devnet node rejected spends of such boxes, and sigma-rust could not parse the bytes.
+- `Address::recreate_from_ergo_tree` accepted any hashed expression as P2SH when `DeserializeContext` read variable 1. It now requires `OptionGet(GetVar(id))` with the same id as `DeserializeContext`, a 24-byte hash and a version 0 header without constant segregation; other trees are P2S.
 
 ## [0.28.0] - 2024-08-09
 ## [0.27.1] - 2023-12-02
