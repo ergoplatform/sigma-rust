@@ -25,11 +25,10 @@ use core::convert::TryFrom;
 use sigma_util::hash::blake2b256_hash;
 use sigma_util::AsVecI8;
 
-use core::convert::TryInto;
-
 use self::box_value::BoxValue;
 
 use super::token::Token;
+use super::token::TokenAmount;
 use super::token::TokenId;
 use super::tx_id::TxId;
 
@@ -367,7 +366,9 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
         let amount = r.get_u64()?;
         tokens.push(Token {
             token_id,
-            amount: amount.try_into()?,
+            // Unbounded on the wire (reference impl reads `getULong()` with no
+            // range check) — see `TokenAmount::from_u64_unbounded`.
+            amount: TokenAmount::from_u64_unbounded(amount),
         })
     }
     let tokens = if tokens.is_empty() {
@@ -541,6 +542,65 @@ mod tests {
         )
         .unwrap();
         assert_eq!(sigma_serialize_roundtrip(&b), b);
+    }
+
+    // The wire is unbounded for box value and token amounts (reference impl reads
+    // `getULong()` with no range check), so u64 values in `[2^63, 2^64)` must
+    // hydrate and surface as their signed (negative) view, mirroring the JVM where
+    // both are signed Longs. Box bytes are JVM-blessed test vectors
+    // (santa-eval `Box.signed_view_u64`).
+    fn parse_box_roundtrip(bytes_hex: &str) -> ErgoBox {
+        let bytes = base16::decode(bytes_hex).unwrap();
+        let b = ErgoBox::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(b.sigma_serialize_bytes().unwrap(), bytes);
+        b
+    }
+
+    #[test]
+    fn parse_box_value_above_i64_max() {
+        // value = 2^63
+        let b = parse_box_roundtrip("808080808080808080010008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(*b.value.as_u64(), 1u64 << 63);
+        assert_eq!(b.value.as_i64(), i64::MIN);
+        assert_eq!(
+            b.get_register(RegisterId::MandatoryRegisterId(MandatoryRegisterId::R0))
+                .unwrap()
+                .unwrap(),
+            Constant::from(i64::MIN)
+        );
+
+        // value = u64::MAX
+        let b = parse_box_roundtrip("ffffffffffffffffff010008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(*b.value.as_u64(), u64::MAX);
+        assert_eq!(b.value.as_i64(), -1i64);
+    }
+
+    #[test]
+    fn parse_box_value_below_min() {
+        // value = 1 nanoERG: below `BoxValue::MIN_RAW` but valid on the wire — the
+        // reference impl has no minimum at parse (its min-value-per-byte rule is a
+        // node transaction-validation rule, not a deserialization bound).
+        let b = parse_box_roundtrip("010008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000000000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(*b.value.as_u64(), 1);
+    }
+
+    #[test]
+    fn parse_box_token_amount_above_i64_max() {
+        // token amount = 2^63
+        let b = parse_box_roundtrip("c0843d0008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798000107070707070707070707070707070707070707070707070707070707070707078080808080808080800100000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(
+            *b.tokens.as_ref().unwrap().first().amount.as_u64(),
+            1u64 << 63
+        );
+        assert_eq!(b.tokens_raw()[0].1, i64::MIN);
+
+        // token amount = u64::MAX
+        let b = parse_box_roundtrip("c0843d0008cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f8179800010707070707070707070707070707070707070707070707070707070707070707ffffffffffffffffff0100000000000000000000000000000000000000000000000000000000000000000000");
+        assert_eq!(
+            *b.tokens.as_ref().unwrap().first().amount.as_u64(),
+            u64::MAX
+        );
+        assert_eq!(b.tokens_raw()[0].1, -1i64);
     }
 
     proptest! {
