@@ -47,8 +47,10 @@ impl ChildIndexNormal {
     }
 
     /// Return next index value (incremented)
-    pub fn next(&self) -> ChildIndexNormal {
-        ChildIndexNormal(self.0 + 1)
+    pub fn next(&self) -> Result<Self, ChildIndexError> {
+        // `self.0` is a checked 31-bit value, so `+ 1` cannot overflow a u32;
+        // `normal` rejects the result if it sets the 32nd bit.
+        ChildIndexNormal::normal(self.0 + 1)
     }
 }
 
@@ -74,8 +76,7 @@ impl FromStr for ChildIndex {
     type Err = ChildIndexError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.contains('\'') {
-            let idx = s.replace('\'', "");
+        if let Some(idx) = s.strip_suffix('\'') {
             Ok(ChildIndex::Hardened(ChildIndexHardened::from_31_bit(
                 idx.parse()?,
             )?))
@@ -125,7 +126,7 @@ impl ChildIndex {
     pub fn next(&self) -> Result<Self, ChildIndexError> {
         match self {
             ChildIndex::Hardened(i) => Ok(ChildIndex::Hardened(i.next()?)),
-            ChildIndex::Normal(i) => Ok(ChildIndex::Normal(i.next())),
+            ChildIndex::Normal(i) => Ok(ChildIndex::Normal(i.next()?)),
         }
     }
 }
@@ -314,6 +315,77 @@ mod tests {
         let expected = "m/44'/429'/1'/0/4";
 
         assert_eq!(expected, new_path.to_string());
+    }
+
+    #[test]
+    fn test_child_index_parse_valid() {
+        assert_eq!(
+            "44".parse::<ChildIndex>().unwrap(),
+            ChildIndex::Normal(ChildIndexNormal::normal(44).unwrap())
+        );
+        assert_eq!(
+            "44'".parse::<ChildIndex>().unwrap(),
+            ChildIndex::Hardened(ChildIndexHardened::from_31_bit(44).unwrap())
+        );
+        assert_eq!(
+            "2147483647".parse::<ChildIndex>().unwrap().to_bits(),
+            2147483647
+        );
+        assert_eq!(
+            "2147483647'".parse::<ChildIndex>().unwrap().to_bits(),
+            (1 << 31) | 2147483647
+        );
+    }
+
+    #[test]
+    fn test_child_index_parse_rejects_misplaced_hardened_marker() {
+        // The hardened marker is a single trailing `'`, as in the reference
+        // implementation's `fromEncoded` (`sym.endsWith("'")` + parse of the
+        // remainder). Anything else must not be silently re-interpreted:
+        // previously every `'` was stripped, so "1'2" parsed as hardened 12
+        // and "44''" / "'44" as hardened 44.
+        for s in ["1'2", "44''", "'44", "4'4'", "'", "4 4'"] {
+            assert!(
+                s.parse::<ChildIndex>().is_err(),
+                "expected {s:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn test_child_index_next_at_upper_bound() {
+        // One below the bound still increments, and stays a normal index.
+        let second_last = ChildIndexNormal::normal(2147483646).unwrap();
+        let last = second_last.next().unwrap();
+        assert_eq!(last, ChildIndexNormal::normal(2147483647).unwrap());
+        assert_eq!(ChildIndex::Normal(last).to_bits(), 2147483647);
+        // At the bound there is no next normal index: the incremented value
+        // would set the 32nd bit, colliding with hardened index 0 in
+        // `to_bits`. It must be an error, like the hardened case.
+        assert_eq!(
+            last.next(),
+            Err(ChildIndexError::NumberTooLarge(2147483648))
+        );
+        assert_eq!(
+            ChildIndexHardened::from_31_bit(2147483647).unwrap().next(),
+            Err(ChildIndexError::NumberTooLarge(2147483648))
+        );
+        assert_eq!(
+            ChildIndex::Normal(last).next(),
+            Err(ChildIndexError::NumberTooLarge(2147483648))
+        );
+    }
+
+    #[test]
+    fn test_derivation_path_next_at_upper_bound() {
+        let path = DerivationPath::new(
+            ChildIndexHardened::from_31_bit(0).unwrap(),
+            vec![ChildIndexNormal::normal(2147483647).unwrap()],
+        );
+        assert!(matches!(
+            path.next(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
     }
 
     // Test derivation_path.next() returns error if empty (doesn't panic)
