@@ -153,7 +153,7 @@ impl<const N: usize> ScorexSerializable for Digest<N> {
     }
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut bytes = [0; N];
-        r.read_exact(&mut bytes)?;
+        r.get_bytes_into(&mut bytes)?;
         Ok(Self(bytes))
     }
 }

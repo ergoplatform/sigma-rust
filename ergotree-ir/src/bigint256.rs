@@ -268,7 +268,7 @@ impl SigmaSerializable for BigInt256 {
             )));
         }
         let mut buf = vec![0u8; size as usize];
-        r.read_exact(&mut buf)?;
+        r.get_bytes_into(&mut buf)?;
         match BigInt256::from_be_slice(&buf) {
             Some(x) => Ok(x),
             None => Err(SigmaParsingError::ValueOutOfBounds(String::new())),

@@ -174,6 +174,7 @@ impl SigmaSerializable for ReducedTransaction {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let bytes_len = r.get_u32()?;
+        r.check_remaining(bytes_len as usize)?;
         let mut buf = vec![0u8; bytes_len as usize];
         r.read_exact(buf.as_mut_slice())?;
         let tx = Transaction::sigma_parse_bytes(&buf)?;
@@ -254,7 +255,10 @@ mod tests {
     fn fixture(input_count: usize, reduction_count: usize) -> ReducedTransaction {
         let output = ErgoBoxCandidateBuilder::new(
             BoxValue::SAFE_USER_MIN,
-            ErgoTree::try_from(Expr::Const(Constant::from(true))).unwrap(),
+            ErgoTree::try_from(Expr::Const(Constant::from(
+                ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp::new(true.into()),
+            )))
+            .unwrap(),
             0,
         )
         .build()
@@ -446,5 +450,20 @@ mod tests {
         fn ser_roundtrip(v in any::<ReducedTransaction>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
         }
+    }
+
+    /// ReducedTransaction::sigma_parse with a huge declared byte length and
+    /// only a few stream bytes must return Err without allocating gigabytes.
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn reduced_tx_huge_byte_len_returns_err() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        let mut data = Vec::new();
+        let mut w =
+            ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter::new(&mut data, None);
+        w.put_u32(u32::MAX).unwrap();
+        let result = ReducedTransaction::sigma_parse_bytes(&data);
+        assert!(result.is_err());
     }
 }

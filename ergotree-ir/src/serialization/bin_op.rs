@@ -45,8 +45,11 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     op_kind: BinOpKind,
     r: &mut R,
 ) -> Result<Expr, SigmaParsingError> {
-    let tag = r.get_u8()?;
-    Ok(if tag == OpCode::COLL_OF_BOOL_CONST.value() {
+    // `Relation2Serializer.parse` (sigmastate v6.0.6 `Relation2Serializer.scala:40-52`)
+    // peeks for the packed boolean pair without the position check, then reads either
+    // the pair or two values.
+    Ok(if r.peek_u8()? == OpCode::COLL_OF_BOOL_CONST.value() {
+        r.get_u8()?;
         let bools = r.get_bits(2)?;
         #[allow(clippy::unwrap_used)]
         BinOp {
@@ -56,7 +59,7 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
         }
         .into()
     } else {
-        let left = Expr::parse_with_tag(r, tag)?;
+        let left = Expr::sigma_parse(r)?;
         let right = Expr::sigma_parse(r)?;
         BinOp {
             kind: op_kind,
