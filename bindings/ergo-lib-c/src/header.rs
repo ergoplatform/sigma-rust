@@ -4,7 +4,6 @@ use ergo_lib_c_core::{
     block_header::ConstBlockHeaderPtr,
     header::{preheader_from_block_header, ConstPreHeaderPtr, PreHeaderPtr},
 };
-use paste::paste;
 
 use crate::delete_ptr;
 
@@ -24,4 +23,7 @@ pub unsafe extern "C" fn ergo_lib_preheader_delete(ptr: PreHeaderPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(PreHeader);
+make_ffi_eq! {
+    eq_fn: ergo_lib_pre_header_eq,
+    const_ptr: ConstPreHeaderPtr
+}

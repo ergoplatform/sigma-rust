@@ -6,8 +6,6 @@ use ergo_lib_c_core::{
     Error,
 };
 
-use paste::paste;
-
 use crate::{delete_ptr, ErrorPtr};
 
 // `BoxSelection` bindings -------------------------------------------------------------------------
@@ -49,7 +47,10 @@ pub unsafe extern "C" fn ergo_lib_box_selection_delete(ptr: BoxSelectionPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(BoxSelection);
+make_ffi_eq! {
+    eq_fn: ergo_lib_box_selection_eq,
+    const_ptr: ConstBoxSelectionPtr
+}
 
 // `SimpleBoxSelector` bindings ---------------------------------------------------------------------
 

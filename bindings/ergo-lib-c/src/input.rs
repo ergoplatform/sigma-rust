@@ -6,7 +6,6 @@ use ergo_lib_c_core::{
 };
 
 use crate::{delete_ptr, ErrorPtr};
-use paste::paste;
 
 // `UnsignedInput` bindings -------------------------------------------------------------------------
 
@@ -36,7 +35,19 @@ pub unsafe extern "C" fn ergo_lib_unsigned_input_delete(ptr: UnsignedInputPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(UnsignedInputs, UnsignedInput);
+make_collection! {
+    collection: UnsignedInputs,
+    collection_ptr: UnsignedInputsPtr,
+    const_collection_ptr: ConstUnsignedInputsPtr,
+    item: UnsignedInput,
+    item_ptr: UnsignedInputPtr,
+    const_item_ptr: ConstUnsignedInputPtr,
+    new_fn: ergo_lib_unsigned_inputs_new,
+    delete_fn: ergo_lib_unsigned_inputs_delete,
+    len_fn: ergo_lib_unsigned_inputs_len,
+    get_fn: ergo_lib_unsigned_inputs_get,
+    add_fn: ergo_lib_unsigned_inputs_add
+}
 
 // `Input` bindings --------------------------------------------------------------------------------
 
@@ -66,7 +77,19 @@ pub unsafe extern "C" fn ergo_lib_input_delete(ptr: InputPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(Inputs, Input);
+make_collection! {
+    collection: Inputs,
+    collection_ptr: InputsPtr,
+    const_collection_ptr: ConstInputsPtr,
+    item: Input,
+    item_ptr: InputPtr,
+    const_item_ptr: ConstInputPtr,
+    new_fn: ergo_lib_inputs_new,
+    delete_fn: ergo_lib_inputs_delete,
+    len_fn: ergo_lib_inputs_len,
+    get_fn: ergo_lib_inputs_get,
+    add_fn: ergo_lib_inputs_add
+}
 
 // `ProverResult` bindings -------------------------------------------------------------------------
 
