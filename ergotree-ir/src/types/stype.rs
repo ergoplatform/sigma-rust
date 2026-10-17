@@ -11,11 +11,11 @@ use impl_trait_for_tuples::impl_for_tuples;
 
 use crate::bigint256::BigInt256;
 use crate::chain::ergo_box::ErgoBox;
-use crate::serialization::SigmaParsingError;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
+use crate::soft_fork::SoftForkError;
 use crate::unsignedbigint256::UnsignedBigInt;
 use ergo_chain_types::EcPoint;
 
@@ -114,10 +114,10 @@ impl SType {
         )
     }
 
-    pub(crate) fn check_v6_type(&self) -> Result<(), SigmaParsingError> {
+    pub(crate) fn check_v6_type(&self) -> Result<(), SoftForkError> {
         match self {
             SType::SUnsignedBigInt | SType::SOption(_) | SType::SHeader => {
-                Err(SigmaParsingError::V6TypeError)
+                Err(SoftForkError::V6TypeError)
             }
             SType::SColl(elem_tpe) => elem_tpe.check_v6_type(),
             SType::STuple(tuple) => tuple.items.iter().try_for_each(SType::check_v6_type),
