@@ -1,4 +1,5 @@
 //! Soft-fork error type and related convenience functions
+use alloc::string::String;
 use thiserror::Error;
 
 use crate::{serialization::types::TypeCode, types::smethod::MethodId};
