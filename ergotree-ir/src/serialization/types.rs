@@ -6,6 +6,7 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
+use crate::soft_fork::SoftForkError;
 use crate::types::stuple;
 use crate::types::stype::SType;
 use crate::types::stype_param::STypeParam;
@@ -77,10 +78,10 @@ impl TypeCode {
     const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
 
     /// Parse type code from byte
-    fn parse(b: u8) -> Result<Self, SigmaParsingError> {
+    fn parse(b: u8) -> Result<Self, SoftForkError> {
         match FromPrimitive::from_u8(b) {
             Some(t) => Ok(t),
-            None => Err(SigmaParsingError::InvalidTypeCode(b)),
+            None => Err(SoftForkError::InvalidTypeCode(b)),
         }
     }
 
@@ -106,10 +107,7 @@ impl TypeCode {
         }
     }
 
-    fn get_embeddable_type(
-        &self,
-        tree_version: ErgoTreeVersion,
-    ) -> Result<SType, SigmaParsingError> {
+    fn get_embeddable_type(&self, tree_version: ErgoTreeVersion) -> Result<SType, SoftForkError> {
         use SType::*;
         // TODO: UnsignedBigInt
         match self {
@@ -122,7 +120,7 @@ impl TypeCode {
             TypeCode::SGROUP_ELEMENT => Ok(SGroupElement),
             TypeCode::SSIGMAPROP => Ok(SSigmaProp),
             TypeCode::SUNSIGNEDBIGINT if tree_version >= ErgoTreeVersion::V3 => Ok(SUnsignedBigInt),
-            _ => Err(SigmaParsingError::InvalidTypeCode(*self as u8)),
+            _ => Err(SoftForkError::InvalidPrimitiveType(*self as u8)),
         }
     }
 
@@ -167,7 +165,7 @@ impl SigmaSerializable for TypeCode {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let b = r.get_u8()?;
-        Self::parse(b)
+        Ok(Self::parse(b)?)
     }
 }
 
@@ -183,7 +181,10 @@ impl SType {
             let (container, embeddable) = TypeCode::unpack_tag(c)?;
             let mut stype = || {
                 embeddable
-                    .map(|e| e.get_embeddable_type(r.tree_version()))
+                    .map(|e| {
+                        e.get_embeddable_type(r.tree_version())
+                            .map_err(SigmaParsingError::from)
+                    })
                     .unwrap_or_else(|| SType::sigma_parse(r))
             };
             Ok(match container {
@@ -191,7 +192,7 @@ impl SType {
                     if let Some(embeddable) = embeddable {
                         embeddable.get_embeddable_type(r.tree_version())?
                     } else {
-                        return Err(SigmaParsingError::InvalidTypeCode(c));
+                        return Err(SoftForkError::InvalidPrimitiveType(c).into());
                     }
                 }
                 Some(TypeCode::COLL) => SColl(stype()?.into()),
@@ -467,9 +468,9 @@ impl SigmaSerializable for SType {
                     SType::STypeVar(tpe_param.ident.clone()).sigma_serialize(w)
                 })
             }
-            SType::SFunc(_) => Err(SigmaSerializationError::NotSupported(
-                "SFunc serialization is not supported".into(),
-            )),
+            SType::SFunc(_) => {
+                Err(SoftForkError::NotSerializable("SFunc serialization is not supported").into())
+            }
             #[allow(clippy::unreachable)] // Primitive types are covered by if .is_prim() branch
             _ => unreachable!(),
         }
