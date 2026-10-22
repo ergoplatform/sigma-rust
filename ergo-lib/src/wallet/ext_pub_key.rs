@@ -12,6 +12,7 @@ use sha2::Sha512;
 use thiserror::Error;
 
 use super::derivation_path::ChildIndex;
+use super::derivation_path::ChildIndexError;
 use super::derivation_path::ChildIndexNormal;
 use super::derivation_path::DerivationPath;
 
@@ -40,6 +41,11 @@ pub enum ExtPubKeyError {
     /// Incompatible derivation paths when trying to derive a new key
     #[error("incompatible paths: {0}")]
     IncompatibleDerivation(String),
+    /// Derivation path child index error
+    /// For example when the BIP-32 retry with the next index runs out of
+    /// the 31-bit normal index space
+    #[error("child index error: {0}")]
+    ChildIndexError(#[from] ChildIndexError),
 }
 
 impl ExtPubKey {
@@ -78,7 +84,7 @@ impl ExtPubKey {
 
     /// Soft derivation of the child public key with a given index
     #[allow(clippy::unwrap_used)]
-    pub fn child(&self, index: ChildIndexNormal) -> Self {
+    pub fn child(&self, index: ChildIndexNormal) -> Result<Self, ExtPubKeyError> {
         // Unwrap is fine due to `ChainCode` type having fixed length of 32.
         let mut mac = HmacSha512::new_from_slice(&self.chain_code).unwrap();
         mac.update(&self.pub_key_bytes());
@@ -90,19 +96,19 @@ impl ExtPubKey {
             let child_pub_key = *child_secret_key.public_image().h * &self.public_key;
             if ergo_chain_types::ec_point::is_identity(&child_pub_key) {
                 // point is infinity element, thus repeat with next index value (see BIP-32)
-                self.child(index.next())
+                self.child(index.next()?)
             } else {
                 let mut chain_code = [0; 32];
                 chain_code.copy_from_slice(&mac_bytes[32..]);
-                ExtPubKey {
+                Ok(ExtPubKey {
                     public_key: child_pub_key,
                     chain_code,
                     derivation_path: self.derivation_path.extend(index.into()),
-                }
+                })
             }
         } else {
             // not in range [0, modulus), thus repeat with next index value (BIP-32)
-            self.child(index.next())
+            self.child(index.next()?)
         }
     }
 
@@ -121,7 +127,7 @@ impl ExtPubKey {
                     ChildIndex::Hardened(_) => Err(ExtPubKeyError::IncompatibleDerivation(
                         format!("pub keys can't use hardened paths: {}", i),
                     )),
-                    ChildIndex::Normal(i) => Ok(parent.child(*i)),
+                    ChildIndex::Normal(i) => parent.child(*i),
                 })
         } else {
             Err(ExtPubKeyError::IncompatibleDerivation(format!(
@@ -169,7 +175,9 @@ mod tests {
         .unwrap();
 
         // Chain m/0'/1
-        let child = ext_pub_key.child(ChildIndexNormal::normal(1).unwrap());
+        let child = ext_pub_key
+            .child(ChildIndexNormal::normal(1).unwrap())
+            .unwrap();
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"03501e454bf00751f24b1b489aa925215d66af2234e3891c3b21a52bedb3cd711c")
                 .unwrap()
@@ -200,7 +208,9 @@ mod tests {
         .unwrap();
 
         // Chain m/0'/1/2'/2
-        let child = ext_pub_key.child(ChildIndexNormal::normal(2).unwrap());
+        let child = ext_pub_key
+            .child(ChildIndexNormal::normal(2).unwrap())
+            .unwrap();
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"02e8445082a72f29b75ca48748a914df60622a609cacfce8ed0e35804560741d29")
                 .unwrap()
@@ -209,7 +219,9 @@ mod tests {
         assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
 
         // Chain m/0'/1/2'/2/1000000000
-        let child2 = child.child(ChildIndexNormal::normal(1000000000).unwrap());
+        let child2 = child
+            .child(ChildIndexNormal::normal(1000000000).unwrap())
+            .unwrap();
         let expected_child2_pub_key_bytes: PubKeyBytes =
             base16::decode(b"022a471424da5e657499d1ff51cb43c47481a03b1e77f951fe64cec9f5a48f7011")
                 .unwrap()
@@ -240,7 +252,9 @@ mod tests {
         .unwrap();
 
         // Chain m/0
-        let child = ext_pub_key.child(ChildIndexNormal::normal(0).unwrap());
+        let child = ext_pub_key
+            .child(ChildIndexNormal::normal(0).unwrap())
+            .unwrap();
         let expected_child_pub_key_bytes: PubKeyBytes =
             base16::decode(b"02fc9e5af0ac8d9b3cecfe2a888e2117ba3d089d8585886c9c826b6b22a98d12ea")
                 .unwrap()
@@ -278,7 +292,7 @@ mod tests {
         assert_eq!(expected_root, ext_pub_key_b58);
 
         for (expected_key, idx) in cases {
-            ext_pub_key = ext_pub_key.child(idx);
+            ext_pub_key = ext_pub_key.child(idx).unwrap();
             let ext_pub_key_b58 = bs58::encode(ext_pub_key.pub_key_bytes()).into_string();
 
             assert_eq!(expected_key, ext_pub_key_b58);
