@@ -68,7 +68,9 @@ impl NonMandatoryRegisters {
 
     /// Get register value (returns None, if there is no value for the given register id)
     pub fn get(&self, reg_id: NonMandatoryRegisterId) -> Option<&RegisterValue> {
-        self.0.get(reg_id as usize)
+        // R4..R9 are stored at 0..5, as in `get_constant`
+        self.0
+            .get(reg_id as usize - NonMandatoryRegisterId::START_INDEX)
     }
 
     /// Get register value as a Constant
@@ -388,5 +390,28 @@ mod tests {
         // gap, missing R5
         hash_map.insert(NonMandatoryRegisterId::R6, c.into());
         assert!(NonMandatoryRegisters::try_from(hash_map).is_err());
+    }
+
+    #[test]
+    fn get_returns_each_registers_own_value() {
+        // R4..R9 hold IntConstant(4..=9): R4 is slot 0, R9 is slot 5.
+        let regs =
+            NonMandatoryRegisters::try_from((4..=9).map(Constant::from).collect::<Vec<Constant>>())
+                .unwrap();
+        for reg_id in NonMandatoryRegisterId::REG_IDS {
+            assert_eq!(
+                regs.get(reg_id),
+                Some(&RegisterValue::Parsed(Constant::from(reg_id as i32))),
+                "{reg_id:?}"
+            );
+        }
+        // A register past the stored ones is empty.
+        let only_r4 = NonMandatoryRegisters::try_from(vec![Constant::from(4)]).unwrap();
+        assert_eq!(
+            only_r4.get(NonMandatoryRegisterId::R4),
+            Some(&RegisterValue::Parsed(Constant::from(4)))
+        );
+        assert_eq!(only_r4.get(NonMandatoryRegisterId::R5), None);
+        assert_eq!(only_r4.get(NonMandatoryRegisterId::R9), None);
     }
 }
