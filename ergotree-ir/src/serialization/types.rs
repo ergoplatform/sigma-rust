@@ -273,6 +273,11 @@ impl SType {
                         tpe_params,
                     })
                 }
+                // Before V3 the function type code is one more code above `SGlobal`, which
+                // sigmastate's `CheckTypeCode` (rule 1008, 1018 once v6 is active) rejects
+                // with a soft-forkable `ValidationException`, like every other unknown code
+                // (v6.0.6 `TypeSerializer.scala:211-233`, `ValidationRules.scala:100-118`).
+                TypeCode::SFUNC => return Err(SigmaParsingError::InvalidTypeCode(c)),
                 #[allow(clippy::unreachable)] // All types with typecode >= Tuple are checked
                 _ => unreachable!(),
             })
@@ -494,6 +499,36 @@ mod tests {
     use crate::types::stype_param::STypeVar;
 
     use proptest::prelude::*;
+
+    #[test]
+    fn function_type_code_is_a_type_from_v3_and_an_unknown_code_before() {
+        // `(Int) => Int`. sigmastate reads type code 112 as a function type only from
+        // ErgoTree v3 (`isV3OrLaterErgoTreeVersion`); before that `CheckTypeCode` rejects it.
+        use crate::serialization::sigma_byte_reader::from_bytes;
+        let bytes = [0x70, 0x01, 0x04, 0x04, 0x00];
+        for version in [
+            ErgoTreeVersion::V0,
+            ErgoTreeVersion::V1,
+            ErgoTreeVersion::V2,
+        ] {
+            let mut r = from_bytes(bytes);
+            assert!(matches!(
+                r.with_tree_version(version, SType::sigma_parse),
+                Err(SigmaParsingError::InvalidTypeCode(112))
+            ));
+        }
+        let mut r = from_bytes(bytes);
+        assert_eq!(
+            r.with_tree_version(ErgoTreeVersion::V3, SType::sigma_parse)
+                .unwrap(),
+            SType::SFunc(SFunc {
+                t_dom: vec![SType::SInt],
+                t_range: SType::SInt.into(),
+                tpe_params: vec![],
+            })
+        );
+    }
+
     #[test]
     fn serialize_invalid_sfunc() {
         // t_dom > 255

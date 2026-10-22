@@ -115,7 +115,7 @@ impl SigmaSerializable for Cthreshold {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let k = r.get_u16()? as u8; // safe because we serialized u8 as u16
         let items_count = r.get_u16()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
         }

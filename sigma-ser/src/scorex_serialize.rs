@@ -96,17 +96,48 @@ pub enum ScorexParsingError {
     /// Failed to convert integer type
     #[error("Bounds check error: {0}")]
     TryFrom(#[from] core::num::TryFromIntError),
+    /// A read started past the position limit (rule 1014). DISTINCT from
+    /// [`ScorexParsingError::Io`] (EOF): soft-forkable (degrade a size-flagged
+    /// tree) vs hard reject. See [`ReadSigmaVlqExt::check_position_limit`].
+    #[error("read position exceeds the position limit")]
+    PositionLimitExceeded,
 }
 
 impl From<io::Error> for ScorexParsingError {
     fn from(error: io::Error) -> Self {
-        ScorexParsingError::Io(error.to_string())
+        // See `VlqEncodingError`'s `From<io::Error>`: `InvalidData` is the
+        // position-limit signal (rule 1014), kept apart from `Io` (EOF).
+        if error.kind() == io::ErrorKind::InvalidData {
+            ScorexParsingError::PositionLimitExceeded
+        } else {
+            ScorexParsingError::Io(error.to_string())
+        }
     }
 }
 
 impl From<&io::Error> for ScorexParsingError {
     fn from(error: &io::Error) -> Self {
-        ScorexParsingError::Io(error.to_string())
+        if error.kind() == io::ErrorKind::InvalidData {
+            ScorexParsingError::PositionLimitExceeded
+        } else {
+            ScorexParsingError::Io(error.to_string())
+        }
+    }
+}
+
+impl ScorexParsingError {
+    /// True if this is the soft-forkable position-limit error (rule 1014),
+    /// at the top level or nested in [`ScorexParsingError::VlqEncode`] (a VLQ
+    /// read can trip the limit and arrive wrapped). Used by the sized-`ErgoTree`
+    /// degrade gate to DEGRADE position-limit while REJECTING hard wire errors.
+    pub fn is_position_limit_exceeded(&self) -> bool {
+        matches!(
+            self,
+            ScorexParsingError::PositionLimitExceeded
+                | ScorexParsingError::VlqEncode(
+                    vlq_encode::VlqEncodingError::PositionLimitExceeded
+                )
+        )
     }
 }
 
@@ -140,7 +171,7 @@ impl<T: ScorexSerializable> ScorexSerializable for Vec<T> {
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(T::scorex_parse(r)?);
         }
@@ -225,5 +256,17 @@ mod test {
         fn box_roundtrip(val in any::<Option<Box<u32>>>()) {
             assert_eq!(scorex_serialize_roundtrip(&val), val);
         }
+    }
+
+    /// A huge declared count followed by no elements must return Err without
+    /// allocating a multi-gigabyte Vec (the pre-fix code called
+    /// `Vec::with_capacity(0x7FFFFFFF)` which SIGABRT'd on overcommit=0).
+    #[test]
+    fn vec_scorex_parse_huge_count_no_data_returns_err() {
+        // VLQ-encode u32::MAX as the count, then provide zero element bytes
+        let mut buf = Vec::new();
+        WriteSigmaVlqExt::put_u32(&mut Cursor::new(&mut buf), u32::MAX).unwrap();
+        let result = Vec::<u32>::scorex_parse(&mut Cursor::new(&buf[..]));
+        assert!(result.is_err());
     }
 }
