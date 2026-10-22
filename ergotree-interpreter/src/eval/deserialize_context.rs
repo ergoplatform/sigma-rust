@@ -148,4 +148,72 @@ mod tests {
             UnsignedBigInt::zero()
         );
     }
+
+    #[test]
+    fn unreached_absent_var_succeeds() {
+        use ergotree_ir::mir::if_op::If;
+        let expr: Expr = If {
+            condition: Box::new(true.into()),
+            true_branch: Box::new(true.into()),
+            false_branch: Box::new(Expr::from(DeserializeContext {
+                tpe: SType::SBoolean,
+                id: 1,
+            })),
+        }
+        .into();
+        let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &expr).unwrap();
+        let ext = ContextExtension::empty();
+        let ctx = force_any_val::<Context>().with_extension(&ext);
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            true.into()
+        );
+    }
+
+    #[test]
+    fn unreached_non_byte_array_var_succeeds() {
+        use ergotree_ir::mir::if_op::If;
+        let expr: Expr = If {
+            condition: Box::new(true.into()),
+            true_branch: Box::new(true.into()),
+            false_branch: Box::new(Expr::from(DeserializeContext {
+                tpe: SType::SBoolean,
+                id: 1,
+            })),
+        }
+        .into();
+        let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &expr).unwrap();
+        let ctx_ext = ContextExtension {
+            values: [(1u8, 1i32.into())].iter().cloned().collect(),
+        };
+        let ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            true.into()
+        );
+    }
+
+    #[test]
+    fn unreached_present_byte_array_wrong_type_still_fails() {
+        use ergotree_ir::mir::if_op::If;
+        let expr: Expr = If {
+            condition: Box::new(true.into()),
+            true_branch: Box::new(true.into()),
+            false_branch: Box::new(Expr::from(DeserializeContext {
+                tpe: SType::SBoolean,
+                id: 1,
+            })),
+        }
+        .into();
+        let tree = ErgoTree::new(ErgoTreeHeader::v1(false), &expr).unwrap();
+        let inner_expr: Expr = GlobalVars::Height.into();
+        let ctx_ext = ContextExtension {
+            values: [(1u8, inner_expr.sigma_serialize_bytes().unwrap().into())]
+                .iter()
+                .cloned()
+                .collect(),
+        };
+        let ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        assert!(reduce_to_crypto(&tree, &ctx).is_err());
+    }
 }
