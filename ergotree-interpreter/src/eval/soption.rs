@@ -1,5 +1,5 @@
 use crate::eval::EvalError;
-use crate::eval::Evaluable;
+use crate::eval::LambdaInvoker;
 
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -12,7 +12,7 @@ use super::Context;
 
 pub fn map_eval<'ctx>(
     _mc: &SMethod,
-    env: &mut Env<'ctx>,
+    _env: &mut Env<'ctx>,
     ctx: &Context<'ctx>,
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
@@ -30,20 +30,14 @@ pub fn map_eval<'ctx>(
             input_v_clone
         ))),
     }?;
-    let mut lambda_call = |arg: Value<'ctx>| {
-        let func_arg = lambda.args.first().ok_or_else(|| {
-            EvalError::NotFound("map: lambda has empty arguments list".to_string())
-        })?;
-        let orig_val = env.get(func_arg.idx).cloned();
-        env.insert(func_arg.idx, arg);
-        let res = lambda.body.eval(env, ctx);
-        if let Some(orig_val) = orig_val {
-            env.insert(func_arg.idx, orig_val);
-        } else {
-            env.remove(&func_arg.idx);
-        }
-        res
-    };
+    lambda
+        .args
+        .first()
+        .ok_or_else(|| EvalError::NotFound("map: lambda has empty arguments list".to_string()))?;
+    // The body evaluates in the lambda's CAPTURED environment (JVM closure
+    // semantics) — not in the caller's env.
+    let mut invoker = LambdaInvoker::new(lambda);
+    let mut lambda_call = |arg: Value<'ctx>| invoker.invoke(ctx, vec![arg]);
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(opt.as_deref().cloned()),
         _ => Err(EvalError::UnexpectedValue(format!(
@@ -60,7 +54,7 @@ pub fn map_eval<'ctx>(
 
 pub fn filter_eval<'ctx>(
     _mc: &SMethod,
-    env: &mut Env<'ctx>,
+    _env: &mut Env<'ctx>,
     ctx: &Context<'ctx>,
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
@@ -78,20 +72,13 @@ pub fn filter_eval<'ctx>(
             input_v_clone
         ))),
     }?;
-    let mut predicate_call = |arg: Value<'ctx>| {
-        let func_arg = lambda.args.first().ok_or_else(|| {
-            EvalError::NotFound("filter: lambda has empty arguments list".to_string())
-        })?;
-        let orig_val = env.get(func_arg.idx).cloned();
-        env.insert(func_arg.idx, arg);
-        let res = lambda.body.eval(env, ctx);
-        if let Some(orig_val) = orig_val {
-            env.insert(func_arg.idx, orig_val);
-        } else {
-            env.remove(&func_arg.idx);
-        }
-        res
-    };
+    lambda.args.first().ok_or_else(|| {
+        EvalError::NotFound("filter: lambda has empty arguments list".to_string())
+    })?;
+    // The body evaluates in the lambda's CAPTURED environment (JVM closure
+    // semantics) — not in the caller's env.
+    let mut invoker = LambdaInvoker::new(lambda);
+    let mut predicate_call = |arg: Value<'ctx>| invoker.invoke(ctx, vec![arg]);
     let normalized_input_val: Option<Value> = match input_v {
         Value::Opt(opt) => Ok(opt.as_deref().cloned()),
         _ => Err(EvalError::UnexpectedValue(format!(
