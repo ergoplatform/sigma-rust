@@ -443,3 +443,106 @@ mod tests {
         }
     }
 }
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+#[cfg(feature = "arbitrary")]
+mod p2sh_tests {
+    use super::*;
+    use crate::eval::reduce_to_crypto;
+    use crate::sigma_protocol::private_input::{DlogProverInput, PrivateInput};
+    use crate::sigma_protocol::prover::hint::HintsBag;
+    use crate::sigma_protocol::prover::{Prover, TestProver};
+    use ergotree_ir::chain::address::Address;
+    use ergotree_ir::chain::context_extension::ContextExtension;
+    use ergotree_ir::mir::constant::Constant;
+    use ergotree_ir::mir::expr::{Expr, SubstDeserializeError};
+    use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProofOfKnowledgeTree};
+    use sigma_test_util::force_any_val;
+    use sigma_util::hash::blake2b256_hash;
+
+    // P2SH box of `proveDlog(pk)` as written by `Address::script()` and read back from
+    // its bytes, plus the serialized proposition `08cd ++ pk` the spender supplies.
+    fn p2sh_box_tree(secret: &DlogProverInput) -> (ErgoTree, Vec<u8>) {
+        let prop_bytes = Expr::Const(secret.public_image().into())
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert_eq!(prop_bytes[..2], [0x08, 0xcd]);
+        let hash: [u8; 24] = blake2b256_hash(&prop_bytes)[..24].try_into().unwrap();
+        let tree = Address::P2SH(hash).script().unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&tree.sigma_serialize_bytes().unwrap()).unwrap();
+        (tree, prop_bytes)
+    }
+
+    fn extension_with(var_id: u8, prop_bytes: &[u8]) -> ContextExtension {
+        ContextExtension {
+            values: [(var_id, Constant::from(prop_bytes.to_vec()))]
+                .into_iter()
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn p2sh_script_with_var_126_reduces_to_proposition_and_verifies() {
+        let secret = DlogProverInput::random();
+        let (tree, prop_bytes) = p2sh_box_tree(&secret);
+        // Literal ids, so that the test does not move with the constants under test.
+        let ext = extension_with(126, &prop_bytes);
+        let ctx = force_any_val::<Context>().with_extension(&ext);
+
+        let reduced = reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop;
+        assert_eq!(
+            reduced,
+            SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(
+                secret.public_image()
+            ))
+        );
+
+        let message = vec![7u8; 100];
+        let prover = TestProver {
+            secrets: vec![PrivateInput::DlogProverInput(secret)],
+        };
+        let proof = prover
+            .prove(&tree, &ctx, &message, &HintsBag::empty())
+            .unwrap()
+            .proof;
+        assert!(
+            TestVerifier
+                .verify(&tree, &ctx, proof, &message)
+                .unwrap()
+                .result
+        );
+    }
+
+    #[test]
+    fn p2sh_script_with_only_var_1_fails_to_reduce() {
+        let secret = DlogProverInput::random();
+        let (tree, prop_bytes) = p2sh_box_tree(&secret);
+        let ext = extension_with(1, &prop_bytes);
+        let ctx = force_any_val::<Context>().with_extension(&ext);
+        // Substituting `DeserializeContext(126)` fails before `OptionGet(GetVar(126))` runs.
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap_err(),
+            EvalError::SubstDeserializeError(SubstDeserializeError::ExtensionKeyNotFound(126))
+        );
+    }
+
+    #[test]
+    fn p2sh_script_with_var_126_of_other_proposition_reduces_to_false() {
+        // Variable 126 holds a well-formed proposition whose hash is not the address's:
+        // reduction succeeds and the hash comparison makes the result false.
+        let secret = DlogProverInput::random();
+        let (tree, _) = p2sh_box_tree(&secret);
+        let other = DlogProverInput::random();
+        let other_prop_bytes = Expr::Const(other.public_image().into())
+            .sigma_serialize_bytes()
+            .unwrap();
+        let ext = extension_with(126, &other_prop_bytes);
+        let ctx = force_any_val::<Context>().with_extension(&ext);
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            SigmaBoolean::TrivialProp(false)
+        );
+    }
+}
