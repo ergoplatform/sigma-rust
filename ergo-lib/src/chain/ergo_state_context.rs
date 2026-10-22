@@ -1,10 +1,15 @@
 //! Blockchain state
+use bounded_vec::BoundedVec;
 use ergo_chain_types::{Header, PreHeader};
 
 use super::parameters::Parameters;
 
-/// Fixed number of last block headers in descending order (first header is the newest one)
-pub type Headers = [Header; 10];
+/// Last block headers in descending order (first header is the newest one).
+/// Between 1 and 10: the SDK signs and validates against an existing chain tip,
+/// so at least the newest header is always available (the script context itself
+/// allows fewer — see `ergotree_ir::chain::context::ContextHeaders`). A node
+/// near genesis supplies as many real headers as exist instead of padding.
+pub type Headers = BoundedVec<Header, 1, 10>;
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -12,7 +17,7 @@ pub struct ErgoStateContext {
     /// Block header with the current `spendingTransaction`, that can be predicted
     /// by a miner before it's formation
     pub pre_header: PreHeader,
-    /// Fixed number of last block headers in descending order (first header is the newest one)
+    /// Last block headers in descending order (first header is the newest one)
     pub headers: Headers,
     /// Parameters that can be adjusted by voting
     pub parameters: Parameters,
@@ -36,9 +41,10 @@ impl ErgoStateContext {
 }
 
 #[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
 mod arbitrary {
     use super::*;
-    use proptest::prelude::*;
+    use proptest::{collection::vec, prelude::*};
 
     impl Arbitrary for ErgoStateContext {
         type Parameters = ();
@@ -46,9 +52,13 @@ mod arbitrary {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             // TODO: parameters should implement arbitrary as well, based on minimum/maximum constraints of each parameter
-            (any::<PreHeader>(), any::<Headers>())
+            (any::<PreHeader>(), vec(any::<Header>(), 10))
                 .prop_map(|(pre_header, headers)| {
-                    Self::new(pre_header, headers, Parameters::default())
+                    Self::new(
+                        pre_header,
+                        headers.try_into().unwrap(),
+                        Parameters::default(),
+                    )
                 })
                 .boxed()
         }
