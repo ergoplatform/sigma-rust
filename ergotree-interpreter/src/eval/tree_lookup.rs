@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bytes::Bytes;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
@@ -10,6 +11,7 @@ use crate::eval::EvalError;
 use crate::eval::Evaluable;
 use ergo_avltree_rust::batch_avl_verifier::BatchAVLVerifier;
 use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
+use ergo_avltree_rust::operation::Digest32;
 use ergo_avltree_rust::operation::Operation;
 use ergotree_ir::mir::avl_tree_data::AvlTreeData;
 use ergotree_ir::mir::constant::TryExtractInto;
@@ -35,7 +37,7 @@ impl Evaluable for TreeLookup {
             &starting_digest,
             &proof,
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 normalized_tree_val.key_length as usize,
                 normalized_tree_val
                     .value_length_opt
@@ -151,7 +153,7 @@ mod tests {
     fn populate_tree(entries: Vec<(Vec<u8>, Vec<u8>)>) -> BatchAVLProver {
         let mut prover = BatchAVLProver::new(
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 1,
                 None,
             ),
