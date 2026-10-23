@@ -4,6 +4,7 @@ use crate::serialization::sigma_byte_reader::SigmaByteRead;
 use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use alloc::string::String;
 use core::convert::TryFrom;
@@ -74,7 +75,16 @@ fn scala_212_hamt_sort_key(key: u8) -> u64 {
 
 impl SigmaSerializable for ContextExtension {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
-        w.put_u8(self.values.len() as u8)?;
+        // sigmastate v6.0.6 `ContextExtension.serializer.serialize` (`:44-50`):
+        // more than `Byte.MaxValue` entries is an error, never a truncated count.
+        let len = self.values.len();
+        if len > i8::MAX as usize {
+            return Err(SigmaSerializationError::NotSupported(format!(
+                "Number of ContextExtension values {len} exceeds {}",
+                i8::MAX
+            )));
+        }
+        w.put_u8(len as u8)?;
         if self.values.len() >= 5 {
             // For 5+ entries, Scala 2.12 uses HashMap which iterates in HAMT order
             // (based on hash of keys). We must match this order for bytes_to_sign
@@ -97,15 +107,30 @@ impl SigmaSerializable for ContextExtension {
         Ok(())
     }
 
+    /// Port of sigmastate v6.0.6 `ContextExtension.serializer.parse`
+    /// (`data/shared/src/main/scala/sigma/interpreter/ContextExtension.scala:52-66`).
+    /// The count and every variable id are signed bytes, and a negative one is
+    /// rejected at parse: count ≥ 128 (`:53-55`), id ≥ 0x80 (`:58-60`, checked
+    /// before the value is read). Not version-gated, as in the reference.
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let values_count = r.get_u8()?;
+        let values_count = r.get_i8()?;
+        if values_count < 0 {
+            return Err(SigmaParsingError::ValueOutOfBounds(format!(
+                "Negative amount of context extension values: {values_count}"
+            )));
+        }
         let mut values: IndexMap<u8, Constant> =
             IndexMap::with_capacity_and_hasher(values_count as usize, Default::default());
         for _ in 0..values_count {
-            let idx = r.get_u8()?;
+            let idx = r.get_i8()?;
+            if idx < 0 {
+                return Err(SigmaParsingError::ValueOutOfBounds(format!(
+                    "Negative id of context extension variable: {idx}"
+                )));
+            }
             let value = Constant::sigma_parse(r)?;
             value.tpe.check_v6_type()?;
-            values.insert(idx, value);
+            values.insert(idx as u8, value);
         }
         Ok(ContextExtension { values })
     }
@@ -126,6 +151,12 @@ impl<H: BuildHasher> TryFrom<indexmap::IndexMap<String, String, H>> for ContextE
                 let idx: u8 = pair.0.parse().map_err(|_| {
                     ConstantParsingError(format!("cannot parse index from {0:?}", pair.0))
                 })?;
+                // The JVM decodes a key as a `Byte`: 128..=255 cannot be represented.
+                if idx > i8::MAX as u8 {
+                    return Err(ConstantParsingError(format!(
+                        "context extension variable id {idx} is outside 0..=127"
+                    )));
+                }
                 let constant_bytes = base16::decode(pair.1).map_err(|_| {
                     ConstantParsingError(format!(
                         "cannot decode base16 constant bytes from {0:?}",
@@ -407,6 +438,121 @@ mod tests {
             assert_eq!(c.values.len(), 2);
             assert!(c.values.get(&1u8).is_some());
             assert!(c.values.get(&3u8).is_some());
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod parse_bounds_tests {
+    //! JVM parity for `ContextExtension` bounds: sigmastate v6.0.6
+    //! `ContextExtension.serializer` (`ContextExtension.scala:44-66`).
+    use super::*;
+
+    /// Wire bytes: the count byte, then `(id, IntConstant(1))` for each id.
+    fn wire(count: u8, ids: &[u8]) -> Vec<u8> {
+        let value = Constant::from(1i32).sigma_serialize_bytes().unwrap();
+        let mut bytes = vec![count];
+        for &id in ids {
+            bytes.push(id);
+            bytes.extend_from_slice(&value);
+        }
+        bytes
+    }
+
+    fn out_of_bounds(r: Result<ContextExtension, SigmaParsingError>) -> bool {
+        matches!(r, Err(SigmaParsingError::ValueOutOfBounds(_)))
+    }
+
+    #[test]
+    fn parse_accepts_count_127_and_id_0x7f() {
+        let ids: Vec<u8> = (0..127).collect();
+        let ext = ContextExtension::sigma_parse_bytes(&wire(127, &ids)).unwrap();
+        assert_eq!(ext.values.len(), 127);
+        let ext = ContextExtension::sigma_parse_bytes(&wire(1, &[0x7f])).unwrap();
+        assert!(ext.values.contains_key(&0x7f));
+    }
+
+    #[test]
+    fn parse_rejects_count_128_even_with_valid_ids() {
+        let ids: Vec<u8> = (0..128).collect(); // 0..=127, every id valid
+        assert!(out_of_bounds(ContextExtension::sigma_parse_bytes(&wire(
+            128, &ids
+        ))));
+    }
+
+    #[test]
+    fn parse_rejects_count_255() {
+        let ids: Vec<u8> = (0..255u16).map(|i| (i % 128) as u8).collect();
+        assert!(out_of_bounds(ContextExtension::sigma_parse_bytes(&wire(
+            255, &ids
+        ))));
+    }
+
+    #[test]
+    fn parse_rejects_id_0x80_and_0xff() {
+        for id in [0x80u8, 0xff] {
+            assert!(
+                out_of_bounds(ContextExtension::sigma_parse_bytes(&wire(1, &[id]))),
+                "id {id:#04x}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_rejects_bad_id_before_reading_its_value() {
+        // count 1, id 0x80, no value bytes: the id check (Scala :58-60) precedes the value read (:61)
+        assert!(out_of_bounds(ContextExtension::sigma_parse_bytes(&[
+            1, 0x80
+        ])));
+    }
+
+    #[test]
+    fn parse_keeps_duplicate_id_semantics() {
+        // Unchanged by this fix: last value wins, first position kept (Scala `toMap`).
+        let one = Constant::from(1i32).sigma_serialize_bytes().unwrap();
+        let two = Constant::from(2i32).sigma_serialize_bytes().unwrap();
+        let mut bytes = vec![3, 5];
+        bytes.extend_from_slice(&one);
+        bytes.push(7);
+        bytes.extend_from_slice(&one);
+        bytes.push(5);
+        bytes.extend_from_slice(&two);
+        let ext = ContextExtension::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(ext.values.keys().copied().collect::<Vec<_>>(), vec![5, 7]);
+        assert_eq!(ext.values[&5], Constant::from(2i32));
+    }
+
+    #[test]
+    fn serialize_rejects_more_than_127_entries() {
+        let mut ext = ContextExtension::empty();
+        for id in 0..=127u8 {
+            ext.values.insert(id, Constant::from(1i32));
+        }
+        assert!(ext.sigma_serialize_bytes().is_err());
+    }
+
+    #[test]
+    fn serialize_accepts_127_entries() {
+        let mut ext = ContextExtension::empty();
+        for id in 0..127u8 {
+            ext.values.insert(id, Constant::from(1i32));
+        }
+        assert_eq!(ext.sigma_serialize_bytes().unwrap()[0], 127);
+    }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn json_rejects_keys_above_127() {
+        let hex = base16::encode_lower(&Constant::from(1i32).sigma_serialize_bytes().unwrap());
+        let ok = format!(r#"{{"127": "{hex}"}}"#);
+        assert!(serde_json::from_str::<ContextExtension>(&ok).is_ok());
+        for key in ["128", "200", "255"] {
+            let json = format!(r#"{{"{key}": "{hex}"}}"#);
+            assert!(
+                serde_json::from_str::<ContextExtension>(&json).is_err(),
+                "key {key}"
+            );
         }
     }
 }
