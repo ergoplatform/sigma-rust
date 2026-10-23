@@ -74,6 +74,18 @@ impl STypeVar {
         #[allow(clippy::unwrap_used)]
         STypeVar::new_from_str("OV").unwrap()
     }
+
+    /// "R" type variable
+    pub fn r() -> STypeVar {
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new_from_str("R").unwrap()
+    }
+
+    /// "TNum" type variable (used in generic signatures of numeric types)
+    pub fn t_num() -> STypeVar {
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new_from_str("TNum").unwrap()
+    }
 }
 
 impl SigmaSerializable for STypeVar {

@@ -37,13 +37,13 @@ lazy_static! {
         name: "map",
         tpe: SFunc::new(
             vec![
-                SType::SOption(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SOption(SType::STypeVar(STypeVar::t()).into()),
                 SFunc::new(
-                    vec![STypeVar::iv().into()],
-                    STypeVar::ov().into(),
+                    vec![STypeVar::t().into()],
+                    STypeVar::r().into(),
                 ).into()
                 ],
-            SType::SOption(SType::STypeVar(STypeVar::ov()).into()),
+            SType::SOption(SType::STypeVar(STypeVar::r()).into()),
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -60,13 +60,13 @@ lazy_static! {
         name: "filter",
         tpe: SFunc::new(
             vec![
-                SType::SOption(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SOption(SType::STypeVar(STypeVar::t()).into()),
                 SFunc::new(
-                    vec![STypeVar::iv().into()],
+                    vec![STypeVar::t().into()],
                     SType::SBoolean,
                 ).into()
                 ],
-            SType::SOption(SType::STypeVar(STypeVar::iv()).into()),
+            SType::SOption(SType::STypeVar(STypeVar::t()).into()),
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -80,6 +80,33 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_method_type_var_names_match_scala() {
+        // Scala names Option's type variables T and R (see issue #642):
+        // map: (Option[T], T => R) => Option[R]
+        assert_eq!(
+            MAP_METHOD.method_raw.tpe,
+            SFunc::new(
+                vec![
+                    SType::SOption(SType::STypeVar(STypeVar::t()).into()),
+                    SFunc::new(vec![STypeVar::t().into()], STypeVar::r().into()).into(),
+                ],
+                SType::SOption(SType::STypeVar(STypeVar::r()).into()),
+            )
+        );
+        // filter: (Option[T], T => Boolean) => Option[T]
+        assert_eq!(
+            FILTER_METHOD.method_raw.tpe,
+            SFunc::new(
+                vec![
+                    SType::SOption(SType::STypeVar(STypeVar::t()).into()),
+                    SFunc::new(vec![STypeVar::t().into()], SType::SBoolean).into(),
+                ],
+                SType::SOption(SType::STypeVar(STypeVar::t()).into()),
+            )
+        );
+    }
 
     #[test]
     fn test_from_ids() {
