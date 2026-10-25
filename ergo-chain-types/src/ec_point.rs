@@ -4,9 +4,8 @@ use alloc::string::String;
 use core::convert::TryFrom;
 use core::ops::{Add, Mul, Neg};
 use derive_more::{From, Into};
-use elliptic_curve::ops::MulByGenerator;
-use k256::elliptic_curve::group::prime::PrimeCurveAffine;
-use k256::elliptic_curve::sec1::ToEncodedPoint;
+use elliptic_curve::sec1::ToSec1Point;
+use elliptic_curve::CurveAffine;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
@@ -131,7 +130,7 @@ impl ScorexSerializable for EcPoint {
             let zeroes = [0u8; EcPoint::GROUP_SIZE];
             w.write_all(&zeroes)?;
         } else {
-            w.write_all(caff.to_encoded_point(true).as_bytes())?;
+            w.write_all(caff.to_sec1_point(true).as_bytes())?;
         }
         Ok(())
     }

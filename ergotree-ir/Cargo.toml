@@ -17,6 +17,7 @@ sigma-util = { workspace = true }
 ergo-chain-types = { workspace = true }
 k256 = { workspace = true }
 elliptic-curve = { workspace = true }
+rand_core = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
 derive_more = { workspace = true }

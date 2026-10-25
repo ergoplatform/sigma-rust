@@ -10,10 +10,9 @@ use derive_more::Into;
 use elliptic_curve::PrimeField;
 use ergo_chain_types::Base16DecodedBytes;
 use ergo_chain_types::Base16EncodedBytes;
-use k256::elliptic_curve::generic_array::GenericArray;
 use k256::elliptic_curve::ops::Reduce;
+use k256::FieldBytes;
 use k256::Scalar;
-use k256::U256;
 
 use super::challenge::Challenge;
 use super::GroupSizedBytes;
@@ -60,8 +59,8 @@ impl Wscalar {
 
 impl From<GroupSizedBytes> for Wscalar {
     fn from(b: GroupSizedBytes) -> Self {
-        let sl: &[u8] = b.0.as_ref();
-        let s = <Scalar as Reduce<U256>>::reduce_bytes(&GenericArray::clone_from_slice(sl));
+        let sl: &[u8; 32] = &b.0;
+        let s = <Scalar as Reduce<FieldBytes>>::reduce(&(*sl).into());
         Wscalar(s)
     }
 }
@@ -71,7 +70,7 @@ impl From<&Challenge> for Scalar {
         let v: [u8; SOUNDNESS_BYTES] = *v.0 .0;
         let mut prefix = [0u8; 32];
         prefix[32 - SOUNDNESS_BYTES..].copy_from_slice(&v);
-        <Scalar as Reduce<U256>>::reduce_bytes(&GenericArray::clone_from_slice(&prefix))
+        <Scalar as Reduce<FieldBytes>>::reduce(&prefix.into())
     }
 }
 
@@ -105,8 +104,9 @@ mod arbitrary {
     use crate::sigma_protocol::GROUP_SIZE;
 
     use super::Wscalar;
-    use k256::elliptic_curve::{generic_array::GenericArray, PrimeField};
+    use core::convert::TryFrom;
     use k256::Scalar;
+    use k256::{elliptic_curve::PrimeField, FieldBytes};
     use proptest::{collection::vec, prelude::*};
 
     impl Arbitrary for Wscalar {
@@ -117,11 +117,11 @@ mod arbitrary {
             vec(any::<u8>(), GROUP_SIZE)
                 .prop_filter("must be in group range", |bytes| {
                     let opt: Option<Scalar> =
-                        Scalar::from_repr(GenericArray::clone_from_slice(bytes)).into();
+                        Scalar::from_repr(FieldBytes::try_from(bytes.as_slice()).unwrap()).into();
                     opt.is_some()
                 })
                 .prop_map(|bytes| {
-                    Scalar::from_repr(GenericArray::clone_from_slice(&bytes))
+                    Scalar::from_repr(FieldBytes::try_from(bytes.as_slice()).unwrap())
                         .unwrap()
                         .into()
                 })
