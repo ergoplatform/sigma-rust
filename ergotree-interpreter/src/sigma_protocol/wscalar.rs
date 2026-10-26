@@ -104,26 +104,18 @@ mod arbitrary {
     use crate::sigma_protocol::GROUP_SIZE;
 
     use super::Wscalar;
-    use core::convert::TryFrom;
+    use k256::elliptic_curve::PrimeField;
     use k256::Scalar;
-    use k256::{elliptic_curve::PrimeField, FieldBytes};
-    use proptest::{collection::vec, prelude::*};
+    use proptest::prelude::*;
 
     impl Arbitrary for Wscalar {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
-            vec(any::<u8>(), GROUP_SIZE)
-                .prop_filter("must be in group range", |bytes| {
-                    let opt: Option<Scalar> =
-                        Scalar::from_repr(FieldBytes::try_from(bytes.as_slice()).unwrap()).into();
-                    opt.is_some()
-                })
-                .prop_map(|bytes| {
-                    Scalar::from_repr(FieldBytes::try_from(bytes.as_slice()).unwrap())
-                        .unwrap()
-                        .into()
+            any::<[u8; GROUP_SIZE]>()
+                .prop_filter_map("must be in group range", |bytes| {
+                    Option::<Scalar>::from(Scalar::from_repr(bytes.into())).map(Wscalar::from)
                 })
                 .boxed()
         }

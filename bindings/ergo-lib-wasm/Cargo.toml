@@ -33,6 +33,8 @@ thiserror = { workspace = true }
 gloo-utils = {version = "0.2.0", features = ["serde"] }
 # used in elliptic-curve(in ergo-lib), compiled here with WASM support
 getrandom = { workspace = true, features = ["js"] }
+# k256 0.14 also uses getrandom 0.4. Enable its JS backend only in the WASM binding.
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
