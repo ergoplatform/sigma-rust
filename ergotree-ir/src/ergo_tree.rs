@@ -665,7 +665,7 @@ mod tests {
         let tree_bytes = base16::decode(base16_str.as_bytes()).unwrap();
         let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
         //dbg!(&tree);
-        let header = tree.parsed_tree().unwrap().header.clone();
+        let header = tree.parsed_tree().unwrap().header;
         assert!(header.has_size());
         assert!(header.is_constant_segregation());
         assert_eq!(header.version(), ErgoTreeVersion::V1);
