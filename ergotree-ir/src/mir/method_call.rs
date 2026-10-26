@@ -32,7 +32,7 @@ pub struct MethodCall {
     /// Method to be invoked
     pub method: SMethod,
     /// Arguments passed to the method on invocation
-    pub args: Vec<Expr>,
+    pub args: Box<[Expr]>,
     /// Arguments that cannot be inferred from function signature, such as Box.getReg[T]()
     pub explicit_type_args: HashMap<STypeVar, SType>,
 }
@@ -81,7 +81,7 @@ impl MethodCall {
         Ok(Self {
             obj: obj.into(),
             method: method.with_concrete_types(&explicit_type_args),
-            args,
+            args: args.into_boxed_slice(),
             explicit_type_args,
         })
     }

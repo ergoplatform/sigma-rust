@@ -84,7 +84,7 @@ lazy_static! {
             t_range: SType::SColl(Arc::new(SType::SByte)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.digest
@@ -101,7 +101,7 @@ lazy_static! {
             t_range: SType::SByte.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.enabledOperations
@@ -118,7 +118,7 @@ lazy_static! {
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.keyLength
@@ -135,7 +135,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(SType::SInt)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.valueLengthOpt
@@ -152,7 +152,7 @@ lazy_static! {
             t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.isInsertAllowed
@@ -169,7 +169,7 @@ lazy_static! {
             t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.isUpdateAllowed
@@ -186,7 +186,7 @@ lazy_static! {
             t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.isRemoveAllowed
@@ -203,7 +203,7 @@ lazy_static! {
             t_range: SType::SAvlTree.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.updateOperations
@@ -223,7 +223,7 @@ lazy_static! {
             t_range: SType::SOption(SType::SColl(SType::SByte.into()).into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
 
@@ -244,7 +244,7 @@ lazy_static! {
             t_range: SType::SColl(SType::SOption(SType::SColl(SType::SByte.into()).into()).into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
 
@@ -274,7 +274,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(SType::SAvlTree)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.insert
@@ -298,7 +298,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(SType::SAvlTree)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.remove
@@ -319,7 +319,7 @@ lazy_static! {
             t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.contains
@@ -348,7 +348,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(SType::SAvlTree)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.update
@@ -365,7 +365,7 @@ lazy_static! {
             t_range: SType::SAvlTree.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// AvlTree.updateDigest
@@ -394,7 +394,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(SType::SAvlTree)).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// AvlTree.insertOrUpdate

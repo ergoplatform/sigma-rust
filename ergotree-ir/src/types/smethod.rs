@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -105,7 +106,7 @@ pub struct SMethodDesc {
     pub(crate) method_id: MethodId,
     pub(crate) tpe: SFunc,
     // Typevars that cannot be inferred from arguments. For example Box.getReg[T](4), T can not be inferred thus must be explicitly serialized
-    pub(crate) explicit_type_args: Vec<STypeVar>,
+    pub(crate) explicit_type_args: Box<[STypeVar]>,
     pub(crate) min_version: ErgoTreeVersion,
 }
 
@@ -125,7 +126,7 @@ impl SMethodDesc {
                 t_range: res_tpe.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: Box::default(),
             min_version: ErgoTreeVersion::V0,
         }
     }

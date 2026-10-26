@@ -46,7 +46,7 @@ lazy_static! {
             t_range: Box::new(SType::SLong),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Box.value
@@ -62,7 +62,7 @@ lazy_static! {
             t_range: SType::SOption(Arc::new(STypeVar::t().into())).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![STypeVar::t()],
+        explicit_type_args: vec![STypeVar::t()].into_boxed_slice(),
         min_version: ErgoTreeVersion::V0
     };
     /// Box.getReg
@@ -83,7 +83,7 @@ lazy_static! {
                     ).into())).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Box.tokens

@@ -175,7 +175,7 @@ lazy_static! {
             t_range: SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
 }
@@ -190,7 +190,7 @@ lazy_static! {
             t_range: SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![STypeVar::t()],
+        explicit_type_args: vec![STypeVar::t()].into_boxed_slice(),
         min_version: ErgoTreeVersion::V3
     };
     pub static ref GET_VAR_FROM_INPUT_METHOD: SMethod = SMethod::new(

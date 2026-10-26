@@ -185,6 +185,17 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
     }
 }
 
+impl<T: SigmaSerializable> SigmaSerializable for Box<[T]> {
+    fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
+        w.put_u32(self.len() as u32)?;
+        self.iter().try_for_each(|i| i.sigma_serialize(w))
+    }
+
+    fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        Vec::<T>::sigma_parse(r).map(Vec::into_boxed_slice)
+    }
+}
+
 impl<T: SigmaSerializable, const L: usize, const U: usize> SigmaSerializable
     for BoundedVec<T, L, U>
 {

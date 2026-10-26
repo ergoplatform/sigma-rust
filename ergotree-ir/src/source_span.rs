@@ -36,9 +36,9 @@ use crate::traversable::Traversable;
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct SourceSpan {
     /// Start position in the span
-    pub offset: usize,
+    pub offset: u32,
     /// The length of the span
-    pub length: usize,
+    pub length: u32,
 }
 
 impl SourceSpan {
@@ -51,8 +51,8 @@ impl SourceSpan {
     }
 }
 
-impl From<(usize, usize)> for SourceSpan {
-    fn from(value: (usize, usize)) -> Self {
+impl From<(u32, u32)> for SourceSpan {
+    fn from(value: (u32, u32)) -> Self {
         SourceSpan {
             offset: value.0,
             length: value.1,
@@ -63,7 +63,7 @@ impl From<(usize, usize)> for SourceSpan {
 #[cfg(feature = "std")]
 impl From<SourceSpan> for miette::SourceSpan {
     fn from(value: SourceSpan) -> Self {
-        miette::SourceSpan::new(value.offset.into(), value.length)
+        miette::SourceSpan::new((value.offset as usize).into(), value.length as usize)
     }
 }
 

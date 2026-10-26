@@ -1,5 +1,6 @@
 //! SType hierarchy
 
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -62,7 +63,7 @@ pub enum SType {
     /// Tuple (elements can have different types)
     STuple(STuple),
     /// Function (signature)
-    SFunc(SFunc),
+    SFunc(Box<SFunc>),
     /// Context object ("CONTEXT" in ErgoScript)
     SContext,
     /// UTF-8 String type
@@ -131,7 +132,7 @@ impl SType {
             SType::SOption(tpe) => SType::SOption(tpe.with_subst(subst).into()),
             SType::SColl(tpe) => SType::SColl(tpe.with_subst(subst).into()),
             SType::STuple(ref stup) => SType::STuple(stup.with_subst(subst)),
-            SType::SFunc(ref sfunc) => SType::SFunc(sfunc.with_subst(subst)),
+            SType::SFunc(ref sfunc) => SType::SFunc(sfunc.with_subst(subst).into()),
             _ => self.clone(),
         }
     }
@@ -151,7 +152,7 @@ impl From<STypeVar> for SType {
 
 impl From<SFunc> for SType {
     fn from(v: SFunc) -> Self {
-        SType::SFunc(v)
+        SType::SFunc(v.into())
     }
 }
 

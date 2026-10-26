@@ -169,7 +169,7 @@ lazy_static! {
             t_range: Box::new(SType::SBoolean),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Header.checkPow

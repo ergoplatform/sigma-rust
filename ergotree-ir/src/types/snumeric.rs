@@ -46,7 +46,7 @@ lazy_static! {
             t_range: SType::SByte.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_SHORT_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -57,7 +57,7 @@ lazy_static! {
             t_range: SType::SShort.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_INT_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -68,7 +68,7 @@ lazy_static! {
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_LONG_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -79,7 +79,7 @@ lazy_static! {
             t_range: SType::SLong.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_BIGINT_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -90,7 +90,7 @@ lazy_static! {
             t_range: SType::SBigInt.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_BYTES_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -101,7 +101,7 @@ lazy_static! {
             t_range: SType::SColl(SType::SByte.into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref TO_BITS_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -112,7 +112,7 @@ lazy_static! {
             t_range: SType::SColl(SType::SBoolean.into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref BITWISE_INVERSE_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -123,7 +123,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref BITWISE_OR_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -137,7 +137,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref BITWISE_AND_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -151,7 +151,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref BITWISE_XOR_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -165,7 +165,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref SHIFT_LEFT_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -176,7 +176,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref SHIFT_RIGHT_METHOD_DESC: SMethodDesc = SMethodDesc {
@@ -187,7 +187,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![]
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     static ref METHOD_DESC: [&'static SMethodDesc; 12] = [
@@ -347,7 +347,7 @@ pub mod sbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3
         };
         /// toUnsignedMod method descriptor
@@ -359,7 +359,7 @@ pub mod sbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3
         };
         pub(crate) static ref METHOD_DESC: Vec<SMethodDesc> = super::METHOD_DESC
@@ -414,7 +414,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         /// UnsignedBigInt.plusMod method
@@ -426,7 +426,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         /// UnsignedBigInt.subtractMod method
@@ -438,7 +438,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         /// UnsignedBigInt.multiplyMod method
@@ -450,7 +450,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         /// UnsignedBigInt.mod method
@@ -462,7 +462,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SUnsignedBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         /// UnsignedBigInt.mod method
@@ -474,7 +474,7 @@ pub mod sunsignedbigint {
                 t_range: SType::SBigInt.into(),
                 tpe_params: vec![],
             },
-            explicit_type_args: vec![],
+            explicit_type_args: alloc::boxed::Box::default(),
             min_version: ErgoTreeVersion::V3,
         };
         pub(crate) static ref METHOD_DESC: Vec<SMethodDesc> = super::METHOD_DESC

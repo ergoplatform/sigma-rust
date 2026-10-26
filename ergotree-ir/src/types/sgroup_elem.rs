@@ -45,7 +45,7 @@ lazy_static! {
             vec![SType::SGroupElement],
             SType::SColl(Arc::new(SType::SByte)),
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// GroupElement.geEncoded
@@ -60,7 +60,7 @@ lazy_static! {
             vec![SType::SGroupElement, SType::SBigInt],
             SType::SGroupElement,
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// GroupElement.exponentiate
@@ -75,7 +75,7 @@ lazy_static! {
             vec![SType::SGroupElement, SType::SGroupElement],
             SType::SGroupElement,
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// GroupElement.multiply
@@ -90,7 +90,7 @@ lazy_static! {
             vec![SType::SGroupElement],
             SType::SGroupElement,
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// GroupElement.negate
@@ -105,7 +105,7 @@ lazy_static! {
             vec![SType::SGroupElement, SType::SUnsignedBigInt],
             SType::SGroupElement,
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// GroupElement.exponentiate
