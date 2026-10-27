@@ -216,7 +216,13 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 // Verifier Step 2: If the node is THRESHOLD,
                 // evaluate the polynomial Q(x) at points 1, 2, ..., n to get challenges for child 1, 2, ..., n, respectively.
                 // Read the polynomial -- it has n-k coefficients
+                // `k > n` is malformed and cannot be produced by `Cthreshold::sigma_parse`;
+                // reject it here as well, so that in-memory misuse can never reach the
+                // `n_children - k` usize underflow below (which would abort the process).
                 let n_children = ct.children.len();
+                if ct.k as usize > n_children {
+                    return Err(SigParsingError::CthresholdCoeffRead(exp.clone()));
+                }
                 let n_coeff = n_children - ct.k as usize;
                 let buf_size = n_coeff * SOUNDNESS_BYTES;
                 let mut coeff_bytes = vec![0u8; buf_size];
@@ -230,7 +236,7 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                         .enumerated()
                         .try_mapped_ref(|(idx, child)| {
                             // Note the cast to `u8` is safe since `ct.children` is of type
-                            // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 2, 255>`.
+                            // `SigmaConjectureItems<_>` which is a `BoundedVec<_, 1, 255>`.
                             let one_based_index = (idx + 1) as u8;
                             let ch = polynomial.evaluate(one_based_index).into();
                             parse_sig_compute_challenges_reader(child, r, Some(ch))
@@ -310,5 +316,50 @@ mod test {
             let scalar = read_scalar(&mut sr).unwrap();
             assert_eq!(*scalar.as_scalar_ref(), Scalar::ONE);
         }
+    }
+
+    // security regression test for GHSA-xgcg-37qp-p8fx:
+    // verifying a Cthreshold with k > n used to panic-abort the process
+    // ("capacity overflow" from the `n_children - k` underflow); it must return Err
+    #[test]
+    fn test_verify_signature_cthreshold_k_gt_n_is_err() {
+        use alloc::vec::Vec;
+        use ergo_chain_types::EcPoint;
+        use ergotree_ir::sigma_protocol::sigma_boolean::{
+            cthreshold::Cthreshold, ProveDlog, SigmaBoolean, SigmaConjecture,
+        };
+
+        use crate::sigma_protocol::verifier::verify_signature;
+
+        const G_HEX: &str =
+            "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
+
+        fn threshold(k: u8, n: usize) -> SigmaBoolean {
+            let g = EcPoint::from_base16_str(G_HEX.to_string()).unwrap();
+            let children: Vec<SigmaBoolean> = (0..n)
+                .map(|_| SigmaBoolean::from(ProveDlog::new(g.clone())))
+                .collect();
+            SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+                k,
+                children: children.try_into().unwrap(),
+            }))
+        }
+
+        // trigger: k=2 > n=1 — must be a clean Err, never a panic
+        assert!(verify_signature(
+            threshold(2, 1),
+            b"msg-----------------------------",
+            &Vec::from([0u8; 256])
+        )
+        .is_err());
+
+        // control: a well-formed 1-of-2 threshold with an (invalid) zero proof
+        // verifies to Ok(false)
+        let control = verify_signature(
+            threshold(1, 2),
+            b"msg-----------------------------",
+            &Vec::from([0u8; 256]),
+        );
+        assert_eq!(control.unwrap(), false);
     }
 }

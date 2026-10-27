@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Performance: precomputed generator tables https://github.com/ergoplatform/sigma-rust/pull/790, pre-computed `DlogProverInput.public_image`, lazy `Option`/`Coll` `getOrElse` https://github.com/ergoplatform/sigma-rust/pull/798, zero-alloc base16 decoding for `TokenId`/`Digest32`/`BlockId`
 
 ### Fixed
+- Reject malformed `Cthreshold` sigma propositions (`k > n` or `k > 255`) at parse time instead of aborting the process during proof verification; the verifier's proof parser also tolerates in-memory malformed thresholds defensively.
 - `ContextExtension` serialization order now matches the JVM's Scala 2.12 HAMT ordering for extensions with 5+ entries, fixing signature mismatch with the node https://github.com/ergoplatform/sigma-rust/pull/843 https://github.com/ergoplatform/sigma-rust/pull/921
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
 - Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
