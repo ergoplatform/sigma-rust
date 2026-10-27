@@ -8,14 +8,44 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 ### Changed
-- Serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2`; downstream implementations using those traits may need to update their I/O imports and error types.
-- The WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
+- BREAKING: serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2` (all `core2` releases were yanked upstream); downstream implementations using those traits may need to update their I/O imports and error types.
+- BREAKING: `ReducedInput.sigma_prop` is serialized in JSON as a standalone base16 string of the sigma encoding instead of the tagged JSON form; the deserializer only accepts the new form https://github.com/ergoplatform/sigma-rust/pull/838
+- BREAKING: string literals longer than 4096 bytes (`MAX_STRING_LEN`) are now rejected during (de)serialization, mirroring the JVM reference implementation's effective 4KB limits; this also prevents huge pre-allocations from malformed length fields (DoS).
+- BREAKING: the WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
+- BREAKING: `Header.nBits` is now `u32` https://github.com/ergoplatform/sigma-rust/pull/824
+- `no_std` support across the workspace: `sigma-ser`, `sigma-util`, `ergo-chain-types`, `gf2_192`, `ergotree-ir`, `ergotree-interpreter`, and `ergo-lib` (`ergo-merkle-tree` and `ergo-nipopow` are now optional features); `Context` moved from `ergotree-interpreter` to `ergotree-ir` https://github.com/ergoplatform/sigma-rust/pull/782
+- `BigInt256` internals replaced with `bnum` https://github.com/ergoplatform/sigma-rust/pull/779
+- `ExtSecretKey` stores the secret key as `Wscalar` instead of `DlogProverInput`
+- Vendored dependencies removed from `ergo-rest` (replaced by crates.io `reqwest` 0.12 and `wasmtimer`); committed npm lockfile and ES2020 type declarations for `ergo-lib-wasm`; rust-toolchain updated to 1.91.1; PyO3 updated to support Python 3.14
+
+### Added
+- Sigma protocol v6.0 support: tree-based versioning for method calls, `getReg`, downcast/upcast and constant serialization https://github.com/ergoplatform/sigma-rust/pull/773 https://github.com/ergoplatform/sigma-rust/pull/774 https://github.com/ergoplatform/sigma-rust/pull/830
+- `UnsignedBigInt` (256-bit unsigned integer) type with arithmetic, numeric and modular methods, supported in JS, C/Swift and Python bindings https://github.com/ergoplatform/sigma-rust/pull/808 https://github.com/ergoplatform/sigma-rust/pull/818
+- `SFunc` and `SOption[T]` serialization https://github.com/ergoplatform/sigma-rust/pull/820 https://github.com/ergoplatform/sigma-rust/pull/813
+- `Header` literal type with serialization, `encodeNBits`/`decodeNBits` https://github.com/ergoplatform/sigma-rust/pull/830 https://github.com/ergoplatform/sigma-rust/pull/824
+- `AvlTree.insertOrUpdate` method and updated v6.0 semantics for `insert`, `contains`, `update`, `remove` https://github.com/ergoplatform/sigma-rust/pull/829
+- `Coll.get`, `Coll.startsWith`, `Coll.endsWith`, `Coll.reverse` https://github.com/ergoplatform/sigma-rust/pull/805
+- `GroupElement.expUnsigned` and missing GroupElement methods https://github.com/ergoplatform/sigma-rust/pull/756
+- `getVarFromInput` method evaluation https://github.com/ergoplatform/sigma-rust/pull/825
+- `global.serialize`, `global.deserialize`, `global.fromByteArray...`, `global.some`/`global.none` https://github.com/ergoplatform/sigma-rust/pull/797 https://github.com/ergoplatform/sigma-rust/pull/800 https://github.com/ergoplatform/sigma-rust/pull/795 https://github.com/ergoplatform/sigma-rust/pull/799
+- `Header.checkPow`, `powHit` method and `pow_hit_message_v2` https://github.com/ergoplatform/sigma-rust/pull/801 https://github.com/ergoplatform/sigma-rust/pull/804
+- New Python bindings crate `ergo-lib-python` https://github.com/ergoplatform/sigma-rust/pull/812
+- Deterministic signing: BIP-340-style deterministic nonces, `Wallet.sign_reduced_transaction_deterministic`, multi-sig hints, `Wallet.generate_commitments`, `Wallet.sign_message` https://github.com/ergoplatform/sigma-rust/pull/781 https://github.com/ergoplatform/sigma-rust/pull/796
+- JSON serialization for `ReducedTransaction` https://github.com/ergoplatform/sigma-rust/pull/836
+- Criterion benchmarks for interpreter operations and transaction signing https://github.com/ergoplatform/sigma-rust/pull/827
+- Performance: precomputed generator tables https://github.com/ergoplatform/sigma-rust/pull/790, pre-computed `DlogProverInput.public_image`, lazy `Option`/`Coll` `getOrElse` https://github.com/ergoplatform/sigma-rust/pull/798, zero-alloc base16 decoding for `TokenId`/`Digest32`/`BlockId`
 
 ### Fixed
-- Correct unsigned 256-bit division in the C API and return errors for zero-modulus subtraction and inversion.
-- Return an error when `Header.check_pow` receives a compact difficulty that decodes to zero.
+- `ContextExtension` serialization order now matches the JVM's Scala 2.12 HAMT ordering for extensions with 5+ entries, fixing signature mismatch with the node https://github.com/ergoplatform/sigma-rust/pull/843 https://github.com/ergoplatform/sigma-rust/pull/921
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.
 - Reject unsupported reductions and missing keys in deterministic signing instead of falling back to random proofs. Single-key DLog and trivial-true inputs remain supported.
+- Correct unsigned 256-bit division in the C API and return errors for zero-modulus subtraction and inversion.
+- Return an error when `Header.check_pow` receives a compact difficulty that decodes to zero.
+- `reduce_to_crypto` sets tree version from the evaluated tree https://github.com/ergoplatform/sigma-rust/pull/875
+- NiPoPoW `best_arg` rejects `m = 0` instead of looping forever https://github.com/ergoplatform/sigma-rust/pull/951
+- Remove BOM from the French BIP-39 wordlist https://github.com/ergoplatform/sigma-rust/pull/977
+- Fix `BoxValue` panic when creating very small boxes.
+- Fix Autolykos v1 serialization.
 - Repair release-preflight environment setup so GitHub can schedule the package validation jobs.
 
 ## [0.28.0] - 2024-08-09
