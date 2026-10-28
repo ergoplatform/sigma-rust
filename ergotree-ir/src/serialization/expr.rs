@@ -78,6 +78,7 @@ use crate::serialization::{
 };
 
 use crate::mir::xor_of::XorOf;
+use crate::soft_fork::SoftForkError;
 use crate::source_span::Spanned;
 
 impl Expr {
@@ -192,11 +193,12 @@ impl Expr {
                 XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
                 TreeLookup::OP_CODE => Ok(TreeLookup::sigma_parse(r)?.into()),
                 CreateAvlTree::OP_CODE => Ok(CreateAvlTree::sigma_parse(r)?.into()),
-                o => Err(SigmaParsingError::NotImplementedOpCode(format!(
+                o => Err(SoftForkError::InvalidOpCode(format!(
                     "{0}(shift {1})",
                     o.value(),
                     o.shift()
-                ))),
+                ))
+                .into()),
             }
         };
         res

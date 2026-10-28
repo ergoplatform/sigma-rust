@@ -24,12 +24,17 @@ use alloc::vec::Vec;
 use core::array::TryFromSliceError;
 use core::convert::TryFrom;
 use core::convert::TryInto;
+use ergotree_ir::chain::context::Context;
+use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::ErgoTreeVersion;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use dlog_protocol::FirstDlogProverMessage;
 use unchecked_tree::UncheckedTree;
 use unproven_tree::{UnprovenLeaf, UnprovenSchnorr};
+
+use crate::eval::EvalError;
 
 use self::challenge::Challenge;
 use self::dht_protocol::FirstDhTupleProverMessage;
@@ -107,6 +112,27 @@ impl TryFrom<&[u8]> for GroupSizedBytes {
 pub const SOUNDNESS_BITS: usize = 192;
 /// A size of challenge in Sigma protocols, in bytes
 pub const SOUNDNESS_BYTES: usize = SOUNDNESS_BITS / 8;
+
+pub(crate) fn check_soft_fork_condition(
+    tree: &ErgoTree,
+    ctx: &Context<'_>,
+) -> Result<bool, EvalError> {
+    let tree_version = tree
+        .header()
+        .map(|header| header.version())
+        .unwrap_or(ErgoTreeVersion::V0); // The reference impl when leaving a tree unparsed sets the header to 'DefaultHeader' which has version 0
+    if ctx.activated_script_version() > ErgoTreeVersion::MAX_SCRIPT_VERSION {
+        if tree_version > ErgoTreeVersion::MAX_SCRIPT_VERSION {
+            return Ok(true);
+        }
+    } else if tree_version > ctx.activated_script_version() {
+        return Err(EvalError::Misc(format!(
+            "ErgoTree version {tree_version:?} is higher than activated {:?}",
+            ctx.activated_script_version()
+        )));
+    }
+    Ok(false)
+}
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
