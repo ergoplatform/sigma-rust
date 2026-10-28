@@ -6,7 +6,6 @@ use ergo_lib_c_core::{
 };
 
 use crate::delete_ptr;
-use paste::paste;
 
 /// Parse box id (32 byte digest)
 #[no_mangle]
@@ -34,4 +33,16 @@ pub unsafe extern "C" fn ergo_lib_data_input_delete(ptr: DataInputPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(DataInputs, DataInput);
+make_collection! {
+    collection: DataInputs,
+    collection_ptr: DataInputsPtr,
+    const_collection_ptr: ConstDataInputsPtr,
+    item: DataInput,
+    item_ptr: DataInputPtr,
+    const_item_ptr: ConstDataInputPtr,
+    new_fn: ergo_lib_data_inputs_new,
+    delete_fn: ergo_lib_data_inputs_delete,
+    len_fn: ergo_lib_data_inputs_len,
+    get_fn: ergo_lib_data_inputs_get,
+    add_fn: ergo_lib_data_inputs_add
+}

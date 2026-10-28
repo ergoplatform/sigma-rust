@@ -25,7 +25,6 @@ use ergo_lib_c_core::{
     transaction::ConstTxIdPtr,
     Error,
 };
-use paste::paste;
 
 use crate::{ErrorPtr, ReturnOption};
 use std::{
@@ -75,7 +74,10 @@ pub unsafe extern "C" fn ergo_lib_box_id_delete(ptr: BoxIdPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(BoxId);
+make_ffi_eq! {
+    eq_fn: ergo_lib_box_id_eq,
+    const_ptr: ConstBoxIdPtr
+}
 
 // `BoxValue` bindings ------------------------------------------------------------------------------
 
@@ -127,7 +129,10 @@ pub unsafe extern "C" fn ergo_lib_box_value_delete(ptr: BoxValuePtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(BoxValue);
+make_ffi_eq! {
+    eq_fn: ergo_lib_box_value_eq,
+    const_ptr: ConstBoxValuePtr
+}
 
 // `ErgoBoxCandidate` bindings ----------------------------------------------------------------------
 
@@ -195,8 +200,23 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_candidate_delete(ptr: ErgoBoxCandidat
     delete_ptr(ptr)
 }
 
-make_collection!(ErgoBoxCandidates, ErgoBoxCandidate);
-make_ffi_eq!(ErgoBoxCandidate);
+make_collection! {
+    collection: ErgoBoxCandidates,
+    collection_ptr: ErgoBoxCandidatesPtr,
+    const_collection_ptr: ConstErgoBoxCandidatesPtr,
+    item: ErgoBoxCandidate,
+    item_ptr: ErgoBoxCandidatePtr,
+    const_item_ptr: ConstErgoBoxCandidatePtr,
+    new_fn: ergo_lib_ergo_box_candidates_new,
+    delete_fn: ergo_lib_ergo_box_candidates_delete,
+    len_fn: ergo_lib_ergo_box_candidates_len,
+    get_fn: ergo_lib_ergo_box_candidates_get,
+    add_fn: ergo_lib_ergo_box_candidates_add
+}
+make_ffi_eq! {
+    eq_fn: ergo_lib_ergo_box_candidate_eq,
+    const_ptr: ConstErgoBoxCandidatePtr
+}
 
 // `ErgoBox` bindings ------------------------------------------------------------------------------
 
@@ -354,8 +374,23 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_delete(ptr: ErgoBoxPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(ErgoBoxes, ErgoBox);
-make_ffi_eq!(ErgoBox);
+make_collection! {
+    collection: ErgoBoxes,
+    collection_ptr: ErgoBoxesPtr,
+    const_collection_ptr: ConstErgoBoxesPtr,
+    item: ErgoBox,
+    item_ptr: ErgoBoxPtr,
+    const_item_ptr: ConstErgoBoxPtr,
+    new_fn: ergo_lib_ergo_boxes_new,
+    delete_fn: ergo_lib_ergo_boxes_delete,
+    len_fn: ergo_lib_ergo_boxes_len,
+    get_fn: ergo_lib_ergo_boxes_get,
+    add_fn: ergo_lib_ergo_boxes_add
+}
+make_ffi_eq! {
+    eq_fn: ergo_lib_ergo_box_eq,
+    const_ptr: ConstErgoBoxPtr
+}
 
 // `ErgoBoxAssetsData` bindings ---------------------------------------------------------------------
 
@@ -396,5 +431,20 @@ pub unsafe extern "C" fn ergo_lib_ergo_box_assets_data_delete(ptr: ErgoBoxAssets
     delete_ptr(ptr)
 }
 
-make_collection!(ErgoBoxAssetsDataList, ErgoBoxAssetsData);
-make_ffi_eq!(ErgoBoxAssetsData);
+make_collection! {
+    collection: ErgoBoxAssetsDataList,
+    collection_ptr: ErgoBoxAssetsDataListPtr,
+    const_collection_ptr: ConstErgoBoxAssetsDataListPtr,
+    item: ErgoBoxAssetsData,
+    item_ptr: ErgoBoxAssetsDataPtr,
+    const_item_ptr: ConstErgoBoxAssetsDataPtr,
+    new_fn: ergo_lib_ergo_box_assets_data_list_new,
+    delete_fn: ergo_lib_ergo_box_assets_data_list_delete,
+    len_fn: ergo_lib_ergo_box_assets_data_list_len,
+    get_fn: ergo_lib_ergo_box_assets_data_list_get,
+    add_fn: ergo_lib_ergo_box_assets_data_list_add
+}
+make_ffi_eq! {
+    eq_fn: ergo_lib_ergo_box_assets_data_eq,
+    const_ptr: ConstErgoBoxAssetsDataPtr
+}
