@@ -633,6 +633,66 @@ mod tests {
     }
 
     #[test]
+    fn parse_header_version_without_size_bit_is_rejected() {
+        // Reference: sigmastate-interpreter ErgoTreeSerializer runs
+        // CheckHeaderSizeBit (validation rule 1012) on the header byte during
+        // deserialization: for version > 0 the size bit must be set, otherwise
+        // a ValidationException is thrown and, with no size to skip over, the
+        // whole parse fails with a SerializerException.
+        let expr = Expr::Const(Constant {
+            tpe: SType::SSigmaProp,
+            v: Literal::SigmaProp(SigmaProp::new(true.into()).into()),
+        });
+        let v0_bytes = ErgoTree::new(ErgoTreeHeader::v0(false), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert_eq!(v0_bytes[0], 0);
+        let root_bytes = &v0_bytes[1..];
+
+        // version 0 without the size bit is the canonical legacy form: parses
+        assert!(ErgoTree::sigma_parse_bytes(&v0_bytes).is_ok());
+        assert!(ErgoTreeHeader::new(0).is_ok());
+
+        // versions 1..=3 without the size bit are rejected, both by the
+        // header constructor and by a full tree parse
+        for version in 1..=3u8 {
+            assert!(
+                ErgoTreeHeader::new(version).is_err(),
+                "header with version {version} and no size bit should be rejected"
+            );
+            let mut bytes = vec![version];
+            bytes.extend_from_slice(root_bytes);
+            assert!(
+                ErgoTree::sigma_parse_bytes(&bytes).is_err(),
+                "tree with version {version} and no size bit should be rejected"
+            );
+        }
+
+        // version 1 with constant segregation but no size bit is rejected too
+        assert!(ErgoTreeHeader::new(0x11).is_err());
+        let mut bytes = vec![0x11u8, 0u8]; // header + VLQ zero constants count
+        bytes.extend_from_slice(root_bytes);
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+
+        // version 1 with the size bit set parses (canonical v1 form)
+        let v1_bytes = ErgoTree::new(ErgoTreeHeader::v1(false), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert_eq!(v1_bytes[0], 0x09);
+        assert!(ErgoTree::sigma_parse_bytes(&v1_bytes).is_ok());
+        assert!(ErgoTreeHeader::new(0x09).is_ok());
+
+        // version 0 with the size bit set is not covered by the reference
+        // rule (it only fires for version > 0) and parses as before
+        let mut v0_sized_bytes = v1_bytes.clone();
+        v0_sized_bytes[0] = 0x08;
+        assert!(ErgoTree::sigma_parse_bytes(&v0_sized_bytes).is_ok());
+        assert!(ErgoTreeHeader::new(0x08).is_ok());
+    }
+
+    #[test]
     fn test_constant_len() {
         let expr = Expr::Const(Constant {
             tpe: SType::SBoolean,
