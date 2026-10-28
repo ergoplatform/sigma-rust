@@ -12,7 +12,9 @@ use crate::mir::constant::{Constant, Literal};
 use crate::mir::deserialize_context::DeserializeContext;
 use crate::mir::expr::Expr;
 use crate::mir::get_var::GetVar;
+use crate::mir::option_get::OptionGet;
 use crate::mir::sigma_and::SigmaAnd;
+use crate::mir::unary_op::OneArgOpTryBuild;
 use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl::CollByte;
 use crate::serialization::SigmaParsingError;
@@ -92,6 +94,28 @@ pub enum Address {
     P2SH([u8; 24]),
 }
 
+/// Does this expression read the script bytes for the P2SH hash check from
+/// context variable `var_id`? The reference form wraps `GetVar` in
+/// `OptionGet` (`GetVar` returns an `Option`, the hash is over the byte
+/// array inside it); the bare `GetVar` form written by sigma-rust before
+/// #928 is accepted as well — it is ill-typed, so it can only occur in
+/// memory, never parsed from bytes. In both cases the variable read must
+/// be the very one `DeserializeContext` deserializes, otherwise the hash
+/// is not the hash of the script being spent.
+fn p2sh_hash_reads_context_var(hash_input: &Expr, var_id: u8) -> bool {
+    let get_var: &Expr = match hash_input {
+        Expr::OptionGet(option_get) => &option_get.expr().input,
+        other => other,
+    };
+    match get_var {
+        Expr::GetVar(get_var) => {
+            let get_var = get_var.expr();
+            get_var.var_id == var_id && get_var.var_tpe == SType::SColl(Arc::new(SType::SByte))
+        }
+        _ => false,
+    }
+}
+
 impl Address {
     /// Create a P2PK address from serialized PK bytes(EcPoint/GroupElement)
     pub fn p2pk_from_pk_bytes(bytes: &[u8]) -> Result<Address, SigmaParsingError> {
@@ -125,7 +149,7 @@ impl Address {
                                 expr: BinOp { kind, left, right },
                             }),
                             SType::SSigmaProp,
-                            1,
+                            dc_id,
                         ) = (*input.clone(), tpe.clone(), id)
                         {
                             if let (
@@ -138,7 +162,7 @@ impl Address {
                             ) = (kind, *left, *right)
                             {
                                 if let (
-                                    Expr::CalcBlake2b256(..),
+                                    Expr::CalcBlake2b256(calc),
                                     Expr::Const(Constant {
                                         tpe: from_tpe,
                                         v: from_v,
@@ -158,15 +182,25 @@ impl Address {
                                         CollByte(v),
                                     ) = (from_tpe, from_v, until_tpe, until_v, bytes)
                                     {
-                                        let script_hash = v.as_vec_u8();
-                                        return <[u8; 24]>::try_from(script_hash)
-                                                .map(Address::P2SH)
-                                                .map_err(|_| {
-                                                    AddressError::UnexpectedErgoTree(
-                                                        tree.clone().into(),
-                                                        String::from("Failed to create P2SH address, invalid script hash."),
-                                                    )
-                                                });
+                                        // The hash is only the P2SH script hash
+                                        // if it is taken over the very context
+                                        // variable `DeserializeContext`
+                                        // deserializes — any `DeserializeContext`
+                                        // id is fine (sigma-state 6.x uses 126,
+                                        // sigma-rust and Fleet use 1), but a
+                                        // hashed expression reading a different
+                                        // variable is not this address (#928).
+                                        if p2sh_hash_reads_context_var(&calc.input, *dc_id) {
+                                            let script_hash = v.as_vec_u8();
+                                            return <[u8; 24]>::try_from(script_hash)
+                                                    .map(Address::P2SH)
+                                                    .map_err(|_| {
+                                                        AddressError::UnexpectedErgoTree(
+                                                            tree.clone().into(),
+                                                            String::from("Failed to create P2SH address, invalid script hash."),
+                                                        )
+                                                    });
+                                        }
                                     }
                                 }
                             }
@@ -225,8 +259,16 @@ impl Address {
                     }
                     .into(),
                 );
+                // `GetVar` returns an `Option`: the hash must be taken over
+                // the byte array inside it (as the reference implementation
+                // and Fleet SDK do), not over the `Option` itself — hashing
+                // the `Option` makes the script fail evaluation on the node
+                // and the tree does not parse back (#928).
+                let script_bytes_expr: Expr = OptionGet::try_build(get_var_expr)
+                    .map_err(|e| SigmaParsingError::Misc(e.0))?
+                    .into();
                 let hash_expr = Expr::CalcBlake2b256(CalcBlake2b256 {
-                    input: Box::new(get_var_expr),
+                    input: Box::new(script_bytes_expr),
                 });
                 let slice_expr = Expr::Slice(
                     Slice {
@@ -618,5 +660,63 @@ mod tests {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
             prop_assert![encoder.parse_address_from_str(&s).is_err()];
         }
+    }
+
+    // Regression tests for #928: the P2SH script written by `script()` hashed
+    // the `Option` returned by `GetVar` instead of the byte array inside it
+    // (no `OptionGet`), so a box funded with that script could not be spent
+    // (the node fails the script with a type cast error) and the tree bytes
+    // did not parse back. The reference (sigma-state 6.x) and Fleet SDK both
+    // wrap `GetVar` in `OptionGet` inside `CalcBlake2b256`.
+    const P2SH_TESTNET_ADDR: &str = "qQqAgn6N6hrNTTu2s19HJg52NK37GENqoeo2W6i";
+    const P2SH_SCRIPT_HASH_HEX: &str = "62d1e48400494bfedf9bf70d4af152428fb46f32bf05d199";
+
+    #[test]
+    fn p2sh_script_bytes_match_reference_and_parse_back() {
+        let addr = AddressEncoder::unchecked_parse_address_from_str(P2SH_TESTNET_ADDR).unwrap();
+        assert!(matches!(addr, Address::P2SH(_)));
+        let bytes = addr.script().unwrap().sigma_serialize_bytes().unwrap();
+        // The bytes Fleet SDK writes for the same address (variable id 1,
+        // `GetVar` wrapped in `OptionGet`): spent and confirmed on a 6.0.6
+        // devnet node in #928.
+        let expected = base16::decode(&format!(
+            "00ea02d193b4cbe4e3010e040004300e18{P2SH_SCRIPT_HASH_HEX}d40801"
+        ))
+        .unwrap();
+        assert_eq!(bytes, expected);
+        // The written tree must parse back and re-create the same address.
+        let parsed = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        let recreated = Address::recreate_from_ergo_tree(&parsed).unwrap();
+        assert_eq!(recreated, addr);
+    }
+
+    #[test]
+    fn p2sh_recreate_from_sigma_state_6x_tree() {
+        // The tree sigma-state 6.x writes: context variable id 126, again
+        // with `OptionGet` around `GetVar`. It must be recognized as the
+        // P2SH address carrying the same script hash, not as P2S.
+        let bytes = base16::decode(&format!(
+            "00ea02d193b4cbe4e37e0e040004300e18{P2SH_SCRIPT_HASH_HEX}d4087e"
+        ))
+        .unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        let recreated = Address::recreate_from_ergo_tree(&tree).unwrap();
+        let expected = AddressEncoder::unchecked_parse_address_from_str(P2SH_TESTNET_ADDR).unwrap();
+        assert_eq!(recreated, expected);
+    }
+
+    #[test]
+    fn p2sh_recreate_rejects_mismatched_context_var_id() {
+        // Same shape as the reference tree, but the hashed expression reads
+        // variable 2 while `DeserializeContext` deserializes variable 1:
+        // the script being spent is not the one whose hash is checked, so
+        // this is not a P2SH address for the embedded hash.
+        let bytes = base16::decode(&format!(
+            "00ea02d193b4cbe4e3020e040004300e18{P2SH_SCRIPT_HASH_HEX}d40801"
+        ))
+        .unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        let recreated = Address::recreate_from_ergo_tree(&tree).unwrap();
+        assert!(matches!(recreated, Address::P2S(_)));
     }
 }
