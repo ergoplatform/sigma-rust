@@ -96,3 +96,21 @@ impl SigmaSerializable for STypeVar {
 pub struct STypeParam {
     pub(crate) ident: STypeVar,
 }
+
+#[cfg(feature = "arbitrary")]
+#[allow(clippy::unwrap_used)]
+mod arbitrary {
+    use super::*;
+    use proptest::prelude::*;
+
+    impl Arbitrary for STypeVar {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_: Self::Parameters) -> Self::Strategy {
+            "[A-Z][A-Z0-9]{0,2}"
+                .prop_map(|name| STypeVar::new_from_bytes(name.into_bytes()).unwrap())
+                .boxed()
+        }
+    }
+}
