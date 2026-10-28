@@ -116,10 +116,9 @@ impl SigmaSerializable for Cthreshold {
         // k is serialized as u16 (see sigma_serialize); only 0..=255 is valid on the wire.
         // Mirror the JVM reference `require(k <= children.length && children.length <= 255)`
         // and reject out-of-range k instead of silently truncating it.
-        let k: u8 = r
-            .get_u16()?
-            .try_into()
-            .map_err(|_| SigmaParsingError::ValueOutOfBounds("Cthreshold threshold k exceeds 255".to_string()))?;
+        let k: u8 = r.get_u16()?.try_into().map_err(|_| {
+            SigmaParsingError::ValueOutOfBounds("Cthreshold threshold k exceeds 255".to_string())
+        })?;
         let items_count = r.get_u16()?;
         let mut items = Vec::with_capacity(items_count as usize);
         for _ in 0..items_count {
@@ -132,7 +131,8 @@ impl SigmaSerializable for Cthreshold {
         if k as usize > children.len() {
             return Err(SigmaParsingError::ValueOutOfBounds(format!(
                 "Cthreshold threshold k={0} exceeds children count n={1}",
-                k, children.len()
+                k,
+                children.len()
             )));
         }
         Ok(Cthreshold { k, children })
@@ -152,8 +152,9 @@ mod tests {
 
     fn threshold(k: u8, n: usize) -> SigmaBoolean {
         let g = EcPoint::from_base16_str(G_HEX.to_string()).unwrap();
-        let children: Vec<SigmaBoolean> =
-            (0..n).map(|_| SigmaBoolean::from(ProveDlog::new(g.clone()))).collect();
+        let children: Vec<SigmaBoolean> = (0..n)
+            .map(|_| SigmaBoolean::from(ProveDlog::new(g)))
+            .collect();
         SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
             k,
             children: children.try_into().unwrap(),
@@ -173,7 +174,10 @@ mod tests {
         // control: a well-formed threshold still parses (and round-trips)
         let control = threshold(1, 2);
         let control_bytes = control.sigma_serialize_bytes().unwrap();
-        assert_eq!(SigmaBoolean::sigma_parse_bytes(&control_bytes).unwrap(), control);
+        assert_eq!(
+            SigmaBoolean::sigma_parse_bytes(&control_bytes).unwrap(),
+            control
+        );
     }
 
     // a wire-declared k over u8::MAX is malformed; previously it was silently truncated

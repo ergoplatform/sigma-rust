@@ -331,13 +331,12 @@ mod test {
 
         use crate::sigma_protocol::verifier::verify_signature;
 
-        const G_HEX: &str =
-            "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
+        const G_HEX: &str = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
 
         fn threshold(k: u8, n: usize) -> SigmaBoolean {
             let g = EcPoint::from_base16_str(G_HEX.to_string()).unwrap();
             let children: Vec<SigmaBoolean> = (0..n)
-                .map(|_| SigmaBoolean::from(ProveDlog::new(g.clone())))
+                .map(|_| SigmaBoolean::from(ProveDlog::new(g)))
                 .collect();
             SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
                 k,
@@ -360,6 +359,6 @@ mod test {
             b"msg-----------------------------",
             &Vec::from([0u8; 256]),
         );
-        assert_eq!(control.unwrap(), false);
+        assert!(!control.unwrap());
     }
 }
