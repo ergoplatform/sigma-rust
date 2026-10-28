@@ -241,11 +241,17 @@ impl AutolykosPowScheme {
         extended_hash.extend(&seed_hash[..3]);
         for i in 0..self.k.get() {
             let i = i as usize;
+            // `to_u32_digits` returns no digits for a zero value (an index that is a
+            // multiple of `big_n`); the reference implementation's `mod(N).toInt`
+            // yields 0 there, so map the empty digit vec to 0 instead of indexing it.
             res.push(
                 BigInt::from_bytes_be(Sign::Plus, &extended_hash[i..(i + 4)])
                     .modpow(&BigInt::from(1u32), &BigInt::from(big_n))
                     .to_u32_digits()
-                    .1[0],
+                    .1
+                    .first()
+                    .copied()
+                    .unwrap_or(0),
             );
         }
         res
@@ -519,6 +525,35 @@ mod tests {
             -0x1235
         );
     }
+    #[test]
+    fn gen_indexes_with_zero_index() {
+        // A 4-byte window whose value is a multiple of N gives index 0; the
+        // reference implementation returns 0 for it (BigInt.mod(N).toInt).
+        // Regression test: this used to panic with "index out of bounds: the
+        // len is 0 but the index is 0" because `to_u32_digits` yields no
+        // digits for zero.
+        let pow = AutolykosPowScheme::default();
+        let big_n = 1u32 << 26;
+        // first window is exactly big_n (0x04000000) -> 0 mod big_n
+        let mut seed = [0u8; 32];
+        seed[0] = 0x04;
+        let indexes = pow.gen_indexes(&seed, big_n);
+        assert_eq!(indexes.len(), 32);
+        assert_eq!(indexes[0], 0);
+        // a zero index in a later window: window starting at byte 5 is
+        // 0x10000000 = 4 * big_n -> 0 mod big_n; neighbouring windows are 0 too
+        // only via their own values, so pin the exact position
+        let mut seed = [0u8; 32];
+        seed[5] = 0x10;
+        let indexes = pow.gen_indexes(&seed, big_n);
+        assert_eq!(indexes[5], 0);
+        // non-zero indexes are unchanged: window value 0x0000002A -> 42
+        let mut seed = [0u8; 32];
+        seed[3] = 42;
+        let indexes = pow.gen_indexes(&seed, big_n);
+        assert_eq!(indexes[0], 42);
+    }
+
     #[cfg(feature = "arbitrary")]
     mod proptests {
         use num_bigint::{BigInt, Sign};
