@@ -242,7 +242,7 @@ pub mod arbitrary {
     impl Default for ArbTokensParam {
         fn default() -> Self {
             ArbTokensParam {
-                token_id_param: ArbTokenIdParam::default(),
+                token_id_param: ArbTokenIdParam::Predef,
                 token_count_range: 0..3,
             }
         }
