@@ -9,6 +9,7 @@ use hashbrown::HashMap;
 use ergotree_ir::chain::address::AddressEncoderError;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
+use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
@@ -31,6 +32,17 @@ pub enum ErgoBoxCandidateBuilderError {
         min_box_value: i64,
         /// box size in bytes
         box_size_bytes: usize,
+    },
+
+    /// Box size exceeds the maximum box size
+    #[error(
+        "Box size {box_size_bytes} bytes exceeds the maximum box size of {max_size_bytes} bytes"
+    )]
+    BoxSizeExceeded {
+        /// size of the built box in bytes (serialized candidate plus tx id and index)
+        box_size_bytes: usize,
+        /// maximum allowed box size in bytes
+        max_size_bytes: usize,
     },
 
     /// NonMandatoryRegisters error
@@ -257,6 +269,18 @@ impl ErgoBoxCandidateBuilder {
         let b = self.build_box_unchecked()?;
         let box_size_bytes = b.sigma_serialize_bytes()?.len();
 
+        // The node rejects a transaction whose output box exceeds
+        // ErgoBox::MAX_BOX_SIZE (see TxValidationError::BoxSizeExceeded, which
+        // measures the full box). A candidate becomes a full box by appending
+        // the tx id (32 bytes) and the box index (2 bytes), both fixed size.
+        let full_box_size_bytes = box_size_bytes + 32 + 2;
+        if full_box_size_bytes > ErgoBox::MAX_BOX_SIZE {
+            return Err(ErgoBoxCandidateBuilderError::BoxSizeExceeded {
+                box_size_bytes: full_box_size_bytes,
+                max_size_bytes: ErgoBox::MAX_BOX_SIZE,
+            });
+        }
+
         // Won't be overflowing an i64, so unwrap is safe.
         #[allow(clippy::unwrap_used)]
         let min_box_value: i64 = box_size_bytes as i64 * self.min_value_per_byte as i64;
@@ -477,5 +501,61 @@ mod tests {
         box_builder.add_token(token);
         let out_box = box_builder.build().unwrap();
         assert_eq!(out_box.tokens.unwrap().first(), &token);
+    }
+
+    fn builder_with_r4_payload(payload_len: usize) -> ErgoBoxCandidateBuilder {
+        // P2PK ErgoTree for a fixed public key
+        let tree_bytes = base16::decode(
+            b"0008cd03600bd3ae6b722f3c4ab3e4dbb2d8410ea8d9c5cb41f7b3fc0a1a151a8ffad61b",
+        )
+        .unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
+        // comfortably above the minimum value for a max-size box
+        let value = BoxValue::try_from(1_000_000_000i64).unwrap();
+        let mut builder = ErgoBoxCandidateBuilder::new(value, tree, 1);
+        let payload: Constant = vec![0u8; payload_len].into();
+        builder.set_register_value(R4, payload);
+        builder
+    }
+
+    #[test]
+    fn test_build_fail_box_too_big() {
+        // a register payload that pushes the box far beyond the max box size
+        let builder = builder_with_r4_payload(5000);
+        // the full box is the candidate plus the tx id (32 bytes) and index (2 bytes)
+        let expected_full_size = builder.calc_box_size_bytes().unwrap() + 34;
+        assert_eq!(
+            builder.build(),
+            Err(ErgoBoxCandidateBuilderError::BoxSizeExceeded {
+                box_size_bytes: expected_full_size,
+                max_size_bytes: ErgoBox::MAX_BOX_SIZE,
+            })
+        );
+    }
+
+    #[test]
+    fn test_build_box_size_boundary() {
+        // candidate size at which the full box (candidate + tx id + index)
+        // is exactly ErgoBox::MAX_BOX_SIZE must build, one byte more must not
+        let target_candidate_size = ErgoBox::MAX_BOX_SIZE - 34;
+        let base_size = builder_with_r4_payload(0).calc_box_size_bytes().unwrap();
+        // payload replaces a 1-byte VLQ length prefix with a 2-byte one
+        let payload_len = target_candidate_size - base_size - 1;
+        let builder = builder_with_r4_payload(payload_len);
+        assert_eq!(
+            builder.calc_box_size_bytes().unwrap(),
+            target_candidate_size
+        );
+        assert!(builder.build().is_ok());
+
+        let builder = builder_with_r4_payload(payload_len + 1);
+        assert_eq!(
+            builder.calc_box_size_bytes().unwrap(),
+            target_candidate_size + 1
+        );
+        assert!(matches!(
+            builder.build(),
+            Err(ErgoBoxCandidateBuilderError::BoxSizeExceeded { .. })
+        ));
     }
 }
