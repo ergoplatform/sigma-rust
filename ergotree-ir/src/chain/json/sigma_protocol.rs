@@ -13,6 +13,8 @@ use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_chain_types::EcPoint;
