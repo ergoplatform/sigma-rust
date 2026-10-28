@@ -18,19 +18,21 @@ impl Evaluable for Negation {
         fn overflow_err<T: core::fmt::Display>(v: &T) -> EvalError {
             EvalError::ArithmeticException(format!("Overflow on Negation of value {}", *v))
         }
-        fn neg<'ctx, T: CheckedNeg + Into<Value<'ctx>> + core::fmt::Display>(
-            v: &T,
-        ) -> Result<Value<'ctx>, EvalError> {
-            v.checked_neg()
-                .map(|v| v.into())
-                .ok_or_else(|| overflow_err(v))
-        }
         match input_v {
-            Value::Byte(v) => neg(&v),
-            Value::Short(v) => neg(&v),
-            Value::Int(v) => neg(&v),
-            Value::Long(v) => neg(&v),
-            Value::BigInt(v) => neg(&v),
+            // Fixed-width signed ints negate with two's-complement wrap
+            // (`-MIN == MIN`), matching sigma-state's unchecked numeric
+            // `negate` (`ast/trees.scala` Negation.eval) — negating MIN is
+            // not an error on the JVM.
+            Value::Byte(v) => Ok(v.wrapping_neg().into()),
+            Value::Short(v) => Ok(v.wrapping_neg().into()),
+            Value::Int(v) => Ok(v.wrapping_neg().into()),
+            Value::Long(v) => Ok(v.wrapping_neg().into()),
+            // BigInt256 stays checked: sigma-state's 256-bit BigInt also
+            // overflows negating its MIN (`-(2^255)`), so both sides error.
+            Value::BigInt(v) => v
+                .checked_neg()
+                .map(|v| v.into())
+                .ok_or_else(|| overflow_err(&v)),
             _ => Err(EvalError::UnexpectedValue(format!(
                 "Expected Negation input to be numeric value, got {:?}",
                 input_v
@@ -67,14 +69,25 @@ mod tests {
     #[test]
     fn eval() {
         assert_eq!(run_eval(1i8), -1i8);
-        assert!(try_run_eval(i8::MIN).is_err());
         assert_eq!(run_eval(1i16), -1i16);
-        assert!(try_run_eval(i16::MIN).is_err());
         assert_eq!(run_eval(1i32), -1i32);
-        assert!(try_run_eval(i32::MIN).is_err());
         assert_eq!(run_eval(1i64), -1i64);
-        assert!(try_run_eval(i64::MIN).is_err());
         assert_eq!(run_eval(BigInt256::from(1i64)), BigInt256::from(-1i64));
+    }
+
+    // JVM parity (sigma-state 6.0.3, LanguageSpecificationV5): negating a
+    // fixed-width MIN_VALUE two's-complement-wraps to itself (`-MIN == MIN`)
+    // with no error — sigma-state's `Negation.eval` uses the unchecked
+    // numeric `negate`. Repros: santa `vectors/eval/v5/Numeric_Negation_
+    // equivalence.json` (`-128#0`, `-32768#9`, `-2147483648#18`,
+    // `-9223372036854775808#26`). `BigInt256` is the exception — its 256-bit
+    // MIN (`-(2^255)`) overflows on both sides, so it still errors.
+    #[test]
+    fn negation_of_min_value_wraps_to_self() {
+        assert_eq!(run_eval(i8::MIN), i8::MIN);
+        assert_eq!(run_eval(i16::MIN), i16::MIN);
+        assert_eq!(run_eval(i32::MIN), i32::MIN);
+        assert_eq!(run_eval(i64::MIN), i64::MIN);
         assert!(try_run_eval(BigInt256::min_value()).is_err());
     }
 }
