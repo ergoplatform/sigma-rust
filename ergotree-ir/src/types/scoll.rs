@@ -71,7 +71,7 @@ lazy_static! {
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.indexOf
@@ -92,7 +92,7 @@ lazy_static! {
                 ],
             SType::SColl(SType::STypeVar(STypeVar::ov()).into()),
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.flatMap
@@ -112,7 +112,7 @@ lazy_static! {
                 STypeVar::t().into(), STypeVar::iv().into()
             )).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.zip
@@ -129,7 +129,7 @@ lazy_static! {
             ],
             SType::SColl(SType::SInt.into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.indices
@@ -149,7 +149,7 @@ lazy_static! {
             ],
             SType::SColl(SType::STypeVar(STypeVar::t()).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.patch
@@ -169,7 +169,7 @@ lazy_static! {
             ],
             SType::SColl(SType::STypeVar(STypeVar::t()).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.updated
@@ -189,7 +189,7 @@ lazy_static! {
             ],
             SType::SColl(SType::STypeVar(STypeVar::t()).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Coll.updateMany
@@ -204,7 +204,7 @@ lazy_static! {
             vec![SType::SColl(SType::STypeVar(STypeVar::t()).into())],
             SType::SColl(SType::STypeVar(STypeVar::t()).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Coll.reverse
@@ -222,7 +222,7 @@ lazy_static! {
             ],
             SType::SBoolean
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Coll.startsWith
@@ -240,7 +240,7 @@ lazy_static! {
             ],
             SType::SBoolean
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Coll.endsWith
@@ -258,7 +258,7 @@ lazy_static! {
             ],
             SType::SOption(SType::STypeVar(STypeVar::t()).into())
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Coll.get

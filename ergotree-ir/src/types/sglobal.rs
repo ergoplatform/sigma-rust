@@ -54,7 +54,7 @@ lazy_static! {
             t_range: SType::SGroupElement.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
      /// GLOBAL.GroupGenerator
@@ -75,7 +75,7 @@ lazy_static! {
             t_range: SType::SColl(SType::SByte.into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
      /// GLOBAL.xor
@@ -92,7 +92,7 @@ lazy_static! {
             t_range: SType::STypeVar(STypeVar::t()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![STypeVar::t()],
+        explicit_type_args: vec![STypeVar::t()].into_boxed_slice(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.fromBigEndianBytes
@@ -109,7 +109,7 @@ lazy_static! {
             t_range: SType::SLong.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.encodeNBits
@@ -126,7 +126,7 @@ lazy_static! {
             t_range: SType::SBigInt.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.decodeNBits
@@ -143,7 +143,7 @@ lazy_static! {
             t_range: Box::new(STypeVar::t().into()),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![STypeVar::t()],
+        explicit_type_args: vec![STypeVar::t()].into_boxed_slice(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.deserialize
@@ -160,7 +160,7 @@ lazy_static! {
             t_range: SType::SColl(SType::SByte.into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.serialize
@@ -181,7 +181,7 @@ lazy_static! {
             t_range: SType::SBoolean.into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// Global.powHit
@@ -197,7 +197,7 @@ lazy_static! {
             t_range:SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.some
@@ -213,7 +213,7 @@ lazy_static! {
             t_range:SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![STypeVar::t()],
+        explicit_type_args: vec![STypeVar::t()].into_boxed_slice(),
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.none

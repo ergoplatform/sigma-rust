@@ -9,8 +9,8 @@ use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 
+use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::convert::TryInto;
@@ -34,7 +34,7 @@ pub use value::*;
         try_from = "HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>"
     )
 )]
-pub struct NonMandatoryRegisters(Vec<RegisterValue>);
+pub struct NonMandatoryRegisters(Box<[RegisterValue]>);
 
 impl NonMandatoryRegisters {
     /// Maximum number of non-mandatory registers
@@ -42,7 +42,7 @@ impl NonMandatoryRegisters {
 
     /// Empty non-mandatory registers
     pub fn empty() -> NonMandatoryRegisters {
-        NonMandatoryRegisters(vec![])
+        NonMandatoryRegisters(Box::default())
     }
 
     /// Create new from map
@@ -98,7 +98,7 @@ impl TryFrom<Vec<RegisterValue>> for NonMandatoryRegisters {
         if values.len() > NonMandatoryRegisters::MAX_SIZE {
             Err(NonMandatoryRegistersError::InvalidSize(values.len()))
         } else {
-            Ok(NonMandatoryRegisters(values))
+            Ok(NonMandatoryRegisters(values.into_boxed_slice()))
         }
     }
 }
@@ -182,7 +182,8 @@ impl From<NonMandatoryRegisters>
     for HashMap<NonMandatoryRegisterId, ergo_chain_types::Base16EncodedBytes>
 {
     fn from(v: NonMandatoryRegisters) -> Self {
-        v.0.into_iter()
+        Vec::from(v.0)
+            .into_iter()
             .enumerate()
             .map(|(i, reg_value)| {
                 (
@@ -198,7 +199,8 @@ impl From<NonMandatoryRegisters>
 
 impl From<NonMandatoryRegisters> for HashMap<NonMandatoryRegisterId, RegisterValue> {
     fn from(v: NonMandatoryRegisters) -> Self {
-        v.0.into_iter()
+        Vec::from(v.0)
+            .into_iter()
             .enumerate()
             .map(|(i, reg_val)| (NonMandatoryRegisterId::get_by_zero_index(i), reg_val))
             .collect()
@@ -214,7 +216,7 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, RegisterValue>> for NonMandatoryReg
         if regs_num > NonMandatoryRegisters::MAX_SIZE {
             Err(NonMandatoryRegistersError::InvalidSize(regs_num))
         } else {
-            let mut res: Vec<RegisterValue> = vec![];
+            let mut res: Vec<RegisterValue> = Vec::with_capacity(regs_num);
             NonMandatoryRegisterId::REG_IDS
                 .iter()
                 .take(regs_num)
@@ -222,7 +224,7 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, RegisterValue>> for NonMandatoryReg
                     Some(v) => Ok(res.push(v.clone())),
                     None => Err(NonMandatoryRegistersError::NonDenselyPacked(*reg_id as u8)),
                 })?;
-            Ok(NonMandatoryRegisters(res))
+            Ok(NonMandatoryRegisters(res.into_boxed_slice()))
         }
     }
 }
@@ -239,7 +241,7 @@ impl TryFrom<std::collections::HashMap<NonMandatoryRegisterId, RegisterValue>>
         if regs_num > NonMandatoryRegisters::MAX_SIZE {
             Err(NonMandatoryRegistersError::InvalidSize(regs_num))
         } else {
-            let mut res: Vec<RegisterValue> = vec![];
+            let mut res: Vec<RegisterValue> = Vec::with_capacity(regs_num);
             NonMandatoryRegisterId::REG_IDS
                 .iter()
                 .take(regs_num)
@@ -247,7 +249,7 @@ impl TryFrom<std::collections::HashMap<NonMandatoryRegisterId, RegisterValue>>
                     Some(v) => Ok(res.push(v.clone())),
                     None => Err(NonMandatoryRegistersError::NonDenselyPacked(*reg_id as u8)),
                 })?;
-            Ok(NonMandatoryRegisters(res))
+            Ok(NonMandatoryRegisters(res.into_boxed_slice()))
         }
     }
 }

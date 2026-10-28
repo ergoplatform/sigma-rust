@@ -100,11 +100,12 @@ mod arbitrary {
                     depth: 1,
                 }),
                 any_with::<Expr>(ArbExprParams {
-                    tpe: SType::SFunc(SFunc {
+                    tpe: SFunc {
                         t_dom: vec![SType::SBoolean],
                         t_range: SType::SBoolean.into(),
                         tpe_params: vec![],
-                    }),
+                    }
+                    .into(),
                     depth: 0,
                 }),
             )

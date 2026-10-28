@@ -267,11 +267,12 @@ impl SType {
                             ));
                         }
                     }
-                    SType::SFunc(crate::types::sfunc::SFunc {
+                    crate::types::sfunc::SFunc {
                         t_dom,
                         t_range: t_range.into(),
                         tpe_params,
-                    })
+                    }
+                    .into()
                 }
                 #[allow(clippy::unreachable)] // All types with typecode >= Tuple are checked
                 _ => unreachable!(),
@@ -503,13 +504,13 @@ mod tests {
             tpe_params: vec![],
         };
         assert!(sigma_serialize_roundtrip_versioned(
-            &SType::SFunc(sfunc.clone()),
+            &SType::SFunc(sfunc.clone().into()),
             ErgoTreeVersion::V3
         )
         .is_err());
         // t_dom length is now in bounds
         sfunc.t_dom.pop();
-        roundtrip_new_feature(&SType::SFunc(sfunc.clone()), ErgoTreeVersion::V3);
+        roundtrip_new_feature(&SType::SFunc(sfunc.clone().into()), ErgoTreeVersion::V3);
         // invalid tpe_params size
         sfunc.tpe_params = vec![
             STypeParam {
@@ -517,9 +518,11 @@ mod tests {
             };
             256
         ];
-        assert!(
-            sigma_serialize_roundtrip_versioned(&SType::SFunc(sfunc), ErgoTreeVersion::V3).is_err()
-        );
+        assert!(sigma_serialize_roundtrip_versioned(
+            &SType::SFunc(sfunc.into()),
+            ErgoTreeVersion::V3
+        )
+        .is_err());
     }
 
     proptest! {
@@ -539,7 +542,7 @@ mod tests {
                 t_range: range.into(),
                 tpe_params
             };
-            roundtrip_new_feature(&SType::SFunc(sfunc), ErgoTreeVersion::V3);
+            roundtrip_new_feature(&SType::SFunc(sfunc.into()), ErgoTreeVersion::V3);
         }
     }
 }

@@ -24,12 +24,8 @@ use crate::serialization::sigma_byte_writer::SigmaByteWrite;
 ///  We reserve the possibility to extend header by using Bit 7 == 1 and chain additional bytes as in VLQ.
 ///  Once the new bytes are required, a new version of the language should be created and implemented.
 ///  That new language will give an interpretation for the new bytes.
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ErgoTreeHeader {
-    version: ErgoTreeVersion,
-    is_constant_segregation: bool,
-    has_size: bool,
-}
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct ErgoTreeHeader(u8);
 
 impl ErgoTreeHeader {
     /// Serialization
@@ -49,62 +45,52 @@ impl ErgoTreeHeader {
 impl ErgoTreeHeader {
     const CONSTANT_SEGREGATION_FLAG: u8 = 0b0001_0000;
     const HAS_SIZE_FLAG: u8 = 0b0000_1000;
+    const HEADER_MASK: u8 =
+        ErgoTreeVersion::VERSION_MASK | Self::CONSTANT_SEGREGATION_FLAG | Self::HAS_SIZE_FLAG;
 
     /// Parse from byte
     pub fn new(header_byte: u8) -> Result<Self, ErgoTreeHeaderError> {
-        let version = ErgoTreeVersion::parse_version(header_byte);
-        let has_size = header_byte & Self::HAS_SIZE_FLAG != 0;
-        let is_constant_segregation = header_byte & Self::CONSTANT_SEGREGATION_FLAG != 0;
-        Ok(ErgoTreeHeader {
-            version,
-            is_constant_segregation,
-            has_size,
-        })
+        Ok(ErgoTreeHeader(header_byte & Self::HEADER_MASK))
     }
 
     /// Serialize to byte
     pub fn serialized(&self) -> u8 {
-        let mut header_byte: u8 = self.version.0;
-        if self.is_constant_segregation {
-            header_byte |= Self::CONSTANT_SEGREGATION_FLAG;
-        }
-        if self.has_size {
-            header_byte |= Self::HAS_SIZE_FLAG;
-        }
-        header_byte
+        self.0
     }
 
     /// Return a header with version set to 0 and constant segregation flag set to the given value
     pub fn v0(constant_segregation: bool) -> Self {
-        ErgoTreeHeader {
-            version: ErgoTreeVersion::V0,
-            is_constant_segregation: constant_segregation,
-            has_size: false,
-        }
+        let flag = if constant_segregation {
+            Self::CONSTANT_SEGREGATION_FLAG
+        } else {
+            0
+        };
+        ErgoTreeHeader(ErgoTreeVersion::V0.0 | flag)
     }
 
     /// Return a header with version set to 1 (with size flag set) and constant segregation flag set to the given value
     pub fn v1(constant_segregation: bool) -> Self {
-        ErgoTreeHeader {
-            version: ErgoTreeVersion::V1,
-            is_constant_segregation: constant_segregation,
-            has_size: true,
-        }
+        let flag = if constant_segregation {
+            Self::CONSTANT_SEGREGATION_FLAG
+        } else {
+            0
+        };
+        ErgoTreeHeader(ErgoTreeVersion::V1.0 | Self::HAS_SIZE_FLAG | flag)
     }
 
     /// Returns true if constant segregation flag is set
     pub fn is_constant_segregation(&self) -> bool {
-        self.is_constant_segregation
+        self.0 & Self::CONSTANT_SEGREGATION_FLAG != 0
     }
 
     /// Returns true if size flag is set
     pub fn has_size(&self) -> bool {
-        self.has_size
+        self.0 & Self::HAS_SIZE_FLAG != 0
     }
 
     /// Returns ErgoTree version
     pub fn version(&self) -> ErgoTreeVersion {
-        self.version
+        ErgoTreeVersion::parse_version(self.0)
     }
 }
 

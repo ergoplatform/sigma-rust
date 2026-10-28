@@ -911,7 +911,7 @@ pub(crate) mod arbitrary {
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             if args.depth == 0 {
                 match args.tpe {
-                    SType::SFunc(sfunc) => sfunc_expr(sfunc),
+                    SType::SFunc(sfunc) => sfunc_expr(*sfunc),
                     _ => prop_oneof![
                         any_with::<Constant>(args.tpe.clone().into())
                             .prop_map(Expr::Const)

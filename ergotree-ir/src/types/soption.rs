@@ -45,7 +45,7 @@ lazy_static! {
                 ],
             SType::SOption(SType::STypeVar(STypeVar::ov()).into()),
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Option.map
@@ -68,7 +68,7 @@ lazy_static! {
                 ],
             SType::SOption(SType::STypeVar(STypeVar::iv()).into()),
         ),
-        explicit_type_args: vec![],
+        explicit_type_args: alloc::boxed::Box::default(),
         min_version: ErgoTreeVersion::V0
     };
     /// Option.map

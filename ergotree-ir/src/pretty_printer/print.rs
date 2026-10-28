@@ -514,7 +514,7 @@ impl Print for MethodCall {
             .args
             .iter()
             .map(|a| -> Result<Expr, PrintError> { a.print(w) })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Box<[_]>, _>>()?;
         write!(w, ")")?;
         let length = w.current_pos() - offset;
         Ok(Spanned {

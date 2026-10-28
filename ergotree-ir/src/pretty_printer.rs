@@ -10,7 +10,7 @@ pub use print::Print;
 /// Printer trait with tracking of current position and indent
 pub trait Printer: Write {
     /// Current position (last printed char)
-    fn current_pos(&self) -> usize;
+    fn current_pos(&self) -> u32;
     /// Increase indent
     fn inc_ident(&mut self);
     /// Decrease indent
@@ -26,20 +26,20 @@ pub trait Printer: Write {
 /// Printer implementation with tracking of current position and indent
 pub struct PosTrackingWriter {
     print_buf: String,
-    current_pos: usize,
+    current_pos: u32,
     current_indent: usize,
 }
 
 impl Write for PosTrackingWriter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let len = s.len();
+        let len = s.len() as u32;
         self.current_pos += len;
         write!(self.print_buf, "{}", s)
     }
 }
 
 impl Printer for PosTrackingWriter {
-    fn current_pos(&self) -> usize {
+    fn current_pos(&self) -> u32 {
         self.current_pos
     }
 
