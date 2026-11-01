@@ -1,6 +1,7 @@
 //! Operators in ErgoTree
 
 use ergotree_ir::bigint256::BigInt256;
+use ergotree_ir::ergo_tree::ErgoTreeVersion;
 use ergotree_ir::mir::bin_op::BinOpKind;
 use ergotree_ir::mir::bin_op::RelationOp;
 use ergotree_ir::mir::bin_op::{ArithOp, LogicalOp};
@@ -181,6 +182,35 @@ where
     Ok((lv_raw.min(rv_raw)).into())
 }
 
+/// Trees before v3: sigmastate's parser upcasts the narrower of two numeric relation
+/// operands to the wider type (SigmaBuilder.scala:750-763), so compare them there
+fn widen_mixed_numeric<'a>(lv: Value<'a>, rv: Value<'a>) -> (Value<'a>, Value<'a>) {
+    let rank = |v: &Value| match *v {
+        Value::Byte(x) => Some((0, i64::from(x))),
+        Value::Short(x) => Some((1, i64::from(x))),
+        Value::Int(x) => Some((2, i64::from(x))),
+        Value::Long(x) => Some((3, x)),
+        Value::BigInt(_) => Some((4, 0)),
+        _ => None,
+    };
+    let widen = |x: i64, to: &Value| -> Value<'a> {
+        match to {
+            Value::Short(_) => (x as i16).into(),
+            Value::Int(_) => (x as i32).into(),
+            Value::Long(_) => x.into(),
+            _ => BigInt256::from(x).into(),
+        }
+    };
+    match (rank(&lv), rank(&rv)) {
+        (Some((l, x)), Some((r, _))) if l < r => (widen(x, &rv), rv),
+        (Some((l, _)), Some((r, y))) if l > r => {
+            let rv = widen(y, &lv);
+            (lv, rv)
+        }
+        _ => (lv, rv),
+    }
+}
+
 impl Evaluable for BinOp {
     fn eval<'ctx>(
         &self,
@@ -207,14 +237,20 @@ impl Evaluable for BinOp {
                     lv.try_extract_into::<bool>()? ^ rv()?.try_extract_into::<bool>()?,
                 )),
             },
-            BinOpKind::Relation(op) => match op {
-                RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
-                RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
-                RelationOp::Gt => eval_gt(lv, rv()?),
-                RelationOp::Lt => eval_lt(lv, rv()?),
-                RelationOp::Ge => eval_ge(lv, rv()?),
-                RelationOp::Le => eval_le(lv, rv()?),
-            },
+            BinOpKind::Relation(op) => {
+                let (lv, rv) = match ctx.tree_version() < ErgoTreeVersion::V3 {
+                    true => widen_mixed_numeric(lv, rv()?),
+                    false => (lv, rv()?),
+                };
+                match op {
+                    RelationOp::Eq => Ok(Value::Boolean(lv == rv)),
+                    RelationOp::NEq => Ok(Value::Boolean(lv != rv)),
+                    RelationOp::Gt => eval_gt(lv, rv),
+                    RelationOp::Lt => eval_lt(lv, rv),
+                    RelationOp::Ge => eval_ge(lv, rv),
+                    RelationOp::Le => eval_le(lv, rv),
+                }
+            }
             BinOpKind::Arith(op) => match op {
                 ArithOp::Plus => match lv {
                     Value::Byte(lv_raw) => eval_plus(lv_raw, rv()?),
@@ -350,13 +386,57 @@ impl Evaluable for BinOp {
 mod tests {
     use super::*;
     use crate::eval::test_util::eval_out_wo_ctx;
+    use crate::eval::test_util::try_eval_out_with_version;
     use crate::eval::test_util::try_eval_out_wo_ctx;
     use alloc::boxed::Box;
+    use ergotree_ir::chain::context::Context;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::unsignedbigint256::UnsignedBigInt;
     use num_traits::Bounded;
     use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
+
+    // v0..v2 trees: mixed numeric relation operands compare in the wider type, as sigmastate
+    // 6.0.7 does (it reduces each of these trees to true)
+    #[test]
+    fn v0_tree_eq_int_long_auto_upcast() {
+        use crate::eval::reduce_to_crypto;
+        use ergotree_ir::ergo_tree::ErgoTree;
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4; // activated script version 3
+        ctx.height = 1;
+        for hex in [
+            "00d19304020502",           // v0 sigmaProp(1 == 1L)
+            "0906d19304020502",         // v1
+            "0a06d19304020502",         // v2
+            "00d19404020504",           // 1 != 2L
+            "00d19105040201",           // 2L > 1.toByte
+            "00d193a30502",             // HEIGHT == 1L
+            "100204020502d19373007301", // segregated, ph Int == ph Long
+            "00d18f0302060102",         // 1.toShort < BigInt(2)
+        ] {
+            let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
+            let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
+            assert_eq!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
+        }
+    }
+
+    #[test]
+    fn mixed_numeric_relation_v3_unchanged() {
+        let ctx = force_any_val::<Context>();
+        let eq: Expr = BinOp {
+            kind: RelationOp::Eq.into(),
+            left: Box::new(Constant::from(1i32).into()),
+            right: Box::new(Constant::from(1i64).into()),
+        }
+        .into();
+        assert_eq!(try_eval_out_with_version::<bool>(&eq, &ctx, 2, 3), Ok(true));
+        // v3 trees with mixed operands are sigmastate parse errors; no upcast at eval
+        assert_ne!(try_eval_out_with_version::<bool>(&eq, &ctx, 3, 3), Ok(true));
+    }
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = BinOp {
