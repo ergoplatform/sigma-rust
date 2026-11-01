@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - BREAKING: `ReducedInput.sigma_prop` is serialized in JSON as a standalone base16 string of the sigma encoding instead of the tagged JSON form; the deserializer only accepts the new form https://github.com/ergoplatform/sigma-rust/pull/838
 - BREAKING: the WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
 - BREAKING: `Header.nBits` is now `u32` https://github.com/ergoplatform/sigma-rust/pull/824
+- BREAKING: `TupleItems` is now bounded 1..=255 (was 2..=255), so one-item tuples parse as in sigma-state and fail at evaluation; build pairs with `pair_items` instead of `[a, b].into()`.
 - `no_std` support across the workspace: `sigma-ser`, `sigma-util`, `ergo-chain-types`, `gf2_192`, `ergotree-ir`, `ergotree-interpreter`, and `ergo-lib` (`ergo-merkle-tree` and `ergo-nipopow` are now optional features); `Context` moved from `ergotree-interpreter` to `ergotree-ir` https://github.com/ergoplatform/sigma-rust/pull/782
 - `BigInt256` internals replaced with `bnum` https://github.com/ergoplatform/sigma-rust/pull/779
 - `ExtSecretKey` stores the secret key as `Wscalar` instead of `DlogProverInput`

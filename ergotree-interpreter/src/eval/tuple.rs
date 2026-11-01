@@ -18,7 +18,7 @@ impl Evaluable for Tuple {
         // elements to be equivalent with v4.x"). The check is unconditional —
         // no version gate, and sigma-state 6.0.3 evaluates every height through
         // it. sigma-rust models tuples as flat N-ary (`TupleItems =
-        // BoundedVec<2,255>`), so without this guard it accepts arity>=3 tuples
+        // BoundedVec<1,255>`), so without this guard it accepts non-pair tuples
         // the JVM rejects — a consensus accept/reject divergence (sigma-rust
         // would accept a spend the JVM rejects). Mirror the JVM: reject non-pairs.
         if self.items.len() != 2 {
@@ -67,7 +67,7 @@ mod tests {
     fn eval_rejects_non_pair_tuple() {
         // sigma-state rejects tuples with length != 2 ("Invalid tuple", JVM
         // consensus). A flat arity-3 tuple is constructible here (TupleItems
-        // allows 2..=255), but must be rejected at eval to match the JVM — else
+        // allows 1..=255), but must be rejected at eval to match the JVM — else
         // sigma-rust would accept a spend the JVM rejects.
         let e1: Expr = 1i64.into();
         let e2: Expr = 2i64.into();
@@ -106,9 +106,9 @@ mod tests {
         use ergotree_ir::serialization::SigmaSerializable;
         use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
-        // v0 trees (header 0x00, or 0x10 with constant segregation) and what sigma-state
-        // 6.0.7 does with each, activated version 3. `c1` is the constant (Int)(1),
-        // bytes 60 01 04 02, and `cc` is the constant Coll[(Int)](c1).
+        // v0 trees (header 0x00, or 0x10 with constant segregation; 0x0b is v3 sized) and
+        // what sigma-state 6.0.7 does with each, activated version 3. `c1` is the constant
+        // (Int)(1), bytes 60 01 04 02, and `cc` is the constant Coll[(Int)](c1).
         let cases = [
             ("00d1936001040260010402", false),   // c1 == c1
             ("100160010402d19373007300", false), // c1 == c1, segregated
@@ -118,6 +118,24 @@ mod tests {
             ("00d1ae0c6001040102d901016001040101", false), // cc.exists(x => true)
             ("100160010402d195010101019373007300", true), // if (true) true else c1 == c1
             ("00d193b10c60010401020402", true),  // cc.size == 1
+            // Coll[(Int)]().forall(x => false): the lambda is never applied
+            ("00d1af0c60010400d901016001040100", true),
+            ("0b0fd1af0c60010400d901016001040100", true),
+            // substConstants(<segregated c1 == c1 tree>, [], []).size > 0: sigma-state
+            // re-serializes the constants and its type serializer throws
+            ("00d191b1740e0c100160010402d19373007300100010000400", false),
+            // ... and it throws with an out-of-range position, or with an unparseable body
+            (
+                "00d191b1740e0c100160010402d1937300730010010a10010e0400",
+                false,
+            ),
+            ("00d191b1740e07100160010402ff100010000400", false),
+            // ... but not for a pair constant, nor for a one-item tuple in an unsegregated body
+            ("00d191b1740e0b1001580202d19373007300100010000400", true),
+            ("00d191b1740e0b00d1936001040260010402100010000400", true),
+            // Known stricter: cc.indexOf(c1, 0) == 0 is TrueProp in sigma-state; Rust
+            // rejects the one-item tuple c1 as a method-call argument (see `expr.rs`)
+            ("00d193dc0c1a0c6001040102026001040204000400", false),
         ];
         let mut ctx = force_any_val::<Context>();
         ctx.pre_header.version = 4;

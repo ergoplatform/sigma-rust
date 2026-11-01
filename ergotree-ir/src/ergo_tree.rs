@@ -409,9 +409,16 @@ impl ErgoTree {
             inner_w.with_tree_version(tree_version, |inner_w| -> SigmaSerializeResult {
                 if header.is_constant_segregation() {
                     inner_w.put_usize_as_u32_unwrapped(constants.len())?;
-                    constants
-                        .iter()
-                        .try_for_each(|c| c.sigma_serialize(inner_w))?;
+                    constants.iter().try_for_each(|c| {
+                        // sigma-state's TypeSerializer cannot write a tuple of
+                        // fewer than 2 items, so re-serializing such a constant throws.
+                        if has_short_tuple(&c.tpe) {
+                            return Err(SigmaSerializationError::NotSupported(
+                                "Invalid Tuple type with less than 2 items".into(),
+                            ));
+                        }
+                        c.sigma_serialize(inner_w)
+                    })?;
                 }
                 inner_w.write_all(&tree_bytes)?;
                 Ok(())
@@ -429,6 +436,14 @@ impl ErgoTree {
         }
         w.write_all(&body_section)?;
         Ok((out, num_constants))
+    }
+}
+
+fn has_short_tuple(tpe: &SType) -> bool {
+    match tpe {
+        SType::SColl(t) | SType::SOption(t) => has_short_tuple(t),
+        SType::STuple(t) => t.items.len() < 2 || t.items.iter().any(has_short_tuple),
+        _ => false,
     }
 }
 
@@ -896,6 +911,27 @@ mod tests {
             ErgoTree::substitute_constants(bytes, &[], &[], ErgoTreeVersion::V2).is_err(),
             "outer v2 must reject the v3-only Option template constant"
         );
+    }
+
+    // JVM parity (sigma-state 6.0.7): re-serializing a constant of type `(Int)`
+    // throws "Invalid Tuple type with less than 2 items" (TypeSerializer.scala:95),
+    // whatever the positions and the body; a pair constant and an unsegregated
+    // body are copied.
+    #[test]
+    fn substitute_constants_rejects_one_item_tuple_constant() {
+        let dummy: Constant = 7i32.into();
+        let run = |hex: &str, pos: &[usize]| {
+            let new_values = vec![dummy.clone(); pos.len()];
+            let bytes = base16::decode(hex).unwrap();
+            ErgoTree::substitute_constants(bytes.clone(), pos, &new_values, ErgoTreeVersion::V0)
+                .map(|(out, _)| assert_eq!(out, bytes, "{hex}"))
+        };
+        assert!(run("100160010402d19373007300", &[]).is_err());
+        assert!(run("100160010402d19373007300", &[5]).is_err());
+        assert!(run("100160010402ff", &[]).is_err());
+        assert!(run("1001580202d19373007300", &[5]).is_ok());
+        assert!(run("1001580202ff", &[]).is_ok());
+        assert!(run("00d1936001040260010402", &[]).is_ok());
     }
 
     #[test]

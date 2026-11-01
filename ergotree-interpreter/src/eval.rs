@@ -132,7 +132,7 @@ pub struct ReductionResult {
 /// Tuple-eval items (`values.scala:801/804`) and `ConstantPlaceholder.eval`
 /// (`values.scala:412`): a tuple type must be a pair (arity 2) and a function
 /// type must be unary, otherwise the JVM throws "Unsupported tuple/function
-/// type". sigma-rust models flat N-ary tuples (`TupleItems` = `BoundedVec<2,255>`)
+/// type". sigma-rust models flat N-ary tuples (`TupleItems` = `BoundedVec<1,255>`)
 /// so an arity≠2 tuple constant/value is representable and would otherwise
 /// evaluate where the JVM rejects (a consensus accept/reject divergence). The
 /// remaining `isValueOfType` arms only assert a value matches its type, which is

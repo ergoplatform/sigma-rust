@@ -26,6 +26,7 @@ impl Evaluable for Fold {
                     .args
                     .first()
                     .ok_or_else(|| EvalError::NotFound("empty argument for fold op".to_string()))?;
+                crate::eval::check_value_type(&func_arg.tpe)?;
                 let orig_val = env.get(func_arg.idx).cloned();
                 env.insert(func_arg.idx, arg);
                 let res = func_value.body.eval(env, ctx);

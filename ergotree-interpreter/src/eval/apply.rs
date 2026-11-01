@@ -23,6 +23,9 @@ impl Evaluable for Apply {
             .collect::<Result<_, EvalError>>()?;
         match func_v {
             Value::Lambda(fv) => {
+                fv.args
+                    .iter()
+                    .try_for_each(|a| crate::eval::check_value_type(&a.tpe))?;
                 let arg_ids: Vec<ValId> = fv.args.iter().map(|a| a.idx).collect();
                 let mut existing_variables = HashMap::new();
                 let mut new_variables = vec![];

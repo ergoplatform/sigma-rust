@@ -85,6 +85,7 @@ pub(crate) fn flatmap_eval<'ctx>(
         let func_arg = lambda.args.first().ok_or_else(|| {
             EvalError::NotFound("flatmap: lambda has empty arguments list".to_string())
         })?;
+        crate::eval::check_value_type(&func_arg.tpe)?;
         let orig_val = env.get(func_arg.idx).cloned();
         env.insert(func_arg.idx, arg);
         let res = lambda.body.eval(env, ctx);
