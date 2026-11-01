@@ -12,6 +12,7 @@ impl Evaluable for ValUse {
         env: &mut Env<'ctx>,
         _ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        crate::eval::check_value_type(&self.tpe)?;
         env.get(self.val_id).cloned().ok_or_else(|| {
             EvalError::NotFound(format!("no value in env for id: {0:?}", self.val_id))
         })

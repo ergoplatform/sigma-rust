@@ -14,11 +14,13 @@ impl Evaluable for If {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         let condition_v = self.condition.eval(env, ctx)?;
-        if condition_v.try_extract_into::<bool>()? {
-            self.true_branch.eval(env, ctx)
+        let branch = if condition_v.try_extract_into::<bool>()? {
+            &self.true_branch
         } else {
-            self.false_branch.eval(env, ctx)
-        }
+            &self.false_branch
+        };
+        crate::eval::check_value_type(&branch.tpe())?;
+        branch.eval(env, ctx)
     }
 }
 

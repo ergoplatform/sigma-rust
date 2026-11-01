@@ -12,7 +12,10 @@ impl Evaluable for Tuple {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        let items_v = self.items.try_mapped_ref(|i| i.eval(env, ctx));
+        let items_v = self.items.try_mapped_ref(|i| {
+            crate::eval::check_value_type(&i.tpe())?;
+            i.eval(env, ctx)
+        });
         Ok(Value::Tup(items_v?))
     }
 }

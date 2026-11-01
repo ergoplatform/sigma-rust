@@ -188,6 +188,10 @@ impl Evaluable for BinOp {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         //ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
+        if let BinOpKind::Relation(RelationOp::Eq | RelationOp::NEq) = self.kind {
+            crate::eval::check_value_type(&self.left.tpe())?;
+            crate::eval::check_value_type(&self.right.tpe())?;
+        }
         let lv = self.left.eval(env, ctx)?;
         // using closure to keep right value from evaluation (for lazy AND, OR, XOR)
         let mut rv = || self.right.eval(env, ctx);
@@ -372,6 +376,30 @@ mod tests {
         }
         .into();
         eval_out_wo_ctx::<bool>(&eq_op) && !eval_out_wo_ctx::<bool>(&neq_op)
+    }
+
+    #[test]
+    fn string_eq_neq_fails_at_eval() {
+        use crate::eval::test_util::try_eval_out_with_version;
+        use alloc::string::String;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+        // The JVM checkType's EQ/NEQ operands and has no String case (SType.scala:212)
+        let ctx = force_any_val::<Context>();
+        for op in [RelationOp::Eq, RelationOp::NEq] {
+            let e: Expr = BinOp {
+                kind: BinOpKind::Relation(op),
+                left: Box::new(Constant::from(String::from("a")).into()),
+                right: Box::new(Constant::from(String::from("a")).into()),
+            }
+            .into();
+            for v in 0..=3u8 {
+                assert!(
+                    try_eval_out_with_version::<Value>(&e, &ctx, v, 3).is_err(),
+                    "String {op:?} String evaluated under tree v{v}"
+                );
+            }
+        }
     }
 
     #[test]

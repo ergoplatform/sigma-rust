@@ -22,8 +22,13 @@ impl Evaluable for Collection {
         Ok(match self {
             Collection::BoolConstants(bools) => bools.clone().into(),
             Collection::Exprs { elem_tpe, items } => {
-                let items_v: Result<Arc<[Value]>, EvalError> =
-                    items.iter().map(|i| i.eval(env, ctx)).collect();
+                let items_v: Result<Arc<[Value]>, EvalError> = items
+                    .iter()
+                    .map(|i| {
+                        crate::eval::check_value_type(&i.tpe())?;
+                        i.eval(env, ctx)
+                    })
+                    .collect();
                 match elem_tpe {
                     SType::SByte => {
                         let bytes: Result<Arc<[i8]>, TryExtractFromError> = items_v?

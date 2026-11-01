@@ -14,7 +14,10 @@ impl Evaluable for OptionGetOrElse {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         let v = self.input.eval(env, ctx)?;
-        let mut default_v = || self.default.eval(env, ctx);
+        let mut default_v = || {
+            crate::eval::check_value_type(&self.default.tpe())?;
+            self.default.eval(env, ctx)
+        };
         match v {
             Value::Opt(opt_v) if ctx.tree_version() >= ErgoTreeVersion::V3 => {
                 opt_v.as_deref().cloned().map(Ok).unwrap_or_else(default_v)

@@ -12,6 +12,7 @@ use ergotree_ir::mir::value::Value;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
 use ergotree_ir::types::smethod::SMethod;
+use ergotree_ir::types::stype::SType;
 
 use self::env::Env;
 use ergotree_ir::chain::context::Context;
@@ -124,6 +125,18 @@ pub struct ReductionResult {
     pub cost: u64,
     /// Diagnostic information about the reduction (pretty printed expr and/or env)
     pub diag: ReductionDiagnosticInfo,
+}
+
+/// Mirror of sigma-state `Value.checkType`, which the JVM evaluator calls on the
+/// operands of EQ/NEQ, If branches, block items and results, ValUse, Tuple and
+/// collection items, and Fold/ByIndex/OptionGetOrElse defaults. `SType.isValueOfType`
+/// has no String case and throws "Unknown type" (`SType.scala:212`), so a String
+/// value fails at these points even though String constants parse.
+pub(crate) fn check_value_type(tpe: &SType) -> Result<(), EvalError> {
+    match tpe {
+        SType::SString => Err(EvalError::Misc(format!("Unknown type {tpe:?}"))),
+        _ => Ok(()),
+    }
 }
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
@@ -501,6 +514,92 @@ mod test {
     use sigma_test_util::force_any_val;
 
     use crate::eval::reduce_to_crypto;
+    use ergotree_ir::serialization::SigmaSerializable;
+
+    /// Trees serialized by sigmastate 6.0.7 holding String values (inline or
+    /// segregated constants, tree v0 or v3), and whether the JVM reduces them with
+    /// activated version 3. Strings must still parse and round-trip; the JVM fails
+    /// where its evaluator type-checks a String value.
+    #[test]
+    fn string_values_at_eval_match_jvm() {
+        let jvm_fails: &[&str] = &[
+            // "a" == "a" / "a" != "b"
+            "00d193660161660161",
+            "1002660161660161d19373007301",
+            "0b08d193660161660161",
+            "1b0d02660161660161d19373007301",
+            "1002660161660162d19473007301",
+            "0b08d194660161660162",
+            // Coll("a", "b")(0) == Coll("a", "b")(0)
+            "0b18d193b20c660201610162040000b20c660201610162040000",
+            // { val x = "a"; true }
+            "00d1d801d6016601610101",
+            "1b0f026601610101d1d801d60173007301",
+            // { val x = Coll("a", "b")(0); true }
+            "0b12d1d801d601b20c6602016101620400000101",
+            // ("a", 1)._2 == 1 with a Tuple node
+            "00d1938c86026601610402020402",
+            // Coll("a", "b") built from items, size == 2
+            "0b0ed193b18302666601616601620404",
+            // Coll("a", "b").indexOf(if (true) "a" else "b", 0) == 0
+            "00d193dc0c1a0c6602016101620295010166016166016204000400",
+            // Coll("a", "b").indexOf({ val x = 1; "a" }, 0) == 0
+            "0b1ad193dc0c1a0c66020161016202d801d601040266016104000400",
+            // Coll("a", "b").indexOf(Coll("a", "b").getOrElse(0, "z"), 0) == 0, v0 tree:
+            // the default is evaluated eagerly before v3
+            "00d193dc0c1a0c66020161016202b20c66020161016204000166017a04000400",
+            // Coll("a", "b").indexOf(None.getOrElse("b"), 0) == 1
+            "0b18d193dc0c1a0c66020161016202e524660066016204000402",
+            // Coll("a", "b").indexOf(Coll[String]().fold("z", f), 0) == -1
+            "0b22d193dc0c1a0c66020161016202b00c660066017ad901013c66668c72010104000401",
+            // Coll("a", "b").exists { (x: String) => x == x }
+            "10010c660201610162d1ae7300d90101669372017201",
+            // Coll("a", "b").map { (x: String) => x }.size == 2
+            "00d193b1ad0c660201610162d901016672010404",
+        ];
+        let jvm_reduces_to_true: &[&str] = &[
+            // the same getOrElse in a v3 tree: the default is lazy and not evaluated
+            "0b1fd193dc0c1a0c66020161016202b20c66020161016204000166017a04000400",
+            // Coll("a", "b").size == 2
+            "00d193b10c6602016101620404",
+            "1b11020c6602016101620404d193b173007301",
+            // Coll("a", "b").indexOf("a", 0) == 0 with an inline String argument
+            "00d193dc0c1a0c6602016101620266016104000400",
+            "0b14d193dc0c1a0c6602016101620266016104000400",
+            // Coll("a", "b").indexOf(Coll("a", "b")(1), 0) == 1
+            "00d193dc0c1a0c66020161016202b20c66020161016204020004000402",
+            // ("a", 1)._2 == 1 with a tuple constant
+            "00d1938c4c66016102020402",
+            "1b10024c660161020402d1938c7300027301",
+            // if (false) "a" == "a" else true
+            "00d1950100936601616601610101",
+            "1b160401006601616601610101d195730093730173027303",
+        ];
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4; // activated script version 3
+        let check = |hex: &str| {
+            let bytes = base16::decode(hex).unwrap();
+            let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+            assert!(tree.proposition().is_ok(), "{hex} must parse");
+            assert_eq!(
+                tree.sigma_serialize_bytes().unwrap(),
+                bytes,
+                "{hex} round-trip"
+            );
+            reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop)
+        };
+        for hex in jvm_fails {
+            let res = check(hex);
+            assert!(res.is_err(), "{hex} reduced to {res:?}, JVM fails");
+        }
+        for hex in jvm_reduces_to_true {
+            assert_eq!(
+                check(hex).unwrap(),
+                SigmaBoolean::TrivialProp(true),
+                "{hex}"
+            );
+        }
+    }
 
     #[test]
     fn diag_on_reduced_to_false() {

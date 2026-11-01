@@ -16,6 +16,7 @@ impl Evaluable for Fold {
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
         let input_v = self.input.eval(env, ctx)?;
+        crate::eval::check_value_type(&self.zero.tpe())?;
         let zero_v = self.zero.eval(env, ctx)?;
         let fold_op_v = self.fold_op.eval(env, ctx)?;
         let input_v_clone = input_v.clone();

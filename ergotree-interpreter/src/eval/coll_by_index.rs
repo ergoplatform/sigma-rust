@@ -26,7 +26,10 @@ impl Evaluable for ByIndex {
         }?;
         match self.default.as_ref() {
             Some(default) => {
-                let mut default_v = || default.eval(env, ctx);
+                let mut default_v = || {
+                    crate::eval::check_value_type(&default.tpe())?;
+                    default.eval(env, ctx)
+                };
                 let val =
                     normalized_input_vals.get_val(index_v.try_extract_into::<i32>()? as usize);
                 if ctx.tree_version() >= ErgoTreeVersion::V3 {

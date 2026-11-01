@@ -19,6 +19,10 @@ impl Evaluable for BlockValue {
         // The start of the top-level block of statements does not contain any
         // pre-existing `ValDef`s.
         let is_top_level_block = env.is_empty();
+        // JVM checkType on every ValDef rhs and the result (values.scala:1027,1034)
+        for i in self.items.iter().chain(core::iter::once(&*self.result)) {
+            crate::eval::check_value_type(&i.tpe())?;
+        }
 
         if is_top_level_block {
             for i in &self.items {
