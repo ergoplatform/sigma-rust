@@ -9,6 +9,7 @@ use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::smethod::SMethod;
+use ergotree_ir::types::stuple::pair_items;
 use ergotree_ir::types::stuple::STuple;
 use ergotree_ir::types::stype::SType::SInt;
 
@@ -153,7 +154,7 @@ pub(crate) static ZIP_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     let zip = coll_1
         .into_iter()
         .zip(coll_2)
-        .map(|(a, b)| Value::Tup([a, b].into()))
+        .map(|(a, b)| Value::Tup(pair_items(a, b)))
         .collect::<Arc<[_]>>();
     let coll_zip = CollKind::from_collection(STuple::pair(type_1, type_2).into(), zip);
     match coll_zip {

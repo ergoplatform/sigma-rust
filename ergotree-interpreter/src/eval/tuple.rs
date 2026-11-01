@@ -82,6 +82,66 @@ mod tests {
     }
 
     #[test]
+    fn eval_rejects_non_pair_tuple_expr_in_every_tree_version() {
+        use crate::eval::test_util::try_eval_out_with_version;
+        let ctx = force_any_val::<Context>();
+        for items in [
+            vec![1i32.into()],
+            vec![1i32.into(), 2i32.into(), 3i32.into()],
+        ] {
+            let tuple: Expr = Tuple::new(items).unwrap().into();
+            for tree_version in 0..=3u8 {
+                assert!(
+                    try_eval_out_with_version::<Value>(&tuple, &ctx, tree_version, 3).is_err(),
+                    "non-pair Tuple evaluated under tree v{tree_version}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn one_item_tuple_in_tree_fails_only_when_evaluated() {
+        use crate::eval::reduce_to_crypto;
+        use ergotree_ir::ergo_tree::ErgoTree;
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+
+        // v0 trees (header 0x00, or 0x10 with constant segregation) and what sigma-state
+        // 6.0.7 does with each, activated version 3. `c1` is the constant (Int)(1),
+        // bytes 60 01 04 02, and `cc` is the constant Coll[(Int)](c1).
+        let cases = [
+            ("00d1936001040260010402", false),   // c1 == c1
+            ("100160010402d19373007300", false), // c1 == c1, segregated
+            ("00d1938601040286010402", false),   // Tuple(1) == Tuple(1)
+            ("00d1938c60010402010402", false),   // c1._1 == 1
+            ("00d193b20c6001040102040000b20c6001040102040000", false), // cc(0) == cc(0)
+            ("00d1ae0c6001040102d901016001040101", false), // cc.exists(x => true)
+            ("100160010402d195010101019373007300", true), // if (true) true else c1 == c1
+            ("00d193b10c60010401020402", true),  // cc.size == 1
+        ];
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4;
+        for (hex, accepted) in cases {
+            let bytes = base16::decode(hex).unwrap();
+            let tree = ErgoTree::sigma_parse_bytes(&bytes)
+                .map_err(|e| format!("{hex}: {e:?}"))
+                .unwrap();
+            assert!(tree.proposition().is_ok(), "{hex} did not parse");
+            assert_eq!(
+                tree.sigma_serialize_bytes().unwrap(),
+                bytes,
+                "{hex} round-trip"
+            );
+            let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
+            if accepted {
+                assert_eq!(res.unwrap(), SigmaBoolean::TrivialProp(true), "{hex}");
+            } else {
+                assert!(res.is_err(), "{hex} evaluated: {res:?}");
+            }
+        }
+    }
+
+    #[test]
     fn eval_rejects_arity3_tuple_item_constant() {
         use crate::eval::test_util::try_eval_out_wo_ctx;
         use ergotree_ir::mir::constant::{Constant, Literal};

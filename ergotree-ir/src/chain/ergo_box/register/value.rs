@@ -142,7 +142,7 @@ fn tuple_to_constant(t: &Tuple) -> Result<Constant, String> {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use crate::types::stuple::STuple;
+    use crate::types::stuple::{pair_items, STuple};
     use crate::types::stype::SType;
 
     use super::*;
@@ -159,7 +159,7 @@ mod tests {
         // now let's construct a Constant for (102, 99) byte tuple
         let expected_constant: Constant = Constant {
             tpe: SType::STuple(STuple::pair(SType::SByte, SType::SByte)),
-            v: Literal::Tup([Literal::Byte(102), Literal::Byte(99)].into()),
+            v: Literal::Tup(pair_items(Literal::Byte(102), Literal::Byte(99))),
         };
         assert_eq!(
             reg_value.as_constant().unwrap(),

@@ -94,6 +94,14 @@ impl Evaluable for Expr {
             Expr::TreeLookup(op) => op.eval(env, ctx),
             Expr::CreateAvlTree(op) => op.eval(env, ctx),
         };
+        // A one-item tuple parses, as in sigma-state, but sigma-state's type check
+        // rejects its value wherever it is used ("Unsupported tuple type").
+        let res = match res {
+            Ok(Value::Tup(items)) if items.len() < 2 => Err(EvalError::Misc(
+                "Unsupported tuple type: a tuple of one item cannot be evaluated".to_string(),
+            )),
+            res => res,
+        };
         res.enrich_err(self.span(), env)
     }
 }

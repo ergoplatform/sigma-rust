@@ -91,11 +91,36 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::panic)]
+#[allow(clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::mir::constant::{Constant, Literal};
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
+
+    #[test]
+    fn arity_1_tuple_parses_and_roundtrips() {
+        // Sigma-state parses a one-item tuple in a type, a constant and a Tuple
+        // expression; it fails only at evaluation. The bytes must round-trip unchanged.
+        let tpe_bytes = [0x60u8, 0x01, 0x04]; // tuple type code, 1 item, Int
+        let tpe = SType::sigma_parse_bytes(&tpe_bytes).unwrap();
+        assert_eq!(
+            tpe,
+            SType::STuple(STuple::try_from(vec![SType::SInt]).unwrap())
+        );
+        assert_eq!(tpe.sigma_serialize_bytes().unwrap(), tpe_bytes);
+
+        let const_bytes = [0x60u8, 0x01, 0x04, 0x02]; // (Int) type, then Int 1
+        let c = Constant::sigma_parse_bytes(&const_bytes).unwrap();
+        assert_eq!(c.tpe, tpe);
+        assert_eq!(c.v, Literal::Tup(vec![Literal::Int(1)].try_into().unwrap()));
+        assert_eq!(c.sigma_serialize_bytes().unwrap(), const_bytes);
+
+        let expr_bytes = [0x86u8, 0x01, 0x04, 0x02]; // Tuple op code, 1 item, Int 1
+        let e = Expr::sigma_parse_bytes(&expr_bytes).unwrap();
+        assert_eq!(e.tpe(), tpe);
+        assert_eq!(e.sigma_serialize_bytes().unwrap(), expr_bytes);
+    }
 
     proptest! {
 

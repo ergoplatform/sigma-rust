@@ -3,6 +3,7 @@ use ergotree_ir::mir::coll_fold::Fold;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::NativeColl;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::types::stuple::pair_items;
 
 use crate::eval::env::Env;
 use crate::eval::Context;
@@ -44,7 +45,7 @@ impl Evaluable for Fold {
             Value::Coll(coll) => match coll {
                 CollKind::NativeColl(NativeColl::CollByte(coll_byte)) => {
                     coll_byte.iter().try_fold(zero_v, |acc, byte| {
-                        let tup_arg = Value::Tup([acc, Value::Byte(*byte)].into());
+                        let tup_arg = Value::Tup(pair_items(acc, Value::Byte(*byte)));
                         fold_op_call(tup_arg)
                     })
                 }
@@ -52,7 +53,7 @@ impl Evaluable for Fold {
                     elem_tpe: _,
                     items: v,
                 } => v.iter().try_fold(zero_v, |acc, item| {
-                    let tup_arg = Value::Tup([acc, item.clone()].into());
+                    let tup_arg = Value::Tup(pair_items(acc, item.clone()));
                     fold_op_call(tup_arg)
                 }),
             },
@@ -102,7 +103,7 @@ mod tests {
             let tuple: Expr = ValUse {
                 val_id: 1.into(),
                 tpe: SType::STuple(STuple {
-                    items: [SType::SLong, SType::SBox].into(),
+                    items: pair_items(SType::SLong, SType::SBox),
                 }),
             }
             .into();
@@ -126,7 +127,7 @@ mod tests {
                     vec![FuncArg {
                         idx: 1.into(),
                         tpe: SType::STuple(STuple {
-                        items: [SType::SLong, SType::SBox].into(),
+                        items: pair_items(SType::SLong, SType::SBox),
                         }),
                     }],
                     fold_op_body,

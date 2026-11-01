@@ -506,7 +506,11 @@ mod tests {
             method_call::MethodCall,
             value::CollKind,
         },
-        types::{savltree, stuple::STuple, stype::SType},
+        types::{
+            savltree,
+            stuple::{pair_items, STuple, TupleItems},
+            stype::SType,
+        },
     };
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
@@ -708,9 +712,9 @@ mod tests {
             }
             .into(),
         );
-        let pair1 = Literal::Tup(mk_pair(1u8, 10u64).into());
-        let pair2 = Literal::Tup(mk_pair(2u8, 20u64).into());
-        let pair3 = Literal::Tup(mk_pair(3u8, 30u64).into());
+        let pair1 = Literal::Tup(mk_pair(1u8, 10u64));
+        let pair2 = Literal::Tup(mk_pair(2u8, 20u64));
+        let pair3 = Literal::Tup(mk_pair(3u8, 30u64));
         let entries = Constant {
             tpe: SType::SColl(Arc::new(SType::STuple(STuple::pair(
                 SType::SColl(Arc::new(SType::SByte)),
@@ -803,7 +807,7 @@ mod tests {
             }
             .into(),
         );
-        let pair1 = Literal::Tup(mk_pair(1u8, 10u64).into());
+        let pair1 = Literal::Tup(mk_pair(1u8, 10u64));
         let entries = Constant {
             tpe: SType::SColl(Arc::new(SType::STuple(STuple::pair(
                 SType::SColl(Arc::new(SType::SByte)),
@@ -1150,8 +1154,8 @@ mod tests {
             .into(),
         );
 
-        let pair1 = Literal::Tup(mk_pair(2u8, 40u64).into());
-        let pair2 = Literal::Tup(mk_pair(3u8, 50u64).into());
+        let pair1 = Literal::Tup(mk_pair(2u8, 40u64));
+        let pair2 = Literal::Tup(mk_pair(3u8, 50u64));
         let entries = Constant {
             tpe: SType::SColl(Arc::new(SType::STuple(STuple::pair(
                 SType::SColl(Arc::new(SType::SByte)),
@@ -1207,10 +1211,10 @@ mod tests {
         prover
     }
 
-    fn mk_pair(x: u8, y: u64) -> [Literal; 2] {
-        [
+    fn mk_pair(x: u8, y: u64) -> TupleItems<Literal> {
+        pair_items(
             Literal::from(vec![x]),
             Literal::from(y.to_be_bytes().to_vec()),
-        ]
+        )
     }
 }
