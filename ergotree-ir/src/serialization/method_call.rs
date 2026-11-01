@@ -32,7 +32,7 @@ impl SigmaSerializable for MethodCall {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let type_id = TypeCode::sigma_parse(r)?;
+        let type_id_byte = r.get_u8()?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
@@ -41,6 +41,7 @@ impl SigmaSerializable for MethodCall {
         if args.is_empty() && r.tree_version() >= ErgoTreeVersion::V3 {
             return Err(SigmaParsingError::MethodCallWithoutArgs);
         }
+        let type_id = TypeCode::parse(type_id_byte)?;
         let arg_types = args.iter().map(|arg| arg.tpe()).collect();
         let method = SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types)?;
         if r.tree_version() < method.method_raw.min_version {

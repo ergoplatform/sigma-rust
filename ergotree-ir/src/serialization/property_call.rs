@@ -26,6 +26,12 @@ impl SigmaSerializable for PropertyCall {
         let obj = Expr::sigma_parse(r)?;
         let method =
             SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), Vec::new())?;
+        if r.tree_version() < method.method_raw.min_version {
+            return Err(SigmaParsingError::UnknownMethodId(
+                method_id,
+                type_id.value(),
+            ));
+        }
         Ok(PropertyCall::new(obj, method)?)
     }
 }

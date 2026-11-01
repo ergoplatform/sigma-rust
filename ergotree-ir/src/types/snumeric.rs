@@ -510,9 +510,12 @@ mod test {
     /// From v3 trees a zero-argument method is only valid as a PropertyCall
     fn roundtrip_method(obj: Expr, method: SMethod, args: Vec<Expr>) {
         if args.is_empty() {
-            let pc = PropertyCall::new(obj, method).unwrap();
-            let res = sigma_serialize_roundtrip_versioned(&pc, ErgoTreeVersion::V3);
-            assert_eq!(res.unwrap(), pc);
+            let pc = PropertyCall::new(obj.clone(), method.clone()).unwrap();
+            roundtrip_new_feature(&pc, ErgoTreeVersion::V3);
+            let mc = MethodCall::new(obj, method, vec![]).unwrap();
+            for v in 0u8..=ErgoTreeVersion::MAX_SCRIPT_VERSION.into() {
+                assert!(sigma_serialize_roundtrip_versioned(&mc, v.into()).is_err());
+            }
         } else {
             let mc = MethodCall::new(obj, method, args).unwrap();
             roundtrip_new_feature(&mc, ErgoTreeVersion::V3);

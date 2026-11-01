@@ -1095,6 +1095,60 @@ mod tests {
     }
 
     #[test]
+    fn parse_v3_property_call_before_v3() {
+        use crate::types::smethod::MethodId;
+        // (sized v0 tree, type code, method id): Header.checkPow, Int.toBytes,
+        // Int.bitwiseInverse and Coll.reverse as PropertyCall. These methods are v3 only;
+        // sigmastate keeps a sized v0-v2 tree unparsed (rule 1016) and parses it in v3.
+        let cases = [
+            ("080cd1db6810b2db6502fe040000", 0x68, 16),
+            ("080ad193b1db040604020408", 4, 6),
+            ("0809d193db040804020403", 4, 8),
+            ("080fd193b1db0c1e830204040204040404", 12, 30),
+        ];
+        for (hex, type_id, method_id) in cases {
+            let bytes = base16::decode(hex).unwrap();
+            let expected = SigmaParsingError::UnknownMethodId(MethodId(method_id), type_id);
+            assert_eq!(
+                ErgoTree::sigma_parse_bytes(&bytes).unwrap(),
+                ErgoTree::Unparsed {
+                    tree_bytes: bytes.clone(),
+                    error: ErgoTreeError::SigmaParsingError(expected.clone())
+                }
+            );
+            // without the size flag the error is not caught
+            let mut unsized_bytes = vec![0x00];
+            unsized_bytes.extend_from_slice(&bytes[2..]);
+            assert_eq!(ErgoTree::sigma_parse_bytes(&unsized_bytes), Err(expected));
+            let mut v3_bytes = bytes.clone();
+            v3_bytes[0] = 0x0b;
+            let tree = ErgoTree::sigma_parse_bytes(&v3_bytes).unwrap();
+            assert!(tree.parsed_tree().is_ok());
+        }
+    }
+
+    #[test]
+    fn parse_sized_v3_zero_arg_method_call_with_invalid_type_code_fails() {
+        // sigmastate checks the argument count before the type code
+        for hex in ["0b09d191dc0001a7000500", "0b09d191dc0a01a7000500"] {
+            let bytes = base16::decode(hex).unwrap();
+            assert_eq!(
+                ErgoTree::sigma_parse_bytes(&bytes),
+                Err(SigmaParsingError::MethodCallWithoutArgs)
+            );
+        }
+        // with one argument the invalid type code keeps the tree unparsed
+        let bytes = base16::decode("0b0bd191dc0001a701a7000500").unwrap();
+        assert_eq!(
+            ErgoTree::sigma_parse_bytes(&bytes).unwrap(),
+            ErgoTree::Unparsed {
+                tree_bytes: bytes,
+                error: ErgoTreeError::SigmaParsingError(SigmaParsingError::InvalidTypeCode(0))
+            }
+        );
+    }
+
+    #[test]
     fn parse_tree_707() {
         // see https://github.com/ergoplatform/sigma-rust/issues/707
         let ergo_tree_hex =

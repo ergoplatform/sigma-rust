@@ -77,7 +77,7 @@ impl TypeCode {
     const TUPLE_PAIR_SYMMETRIC_TYPE_CONSTR_ID: u8 = 7;
 
     /// Parse type code from byte
-    fn parse(b: u8) -> Result<Self, SigmaParsingError> {
+    pub(crate) fn parse(b: u8) -> Result<Self, SigmaParsingError> {
         match FromPrimitive::from_u8(b) {
             Some(t) => Ok(t),
             None => Err(SigmaParsingError::InvalidTypeCode(b)),
