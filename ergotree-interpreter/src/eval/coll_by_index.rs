@@ -24,11 +24,16 @@ impl Evaluable for ByIndex {
                 input_v
             ))),
         }?;
+        // a Byte or Short index is parsed only in trees before v3 (Upcast to Int in sigmastate)
+        let index = match index_v {
+            Value::Byte(i) => i as i32,
+            Value::Short(i) => i as i32,
+            ref v => v.clone().try_extract_into::<i32>()?,
+        };
         match self.default.as_ref() {
             Some(default) => {
                 let mut default_v = || default.eval(env, ctx);
-                let val =
-                    normalized_input_vals.get_val(index_v.try_extract_into::<i32>()? as usize);
+                let val = normalized_input_vals.get_val(index as usize);
                 if ctx.tree_version() >= ErgoTreeVersion::V3 {
                     val.map(Ok).unwrap_or_else(default_v)
                 } else {
@@ -36,7 +41,7 @@ impl Evaluable for ByIndex {
                 }
             }
             None => normalized_input_vals
-                .get_val(index_v.clone().try_extract_into::<i32>()? as usize)
+                .get_val(index as usize)
                 .ok_or_else(|| {
                     EvalError::Misc(format!(
                         "ByIndex: index {0:?} out of bounds for collection size {1:?}",
@@ -117,6 +122,30 @@ mod tests {
                 try_eval_out_with_version::<i64>(&expr, &ctx, tree_version, 3).unwrap(),
                 2i64
             );
+        }
+    }
+
+    // v0..v2 trees: a Byte or Short index is used as an Int, as sigmastate 6.0.7 does
+    #[test]
+    fn byte_and_short_index_in_v0_to_v2_tree() {
+        use crate::eval::reduce_to_crypto;
+        use ergotree_ir::ergo_tree::ErgoTree;
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4; // activated script version 3
+        ctx.height = 1;
+        for hex in [
+            "00d193b2100202040200000402",     // v0 Coll(1, 2)(0.toByte) == 1
+            "090cd193b2100202040200000402",   // v1
+            "0a0cd193b2100202040200000402",   // v2
+            "00d193b2100202040302000404",     // v0 Coll(1, 2)(1.toShort) == 2
+            "00d193b2100202047d040002000402", // index Downcast(0, Byte)
+            "10031002020402000402d193b273007301007302", // segregated, ph Byte index
+        ] {
+            let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
+            let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
+            assert_eq!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
         }
     }
 }

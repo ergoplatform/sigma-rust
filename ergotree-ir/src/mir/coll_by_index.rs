@@ -13,6 +13,7 @@ use crate::types::stype::SType;
 
 use super::expr::Expr;
 use super::expr::InvalidArgumentError;
+use crate::ergo_tree::ErgoTreeVersion;
 use crate::has_opcode::HasStaticOpCode;
 
 /// Get collection element by index
@@ -35,6 +36,16 @@ impl ByIndex {
         index: Expr,
         default: Option<Box<Expr>>,
     ) -> Result<Self, InvalidArgumentError> {
+        Self::new_checked(input, index, default, false)
+    }
+
+    /// `small_index`: also accept a Byte or Short index (trees before v3, ByIndexSerializer.scala:27-35)
+    fn new_checked(
+        input: Expr,
+        index: Expr,
+        default: Option<Box<Expr>>,
+        small_index: bool,
+    ) -> Result<Self, InvalidArgumentError> {
         let input_elem_type = match input.post_eval_tpe() {
             SType::SColl(elem_type) => Ok(elem_type),
             _ => Err(InvalidArgumentError(format!(
@@ -42,7 +53,8 @@ impl ByIndex {
                 input.tpe()
             ))),
         }?;
-        if index.post_eval_tpe() != SType::SInt {
+        let small = small_index && matches!(index.post_eval_tpe(), SType::SByte | SType::SShort);
+        if index.post_eval_tpe() != SType::SInt && !small {
             return Err(InvalidArgumentError(format!(
                 "ByIndex: expected index type to be SInt, got {0:?}",
                 index
@@ -87,7 +99,8 @@ impl SigmaSerializable for ByIndex {
         let input = Expr::sigma_parse(r)?;
         let index = Expr::sigma_parse(r)?;
         let default = Option::<Box<Expr>>::sigma_parse(r)?;
-        Ok(Self::new(input, index, default)?)
+        let small_index = r.tree_version() < ErgoTreeVersion::V3;
+        Ok(Self::new_checked(input, index, default, small_index)?)
     }
 }
 
@@ -132,7 +145,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::panic)]
+#[allow(clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::expr::Expr;
@@ -147,6 +160,25 @@ mod tests {
         fn ser_roundtrip(v in any::<ByIndex>()) {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
+        }
+    }
+
+    // a Byte index parses in trees before v3 (ByIndexSerializer.scala:27-35)
+    #[test]
+    fn byte_index_parses_in_v0_to_v2_tree() {
+        use crate::ergo_tree::ErgoTreeVersion;
+        use crate::serialization::sigma_byte_reader::{from_bytes, SigmaByteRead};
+        // ByIndex | Coll[Int](1, 2) | Byte 0 | no default
+        let bytes = [0xb2u8, 0x10, 0x02, 0x02, 0x04, 0x02, 0x00, 0x00];
+        for v in [
+            ErgoTreeVersion::V0,
+            ErgoTreeVersion::V1,
+            ErgoTreeVersion::V2,
+        ] {
+            let mut r = from_bytes(&bytes);
+            let res = r.with_tree_version(v, Expr::sigma_parse);
+            assert!(res.is_ok(), "tree {v:?}: {res:?}");
+            assert_eq!(r.position().unwrap() as usize, bytes.len());
         }
     }
 }

@@ -664,6 +664,37 @@ mod tests {
         }
     }
 
+    // v0..v2 trees with mixed numeric relation operands or a Byte/Short ByIndex index parse
+    // and re-serialize to the same bytes, so box ids are unchanged. Vectors are sigmastate
+    // 6.0.7's parse inputs and serializer outputs (all parse there).
+    #[test]
+    fn mixed_numeric_tree_bytes_roundtrip() {
+        for hex in [
+            "00d19304020502",                           // v0 sigmaProp(1 == 1L)
+            "0906d19304020502",                         // v1, sized
+            "0a06d19304020502",                         // v2, sized
+            "00d19105040201",                           // 2L > 1.toByte
+            "00d1937e0402050502",                       // upcast(1) == 1L
+            "00d193a30502",                             // HEIGHT == 1L
+            "00d1937ea3050502",                         // upcast(HEIGHT) == 1L
+            "100204020502d19373007301",                 // segregated, ph Int == ph Long
+            "100204020502d1937e7300057301",             // segregated, upcast(ph Int) == ph Long
+            "00d18f0302060102",                         // 1.toShort < BigInt(2)
+            "00d193b2100202040200000402",               // Coll(1, 2)(0.toByte) == 1
+            "090cd193b2100202040200000402",             // v1, sized
+            "0a0cd193b2100202040200000402",             // v2, sized
+            "00d193b2100202040302000404",               // Coll(1, 2)(1.toShort) == 2
+            "00d193b2100202047e020004000402",           // Coll(1, 2)(upcast(0.toByte)) == 1
+            "00d193b2100202047d040002000402",           // Coll(1, 2)(0.toByte computed) == 1
+            "10031002020402000402d193b273007301007302", // segregated, ph Byte index
+        ] {
+            let bytes = base16::decode(hex).unwrap();
+            let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+            assert!(tree.parsed_tree().is_ok(), "{hex}");
+            assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes, "{hex}");
+        }
+    }
+
     #[test]
     fn deserialization_non_parseable_tree_v0() {
         // constants length is set, invalid constant
