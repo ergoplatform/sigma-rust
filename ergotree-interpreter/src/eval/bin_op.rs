@@ -9,6 +9,7 @@ use ergotree_ir::mir::bin_op::{BinOp, BitOp};
 use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::types::stype::SType;
 use ergotree_ir::unsignedbigint256::UnsignedBigInt;
 use num_traits::CheckedAdd;
 use num_traits::CheckedDiv;
@@ -182,32 +183,45 @@ where
     Ok((lv_raw.min(rv_raw)).into())
 }
 
-/// Trees before v3: sigmastate's parser upcasts the narrower of two numeric relation
-/// operands to the wider type (SigmaBuilder.scala:750-763), so compare them there
-fn widen_mixed_numeric<'a>(lv: Value<'a>, rv: Value<'a>) -> (Value<'a>, Value<'a>) {
-    let rank = |v: &Value| match *v {
-        Value::Byte(x) => Some((0, i64::from(x))),
-        Value::Short(x) => Some((1, i64::from(x))),
-        Value::Int(x) => Some((2, i64::from(x))),
-        Value::Long(x) => Some((3, x)),
-        Value::BigInt(_) => Some((4, 0)),
+/// Trees before v3: sigmastate's parser upcasts the statically narrower of two numeric
+/// relation operands to the wider static type (SigmaBuilder.scala:750-763), so compare
+/// them there. The decision uses static types; a runtime value wider than the target fails
+fn widen_mixed_numeric<'a>(
+    lt: &SType,
+    rt: &SType,
+    lv: Value<'a>,
+    rv: Value<'a>,
+) -> Result<(Value<'a>, Value<'a>), EvalError> {
+    let rank = |t: &SType| match t {
+        SType::SByte => Some(0u8),
+        SType::SShort => Some(1),
+        SType::SInt => Some(2),
+        SType::SLong => Some(3),
+        SType::SBigInt => Some(4),
         _ => None,
     };
-    let widen = |x: i64, to: &Value| -> Value<'a> {
-        match to {
-            Value::Short(_) => (x as i16).into(),
-            Value::Int(_) => (x as i32).into(),
-            Value::Long(_) => x.into(),
+    let upcast = |v: Value<'a>, target: u8| -> Result<Value<'a>, EvalError> {
+        let (r, x) = match v {
+            Value::Byte(x) => (0u8, i64::from(x)),
+            Value::Short(x) => (1, i64::from(x)),
+            Value::Int(x) => (2, i64::from(x)),
+            Value::Long(x) => (3, x),
+            _ => (u8::MAX, 0),
+        };
+        if r > target {
+            return Err(EvalError::UnexpectedValue(format!("Cannot upcast {v:?}")));
+        }
+        Ok(match target {
+            1 => (x as i16).into(),
+            2 => (x as i32).into(),
+            3 => x.into(),
             _ => BigInt256::from(x).into(),
-        }
+        })
     };
-    match (rank(&lv), rank(&rv)) {
-        (Some((l, x)), Some((r, _))) if l < r => (widen(x, &rv), rv),
-        (Some((l, _)), Some((r, y))) if l > r => {
-            let rv = widen(y, &lv);
-            (lv, rv)
-        }
-        _ => (lv, rv),
+    match (rank(lt), rank(rt)) {
+        (Some(l), Some(r)) if l < r => Ok((upcast(lv, r)?, rv)),
+        (Some(l), Some(r)) if l > r => Ok((lv, upcast(rv, l)?)),
+        _ => Ok((lv, rv)),
     }
 }
 
@@ -239,7 +253,7 @@ impl Evaluable for BinOp {
             },
             BinOpKind::Relation(op) => {
                 let (lv, rv) = match ctx.tree_version() < ErgoTreeVersion::V3 {
-                    true => widen_mixed_numeric(lv, rv()?),
+                    true => widen_mixed_numeric(&self.left.tpe(), &self.right.tpe(), lv, rv()?)?,
                     false => (lv, rv()?),
                 };
                 match op {
@@ -417,10 +431,21 @@ mod tests {
             "00d193a30502",             // HEIGHT == 1L
             "100204020502d19373007301", // segregated, ph Int == ph Long
             "00d18f0302060102",         // 1.toShort < BigInt(2)
+            "00d193950100040205020502", // If(false, 1, 1L) == 1L (static Int upcast to Long)
         ] {
             let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
             let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
             assert_eq!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
+        }
+        // widening follows static types; a runtime Long under a static Int is not widened
+        // (sigmastate throws "Invalid type returned by evaluator")
+        for hex in [
+            "00d193950100040205020402", // If(false, 1, 1L) == 1
+            "00d193950100040205020302", // If(false, 1, 1L) == 1.toShort
+        ] {
+            let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
+            let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
+            assert_ne!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
         }
     }
 
