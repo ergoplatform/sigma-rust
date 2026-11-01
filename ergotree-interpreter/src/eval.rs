@@ -131,7 +131,11 @@ pub struct ReductionResult {
 /// operands of EQ/NEQ, If branches, block items and results, ValUse, Tuple and
 /// collection items, and Fold/ByIndex/OptionGetOrElse defaults. `SType.isValueOfType`
 /// has no String case and throws "Unknown type" (`SType.scala:212`), so a String
-/// value fails at these points even though String constants parse.
+/// value fails at these points even though String constants parse. Not mirrored here:
+/// ConstantPlaceholder (`values.scala:412`; segregated constants are substituted before
+/// evaluation, so they cannot be told from inline constants), lambda arguments and
+/// results at application (`values.scala:1074,1080`; planned follow-up), and
+/// `Coll.getOrElse` (`methods.scala:842`; that MethodCall is not parsed).
 pub(crate) fn check_value_type(tpe: &SType) -> Result<(), EvalError> {
     match tpe {
         SType::SString => Err(EvalError::Misc(format!("Unknown type {tpe:?}"))),
