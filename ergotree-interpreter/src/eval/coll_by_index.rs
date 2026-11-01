@@ -3,6 +3,7 @@ use ergotree_ir::mir::coll_by_index::ByIndex;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::types::stype::SType;
 
 use crate::eval::env::Env;
 use crate::eval::Context;
@@ -24,10 +25,12 @@ impl Evaluable for ByIndex {
                 input_v
             ))),
         }?;
-        // a Byte or Short index is parsed only in trees before v3 (Upcast to Int in sigmastate)
+        // a statically Byte or Short index parses only in trees before v3, where sigmastate
+        // upcasts it to Int (a runtime Byte, Short or Int); otherwise the index must be an Int
+        let small = matches!(self.index.post_eval_tpe(), SType::SByte | SType::SShort);
         let index = match index_v {
-            Value::Byte(i) => i as i32,
-            Value::Short(i) => i as i32,
+            Value::Byte(i) if small => i as i32,
+            Value::Short(i) if small => i as i32,
             ref v => v.clone().try_extract_into::<i32>()?,
         };
         match self.default.as_ref() {
@@ -142,10 +145,20 @@ mod tests {
             "00d193b2100202040302000404",     // v0 Coll(1, 2)(1.toShort) == 2
             "00d193b2100202047d040002000402", // index Downcast(0, Byte)
             "10031002020402000402d193b273007301007302", // segregated, ph Byte index
+            "00d193b21002020495010002000400000402", // static Byte index, runtime Int 0
         ] {
             let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
             let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
             assert_eq!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
+        }
+        // static Int index with a runtime Byte: sigmastate throws ClassCastException
+        for hex in [
+            "00d193b21002020495010004000200000402", // v0 Coll(1, 2)(If(false, 0, 0.toByte)) == 1
+            "0b11d193b21002020495010004000200000402", // v3
+        ] {
+            let tree = ErgoTree::sigma_parse_bytes(&base16::decode(hex).unwrap()).unwrap();
+            let res = reduce_to_crypto(&tree, &ctx).map(|r| r.sigma_prop);
+            assert_ne!(res, Ok(SigmaBoolean::TrivialProp(true)), "{hex}");
         }
     }
 }

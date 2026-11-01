@@ -664,8 +664,8 @@ mod tests {
         }
     }
 
-    // v0..v2 trees with mixed numeric relation operands or a Byte/Short ByIndex index parse
-    // and re-serialize to the same bytes, so box ids are unchanged. Vectors are sigmastate
+    // v0..v2 trees with mixed numeric relation operands or a Byte/Short ByIndex index parse,
+    // and their canonical encodings re-serialize byte-identically. Vectors are sigmastate
     // 6.0.7's parse inputs and serializer outputs (all parse there).
     #[test]
     fn mixed_numeric_tree_bytes_roundtrip() {
