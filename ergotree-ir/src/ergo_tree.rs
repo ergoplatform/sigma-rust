@@ -1404,6 +1404,14 @@ mod declared_size_tests {
     }
 
     #[test]
+    fn sized_tree_with_a_string_longer_than_the_input_rejects() {
+        // SString constant declaring 4097 bytes with one present: the JVM's
+        // `getBytes` throws IllegalArgumentException, a hard error, so no degrade
+        let bytes = tree(0x08, 4, &[0x66, 0x81, 0x20, b'a']);
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+    }
+
+    #[test]
     fn parsed_tree_puts_back_the_constant_store_and_deserialize_flag() {
         // root: SigmaProp(true); the reader starts with a Boolean store and the flag set
         for header in [0x18, 0x10] {

@@ -33,15 +33,6 @@ use super::types::TypeCode;
 use alloc::sync::Arc;
 use core::convert::TryInto;
 
-/// Maximum byte length of a `Literal::String` that can be (de)serialized.
-///
-/// Guards against huge pre-allocations driven by attacker-controlled length
-/// fields during parsing. Aligns with the JVM reference implementation
-/// (sigmastate-interpreter), where SString data is effectively bounded by
-/// `ErgoBox.MaxBoxSize` and `SigmaSerializer.MaxPropositionSize`, both 4KB,
-/// via the reader `positionLimit` checks.
-pub const MAX_STRING_LEN: u32 = 4 * 1024;
-
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
 
@@ -60,13 +51,6 @@ impl DataSerializer {
                 v.sigma_serialize(w)?;
             }
             Literal::String(s) => {
-                if s.len() > MAX_STRING_LEN as usize {
-                    return Err(SigmaSerializationError::NotSupported(format!(
-                        "string literal length {} bytes exceeds MAX_STRING_LEN {}",
-                        s.len(),
-                        MAX_STRING_LEN
-                    )));
-                }
                 w.put_usize_as_u32_unwrapped(s.len())?;
                 w.write_all(s.as_bytes())?;
             }
@@ -156,12 +140,6 @@ impl DataSerializer {
             SLong => Literal::Long(r.get_i64()?),
             SString => {
                 let len = r.get_u32()?;
-                if len > MAX_STRING_LEN {
-                    return Err(SigmaParsingError::ValueOutOfBounds(format!(
-                        "string literal length {0} bytes exceeds MAX_STRING_LEN {1}",
-                        len, MAX_STRING_LEN
-                    )));
-                }
                 r.check_remaining(len as usize)?;
                 let mut buf = vec![0; len as usize];
                 r.get_bytes_into(&mut buf)?;
