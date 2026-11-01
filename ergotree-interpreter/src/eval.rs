@@ -2,7 +2,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt::Display;
-use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeVersion};
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use snumeric::numeric_method_evalfn;
@@ -160,7 +160,19 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
     // `tree_version >= V3`) see the `Cell`'s `V0` default and reject valid V3
     // trees the JVM accepts — a consensus divergence on any caller (the node)
     // that doesn't set it.
-    ctx.tree_version.set(tree.header()?.version());
+    let tree_version = tree.header()?.version();
+    // The JVM's `VersionContext` requires the tree version not to exceed the
+    // activated script version once JIT costing is active (activated >= V2).
+    // Checking it here covers every caller of reduction, not only prove/verify.
+    let activated_version = ctx.activated_script_version();
+    if activated_version >= ErgoTreeVersion::V2 && tree_version > activated_version {
+        return Err(EvalError::Misc(format!(
+            "ErgoTree version {} is higher than activated {}",
+            u8::from(tree_version),
+            u8::from(activated_version)
+        )));
+    }
+    ctx.tree_version.set(tree_version);
     let expr = tree.proposition()?;
     let expr = if tree.has_deserialize() {
         expr.substitute_deserialize(ctx)?
@@ -543,5 +555,40 @@ mod test {
             v1: 1
         "#]]
         .assert_eq(&res.diag.to_string());
+    }
+
+    // sigmastate `VersionContext`: from activated version 2 on, reduction rejects a
+    // tree whose version is above the activated script version; below 2 it does not.
+    #[test]
+    fn tree_version_above_activated_version() {
+        use ergotree_ir::ergo_tree::ErgoTreeHeader;
+        use ergotree_ir::mir::constant::Constant;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+
+        let root = Expr::Const(Constant::from(SigmaProp::new(true.into())));
+        let tree = |version: u8| {
+            let header = if version == 0 {
+                ErgoTreeHeader::v0(false)
+            } else {
+                ErgoTreeHeader::new(0x08 | version).unwrap()
+            };
+            ErgoTree::new(header, &root).unwrap()
+        };
+        let mut ctx = force_any_val::<Context>();
+        for activated in 0..=4u8 {
+            // block version = activated script version + 1
+            ctx.pre_header.version = activated + 1;
+            for version in 0..=4u8 {
+                let res = reduce_to_crypto(&tree(version), &ctx);
+                if activated >= 2 && version > activated {
+                    assert!(
+                        res.is_err(),
+                        "tree v{version} reduced under activated {activated}"
+                    );
+                } else {
+                    assert_eq!(res.unwrap().sigma_prop, SigmaBoolean::TrivialProp(true));
+                }
+            }
+        }
     }
 }

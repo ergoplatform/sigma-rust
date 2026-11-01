@@ -583,4 +583,61 @@ mod tests {
         let prover = Wallet::from_secrets(secrets);
         assert!(prover.sign_reduced_transaction(reduced, None).is_ok());
     }
+
+    // A tree whose version is above the activated script version must not be
+    // reduced, whichever entry point reaches reduction (sigmastate `VersionContext`).
+    #[test]
+    fn test_tree_version_above_activated_version_is_rejected() {
+        use ergotree_ir::ergo_tree::ErgoTreeHeader;
+        use ergotree_ir::mir::constant::Constant;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+
+        let true_expr = Expr::Const(Constant::from(SigmaProp::new(true.into())));
+        let v0_tree = ErgoTree::try_from(true_expr.clone()).unwrap();
+        // header 0x0B: version 3, size flag
+        let v3_tree = ErgoTree::new(ErgoTreeHeader::new(0x0B).unwrap(), &true_expr).unwrap();
+        let tx_context = |tree: ErgoTree| {
+            let input = ErgoBox::new(
+                BoxValue::SAFE_USER_MIN,
+                tree,
+                None,
+                NonMandatoryRegisters::empty(),
+                1,
+                TxId::zero(),
+                0,
+            )
+            .unwrap();
+            let output = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, v0_tree.clone(), 1)
+                .build()
+                .unwrap();
+            let tx = UnsignedTransaction::new_from_vec(
+                vec![UnsignedInput::from(input.clone())],
+                vec![],
+                vec![output],
+            )
+            .unwrap();
+            TransactionContext::new(tx, vec![input], vec![]).unwrap()
+        };
+        // block version = activated script version + 1
+        let state = |block_version: u8| {
+            let mut s = force_any_val::<ErgoStateContext>();
+            s.pre_header.version = block_version;
+            s.pre_header.height = 1000;
+            s
+        };
+        let wallet = Wallet::from_secrets(vec![]);
+        let sign = |tree: ErgoTree, block_version: u8| {
+            wallet.sign_transaction(tx_context(tree), &state(block_version), None)
+        };
+        let reduce =
+            |tree: ErgoTree, block_version: u8| reduce_tx(tx_context(tree), &state(block_version));
+        // activated 2: v0 tree is accepted, v3 tree is not
+        assert!(sign(v0_tree.clone(), 3).is_ok());
+        assert!(sign(v3_tree.clone(), 3).is_err());
+        assert!(reduce(v0_tree.clone(), 3).is_ok());
+        assert!(reduce(v3_tree.clone(), 3).is_err());
+        // activated 3: v3 tree is accepted
+        assert!(sign(v3_tree.clone(), 4).is_ok());
+        assert!(reduce(v3_tree, 4).is_ok());
+    }
 }
