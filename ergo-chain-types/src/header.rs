@@ -145,9 +145,11 @@ impl ScorexSerializable for Header {
 
         // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
         // 0, we read new fields but do nothing, as semantics of the fields is not known.
+        // As in the node, new fields are read only for block version >= 5; for versions 2..=4 the
+        // length byte is read and the bytes after it are parsed as the PoW solution.
         let unparsed_bytes: Box<[u8]> = if version > 1 {
             let new_field_size = r.get_u8()?;
-            if new_field_size > 0 {
+            if new_field_size > 0 && version > 4 {
                 let mut field_bytes: Vec<u8> = vec![0; new_field_size as usize];
                 r.get_bytes_into(&mut field_bytes)?;
                 field_bytes.into()
@@ -317,7 +319,7 @@ mod arbitrary {
                 946_674_000_000..2_500_400_300_000u64,
                 any::<u32>(), // Note: n_bits must fit in u32
                 1_000_000u32..10_000_000u32,
-                prop::sample::select(vec![1_u8, 2]),
+                prop::sample::select(vec![1_u8, 2, 3, 4, 5]),
                 any::<Box<AutolykosSolution>>(),
                 uniform3(1u8..),
                 proptest::collection::vec(any::<u8>(), 0..=255),
@@ -358,7 +360,8 @@ mod arbitrary {
                             extension_root,
                             autolykos_solution: *autolykos_solution.clone(),
                             votes,
-                            unparsed_bytes: if version > 1 {
+                            // new fields are parsed only for block version >= 5
+                            unparsed_bytes: if version > 4 {
                                 unparsed_bytes.into()
                             } else {
                                 Box::new([])
@@ -475,6 +478,72 @@ mod pow_boundary_tests {
         assert_eq!(
             unsupported.check_pow(),
             Err(AutolykosPowSchemeError::Unsupported)
+        );
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+mod new_fields_tests {
+    use super::*;
+
+    // A version 2 header, 223 bytes. The new fields length byte is at offset 181 (here 0), the
+    // miner pk at [182, 215) and the nonce at [215, 223).
+    const HEADER_V2: &str = "02ac2101807f0000ca01ff0119db227f202201007f62000177a080005d440896d05d3f80dcff7f5e7f59007294c180808d0158d1ff6ba10000f901c7f0ef87dcfff17fffacb6ff7f7f1180d2ff7f1e24ffffe1ff937f807f0797b9ff6ebdae007e5c8c00b8403d3701557181c8df800001b6d5009e2201c6ff807d71808c00019780f087adb3fcdbc0b3441480887f80007f4b01cf7f013ff1ffff564a0000b9a54f00770e807f41ff88c00240000080c0250000000003bedaee069ff4829500b3c07c4d5fe6b3ea3d3bf76c5c28c1d4dcdb1bed0ade0c0000000000003105";
+
+    /// `HEADER_V2` with the given version, a new fields length of 1 and one new field byte 0x00.
+    fn with_one_new_field(version: u8) -> Vec<u8> {
+        let h = base16::decode(HEADER_V2).unwrap();
+        let mut bytes = vec![version];
+        bytes.extend_from_slice(&h[1..181]);
+        bytes.extend_from_slice(&[0x01, 0x00]);
+        bytes.extend_from_slice(&h[182..]);
+        bytes
+    }
+
+    // Expected values below are from the node's HeaderSerializer (v6.0.7) on the same bytes.
+    #[test]
+    fn header_v2_v4_new_fields_are_not_consumed() {
+        let node_ids = [
+            "2ee8c6bc5702827620121af58fe2be6b9b22a3a6f9571b62cfc48c1fd6d80b01",
+            "f9522b6013247b1eba26ea592f739bf31d43e2ad0807ccdd3e41559a3ad83646",
+            "520db26b902238ad0bf32ea76cf5a7f02a7cb8e2f81fa259293676532cd5b8ff",
+        ];
+        for (version, node_id) in (2..=4).zip(node_ids) {
+            let bytes = with_one_new_field(version);
+            let h = Header::scorex_parse_bytes(&bytes).unwrap();
+            assert!(h.unparsed_bytes.is_empty());
+            // the new field byte 0x00 is read as the first byte of the miner pk
+            assert_eq!(*h.autolykos_solution.miner_pk, crate::ec_point::identity());
+            assert_eq!(
+                base16::encode_lower(&h.autolykos_solution.nonce),
+                "0c00000000000031"
+            );
+            // the node writes the length byte as 0, the pk as 33 zero bytes, then the nonce
+            let mut node_bytes = bytes[..181].to_vec();
+            node_bytes.extend_from_slice(&[0; 34]);
+            node_bytes.extend_from_slice(&bytes[215..223]);
+            let ser = h.scorex_serialize_bytes().unwrap();
+            assert_eq!(ser, node_bytes);
+            assert_eq!(base16::encode_lower(&h.id.0 .0), node_id);
+            assert_eq!(h.id.0 .0, *blake2b256_hash(&ser));
+            assert_eq!(Header::scorex_parse_bytes(&ser).unwrap(), h);
+        }
+    }
+
+    #[test]
+    fn header_v5_new_fields_are_consumed() {
+        let bytes = with_one_new_field(5);
+        let h = Header::scorex_parse_bytes(&bytes).unwrap();
+        assert_eq!(&*h.unparsed_bytes, &[0x00]);
+        assert_eq!(
+            base16::encode_lower(&h.autolykos_solution.nonce),
+            "0000000000003105"
+        );
+        assert_eq!(h.scorex_serialize_bytes().unwrap(), bytes);
+        assert_eq!(
+            base16::encode_lower(&h.id.0 .0),
+            "48e1f80d04ef8f4c096d37bdff75c04370998c8ebf965c859672ff3b587eb4c7"
         );
     }
 }
