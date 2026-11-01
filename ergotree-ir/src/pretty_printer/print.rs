@@ -498,6 +498,7 @@ impl Print for PropertyCall {
             expr: PropertyCall {
                 obj: Box::new(obj),
                 method: self.method.clone(),
+                explicit_type_args: self.explicit_type_args.clone(),
             },
         }
         .into())

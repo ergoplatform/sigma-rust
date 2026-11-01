@@ -104,3 +104,34 @@ mod tests {
         roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod global_some_type_arg_tests {
+    use crate::ergo_tree::ErgoTreeVersion;
+    use crate::mir::expr::Expr;
+    use crate::serialization::sigma_byte_reader::{from_bytes, SigmaByteRead};
+    use crate::serialization::{SigmaParsingError, SigmaSerializable};
+    use crate::types::stype::SType;
+
+    fn parse_v3(bytes: &[u8]) -> Result<Expr, SigmaParsingError> {
+        from_bytes(bytes).with_tree_version(ErgoTreeVersion::V3, Expr::sigma_parse)
+    }
+
+    // sigmastate 6.0.7 SGlobalMethods.someMethod declares explicit type arg T and
+    // MethodCallSerializer writes it after the args: some[Int](1) = dc6a09dd01040204
+    #[test]
+    fn some_reads_and_writes_explicit_type_arg() {
+        let scala = [0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x04];
+        let expr = parse_v3(&scala).unwrap();
+        assert_eq!(expr.tpe(), SType::SOption(SType::SInt.into()));
+        assert_eq!(expr.sigma_serialize_bytes().unwrap(), scala);
+    }
+
+    // without the type arg the bytes are truncated for sigmastate (BufferUnderflowException)
+    #[test]
+    fn some_without_type_arg_is_rejected() {
+        let short = [0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02];
+        assert!(parse_v3(&short).is_err());
+    }
+}
