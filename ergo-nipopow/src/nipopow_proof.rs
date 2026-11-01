@@ -41,7 +41,9 @@ impl NipopowProof {
         suffix_head: PoPowHeader,
         suffix_tail: Vec<Header>,
     ) -> Result<NipopowProof, NipopowProofError> {
-        if k >= 1 {
+        if m == 0 {
+            Err(NipopowProofError::ZeroMParameter)
+        } else if k >= 1 {
             Ok(NipopowProof {
                 popow_algos: NipopowAlgos::default(),
                 m,
@@ -83,7 +85,19 @@ impl NipopowProof {
     }
 
     fn is_valid(&self) -> bool {
-        self.has_valid_connections() && self.has_valid_heights() && self.has_valid_proofs()
+        self.has_valid_params()
+            && self.has_valid_connections()
+            && self.has_valid_heights()
+            && self.has_valid_proofs()
+    }
+
+    /// Mirrors `PoPowParams.isValid` in the reference implementation, which
+    /// `NipopowProof.isValid` checks first: both security parameters must be
+    /// at least 1 and their sum must fit in an `i32`. A proof parsed from
+    /// bytes bypasses [`NipopowProof::new`], so the parameters have to be
+    /// checked here; in particular `m == 0` makes `best_arg` loop forever.
+    fn has_valid_params(&self) -> bool {
+        self.m >= 1 && self.k >= 1 && (self.m as u64 + self.k as u64) <= i32::MAX as u64
     }
 
     /// Checks the connections of the blocks in the proof. Adjacent blocks should be linked either
@@ -193,6 +207,9 @@ pub enum NipopowProofError {
     /// `k` parameter == 0. Must be >= 1.
     #[error("k parameter == 0. Must be >= 1")]
     ZeroKParameter,
+    /// `m` parameter == 0. Must be >= 1.
+    #[error("m parameter == 0. Must be >= 1")]
+    ZeroMParameter,
     /// Can not prove non-anchored (first block is non-Genesis) chain
     #[error("Can not prove non-anchored (first block is non-Genesis) chain")]
     NonAnchoredChain,
@@ -349,8 +366,28 @@ mod arbitrary {
 #[allow(clippy::unwrap_used, clippy::panic)]
 pub mod tests {
     use super::*;
+    use crate::NipopowVerifier;
     use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
+
+    /// A proof consisting of a single header with no interlinks. It passes the
+    /// connection/height/proof checks, so only its parameters can make it
+    /// invalid.
+    fn minimal_proof(m: u32, k: u32, header: Header) -> NipopowProof {
+        NipopowProof {
+            popow_algos: NipopowAlgos::default(),
+            m,
+            k,
+            prefix: vec![],
+            suffix_head: PoPowHeader {
+                header,
+                interlinks: vec![],
+                interlinks_proof: ergo_merkle_tree::BatchMerkleProof::new(vec![], vec![]),
+            },
+            suffix_tail: vec![],
+        }
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(64))]
@@ -360,6 +397,45 @@ pub mod tests {
             prop_assert_eq![scorex_serialize_roundtrip(&v), v];
         }
 
+        #[test]
+        fn zero_m_proof_is_invalid_and_never_better(h in any::<Header>()) {
+            let proof = minimal_proof(0, 1, h);
+            prop_assert!(!proof.is_valid());
+            // Regression test: this call looped forever in best_arg, because
+            // with m == 0 the `args.len() >= m` condition holds at every level.
+            prop_assert_eq!(proof.is_better_than(&proof).unwrap(), false);
+        }
 
+        #[test]
+        fn new_rejects_zero_m_and_zero_k(pph in any::<PoPowHeader>()) {
+            let res = NipopowProof::new(0, 1, vec![], pph.clone(), vec![]);
+            prop_assert_eq!(res.unwrap_err(), NipopowProofError::ZeroMParameter);
+            let res = NipopowProof::new(1, 0, vec![], pph, vec![]);
+            prop_assert_eq!(res.unwrap_err(), NipopowProofError::ZeroKParameter);
+        }
+
+        #[test]
+        fn prove_rejects_zero_m(pph in any::<PoPowHeader>()) {
+            let res = NipopowAlgos::default().prove(&[pph], 1, 0);
+            prop_assert_eq!(res.unwrap_err(), NipopowProofError::ZeroMParameter);
+        }
+
+        #[test]
+        fn verifier_processes_zero_m_proofs(h in any::<Header>()) {
+            let mut verifier = NipopowVerifier::new(h.id);
+            verifier.process(minimal_proof(0, 1, h.clone())).unwrap();
+            // Processing a second proof triggers a comparison against the
+            // first one; it must return, not hang in best_arg.
+            verifier.process(minimal_proof(0, 1, h)).unwrap();
+        }
+
+    }
+
+    #[test]
+    fn best_arg_zero_m_empty_chain() {
+        // The diverging chains compared in is_better_than are empty when the
+        // lowest common ancestor is the chain tip; with m == 0 best_arg
+        // looped forever on them.
+        assert_eq!(NipopowAlgos::default().best_arg(&[], 0).unwrap(), 0);
     }
 }
