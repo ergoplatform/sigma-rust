@@ -1057,6 +1057,30 @@ mod tests {
     }
 
     #[test]
+    fn parse_v3_relation_mixed_numeric_types_rejected() {
+        // v3 trees `sigmaProp(1 <op> 2L)` for ==, !=, <, <=, >, >= (no Upcast node)
+        for op in ["93", "94", "8f", "90", "91", "92"] {
+            let bytes = base16::decode(format!("0b06d1{op}04020504").as_bytes()).unwrap();
+            // a type constraint failure is not deferred as an unparsed tree
+            assert!(matches!(
+                ErgoTree::sigma_parse_bytes(&bytes),
+                Err(SigmaParsingError::ConstraintFailed(_))
+            ));
+        }
+        for tree_hex in [
+            // v3 `sigmaProp(1 != 1)`: same operand types
+            "0b06d19404020402",
+            // v3 `sigmaProp(1L + 2 == 3L)`: arithmetic is not checked at parse
+            "0b09d1939a050204040506",
+            // v0 `sigmaProp(1 != 1L)`: not rejected below v3
+            "0806d19404020502",
+        ] {
+            let tree = ErgoTree::sigma_parse_bytes(&base16::decode(tree_hex).unwrap()).unwrap();
+            assert!(tree.parsed_tree().is_ok());
+        }
+    }
+
+    #[test]
     fn parse_p2pk_672() {
         // see https://github.com/ergoplatform/sigma-rust/issues/672
         let valid_p2pk = "0e2103e02fa2bbd85e9298aa37fe2634602a0fba746234fe2a67f04d14deda55fac491";

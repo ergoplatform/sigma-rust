@@ -99,6 +99,10 @@ pub enum SigmaParsingError {
     /// Invalid argument on node creation
     #[error("Invalid argument: {0:?}")]
     InvalidArgument(#[from] InvalidArgumentError),
+    /// Operand types of a binary operation don't satisfy its type constraint (e.g. mixed
+    /// numeric types in a relation in a v3+ tree). Not deferred as an unparsed tree.
+    #[error("Type constraint failed: {0}")]
+    ConstraintFailed(String),
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
     UnknownMethodId(MethodId, u8),
@@ -187,6 +191,8 @@ impl SigmaParsingError {
     /// errors live in other variants and keep degrading (not listed here).
     /// Nesting deeper than `MaxTreeDepth` escapes too: the JVM's
     /// `DeserializeCallDepthExceeded` is a `SerializerException`.
+    /// A type constraint failure escapes too: sigma-state's builder throws
+    /// `ConstraintFailed`, not a `ValidationException`.
     pub fn escapes_sized_tree_degrade(&self) -> bool {
         if self.is_position_limit_exceeded() {
             return false;
@@ -198,6 +204,7 @@ impl SigmaParsingError {
                 | SigmaParsingError::Io(_)
                 | SigmaParsingError::VlqEncode(_)
                 | SigmaParsingError::DeserializeCallDepthExceeded(_)
+                | SigmaParsingError::ConstraintFailed(_)
         )
     }
 }

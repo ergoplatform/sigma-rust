@@ -1,5 +1,7 @@
 use alloc::boxed::Box;
+use alloc::format;
 
+use crate::ergo_tree::ErgoTreeVersion;
 use crate::mir::bin_op::BinOp;
 use crate::mir::bin_op::BinOpKind;
 use crate::mir::constant::Constant;
@@ -61,6 +63,20 @@ pub fn bin_op_sigma_parse<R: SigmaByteRead>(
     } else {
         let left = Expr::sigma_parse(r)?;
         let right = Expr::sigma_parse(r)?;
+        if let BinOpKind::Relation(op) = op_kind {
+            let (l_tpe, r_tpe) = (left.tpe(), right.tpe());
+            // v3+ trees get no auto-upcast, so mixed numeric operands fail
+            // the same-type check (Scala `DeserializationSigmaBuilder`)
+            if l_tpe != r_tpe
+                && l_tpe.is_numeric()
+                && r_tpe.is_numeric()
+                && r.tree_version() >= ErgoTreeVersion::V3
+            {
+                return Err(SigmaParsingError::ConstraintFailed(format!(
+                    "{op} operands of different types: {l_tpe:?}, {r_tpe:?}"
+                )));
+            }
+        }
         BinOp {
             kind: op_kind,
             left: Box::new(left),

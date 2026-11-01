@@ -494,6 +494,7 @@ mod test {
             val_def::ValDef,
             val_use::ValUse,
         },
+        serialization::SigmaSerializable,
         sigma_protocol::sigma_boolean::SigmaBoolean,
         types::stype::SType,
     };
@@ -543,5 +544,19 @@ mod test {
             v1: 1
         "#]]
         .assert_eq(&res.diag.to_string());
+    }
+
+    #[test]
+    fn v3_tree_neq_int_long_rejected() {
+        // v3 tree `sigmaProp(1 != 1L)` with no Upcast node; v3 trees get no auto-upcast,
+        // so the mixed operand types are rejected at parse and the tree must not reduce
+        let tree_bytes = base16::decode("0b06d19404020502").unwrap();
+        let reduced = ErgoTree::sigma_parse_bytes(&tree_bytes)
+            .ok()
+            .and_then(|tree| {
+                let ctx = force_any_val::<Context>();
+                reduce_to_crypto(&tree, &ctx).ok()
+            });
+        assert!(reduced.is_none());
     }
 }
