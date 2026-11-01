@@ -116,10 +116,7 @@ mod tests {
     use ergotree_ir::{
         bigint256::BigInt256,
         chain::context::Context,
-        mir::{
-            coll_by_index::ByIndex, expr::Expr, method_call::MethodCall,
-            property_call::PropertyCall,
-        },
+        mir::{coll_by_index::ByIndex, expr::Expr, property_call::PropertyCall},
         types::{
             scontext::{self, HEADERS_PROPERTY},
             sheader,
@@ -402,10 +399,9 @@ mod tests {
         // Add a mainnet block header with valid PoW to context. TODO: this can be simplified once Header serialization is added to sigma-rust (v6.0), right now we need to access CONTEXT.headers(0)
         let headers = PropertyCall::new(Expr::Context, HEADERS_PROPERTY.clone()).unwrap();
         let header = ByIndex::new(headers.into(), 0i32.into(), None).unwrap();
-        let check_pow: Expr =
-            MethodCall::new(header.into(), sheader::CHECK_POW_METHOD.clone(), vec![])
-                .unwrap()
-                .into();
+        let check_pow: Expr = PropertyCall::new(header.into(), sheader::CHECK_POW_METHOD.clone())
+            .unwrap()
+            .into();
         assert!(eval_out::<bool>(&check_pow, &ctx));
         // Mutate header to invalidate proof-of-work
         ctx.headers[0].timestamp -= 1;

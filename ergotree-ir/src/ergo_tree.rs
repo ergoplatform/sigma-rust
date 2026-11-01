@@ -1074,6 +1074,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_sized_v3_tree_with_zero_arg_method_call_fails() {
+        // sigmaProp(SELF.value > 0L) with SELF.value as a zero-argument MethodCall (0xDC .. 0x00)
+        // instead of a PropertyCall. sigmastate rejects it in v3 trees with an assertion,
+        // which is not a soft-fork condition, so the sized tree must not become Unparsed.
+        let v3_bytes = base16::decode("0b09d191dc6301a7000500").unwrap();
+        assert_eq!(
+            ErgoTree::sigma_parse_bytes(&v3_bytes),
+            Err(SigmaParsingError::MethodCallWithoutArgs)
+        );
+        // the same body in a v0 tree parses and round-trips
+        let v0_bytes = base16::decode("0809d191dc6301a7000500").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&v0_bytes).unwrap();
+        assert!(tree.parsed_tree().is_ok());
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), v0_bytes);
+        // the PropertyCall form (0xDB) parses in a v3 tree
+        let v3_property_bytes = base16::decode("0b08d191db6301a70500").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&v3_property_bytes).unwrap();
+        assert!(tree.parsed_tree().is_ok());
+    }
+
+    #[test]
     fn parse_tree_707() {
         // see https://github.com/ergoplatform/sigma-rust/issues/707
         let ergo_tree_hex =

@@ -102,6 +102,10 @@ pub enum SigmaParsingError {
     /// Unknown method ID for given type code
     #[error("No method id {0:?} found in type companion with type id {1:?} ")]
     UnknownMethodId(MethodId, u8),
+    /// MethodCall without arguments in an ErgoTree of version 3 or later. Not a soft-fork
+    /// condition: a sized tree carrying it fails to parse instead of staying unparsed.
+    #[error("MethodCall without arguments in ErgoTree v3+")]
+    MethodCallWithoutArgs,
     /// Feature not supported
     #[error("parsing not supported: {0}")]
     NotSupported(&'static str),
@@ -186,7 +190,8 @@ impl SigmaParsingError {
     /// which is excluded so it still degrades. Soft-forkable type/opcode/method
     /// errors live in other variants and keep degrading (not listed here).
     /// Nesting deeper than `MaxTreeDepth` escapes too: the JVM's
-    /// `DeserializeCallDepthExceeded` is a `SerializerException`.
+    /// `DeserializeCallDepthExceeded` is a `SerializerException`. A zero-argument
+    /// MethodCall in a v3+ tree escapes as well: sigmastate fails with an `AssertionError`.
     pub fn escapes_sized_tree_degrade(&self) -> bool {
         if self.is_position_limit_exceeded() {
             return false;
@@ -198,6 +203,7 @@ impl SigmaParsingError {
                 | SigmaParsingError::Io(_)
                 | SigmaParsingError::VlqEncode(_)
                 | SigmaParsingError::DeserializeCallDepthExceeded(_)
+                | SigmaParsingError::MethodCallWithoutArgs
         )
     }
 }

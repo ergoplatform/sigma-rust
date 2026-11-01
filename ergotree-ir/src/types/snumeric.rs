@@ -497,13 +497,27 @@ mod test {
     use crate::{
         bigint256::BigInt256,
         ergo_tree::ErgoTreeVersion,
-        mir::{constant::Constant, expr::Expr, method_call::MethodCall},
-        serialization::roundtrip_new_feature,
-        types::{stype::SType, stype_companion::STypeCompanion},
+        mir::{
+            constant::Constant, expr::Expr, method_call::MethodCall, property_call::PropertyCall,
+        },
+        serialization::{roundtrip_new_feature, sigma_serialize_roundtrip_versioned},
+        types::{smethod::SMethod, stype::SType, stype_companion::STypeCompanion},
         unsignedbigint256::UnsignedBigInt,
     };
 
     use super::sbigint::{TO_UNSIGNED_METHOD_DESC, TO_UNSIGNED_MOD_METHOD_DESC};
+
+    /// From v3 trees a zero-argument method is only valid as a PropertyCall
+    fn roundtrip_method(obj: Expr, method: SMethod, args: Vec<Expr>) {
+        if args.is_empty() {
+            let pc = PropertyCall::new(obj, method).unwrap();
+            let res = sigma_serialize_roundtrip_versioned(&pc, ErgoTreeVersion::V3);
+            assert_eq!(res.unwrap(), pc);
+        } else {
+            let mc = MethodCall::new(obj, method, args).unwrap();
+            roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+        }
+    }
 
     #[test]
     fn byte_method_roundtrips() {
@@ -514,8 +528,7 @@ mod test {
                 [SType::SByte, SType::SInt] => vec![Constant::from(1i32).into()],
                 _ => unreachable!(),
             };
-            let mc = MethodCall::new(Constant::from(1i8).into(), method, args).unwrap();
-            roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+            roundtrip_method(Constant::from(1i8).into(), method, args);
         });
     }
     #[test]
@@ -527,8 +540,7 @@ mod test {
                 [SType::SShort, SType::SInt] => vec![Constant::from(1i32).into()],
                 _ => unreachable!(),
             };
-            let mc = MethodCall::new(Constant::from(1i16).into(), method, args).unwrap();
-            roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+            roundtrip_method(Constant::from(1i16).into(), method, args);
         });
     }
     #[test]
@@ -539,8 +551,7 @@ mod test {
                 [SType::SInt, SType::SInt] => vec![Constant::from(1i32).into()],
                 _ => unreachable!(),
             };
-            let mc = MethodCall::new(Constant::from(1i32).into(), method, args).unwrap();
-            roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+            roundtrip_method(Constant::from(1i32).into(), method, args);
         });
     }
     #[test]
@@ -552,8 +563,7 @@ mod test {
                 [SType::SLong, SType::SInt] => vec![Constant::from(1i32).into()],
                 _ => unreachable!(),
             };
-            let mc = MethodCall::new(Constant::from(1i64).into(), method, args).unwrap();
-            roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+            roundtrip_method(Constant::from(1i64).into(), method, args);
         });
     }
     #[test]
@@ -571,24 +581,18 @@ mod test {
                     [SType::SBigInt, SType::SInt] => vec![Constant::from(1i32).into()],
                     _ => unreachable!(),
                 };
-                let mc = MethodCall::new(Constant::from(BigInt256::from(1)).into(), method, args)
-                    .unwrap();
-                roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+                roundtrip_method(Constant::from(BigInt256::from(1)).into(), method, args);
             });
-        let to_unsigned_mc = MethodCall::new(
+        roundtrip_method(
             Constant::from(BigInt256::from(1)).into(),
             TO_UNSIGNED_METHOD_DESC.as_method(STypeCompanion::SBigInt),
             vec![],
-        )
-        .unwrap();
-        roundtrip_new_feature(&to_unsigned_mc, ErgoTreeVersion::V3);
-        let to_unsigned_mod_mc = MethodCall::new(
+        );
+        roundtrip_method(
             Constant::from(BigInt256::from(1)).into(),
             TO_UNSIGNED_MOD_METHOD_DESC.as_method(STypeCompanion::SBigInt),
             vec![Constant::from(UnsignedBigInt::from(1u32)).into()],
-        )
-        .unwrap();
-        roundtrip_new_feature(&to_unsigned_mod_mc, ErgoTreeVersion::V3);
+        );
     }
     #[test]
     fn unsigned_bigint_method_roundtrips() {
@@ -605,13 +609,11 @@ mod test {
                     [SType::SUnsignedBigInt, SType::SInt] => vec![Constant::from(1i32).into()],
                     _ => unreachable!(),
                 };
-                let mc = MethodCall::new(
+                roundtrip_method(
                     Constant::from(UnsignedBigInt::from(1u32)).into(),
                     method,
                     args,
-                )
-                .unwrap();
-                roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+                );
             });
         super::sunsignedbigint::METHOD_DESC
             .iter()
@@ -622,13 +624,11 @@ mod test {
                     Constant::from(UnsignedBigInt::from(1u32)).into();
                     method.method_raw.tpe.t_dom.len() - 1
                 ];
-                let mc = MethodCall::new(
+                roundtrip_method(
                     Constant::from(UnsignedBigInt::from(1u32)).into(),
                     method,
                     args,
-                )
-                .unwrap();
-                roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+                );
             });
     }
 }
