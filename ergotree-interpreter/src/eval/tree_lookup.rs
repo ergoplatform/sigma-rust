@@ -1,6 +1,4 @@
-use alloc::boxed::Box;
-use alloc::vec::Vec;
-use bytes::Bytes;
+use alloc::string::ToString;
 use ergotree_ir::mir::tree_lookup::TreeLookup;
 use ergotree_ir::mir::value::Value;
 
@@ -8,144 +6,74 @@ use crate::eval::env::Env;
 use crate::eval::Context;
 use crate::eval::EvalError;
 use crate::eval::Evaluable;
-use ergo_avltree_rust::batch_avl_verifier::BatchAVLVerifier;
-use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
-use ergo_avltree_rust::operation::Operation;
-use ergotree_ir::mir::avl_tree_data::AvlTreeData;
-use ergotree_ir::mir::constant::TryExtractInto;
-use sigma_util::AsVecU8;
 
 impl Evaluable for TreeLookup {
     fn eval<'ctx>(
         &self,
-        env: &mut Env<'ctx>,
-        ctx: &Context<'ctx>,
+        _env: &mut Env<'ctx>,
+        _ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
-        let normalized_tree_val = self
-            .tree
-            .eval(env, ctx)?
-            .try_extract_into::<AvlTreeData>()?;
-        let normalized_key_val = self.key.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
-        let normalized_proof_val = self.proof.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
-
-        let starting_digest = Bytes::from(normalized_tree_val.digest.0.to_vec());
-        let proof = Bytes::from(normalized_proof_val.as_vec_u8());
-
-        let mut bv = BatchAVLVerifier::new(
-            &starting_digest,
-            &proof,
-            AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-                normalized_tree_val.key_length as usize,
-                normalized_tree_val
-                    .value_length_opt
-                    .as_ref()
-                    .map(|v| **v as usize),
-            ),
-            None,
-            None,
-        )
-        .map_err(map_eval_err)?;
-
-        match bv.perform_one_operation(&Operation::Lookup(Bytes::from(
-            normalized_key_val.as_vec_u8(),
-        ))) {
-            Ok(opt) => match opt {
-                Some(v) => Ok(Value::Opt(Some(Box::new(v.to_vec().into())))),
-                _ => Ok(Value::Opt(None)),
-            },
-            Err(_) => Err(EvalError::AvlTree(format!(
-                "Tree proof is incorrect {:?}",
-                normalized_tree_val
-            ))),
-        }
+        // The reference interpreter has no eval override for the standalone
+        // `TreeLookup` node (opcode `AvlTreeGet`): its `costKind` is
+        // `notSupportedError`, so the default `Value.eval` raises ("Should be
+        // overriden"). The ErgoScript compiler emits an `AvlTree.get` MethodCall,
+        // never this node, so mainnet never reaches it — but a hand-crafted tree
+        // using the opcode directly must error to match the oracle rather than
+        // evaluate (it would be a consensus split otherwise).
+        Err(EvalError::UnexpectedExpr(
+            "TreeLookup (AvlTreeGet) node is not supported for evaluation".to_string(),
+        ))
     }
-}
-
-fn map_eval_err<T: core::fmt::Debug>(e: T) -> EvalError {
-    EvalError::AvlTree(format!("{:?}", e))
 }
 
 #[allow(clippy::unwrap_used, clippy::panic, clippy::unreachable)]
 #[cfg(test)]
 mod tests {
-
     use super::*;
-    use crate::eval::test_util::eval_out_wo_ctx;
+    use crate::eval::test_util::try_eval_out_wo_ctx;
 
+    use alloc::boxed::Box;
+    use alloc::vec;
+    use alloc::vec::Vec;
+    use bytes::Bytes;
     use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
     use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
-    use ergo_avltree_rust::operation::KeyValue;
+    use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
+    use ergo_avltree_rust::operation::{KeyValue, Operation};
     use ergo_chain_types::ADDigest;
-    use ergotree_ir::mir::{
-        avl_tree_data::{AvlTreeData, AvlTreeFlags},
-        expr::Expr,
-        value::{CollKind, NativeColl},
-    };
+    use ergotree_ir::mir::avl_tree_data::{AvlTreeData, AvlTreeFlags};
+    use ergotree_ir::mir::expr::Expr;
     use sigma_ser::ScorexSerializable;
     use sigma_util::AsVecI8;
 
     #[test]
-    fn eval_tree_lookup() {
+    fn tree_lookup_eval_is_unsupported() {
+        // A well-formed TreeLookup over a real tree and a valid proof: the
+        // reference interpreter still refuses to evaluate the standalone node, so
+        // eval must error rather than return the looked-up value.
         let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
         let initial_digest =
             ADDigest::scorex_parse_bytes(&prover.digest().unwrap().into_iter().collect::<Vec<_>>())
                 .unwrap();
-
-        let key1 = Bytes::from(vec![1u8]);
-        let key2 = Bytes::from(vec![2u8]);
-        let op1 = Operation::Lookup(key1);
-        let op2 = Operation::Lookup(key2);
-        let lookup_found = prover.perform_one_operation(&op1).unwrap();
-        let lookup_not_found = prover.perform_one_operation(&op2).unwrap();
         let proof = prover.generate_proof().to_vec().as_vec_i8();
 
-        let tree_flags = AvlTreeFlags::new(false, false, false);
         let obj = Expr::Const(
             AvlTreeData {
                 digest: initial_digest,
-                tree_flags,
+                tree_flags: AvlTreeFlags::new(false, false, false),
                 key_length: 1,
                 value_length_opt: None,
             }
             .into(),
         );
-
-        let search_key_found = vec![1i8];
-        let search_key_not_found = vec![2i8];
-
-        let expr_found = TreeLookup {
-            tree: Box::new(obj.clone()),
-            key: Box::new(search_key_found.into()),
-            proof: Box::new(proof.clone().into()),
-        }
-        .into();
-        let expr_not_found = TreeLookup {
+        let expr: Expr = TreeLookup {
             tree: Box::new(obj),
-            key: Box::new(search_key_not_found.into()),
+            key: Box::new(vec![1i8].into()),
             proof: Box::new(proof.into()),
         }
         .into();
 
-        let res_found: Value = eval_out_wo_ctx(&expr_found);
-        let res_not_found: Value = eval_out_wo_ctx(&expr_not_found);
-
-        if let Value::Opt(opt) = res_found {
-            if let Some(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b)))) = opt.as_deref()
-            {
-                assert!(lookup_found.unwrap().eq(&b.as_vec_u8()));
-            } else {
-                unreachable!();
-            }
-        } else {
-            unreachable!();
-        }
-
-        if let Value::Opt(opt) = res_not_found {
-            assert!(lookup_not_found.is_none() && opt.is_none())
-        } else {
-            unreachable!();
-        }
+        assert!(try_eval_out_wo_ctx::<Value>(&expr).is_err());
     }
 
     fn populate_tree(entries: Vec<(Vec<u8>, Vec<u8>)>) -> BatchAVLProver {
