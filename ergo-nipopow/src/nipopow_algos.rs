@@ -4,7 +4,7 @@ use ergo_chain_types::{
     },
     Header,
 };
-use num_traits::ToPrimitive;
+use num_traits::{ToPrimitive, Zero};
 use std::convert::TryInto;
 
 use crate::{nipopow_proof::PoPowHeader, NipopowProof, NipopowProofError};
@@ -99,10 +99,14 @@ impl NipopowAlgos {
         if !genesis_header {
             // Order of the secp256k1 elliptic curve
             let order = order_bigint();
+            let difficulty = decode_compact_bits(header.n_bits);
+            if difficulty.is_zero() {
+                // Same guard as `Header::check_pow`: a zero difficulty would
+                // otherwise panic on the division below.
+                return Err(AutolykosPowSchemeError::OutOfBounds);
+            }
             #[allow(clippy::unwrap_used)]
-            let required_target = (order / decode_compact_bits(header.n_bits))
-                .to_f64()
-                .unwrap();
+            let required_target = (order / difficulty).to_f64().unwrap();
             #[allow(clippy::unwrap_used)]
             let real_target = self.pow_scheme.pow_hit(header)?.to_f64().unwrap();
             let level = required_target.log2() - real_target.log2();
