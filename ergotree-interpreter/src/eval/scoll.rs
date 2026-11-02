@@ -435,7 +435,7 @@ mod tests {
             MethodCall::new(
                 coll.into(),
                 scoll::INDEX_OF_METHOD.clone().with_concrete_types(
-                    &[(STypeVar::t(), SType::SLong)].iter().cloned().collect(),
+                    &[(STypeVar::iv(), SType::SLong)].iter().cloned().collect(),
                 ),
                 vec![elem.into(), from.into()],
             )
@@ -466,7 +466,7 @@ mod tests {
             coll_const.into(),
             scoll::INDEX_OF_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![3i64.into(), 0i32.into()],
         )
         .unwrap()
@@ -492,7 +492,7 @@ mod tests {
             .into(),
             scoll::INDICES_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![],
         )
         .unwrap()
@@ -532,8 +532,8 @@ mod tests {
             empty_coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -553,8 +553,8 @@ mod tests {
             empty_coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -574,8 +574,8 @@ mod tests {
             coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -597,8 +597,8 @@ mod tests {
             coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -621,8 +621,8 @@ mod tests {
             coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -642,8 +642,8 @@ mod tests {
             coll_const.into(),
             scoll::ZIP_METHOD.clone().with_concrete_types(
                 &[
-                    (STypeVar::t(), SType::SLong),
-                    (STypeVar::iv(), SType::SBoolean),
+                    (STypeVar::iv(), SType::SLong),
+                    (STypeVar::ov(), SType::SBoolean),
                 ]
                 .iter()
                 .cloned()
@@ -664,7 +664,7 @@ mod tests {
             coll_const.into(),
             scoll::INDICES_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![],
         )
         .unwrap()
@@ -680,7 +680,7 @@ mod tests {
             coll_const.into(),
             scoll::INDICES_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![],
         )
         .unwrap()
@@ -698,7 +698,7 @@ mod tests {
             coll_const.into(),
             scoll::PATCH_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![1i32.into(), patch_input.into(), 2i32.into()],
         )
         .unwrap()
@@ -716,7 +716,7 @@ mod tests {
             coll_const.into(),
             scoll::PATCH_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![2i32.into(), patch_input.into(), 0i32.into()],
         )
         .unwrap()
@@ -734,7 +734,7 @@ mod tests {
             coll_const.into(),
             scoll::PATCH_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![2i32.into(), patch_input.into(), 2i32.into()],
         )
         .unwrap()
@@ -752,7 +752,7 @@ mod tests {
             coll_const.into(),
             scoll::PATCH_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![9i32.into(), patch_input.into(), 9i32.into()],
         )
         .unwrap()
@@ -770,7 +770,7 @@ mod tests {
             coll_const.into(),
             scoll::PATCH_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![(-1i32).into(), patch_input.into(), (-1i32).into()],
         )
         .unwrap()
@@ -786,7 +786,7 @@ mod tests {
             coll_const.into(),
             scoll::UPDATED_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![1i32.into(), 5i64.into()],
         )
         .unwrap()
@@ -802,7 +802,7 @@ mod tests {
             coll_const.into(),
             scoll::UPDATED_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![5i32.into(), 5i64.into()],
         )
         .unwrap()
@@ -820,7 +820,7 @@ mod tests {
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![indexes_input.into(), updates_input.into()],
         )
         .unwrap()
@@ -839,7 +839,7 @@ mod tests {
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![indexes_input.into(), updates_input.into()],
         )
         .unwrap()
@@ -857,7 +857,7 @@ mod tests {
             coll_const.into(),
             scoll::UPDATE_MANY_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].iter().cloned().collect()),
             vec![indexes_input.into(), updates_input.into()],
         )
         .unwrap()
@@ -873,7 +873,7 @@ mod tests {
             coll_const.into(),
             scoll::REVERSE_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].into_iter().collect()),
             vec![],
         )
         .unwrap()
@@ -888,7 +888,7 @@ mod tests {
             coll_const.into(),
             scoll::REVERSE_METHOD
                 .clone()
-                .with_concrete_types(&[(STypeVar::t(), SType::SByte)].into_iter().collect()),
+                .with_concrete_types(&[(STypeVar::iv(), SType::SByte)].into_iter().collect()),
             vec![],
         )
         .unwrap()
@@ -905,7 +905,7 @@ mod tests {
                 Constant::from(input).into(),
                 scoll::STARTS_WITH_METHOD
                     .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+                    .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].into_iter().collect()),
                 vec![Constant::from(prefix).into()],
             )
             .unwrap()
@@ -917,7 +917,7 @@ mod tests {
                 Constant::from(input).into(),
                 scoll::STARTS_WITH_METHOD
                     .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SByte)].into_iter().collect()),
+                    .with_concrete_types(&[(STypeVar::iv(), SType::SByte)].into_iter().collect()),
                 vec![Constant::from(prefix).into()],
             )
             .unwrap()
@@ -944,7 +944,7 @@ mod tests {
                 Constant::from(input).into(),
                 scoll::ENDS_WITH_METHOD
                     .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+                    .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].into_iter().collect()),
                 vec![Constant::from(suffix).into()],
             )
             .unwrap()
@@ -956,7 +956,7 @@ mod tests {
                 Constant::from(input).into(),
                 scoll::ENDS_WITH_METHOD
                     .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SByte)].into_iter().collect()),
+                    .with_concrete_types(&[(STypeVar::iv(), SType::SByte)].into_iter().collect()),
                 vec![Constant::from(suffix).into()],
             )
             .unwrap()
@@ -983,7 +983,7 @@ mod tests {
                 Constant::from(input).into(),
                 scoll::GET_METHOD
                     .clone()
-                    .with_concrete_types(&[(STypeVar::t(), SType::SLong)].into_iter().collect()),
+                    .with_concrete_types(&[(STypeVar::iv(), SType::SLong)].into_iter().collect()),
                 vec![Constant::from(index).into()],
             )
             .unwrap()

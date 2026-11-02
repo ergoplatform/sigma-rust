@@ -65,8 +65,8 @@ lazy_static! {
         name: "indexOf",
         tpe: SFunc {
             t_dom: vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                STypeVar::t().into(),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                STypeVar::iv().into(),
                 SType::SInt],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
@@ -105,11 +105,11 @@ lazy_static! {
         name: "zip",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::ov()).into())
             ],
             SType::SColl(SType::STuple(STuple::pair(
-                STypeVar::t().into(), STypeVar::iv().into()
+                STypeVar::iv().into(), STypeVar::ov().into()
             )).into())
         ),
         explicit_type_args: vec![],
@@ -125,7 +125,7 @@ lazy_static! {
         name: "indices",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
             ],
             SType::SColl(SType::SInt.into())
         ),
@@ -142,12 +142,12 @@ lazy_static! {
         name: "patch",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -162,12 +162,12 @@ lazy_static! {
         name: "updated",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt,
-                SType::STypeVar(STypeVar::t())
+                SType::STypeVar(STypeVar::iv())
 
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -182,12 +182,12 @@ lazy_static! {
         name: "updateMany",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SColl(SType::SInt.into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
 
             ],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V0
@@ -201,8 +201,8 @@ lazy_static! {
         method_id: REVERSE_METHOD_ID,
         name: "reverse",
         tpe: SFunc::new(
-            vec![SType::SColl(SType::STypeVar(STypeVar::t()).into())],
-            SType::SColl(SType::STypeVar(STypeVar::t()).into())
+            vec![SType::SColl(SType::STypeVar(STypeVar::iv()).into())],
+            SType::SColl(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V3
@@ -217,8 +217,8 @@ lazy_static! {
         name: "startsWith",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
             ],
             SType::SBoolean
         ),
@@ -235,8 +235,8 @@ lazy_static! {
         name: "endsWith",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
-                SType::SColl(SType::STypeVar(STypeVar::t()).into())
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into())
             ],
             SType::SBoolean
         ),
@@ -253,10 +253,10 @@ lazy_static! {
         name: "get",
         tpe: SFunc::new(
             vec![
-                SType::SColl(SType::STypeVar(STypeVar::t()).into()),
+                SType::SColl(SType::STypeVar(STypeVar::iv()).into()),
                 SType::SInt
             ],
-            SType::SOption(SType::STypeVar(STypeVar::t()).into())
+            SType::SOption(SType::STypeVar(STypeVar::iv()).into())
         ),
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V3
@@ -268,6 +268,83 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mir::constant::Constant;
+    use crate::mir::expr::Expr;
+    use crate::mir::method_call::MethodCall;
+    use hashbrown::HashMap;
+
+    fn contains_type_var(tpe: &SType, var: &STypeVar) -> bool {
+        match tpe {
+            SType::STypeVar(v) => v == var,
+            SType::SOption(elem) => contains_type_var(elem, var),
+            SType::SColl(elem) => contains_type_var(elem, var),
+            SType::STuple(tuple) => tuple.items.iter().any(|item| contains_type_var(item, var)),
+            SType::SFunc(func) => {
+                func.t_dom.iter().any(|item| contains_type_var(item, var))
+                    || contains_type_var(&func.t_range, var)
+            }
+            _ => false,
+        }
+    }
+
+    #[test]
+    fn method_descs_use_scala_type_var_names() {
+        // sigmastate-interpreter's SCollectionMethods names the collection
+        // element type IV (and OV for a second element type, e.g. zip's
+        // argument); no Coll descriptor uses the T variable (issue #642).
+        for desc in METHOD_DESC.iter() {
+            assert!(
+                !contains_type_var(&SType::SFunc(desc.tpe.clone()), &STypeVar::t()),
+                "Coll.{} descriptor uses STypeVar T instead of IV/OV: {:?}",
+                desc.name,
+                desc.tpe
+            );
+        }
+    }
+
+    #[test]
+    fn zip_specialized_with_scala_type_var_names() {
+        // { (x: Coll[Long]) => x.zip(Coll[Boolean]) } with the concrete
+        // types keyed by the Scala variable names IV and OV (issue #642).
+        let subst: HashMap<STypeVar, SType> = [
+            (STypeVar::iv(), SType::SLong),
+            (STypeVar::ov(), SType::SBoolean),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+        let obj: Expr = Constant::from(vec![1i64, 2i64]).into();
+        let arg: Expr = Constant::from(vec![true, false]).into();
+        let mc = MethodCall::new(
+            obj,
+            ZIP_METHOD.clone().with_concrete_types(&subst),
+            vec![arg],
+        )
+        .unwrap();
+        assert_eq!(
+            mc.tpe(),
+            SType::SColl(SType::STuple(STuple::pair(SType::SLong, SType::SBoolean)).into())
+        );
+    }
+
+    #[test]
+    fn patch_specialized_with_scala_type_var_names() {
+        let subst: HashMap<STypeVar, SType> =
+            [(STypeVar::iv(), SType::SLong)].iter().cloned().collect();
+        let obj: Expr = Constant::from(vec![1i64, 2i64]).into();
+        let patch: Expr = Constant::from(vec![3i64]).into();
+        let mc = MethodCall::new(
+            obj,
+            PATCH_METHOD.clone().with_concrete_types(&subst),
+            vec![
+                Constant::from(0i32).into(),
+                patch,
+                Constant::from(1i32).into(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(mc.tpe(), SType::SColl(SType::SLong.into()));
+    }
 
     #[test]
     fn test_from_ids() {
