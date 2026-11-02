@@ -78,39 +78,57 @@ pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
+    use core3::io::Cursor;
     use ergotree_ir::chain::context_extension::ContextExtension;
     use ergotree_ir::chain::ergo_box::ErgoBox;
-    use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeVersion};
+    use ergotree_ir::ergo_tree::{ErgoTreeHeader, ErgoTreeVersion};
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::method_call::MethodCall;
     use ergotree_ir::mir::property_call::PropertyCall;
     use ergotree_ir::mir::value::Value;
+    use ergotree_ir::serialization::constant_store::ConstantStore;
+    use ergotree_ir::serialization::sigma_byte_reader::{SigmaByteRead, SigmaByteReader};
     use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::types::sbox;
     use ergotree_ir::types::stype::SType;
     use ergotree_ir::types::stype_param::STypeVar;
+    use sigma_ser::vlq_encode::ReadSigmaVlqExt;
     use sigma_test_util::force_any_val;
 
     use crate::eval::test_util::{eval_out, try_eval_out_with_version};
     use crate::eval::EvalError;
     use ergotree_ir::chain::context::Context;
 
-    // The vector trees carry arbitrary-typed roots (eval-tier corpus); the sized
-    // parse path rejects non-SigmaProp roots, so clear the size bit and drop the
-    // size byte to route through the non-sized path — the same leniency the
-    // conformance runner applies.
-    fn parse_tree_lenient(hex: &str) -> Expr {
+    // The vector trees are eval-tier: their roots are not SigmaProp, so they don't
+    // parse as ErgoTrees (rule 1001). Read the root expression off the tree bytes
+    // under the tree's version, with its segregated constants substituted.
+    fn parse_vector_root(hex: &str) -> Expr {
         let bytes: Vec<u8> = (0..hex.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
             .collect();
-        let mut lenient = Vec::with_capacity(bytes.len() - 1);
-        lenient.push(bytes[0] & !0x08);
-        lenient.extend_from_slice(&bytes[2..]); // size VLQ is 1 byte here
-        let tree = ErgoTree::sigma_parse_bytes(&lenient).unwrap();
-        tree.proposition().unwrap()
+        let mut cursor = Cursor::new(&bytes[..]);
+        let mut r = SigmaByteReader::new(&mut cursor, ConstantStore::empty());
+        let header = ErgoTreeHeader::sigma_parse(&mut r).unwrap();
+        if header.has_size() {
+            r.get_u32().unwrap();
+        }
+        let constants: Vec<Constant> = if header.is_constant_segregation() {
+            r.with_tree_version(header.version(), |r| {
+                let n = r.get_u32().unwrap();
+                (0..n).map(|_| Constant::sigma_parse(r).unwrap()).collect()
+            })
+        } else {
+            Vec::new()
+        };
+        let mut r = SigmaByteReader::new_with_substitute_placeholders(
+            cursor,
+            ConstantStore::new(constants),
+        );
+        r.with_tree_version(header.version(), Expr::sigma_parse)
+            .unwrap()
     }
 
     // SELF with exactly R4 = Long(7) and ContextExtension var 1 = `idx` — the
@@ -217,7 +235,7 @@ mod tests {
     fn eval_reg_dynamic_index_absent_or_out_of_range_is_none() {
         const GET_REG_LONG: &str = "1b0b00dc6313a701e4e3010405";
         let run = |idx: i32| -> Option<i64> {
-            let expr = parse_tree_lenient(GET_REG_LONG);
+            let expr = parse_vector_root(GET_REG_LONG);
             let ctx = ctx_with_r4_long7_and_var1(idx);
             try_eval_out_with_version::<Option<i64>>(&expr, &ctx, 3, 3).unwrap()
         };
@@ -229,7 +247,7 @@ mod tests {
 
         // The wrong-type boundary stays an error: getReg[Int] over the Long R4.
         const GET_REG_INT: &str = "1b0b00dc6313a701e4e3010404";
-        let expr = parse_tree_lenient(GET_REG_INT);
+        let expr = parse_vector_root(GET_REG_INT);
         let ctx = ctx_with_r4_long7_and_var1(4);
         assert!(
             try_eval_out_with_version::<Option<i32>>(&expr, &ctx, 3, 3).is_err(),
@@ -244,13 +262,13 @@ mod tests {
     #[test]
     fn eval_getregv5_parses_but_does_not_eval() {
         // { SELF.getRegV5(getVar[Int](1).get) } — live, must error at eval.
-        let expr = parse_tree_lenient("1b0a00dc6307a701e4e30104");
+        let expr = parse_vector_root("1b0a00dc6307a701e4e30104");
         let ctx = ctx_with_r4_long7_and_var1(4);
         assert!(try_eval_out_with_version::<Value>(&expr, &ctx, 3, 3).is_err());
 
         // { if (true) true else SELF.getRegV5(getVar[Int](1).get).isDefined }
         // — dead branch, the tree must parse and evaluate to true.
-        let expr = parse_tree_lenient("1b1402010101019573007301e6dc6307a701e4e30104");
+        let expr = parse_vector_root("1b1402010101019573007301e6dc6307a701e4e30104");
         let ctx = ctx_with_r4_long7_and_var1(4);
         assert!(try_eval_out_with_version::<bool>(&expr, &ctx, 3, 3).unwrap());
     }
