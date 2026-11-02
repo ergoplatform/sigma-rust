@@ -920,18 +920,27 @@ mod tests {
     #[test]
     fn substitute_constants_rejects_one_item_tuple_constant() {
         let dummy: Constant = 7i32.into();
-        let run = |hex: &str, pos: &[usize]| {
+        let run_at = |hex: &str, pos: &[usize], version: ErgoTreeVersion| {
             let new_values = vec![dummy.clone(); pos.len()];
             let bytes = base16::decode(hex).unwrap();
-            ErgoTree::substitute_constants(bytes.clone(), pos, &new_values, ErgoTreeVersion::V0)
+            ErgoTree::substitute_constants(bytes.clone(), pos, &new_values, version)
                 .map(|(out, _)| assert_eq!(out, bytes, "{hex}"))
         };
+        let run = |hex: &str, pos: &[usize]| run_at(hex, pos, ErgoTreeVersion::V0);
         assert!(run("100160010402d19373007300", &[]).is_err());
         assert!(run("100160010402d19373007300", &[5]).is_err());
         assert!(run("100160010402ff", &[]).is_err());
         assert!(run("1001580202d19373007300", &[5]).is_ok());
         assert!(run("1001580202ff", &[]).is_ok());
         assert!(run("00d1936001040260010402", &[]).is_ok());
+        // one-item tuple nested inside other types (JVM J10r D5, D7, D8, D10)
+        assert!(run("10010c6001040102d19373007300", &[]).is_err()); // Coll[(Int)]
+        assert!(run("10014c6001040202d19373007300", &[]).is_err()); // ((Int),Int)
+        assert!(run("1001480460010404020202d19373007300", &[]).is_err()); // (Int,(Int),Int)
+        assert!(run("10010c0c600104010102d19373007300", &[]).is_err()); // Coll[Coll[(Int)]]
+
+        // Option[(Int)] (JVM J10r D6): under V0 parse already rejects SOption data
+        assert!(run_at("1001246001040102d19373007300", &[], ErgoTreeVersion::V3).is_err());
     }
 
     #[test]
