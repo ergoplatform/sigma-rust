@@ -120,7 +120,7 @@ impl SigmaSerializable for Cthreshold {
             SigmaParsingError::ValueOutOfBounds("Cthreshold threshold k exceeds 255".to_string())
         })?;
         let items_count = r.get_u16()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
         }

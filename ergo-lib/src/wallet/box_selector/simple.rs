@@ -8,7 +8,6 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
-use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::token::Token;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
@@ -224,7 +223,14 @@ fn check_input_preservation<T: ErgoBoxAssets>(
 #[error("Not enough coins for change box(es)")]
 pub struct NotEnoughCoinsForChangeBox(String);
 
-/// Split change tokens into a multiple boxes if over ErgoBox::MAX_TOKENS_COUNT distinct tokens
+/// Wallet packing policy: max tokens per change box. Deliberately NOT
+/// `ErgoBox::MAX_TOKENS_COUNT` (255, the wire/type ceiling): a box that many
+/// minimal 33-byte tokens would exceed `ErgoBox::MAX_BOX_SIZE` and be rejected
+/// by the node's size rule. 122 is the fit-derived bound this selector has
+/// always used ((4096 - ~85 bytes of other fields) / 33), kept as local policy.
+const MAX_TOKENS_PER_CHANGE_BOX: usize = 122;
+
+/// Split change tokens into a multiple boxes if over MAX_TOKENS_PER_CHANGE_BOX distinct tokens
 fn make_change_boxes(
     change_value: BoxValue,
     change_tokens: HashMap<TokenId, TokenAmount>,
@@ -234,9 +240,9 @@ fn make_change_boxes(
             value: change_value,
             tokens: None,
         }])
-    } else if change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT {
+    } else if change_tokens.len() <= MAX_TOKENS_PER_CHANGE_BOX {
         #[allow(clippy::unwrap_used)]
-        // unwrap_used is ok here because we checked that change_tokens.len() <= ErgoBox::MAX_TOKENS_COUNT
+        // unwrap_used is ok here because we checked that change_tokens.len() <= MAX_TOKENS_PER_CHANGE_BOX
         Ok(vec![ErgoBoxAssetsData {
             value: change_value,
             tokens: Some(
@@ -249,9 +255,9 @@ fn make_change_boxes(
             change_tokens.into_iter().map(Token::from).collect();
         let mut change_value_left = change_value;
         while !change_tokens_left.is_empty() {
-            if change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT {
+            if change_tokens_left.len() <= MAX_TOKENS_PER_CHANGE_BOX {
                 #[allow(clippy::unwrap_used)]
-                // unwrap_used is ok here because we checked that change_tokens_left.len() <= ErgoBox::MAX_TOKENS_COUNT
+                // unwrap_used is ok here because we checked that change_tokens_left.len() <= MAX_TOKENS_PER_CHANGE_BOX
                 let change_box = ErgoBoxAssetsData {
                     value: change_value_left,
                     tokens: Some(BoxTokens::from_vec(change_tokens_left).unwrap()),
@@ -262,11 +268,11 @@ fn make_change_boxes(
                 #[allow(clippy::unwrap_used)] // safe for the box value upper bound
                 // doubled due to larger box size to accomodate so many tokens
                 let value = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
-                let tokens_to_drain = ErgoBox::MAX_TOKENS_COUNT;
+                let tokens_to_drain = MAX_TOKENS_PER_CHANGE_BOX;
                 let drained_tokens: Vec<Token> =
                     change_tokens_left.drain(..tokens_to_drain).collect();
                 #[allow(clippy::unwrap_used)]
-                // safe since tokens_to_drain is ErgoBox::MAX_TOKENS_COUNT
+                // safe since tokens_to_drain is MAX_TOKENS_PER_CHANGE_BOX
                 let change_box = ErgoBoxAssetsData {
                     value,
                     tokens: Some(BoxTokens::from_vec(drained_tokens).unwrap()),
@@ -551,8 +557,8 @@ mod tests {
                             value_range: (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into(),
                             tokens_param: ArbTokensParam {
                                 token_id_param: ArbTokenIdParam::Arbitrary,
-                                // with min 4 boxes below gives us minimum ErgoBox::MAX_TOKENS_COUNT * 2 distinct tokens total
-                                token_count_range: (ErgoBox::MAX_TOKENS_COUNT/2)..ErgoBox::MAX_TOKENS_COUNT,
+                                // with min 4 boxes below gives us minimum MAX_TOKENS_PER_CHANGE_BOX * 2 distinct tokens total
+                                token_count_range: (MAX_TOKENS_PER_CHANGE_BOX/2)..MAX_TOKENS_PER_CHANGE_BOX,
                             }
                         }),
                     4..10
@@ -611,15 +617,15 @@ mod tests {
                             value_range: (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into(),
                             tokens_param: ArbTokensParam {
                                 token_id_param: ArbTokenIdParam::Arbitrary,
-                                // with min 4 boxes below gives us minimum ErgoBox::MAX_TOKENS_COUNT * 2 distinct tokens total
-                                token_count_range: (ErgoBox::MAX_TOKENS_COUNT/2)..ErgoBox::MAX_TOKENS_COUNT,
+                                // with min 4 boxes below gives us minimum MAX_TOKENS_PER_CHANGE_BOX * 2 distinct tokens total
+                                token_count_range: (MAX_TOKENS_PER_CHANGE_BOX/2)..MAX_TOKENS_PER_CHANGE_BOX,
                             }
                         }),
                     4..10
                 )) {
             let target_tokens = inputs.iter()
                 .flat_map(|b| b.tokens().unwrap())
-                .take(ErgoBox::MAX_TOKENS_COUNT + 10)
+                .take(MAX_TOKENS_PER_CHANGE_BOX + 10)
                 .collect::<Vec<Token>>();
             let target_balance = BoxValue::SAFE_USER_MIN.checked_mul_u32(2).unwrap();
             let s = SimpleBoxSelector::new();

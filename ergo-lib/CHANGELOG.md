@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - BREAKING: serialization I/O traits now use the exact-pinned `core3` 0.1.2 successor instead of `core2` (all `core2` releases were yanked upstream); downstream implementations using those traits may need to update their I/O imports and error types.
 - BREAKING: `ReducedInput.sigma_prop` is serialized in JSON as a standalone base16 string of the sigma encoding instead of the tagged JSON form; the deserializer only accepts the new form https://github.com/ergoplatform/sigma-rust/pull/838
-- BREAKING: string literals longer than 4096 bytes (`MAX_STRING_LEN`) are now rejected during (de)serialization, mirroring the JVM reference implementation's effective 4KB limits; this also prevents huge pre-allocations from malformed length fields (DoS).
 - BREAKING: the WASM `UnsignedBigInt` constructor accepts only nonnegative safe integers as JavaScript Numbers. Use BigInt for larger values.
 - BREAKING: `Header.nBits` is now `u32` https://github.com/ergoplatform/sigma-rust/pull/824
 - `no_std` support across the workspace: `sigma-ser`, `sigma-util`, `ergo-chain-types`, `gf2_192`, `ergotree-ir`, `ergotree-interpreter`, and `ergo-lib` (`ergo-merkle-tree` and `ergo-nipopow` are now optional features); `Context` moved from `ergotree-interpreter` to `ergotree-ir` https://github.com/ergoplatform/sigma-rust/pull/782
@@ -36,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Performance: precomputed generator tables https://github.com/ergoplatform/sigma-rust/pull/790, pre-computed `DlogProverInput.public_image`, lazy `Option`/`Coll` `getOrElse` https://github.com/ergoplatform/sigma-rust/pull/798, zero-alloc base16 decoding for `TokenId`/`Digest32`/`BlockId`
 
 ### Fixed
+- Parsing checks wire-declared lengths against the remaining input before allocating, as the JVM reference does, and no longer pre-allocates from wire-declared element counts, so a malformed length or count field can't abort the process with a huge allocation (DoS); string literals have no fixed length cap, as on the JVM https://github.com/ergoplatform/sigma-rust/pull/927
 - Reject malformed `Cthreshold` sigma propositions (`k > n` or `k > 255`) at parse time instead of aborting the process during proof verification; the verifier's proof parser also tolerates in-memory malformed thresholds defensively.
 - `ContextExtension` serialization order now matches the JVM's Scala 2.12 HAMT ordering for extensions with 5+ entries, fixing signature mismatch with the node https://github.com/ergoplatform/sigma-rust/pull/843 https://github.com/ergoplatform/sigma-rust/pull/921
 - Validate reduced-transaction input counts and serialized context extensions before JSON acceptance, binary serialization, signing, and deterministic commitment generation.

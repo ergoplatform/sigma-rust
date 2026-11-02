@@ -1282,10 +1282,7 @@ pub(crate) mod arbitrary {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::panic)]
 mod tests {
-    use crate::{
-        ergo_tree::ErgoTreeVersion,
-        serialization::{data::MAX_STRING_LEN, roundtrip_new_feature},
-    };
+    use crate::{ergo_tree::ErgoTreeVersion, serialization::roundtrip_new_feature};
 
     use super::*;
     use core::fmt;
@@ -1325,8 +1322,10 @@ mod tests {
     }
 
     #[test]
-    fn string_max_len_boundary_roundtrip() {
-        let s = "a".repeat(MAX_STRING_LEN as usize);
+    fn string_over_4096_bytes_roundtrips() {
+        // the JVM's SString data has no length cap (sigmastate v6.0.6
+        // `CoreDataSerializer.scala:104-110`); only a reader window bounds it
+        let s = "a".repeat(5000);
         let constant = Constant::from(s.clone());
         let bytes = constant.sigma_serialize_bytes().unwrap();
         let parsed = Constant::sigma_parse_bytes(&bytes).unwrap();
@@ -1334,12 +1333,12 @@ mod tests {
     }
 
     #[test]
-    fn string_len_over_max_rejected_on_parse() {
+    fn string_len_over_remaining_rejected_on_parse() {
         // serialized: [SSTRING typecode = 102, VLQ u32 len = 4097 = 0x81 0x20, one payload byte]
         let bytes: Vec<u8> = vec![102, 0x81, 0x20, b'a'];
         assert!(matches!(
             Constant::sigma_parse_bytes(&bytes),
-            Err(SigmaParsingError::ValueOutOfBounds(_))
+            Err(SigmaParsingError::Io(_))
         ));
     }
 
@@ -1351,16 +1350,7 @@ mod tests {
         let bytes: Vec<u8> = vec![102, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, b'a'];
         assert!(matches!(
             Constant::sigma_parse_bytes(&bytes),
-            Err(SigmaParsingError::ValueOutOfBounds(_))
-        ));
-    }
-
-    #[test]
-    fn string_len_over_max_rejected_on_serialize() {
-        let constant = Constant::from("a".repeat(MAX_STRING_LEN as usize + 1));
-        assert!(matches!(
-            constant.sigma_serialize_bytes(),
-            Err(SigmaSerializationError::NotSupported(_))
+            Err(SigmaParsingError::Io(_))
         ));
     }
 

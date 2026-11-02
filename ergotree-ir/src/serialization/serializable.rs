@@ -85,6 +85,14 @@ pub enum SigmaParsingError {
     /// Tuple items out of bounds
     #[error("Tuple items out of bounds: {0}")]
     TupleItemsOutOfBounds(usize),
+    /// Nested value deserialization went deeper than
+    /// [`MAX_TREE_DEPTH`](crate::serialization::sigma_byte_reader::MAX_TREE_DEPTH)
+    /// (sigmastate `DeserializeCallDepthExceeded`)
+    #[error(
+        "nested value deserialization call depth({0}) exceeds allowed maximum {max}",
+        max = crate::serialization::sigma_byte_reader::MAX_TREE_DEPTH
+    )]
+    DeserializeCallDepthExceeded(usize),
     /// ValDef type for a given index not found in ValDefTypeStore store
     #[error("ValDef type for an index {0:?} not found in ValDefTypeStore store")]
     ValDefIdNotFound(ValId),
@@ -112,17 +120,85 @@ pub enum SigmaParsingError {
     /// Invalid register value
     #[error("Invalid register value: {0}")]
     InvalidRegisterValue(#[from] RegisterValueError),
+    /// Data value of a type whose type code has no `DataSerializer` and is NOT
+    /// soft-forkable per sigma-state rule 1009 (`CheckSerializableTypeCode`): the
+    /// code is neither `OptionTypeCode` (36) nor `> LastDataType` (111). Mirrors the
+    /// JVM's hard `SerializerException` ("Not defined DataSerializer for type ..."),
+    /// which escapes `ErgoTreeSerializer.deserializeErgoTree`'s `UnparsedErgoTree`
+    /// soft-fork fallback — so a size-flagged tree carrying such a constant is
+    /// rejected, not degraded to `Unparsed`.
+    #[error("data value of type code {0} cannot be deserialized (rule 1009: not soft-forkable)")]
+    NonSerializableTypeCode(u8),
+    /// A read started past the position limit (the reference impl's rule 1014
+    /// `CheckPositionLimit`, set as the `MaxBoxSize` window during box parse).
+    /// SOFT-FORKABLE: a size-flagged tree whose body overruns its position
+    /// window degrades to `Unparsed` (matching the JVM's `ValidationException`),
+    /// unlike a hard EOF/structural failure which rejects.
+    #[error("read position exceeds the position limit")]
+    PositionLimitExceeded,
 }
 
 impl From<io::Error> for SigmaParsingError {
     fn from(error: io::Error) -> Self {
-        SigmaParsingError::Io(error.to_string())
+        // `InvalidData` is the position-limit signal (rule 1014); see
+        // `VlqEncodingError`'s `From<io::Error>`. Keep it apart from `Io` (EOF).
+        if error.kind() == io::ErrorKind::InvalidData {
+            SigmaParsingError::PositionLimitExceeded
+        } else {
+            SigmaParsingError::Io(error.to_string())
+        }
     }
 }
 
 impl From<&io::Error> for SigmaParsingError {
     fn from(error: &io::Error) -> Self {
-        SigmaParsingError::Io(error.to_string())
+        if error.kind() == io::ErrorKind::InvalidData {
+            SigmaParsingError::PositionLimitExceeded
+        } else {
+            SigmaParsingError::Io(error.to_string())
+        }
+    }
+}
+
+impl SigmaParsingError {
+    /// True if this is the soft-forkable position-limit error (rule 1014),
+    /// whether at the top level or nested in `VlqEncode` / `ScorexParsingError`
+    /// (a windowed read can trip the limit through either channel).
+    pub fn is_position_limit_exceeded(&self) -> bool {
+        match self {
+            SigmaParsingError::PositionLimitExceeded => true,
+            SigmaParsingError::VlqEncode(vlq_encode::VlqEncodingError::PositionLimitExceeded) => {
+                true
+            }
+            SigmaParsingError::ScorexParsingError(e) => e.is_position_limit_exceeded(),
+            _ => false,
+        }
+    }
+
+    /// True if a size-flagged `ErgoTree` carrying a constant whose body fails
+    /// with this error must REJECT (escape the soft-fork degrade) instead of
+    /// degrading to `Unparsed`. Mirrors sigma-state
+    /// `ErgoTreeSerializer.deserializeErgoTree`, which wraps as `UnparsedErgoTree`
+    /// ONLY a soft-forkable `ValidationException`: a hard wire-structure failure
+    /// (invalid EC point, EOF/truncation, VLQ overflow → the JVM's
+    /// `IllegalArgumentException` / `IOException`) escapes and rejects. The one
+    /// soft-forkable case in these wire channels is position-limit (rule 1014),
+    /// which is excluded so it still degrades. Soft-forkable type/opcode/method
+    /// errors live in other variants and keep degrading (not listed here).
+    /// Nesting deeper than `MaxTreeDepth` escapes too: the JVM's
+    /// `DeserializeCallDepthExceeded` is a `SerializerException`.
+    pub fn escapes_sized_tree_degrade(&self) -> bool {
+        if self.is_position_limit_exceeded() {
+            return false;
+        }
+        matches!(
+            self,
+            SigmaParsingError::NonSerializableTypeCode(_)
+                | SigmaParsingError::ScorexParsingError(_)
+                | SigmaParsingError::Io(_)
+                | SigmaParsingError::VlqEncode(_)
+                | SigmaParsingError::DeserializeCallDepthExceeded(_)
+        )
     }
 }
 
@@ -177,7 +253,7 @@ impl<T: SigmaSerializable> SigmaSerializable for Vec<T> {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let items_count = r.get_u32()?;
-        let mut items = Vec::with_capacity(items_count as usize);
+        let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(T::sigma_parse(r)?);
         }
@@ -269,5 +345,27 @@ pub fn roundtrip_new_feature<T: SigmaSerializable + core::fmt::Debug + PartialEq
             *v,
             sigma_serialize_roundtrip_versioned(v, version.into()).expect("roundtrip failed")
         );
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+    /// A huge declared count followed by no elements must return Err without
+    /// allocating a multi-gigabyte Vec.
+    #[test]
+    fn vec_sigma_parse_huge_count_no_data_returns_err() {
+        // VLQ-encode u32::MAX as the count, provide zero element bytes
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        w.put_u32(u32::MAX).unwrap();
+        let cursor = Cursor::new(&data[..]);
+        let mut r = SigmaByteReader::new(cursor, ConstantStore::empty());
+        let result = Vec::<u32>::sigma_parse(&mut r);
+        assert!(result.is_err());
     }
 }
