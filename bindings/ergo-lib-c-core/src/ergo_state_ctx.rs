@@ -7,7 +7,6 @@ use crate::header::PreHeader;
 use crate::parameters::ConstParametersPtr;
 use crate::util::const_ptr_as_ref;
 use crate::Error;
-use std::convert::TryInto;
 
 /// Blockchain state (last headers, etc.)
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -25,26 +24,26 @@ pub unsafe fn ergo_state_context_new(
     let pre_header = const_ptr_as_ref(pre_header_ptr, "pre_header_ptr")?;
     let headers = const_ptr_as_ref(headers, "headers")?;
     let parameters = const_ptr_as_ref(parameters_ptr, "parameters_ptr")?;
-    match headers.0.len() {
-        10 => {
+    let count = headers.0.len();
+    match chain::ergo_state_context::Headers::from_vec(
+        headers.0.clone().into_iter().map(|x| x.0).collect(),
+    ) {
+        Ok(headers) => {
             *ergo_state_context_out = Box::into_raw(Box::new(ErgoStateContext(
                 chain::ergo_state_context::ErgoStateContext::new(
                     pre_header.clone().0,
-                    headers
-                        .0
-                        .clone()
-                        .into_iter()
-                        .map(|x| x.0)
-                        .collect::<Vec<_>>()
-                        .try_into()
-                        .unwrap(),
+                    headers,
                     parameters.0.clone(),
                 ),
             )));
             Ok(())
         }
-        h => Err(Error::Misc(
-            format!("Not enough block headers, expected 10 but got {}", h).into(),
+        Err(_) => Err(Error::Misc(
+            format!(
+                "Incorrect number of block headers, expected 1..=10 but got {}",
+                count
+            )
+            .into(),
         )),
     }
 }
