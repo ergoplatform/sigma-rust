@@ -104,12 +104,16 @@ impl TransactionContext<Transaction> {
     // TODO: costing
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
-        // Check that input sum does not overflow
+        // Check that input sum does not overflow. A plain `.sum::<u64>()`
+        // overflows before BoxValue::new can reject the total (panicking
+        // in debug builds, wrapping in release), so accumulate with the
+        // same checked i64 fold validate_stateless uses for outputs: a
+        // valid total can never exceed BoxValue::MAX_RAW (i64::MAX).
         let input_sum = BoxValue::new(
             self.boxes_to_spend
                 .iter()
-                .map(|b| b.value.as_u64())
-                .sum::<u64>(),
+                .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
+                .ok_or(TxValidationError::InputSumOverflow)? as u64,
         )
         .map_err(|_| TxValidationError::InputSumOverflow)?;
         // Check that output sum does not overflow and is equal to ERG amount in inputs
@@ -117,12 +121,12 @@ impl TransactionContext<Transaction> {
             .spending_tx
             .outputs
             .iter()
-            .map(|b| b.value.as_u64())
-            .sum();
-        if *input_sum.as_u64() != output_sum {
+            .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
+            .ok_or(TxValidationError::OutputSumOverflow)?;
+        if *input_sum.as_u64() != output_sum as u64 {
             return Err(TxValidationError::ErgPreservationError(
                 *input_sum.as_u64(),
-                output_sum,
+                output_sum as u64,
             ));
         }
 
@@ -300,6 +304,7 @@ mod test {
     };
     use ergotree_ir::chain::token::arbitrary::ArbTokenIdParam;
     use ergotree_ir::chain::token::{Token, TokenAmount, TokenId};
+    use ergotree_ir::chain::tx_id::TxId;
     use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
     use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::expr::Expr;
@@ -630,6 +635,77 @@ mod test {
         }
     }
     }
+    fn huge_box(index: u16) -> ErgoBox {
+        ErgoBox::new(
+            BoxValue::try_from(i64::MAX as u64).unwrap(),
+            force_any_val::<ErgoTree>(),
+            None,
+            NonMandatoryRegisters::empty(),
+            0,
+            force_any_val::<TxId>(),
+            index,
+        )
+        .unwrap()
+    }
+
+    fn context_for(
+        boxes: Vec<ErgoBox>,
+        output_values: Vec<BoxValue>,
+    ) -> TransactionContext<Transaction> {
+        let inputs = boxes
+            .iter()
+            .map(|b| Input {
+                box_id: b.box_id(),
+                spending_proof: ProverResult {
+                    proof: ProofBytes::Empty,
+                    extension: ContextExtension::empty(),
+                },
+            })
+            .collect::<Vec<_>>();
+        let outputs = output_values
+            .into_iter()
+            .map(|value| ErgoBoxCandidate {
+                value,
+                ergo_tree: force_any_val::<ErgoTree>(),
+                tokens: None,
+                additional_registers: NonMandatoryRegisters::empty(),
+                creation_height: 0,
+            })
+            .collect::<Vec<_>>();
+        let tx = Transaction::new_from_vec(inputs, vec![], outputs).unwrap();
+        TransactionContext::new(tx, boxes, vec![]).unwrap()
+    }
+
+    #[test]
+    // #881: three input boxes of i64::MAX each are individually valid, but
+    // their sum overflows. validate() must report InputSumOverflow, not
+    // panic (debug) or continue with a wrapped total (release).
+    fn test_input_sum_overflow() {
+        let state_context: ErgoStateContext = force_any_val();
+        let boxes = (0..3).map(huge_box).collect::<Vec<_>>();
+        let tx_context = context_for(boxes, vec![BoxValue::SAFE_USER_MIN]);
+        match tx_context.validate(&state_context) {
+            Err(TxValidationError::InputSumOverflow) => {}
+            other => panic!("Expected InputSumOverflow, got {other:?}"),
+        }
+    }
+
+    #[test]
+    // #881: the output sum was computed with the same unchecked addition.
+    // Three i64::MAX outputs must report OutputSumOverflow (the error the
+    // stateless check already returns for the same total), not panic or
+    // wrap into an ErgPreservationError.
+    fn test_output_sum_overflow() {
+        let state_context: ErgoStateContext = force_any_val();
+        let boxes = vec![huge_box(0)];
+        let max = BoxValue::try_from(i64::MAX as u64).unwrap();
+        let tx_context = context_for(boxes, vec![max, max, max]);
+        match tx_context.validate(&state_context) {
+            Err(TxValidationError::OutputSumOverflow) => {}
+            other => panic!("Expected OutputSumOverflow, got {other:?}"),
+        }
+    }
+
     // Test that unspendable boxes can't be included in a transaction
     // TODO: When sigma-rust lands support for storage rent transactions, there should be a test that successfully passes validation when box is old enough
     #[test]
