@@ -276,13 +276,23 @@ impl AutolykosSolution {
                 .scorex_serialize(w)?;
             w.write_all(&self.nonce)?;
 
-            let d_bytes = self
+            let pow_distance = self
                 .pow_distance
                 .as_ref()
                 .ok_or(ScorexSerializationError::Misc(
                     "pow_distance must be == Some(_) for autolykos v1",
-                ))?
-                .to_bytes_be();
+                ))?;
+            // Match sigma's `BigIntegers.asUnsignedByteArray` (sigma/crypto/BigIntegers.scala):
+            // its reimplementation drops BouncyCastle's `&& bytes.length != 1` guard, so a zero
+            // value encodes to an EMPTY array, not `[0]`. `BigUint::to_bytes_be()` returns `[0]`
+            // for zero, which would emit `01 00` and diverge from the JVM's `00` (different
+            // header id, and `Global.serialize` bytes/cost). A real PoW distance is never zero;
+            // this covers the adversarial/degenerate edge for consensus parity.
+            let d_bytes = if pow_distance.is_zero() {
+                Vec::new()
+            } else {
+                pow_distance.to_bytes_be()
+            };
             w.put_u8(d_bytes.len() as u8)?;
             w.write_all(&d_bytes)?;
         } else {
@@ -578,5 +588,34 @@ mod tests {
                 .unwrap()
             )
         );
+    }
+
+    /// Regression: a v1 Autolykos solution with `pow_distance == 0` must serialize the distance
+    /// as an EMPTY unsigned byte array (length prefix `0`, no following byte) to match the JVM's
+    /// `BigIntegers.asUnsignedByteArray`, NOT `[0]` as `BigUint::to_bytes_be` returns. The buggy
+    /// encoding emits `01 00`, diverging from the JVM `00` (different header id and
+    /// `Global.serialize` output/cost). Real PoW distances are never zero; this locks the
+    /// adversarial/degenerate edge for consensus parity.
+    #[test]
+    fn autolykos_v1_zero_pow_distance_serializes_empty_unsigned() {
+        let pk = Box::new(
+            super::EcPoint::from_base16_str(
+                "026930cb9972e01534918a6f6d6b8e35bc398f57140d13eb3623ea31fbd069939b".to_string(),
+            )
+            .unwrap(),
+        );
+        let sol = super::AutolykosSolution {
+            miner_pk: pk.clone(),
+            pow_onetime_pk: Some(pk),
+            nonce: vec![0u8; 8],
+            pow_distance: Some(BigUint::from(0u32)),
+        };
+        let mut data = Vec::new();
+        let mut w = &mut data;
+        sol.serialize_bytes(1, &mut w).unwrap();
+        // pk(33) + w(33) + nonce(8) + d-length-byte(1) + d-bytes(0) = 75. The buggy `[0]`
+        // encoding would append an extra `00` (total 76); the trailing byte is the length `0`.
+        assert_eq!(data.len(), super::EcPoint::GROUP_SIZE * 2 + 8 + 1);
+        assert_eq!(*data.last().unwrap(), 0u8);
     }
 }
