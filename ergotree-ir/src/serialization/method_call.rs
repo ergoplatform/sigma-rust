@@ -35,8 +35,9 @@ impl SigmaSerializable for MethodCall {
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
-        let arg_types = args.iter().map(|arg| arg.tpe()).collect();
-        let method = SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types)?;
+        let arg_types: Vec<SType> = args.iter().map(|arg| arg.tpe()).collect();
+        let method =
+            SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types.clone())?;
         if r.tree_version() < method.method_raw.min_version {
             return Err(SigmaParsingError::UnknownMethodId(
                 method_id,
@@ -51,6 +52,23 @@ impl SigmaSerializable for MethodCall {
             .zip(core::iter::from_fn(|| Some(SType::sigma_parse(r))))
             .map(|(tpe, res)| -> Result<(STypeVar, SType), SigmaParsingError> { Ok((tpe, res?)) })
             .collect::<Result<HashMap<STypeVar, SType>, _>>()?;
+        // sigmastate applies explicit type args before specializing from the arguments.
+        // Until that order is implemented here, reject explicit type args that the
+        // arguments contradict (e.g. Global.some[Long](1: Int)) instead of typing the
+        // call from the arguments.
+        if !explicit_type_args.is_empty() {
+            let explicit_first = SMethod::from_ids(type_id, method_id)?
+                .with_concrete_types(&explicit_type_args)
+                .specialize_for(obj.tpe(), arg_types);
+            let args_first = method.clone().with_concrete_types(&explicit_type_args);
+            if !matches!(&explicit_first, Ok(m) if m.tpe() == args_first.tpe()) {
+                return Err(SigmaParsingError::Misc(format!(
+                    "MethodCall: explicit type args {:?} contradict the argument types of {}",
+                    explicit_type_args,
+                    method.name()
+                )));
+            }
+        }
         Ok(MethodCall::with_type_args(
             obj,
             method,
@@ -102,5 +120,83 @@ mod tests {
         .unwrap()
         .into();
         roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod global_some_type_arg_tests {
+    use crate::ergo_tree::ErgoTreeVersion;
+    use crate::mir::expr::Expr;
+    use crate::serialization::sigma_byte_reader::{from_bytes, SigmaByteRead};
+    use crate::serialization::{SigmaParsingError, SigmaSerializable};
+    use crate::types::stype::SType;
+
+    fn parse_v3(bytes: &[u8]) -> Result<Expr, SigmaParsingError> {
+        from_bytes(bytes).with_tree_version(ErgoTreeVersion::V3, Expr::sigma_parse)
+    }
+
+    // sigmastate 6.0.7 SGlobalMethods.someMethod declares explicit type arg T and
+    // MethodCallSerializer writes it after the args: some[Int](1) = dc6a09dd01040204
+    #[test]
+    fn some_reads_and_writes_explicit_type_arg() {
+        let scala = [0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x04];
+        let expr = parse_v3(&scala).unwrap();
+        assert_eq!(expr.tpe(), SType::SOption(SType::SInt.into()));
+        assert_eq!(expr.sigma_serialize_bytes().unwrap(), scala);
+    }
+
+    // without the type arg the bytes are truncated for sigmastate (BufferUnderflowException)
+    #[test]
+    fn some_without_type_arg_is_rejected() {
+        let short = [0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02];
+        assert!(parse_v3(&short).is_err());
+    }
+
+    // some[Long](1: Int): sigmastate applies the explicit type first and types the call
+    // Option[Long]; sigma-rust would type it from the argument as Option[Int]. Until the
+    // explicit-type-first order is implemented, such calls are rejected.
+    #[test]
+    fn some_with_type_arg_contradicting_arg_is_rejected() {
+        let mismatched = [0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x05];
+        assert!(parse_v3(&mismatched).is_err());
+    }
+
+    // Trees from the sigmastate 6.0.7 JVM runs on #1006 (all contain some[Long](1: Int)).
+    // sigmastate rejects the first at parse and fails the next two at evaluation; without
+    // the guard sigma-rust reduced them to true, false and true. None may parse here.
+    #[test]
+    fn some_mismatch_in_tree_does_not_parse() {
+        let trees: [&[u8]; 3] = [
+            // sigmaProp(Global.some[Long](1: Int).get == 1)
+            &[
+                0x0b, 0x0d, 0xd1, 0x93, 0xe4, 0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x05, 0x04,
+                0x02,
+            ],
+            // sigmaProp(Global.some[Long](1: Int).get == 1L)
+            &[
+                0x0b, 0x0d, 0xd1, 0x93, 0xe4, 0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x05, 0x05,
+                0x02,
+            ],
+            // sigmaProp(!(Global.some[Long](1: Int).get == 1L))
+            &[
+                0x0b, 0x0e, 0xd1, 0xef, 0x93, 0xe4, 0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x05,
+                0x05, 0x02,
+            ],
+        ];
+        for bytes in trees {
+            let tree = crate::ergo_tree::ErgoTree::sigma_parse_bytes(bytes);
+            assert!(tree.map_or(true, |t| t.proposition().is_err()));
+        }
+    }
+
+    // sigmastate reduces some[Long](1: Int).isDefined to true. The guard rejects it until
+    // the explicit-type-first order is implemented (fail-safe under-acceptance).
+    #[test]
+    fn some_mismatch_is_defined_is_rejected_for_now() {
+        let tree = crate::ergo_tree::ErgoTree::sigma_parse_bytes(&[
+            0x0b, 0x0a, 0xd1, 0xe6, 0xdc, 0x6a, 0x09, 0xdd, 0x01, 0x04, 0x02, 0x05,
+        ]);
+        assert!(tree.map_or(true, |t| t.proposition().is_err()));
     }
 }
