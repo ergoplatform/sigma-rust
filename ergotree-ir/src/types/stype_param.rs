@@ -86,7 +86,7 @@ impl SigmaSerializable for STypeVar {
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let name_len = r.get_u8()?;
         let mut bytes = vec![0; name_len as usize];
-        r.read_exact(&mut bytes)?;
+        r.get_bytes_into(&mut bytes)?;
         Ok(STypeVar::new_from_bytes(bytes)?)
     }
 }

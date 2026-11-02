@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 
 use crate::chain::ergo_box::BoxId;
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Copy, Clone, From, Into)]
 pub(crate) struct DataInput(DataInputInner);
 

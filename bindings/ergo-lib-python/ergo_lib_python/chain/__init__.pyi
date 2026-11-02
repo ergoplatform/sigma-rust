@@ -415,27 +415,6 @@ class ErgoBoxCandidate:
                 :param mint_token_decimals: Decimals of token to be minted
             """
             ...
-    def __init__(self, *,
-        value: int,
-        script: Address | ergo_tree.ErgoTree,
-        creation_height: int, tokens: Optional[list[Token]] = None,
-        registers: Optional[dict[NonMandatoryRegisterId, Constant]] = None,
-        mint_token: Optional[Token] = None,
-        mint_token_name: Optional[str] = None,
-        mint_token_desc: Optional[str] = None,
-        mint_token_decimals: Optional[int] = None):
-            """
-                :param value: Amount of nanoERGs in the box
-                :param script: Script that box is guarded by
-                :param creation_height: Height that box is created on. This height is declared by the user and should not exceed height of the block
-                :param tokens: List of tokens
-                :param registers: Register values
-                :param mint_token: Optional token to be minted
-                :param mint_token_name: Name of token to be minted
-                :param mint_token_desc: Description of token to be minted
-                :param mint_token_decimals: Decimals of token to be minted
-            """
-            ...
     @property
     def value(self) -> int:
         """Amount of nanoErgs in the box"""

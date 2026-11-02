@@ -284,48 +284,55 @@ impl SigmaSerializable for Transaction {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        r.with_tree_version(ErgoTreeVersion::V0, |r| {
-            // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L146-L146
+        // ergo's `ErgoTransactionSerializer.parse` reads each transaction on a new
+        // `SigmaByteReader` (ergo v6.0.6 `ErgoTransaction.scala:497-503`), a block's
+        // transactions included (`BlockTransactions.scala:187-200`). So a transaction starts
+        // at level 0 with empty stores, whatever an earlier one left on the same stream.
+        r.with_fresh_parse_state(|r| {
+            r.with_tree_version(ErgoTreeVersion::V0, |r| {
+                // reference implementation - https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoLikeTransaction.scala#L146-L146
 
-            // parse transaction inputs
-            let inputs_count = r.get_u16()?;
-            let mut inputs = Vec::with_capacity(inputs_count as usize);
-            for _ in 0..inputs_count {
-                inputs.push(Input::sigma_parse(r)?);
-            }
+                // parse transaction inputs
+                let inputs_count = r.get_u16()?;
+                let mut inputs = Vec::new();
+                for _ in 0..inputs_count {
+                    inputs.push(Input::sigma_parse(r)?);
+                }
 
-            // parse transaction data inputs
-            let data_inputs_count = r.get_u16()?;
-            let mut data_inputs = Vec::with_capacity(data_inputs_count as usize);
-            for _ in 0..data_inputs_count {
-                data_inputs.push(DataInput::sigma_parse(r)?);
-            }
+                // parse transaction data inputs
+                let data_inputs_count = r.get_u16()?;
+                let mut data_inputs = Vec::new();
+                for _ in 0..data_inputs_count {
+                    data_inputs.push(DataInput::sigma_parse(r)?);
+                }
 
-            // parse distinct ids of tokens in transaction outputs
-            let tokens_count = r.get_u32()?;
-            if tokens_count as usize > Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT {
-                return Err(SigmaParsingError::ValueOutOfBounds(
-                    "too many tokens in transaction".to_string(),
-                ));
-            }
-            let mut token_ids =
-                IndexSet::with_capacity_and_hasher(tokens_count as usize, Default::default());
-            for _ in 0..tokens_count {
-                token_ids.insert(TokenId::sigma_parse(r)?);
-            }
+                // parse distinct ids of tokens in transaction outputs
+                let tokens_count = r.get_u32()?;
+                if tokens_count as usize
+                    > Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT
+                {
+                    return Err(SigmaParsingError::ValueOutOfBounds(
+                        "too many tokens in transaction".to_string(),
+                    ));
+                }
+                let mut token_ids = IndexSet::with_hasher(Default::default());
+                for _ in 0..tokens_count {
+                    token_ids.insert(TokenId::sigma_parse(r)?);
+                }
 
-            // parse outputs
-            let outputs_count = r.get_u16()?;
-            let mut outputs = Vec::with_capacity(outputs_count as usize);
-            for _ in 0..outputs_count {
-                outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests(
-                    Some(&token_ids),
-                    r,
-                )?)
-            }
+                // parse outputs
+                let outputs_count = r.get_u16()?;
+                let mut outputs = Vec::new();
+                for _ in 0..outputs_count {
+                    outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests(
+                        Some(&token_ids),
+                        r,
+                    )?)
+                }
 
-            Transaction::new_from_vec(inputs, data_inputs, outputs)
-                .map_err(|e| SigmaParsingError::Misc(format!("{}", e)))
+                Transaction::new_from_vec(inputs, data_inputs, outputs)
+                    .map_err(|e| SigmaParsingError::Misc(format!("{}", e)))
+            })
         })
     }
 }
@@ -430,8 +437,11 @@ mod tests {
             ergo_box::{box_value::BoxValue, NonMandatoryRegisterId, NonMandatoryRegisters},
         },
         ergo_tree::ErgoTree,
-        mir::constant::Constant,
-        serialization::sigma_serialize_roundtrip,
+        mir::{constant::Constant, val_def::ValId},
+        serialization::{
+            constant_store::ConstantStore, sigma_byte_reader::from_bytes, sigma_serialize_roundtrip,
+        },
+        types::stype::SType,
         unsignedbigint256::UnsignedBigInt,
     };
     use indexmap::IndexMap;
@@ -551,5 +561,128 @@ mod tests {
             "9148408c04c2e38a6402a7950d6157730fa7d49e9ab3b9cadec481d7769918e9",
             tx_id_str
         )
+    }
+
+    /// Transaction::sigma_parse with a huge declared inputs count but no data
+    /// must return Err without a multi-gigabyte pre-allocation.
+    #[test]
+    fn transaction_parse_huge_inputs_count_returns_err() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        let mut data = Vec::new();
+        let mut w =
+            ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter::new(&mut data, None);
+        w.put_u16(u16::MAX).unwrap();
+        let result = Transaction::sigma_parse_bytes(&data);
+        assert!(result.is_err());
+    }
+
+    /// A transaction spending one input (empty proof, context extension `extension`), with
+    /// no data inputs and one 1 ERG output guarded by `tree` (creation height 1, no tokens,
+    /// no registers)
+    fn tx_bytes(extension: &[u8], tree: &[u8]) -> Vec<u8> {
+        let mut bytes = vec![1];
+        bytes.extend(
+            base16::decode("a05d90c50251aea28100ccaa1da38004fb5a04154bfa300a600f3c10d130816a")
+                .unwrap(),
+        );
+        bytes.push(0); // proof
+        bytes.extend_from_slice(extension);
+        bytes.extend_from_slice(&[0, 0, 1]); // data inputs, token ids, outputs
+        bytes.extend(base16::decode("8094ebdc03").unwrap());
+        bytes.extend_from_slice(tree);
+        bytes.extend_from_slice(&[1, 0, 0]); // creation height, tokens, registers
+        bytes
+    }
+
+    /// A size-flagged v0 tree `BoolToSigmaProp(LogicalNot^107(<0x75>))`: the unknown opcode
+    /// 0x75 degrades it to `Unparsed`, leaving 109 levels behind on the reader
+    fn tx_degrading_at_level_109() -> Vec<u8> {
+        let mut tree = vec![0x08, 0x6d, 0xd1];
+        tree.extend(core::iter::repeat_n(0xef, 107));
+        tree.push(0x75);
+        tx_bytes(&[0], &tree)
+    }
+
+    /// `BlockValue { ValDef(1, sigmaProp(true)) } ValUse(1)`
+    fn tx_defining_val_1() -> Vec<u8> {
+        tx_bytes(
+            &[0],
+            &[0x00, 0xd8, 0x01, 0xd6, 0x01, 0x08, 0xd3, 0x72, 0x01],
+        )
+    }
+
+    /// Run `f` on a thread with a 32 MiB stack: a debug build takes ~40 KB of stack per
+    /// expression level, and `tx_degrading_at_level_109` nests 109 of them.
+    fn on_deep_stack(f: impl FnOnce() + Send + 'static) {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(f)
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn transactions_on_one_reader_each_start_at_level_zero() {
+        // The second transaction's `sigmaProp(true)` output takes two levels, which a reader
+        // still at the first transaction's 109 would refuse at 111.
+        on_deep_stack(|| {
+            let second = tx_bytes(&[0], &[0x00, 0x08, 0xd3]);
+            let mut r = from_bytes([tx_degrading_at_level_109(), second].concat());
+            Transaction::sigma_parse(&mut r).unwrap();
+            Transaction::sigma_parse(&mut r).unwrap();
+        });
+    }
+
+    #[test]
+    fn transactions_on_one_reader_do_not_share_val_def_types() {
+        // `ValUse(1)` without a `ValDef` is rejected (sigmastate's `ValDefTypeStore` lookup
+        // throws), also after a transaction that defined 1 on the same stream.
+        let undefined_val_use = tx_bytes(&[0], &[0x00, 0x72, 0x01]);
+        let mut r = from_bytes([tx_defining_val_1(), undefined_val_use].concat());
+        Transaction::sigma_parse(&mut r).unwrap();
+        assert!(matches!(
+            Transaction::sigma_parse(&mut r),
+            Err(SigmaParsingError::ValDefIdNotFound(ValId(1)))
+        ));
+    }
+
+    #[test]
+    fn transaction_parse_leaves_the_reader_state_as_it_found_it() {
+        on_deep_stack(|| {
+            for tx in [tx_degrading_at_level_109(), tx_defining_val_1()] {
+                let mut r = from_bytes(&tx);
+                r.set_level(5).unwrap();
+                r.set_constant_store(ConstantStore::new(vec![1i32.into()]));
+                r.val_def_type_store().insert(ValId(7), SType::SInt);
+                r.set_deserialize(true);
+                Transaction::sigma_parse(&mut r).unwrap();
+                assert_eq!(r.level(), 5);
+                assert_eq!(r.constant_store().get(0).unwrap().tpe, SType::SInt);
+                assert_eq!(r.val_def_type_store().get(&ValId(7)), Some(&SType::SInt));
+                assert!(r.val_def_type_store().get(&ValId(1)).is_none());
+                assert!(r.was_deserialize());
+            }
+        });
+    }
+
+    #[test]
+    fn function_type_code_in_a_transaction_is_an_error_not_a_panic() {
+        // A transaction parses at ErgoTree version 0, where sigmastate's `CheckTypeCode`
+        // rejects type code 112 (the function type from v3): in a context extension value
+        // and in a register alike.
+        let sfunc = [0x70, 0x01, 0x04, 0x04, 0x00]; // (Int) => Int
+        let in_extension = tx_bytes(&[&[0x01, 0x01][..], &sfunc].concat(), &[0x00, 0x08, 0xd3]);
+        let mut in_register = tx_bytes(&[0], &[0x00, 0x08, 0xd3]);
+        in_register.pop(); // registers count
+        in_register.push(1);
+        in_register.extend_from_slice(&sfunc);
+        for tx in [in_extension, in_register] {
+            assert!(matches!(
+                Transaction::sigma_parse_bytes(&tx),
+                Err(SigmaParsingError::InvalidTypeCode(112))
+            ));
+        }
     }
 }

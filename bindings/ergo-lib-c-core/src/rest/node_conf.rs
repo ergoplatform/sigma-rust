@@ -18,10 +18,31 @@ pub unsafe fn node_conf_from_addr(addr: &str, ptr_out: *mut NodeConfPtr) -> Resu
     let node_conf = ergo_lib::ergo_rest::NodeConf {
         addr: peer_addr,
         api_key: None,
-        timeout: None,
+        // default request timeout so a stalled node does not block fallbacks
+        timeout: Some(std::time::Duration::from_secs(30)),
     };
     *ptr_out = Box::into_raw(Box::new(node_conf.into()));
     Ok(())
 }
 
 // pub unsafe fn node_conf_builder_new(addr: &str, builder_out: *mut )
+
+#[cfg(test)]
+mod tests {
+    use std::ptr;
+    use std::time::Duration;
+
+    use super::*;
+
+    #[test]
+    fn node_conf_from_addr_sets_default_timeout() {
+        let mut ptr_out: NodeConfPtr = ptr::null_mut();
+
+        unsafe {
+            node_conf_from_addr("127.0.0.1:9053", &mut ptr_out).unwrap();
+            let node_conf = Box::from_raw(ptr_out);
+
+            assert_eq!(node_conf.0.timeout, Some(Duration::from_secs(30)));
+        }
+    }
+}

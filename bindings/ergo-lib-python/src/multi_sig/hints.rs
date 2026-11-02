@@ -15,7 +15,7 @@ use pyo3::{exceptions::PyNotImplementedError, prelude::*};
 use crate::{chain::ec_point::EcPoint, sigma_protocol::ProveDlog};
 
 #[derive(From, Into, Clone, PartialEq, Eq)]
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, from_py_object)]
 pub(crate) struct RealCommitment(pub(crate) RealCommitmentInner);
 
 #[pymethods]
@@ -34,7 +34,7 @@ impl RealCommitment {
     }
 }
 #[derive(From, Into, Clone, PartialEq, Eq)]
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, from_py_object)]
 pub(crate) struct SimulatedCommitment(pub(crate) SimulatedCommitmentInner);
 
 #[pymethods]
@@ -54,7 +54,7 @@ impl SimulatedCommitment {
 }
 
 #[derive(From, Into, Clone)]
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 pub(crate) struct RealSecretProof(pub(crate) RealSecretProofInner);
 
 #[pymethods]
@@ -77,7 +77,7 @@ impl RealSecretProof {
 }
 
 #[derive(From, Into, Clone)]
-#[pyclass(frozen)]
+#[pyclass(frozen, from_py_object)]
 pub(crate) struct SimulatedSecretProof(pub(crate) SimulatedSecretProofInner);
 
 #[pymethods]

@@ -138,7 +138,7 @@ impl ScorexSerializable for EcPoint {
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
-        r.read_exact(&mut buf[..])?;
+        r.get_bytes_into(&mut buf[..])?;
         if buf[0] != 0 {
             let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
                 ScorexParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))

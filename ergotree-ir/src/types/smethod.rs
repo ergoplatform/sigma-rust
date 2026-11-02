@@ -22,11 +22,11 @@ use crate::serialization::SigmaParsingError::UnknownMethodId;
 pub struct MethodId(pub u8);
 
 impl MethodId {
-    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> core2::io::Result<()> {
+    pub(crate) fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> core3::io::Result<()> {
         w.put_u8(self.0)
     }
 
-    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> core2::io::Result<Self> {
+    pub(crate) fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> core3::io::Result<Self> {
         Ok(Self(r.get_u8()?))
     }
 }

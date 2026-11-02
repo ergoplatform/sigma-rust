@@ -7,7 +7,7 @@ use super::{
     parameters::Parameters,
 };
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq, From, Into, AsRef)]
 pub(crate) struct ErgoStateContext(pub(crate) ErgoStateContextInner);
 

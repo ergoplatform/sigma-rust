@@ -11,7 +11,7 @@ use crate::{
     from_json, to_value_error, JsonError,
 };
 
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, from_py_object)]
 #[derive(Clone, From, Into, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) struct PoPowHeader(PoPowHeaderInner);
 
@@ -40,7 +40,7 @@ impl PoPowHeader {
 }
 
 #[derive(Clone, From, Into, Deserialize, Serialize, PartialEq, Eq)]
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 pub(crate) struct NipopowProof(NipopowProofInner);
 
 #[pymethods]

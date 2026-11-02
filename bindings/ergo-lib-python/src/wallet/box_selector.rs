@@ -12,7 +12,7 @@ use ergo_lib::{
 };
 use pyo3::prelude::*;
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(Clone, PartialEq, Eq, From, Into)]
 pub(crate) struct ErgoBoxAssetsData(ErgoBoxAssetsDataInner);
 
@@ -50,7 +50,7 @@ impl ErgoBoxAssetsData {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq, From, Into)]
 pub struct BoxSelection(BoxSelectionInner<ErgoBoxInner>);
 

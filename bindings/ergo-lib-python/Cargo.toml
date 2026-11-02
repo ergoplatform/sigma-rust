@@ -1,6 +1,7 @@
 [package]
 name = "ergo-lib-python"
-version = "0.28.0"
+version = "0.29.0"
+publish = false
 license = "CC0-1.0"
 authors = ["Kamal Ahmad <kamalahmad22@pm.me>"]
 edition.workspace = true
@@ -12,7 +13,7 @@ name = "ergo_lib_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.27.1", features = ["indexmap"] }
+pyo3 = { version = "0.29.1", features = ["indexmap"] }
 base16 = { workspace = true }
 derive_more = { workspace = true }
 serde = { workspace = true }

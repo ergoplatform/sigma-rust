@@ -10,7 +10,7 @@ use sigma_ser::ScorexSerializable;
 
 use crate::{from_json, to_value_error};
 
-#[pyclass(eq, frozen, hash)]
+#[pyclass(eq, frozen, hash, from_py_object)]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, From, Into)]
 pub(crate) struct BlockId(InnerBlockId);
 
@@ -42,7 +42,7 @@ impl BlockId {
     }
 }
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into, Deserialize)]
 pub struct Header(InnerHeader);
 
@@ -96,7 +96,7 @@ impl Header {
 
 /// Block header with the current `spendingTransaction`, that can be predicted
 /// by a miner before it's formation
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub struct PreHeader(InnerPreHeader);
 

@@ -27,17 +27,17 @@ repository = "https://github.com/ergoplatform/sigma-rust"
 edition = "2021"
 
 [workspace.dependencies]
-sigma-util = { version = "^0.18.0", path = "./sigma-util" }
-sigma-ser = { version = "^0.19.0", path = "./sigma-ser", default-features = false }
-ergotree-ir = { version = "^0.28.0", path = "./ergotree-ir", default-features = false }
-ergo-chain-types = { version = "^0.15.0", path = "./ergo-chain-types", default-features = false }
-sigma-test-util = { version = "^0.3.0", path = "./sigma-test-util" }
-ergoscript-compiler = { version = "^0.24.0", path = "./ergoscript-compiler" }
-ergotree-interpreter = { version = "^0.28.0", path = "./ergotree-interpreter", default-features = false }
-ergo-nipopow = { version = "^0.15", path = "./ergo-nipopow" }
-ergo-merkle-tree = { version = "^0.15.0", path = "./ergo-merkle-tree", default-features = false }
-ergo-rest = { version = "^0.13.0", path = "./ergo-rest" }
-ergo-lib = { version = "^0.28.0", path = "./ergo-lib" }
+sigma-util = { version = "^0.19.0", path = "./sigma-util" }
+sigma-ser = { version = "^0.20.0", path = "./sigma-ser", default-features = false }
+ergotree-ir = { version = "^0.29.0", path = "./ergotree-ir", default-features = false }
+ergo-chain-types = { version = "^0.16.0", path = "./ergo-chain-types", default-features = false }
+sigma-test-util = { version = "^0.4.0", path = "./sigma-test-util" }
+ergoscript-compiler = { version = "^0.25.0", path = "./ergoscript-compiler" }
+ergotree-interpreter = { version = "^0.29.0", path = "./ergotree-interpreter", default-features = false }
+ergo-nipopow = { version = "^0.16.0", path = "./ergo-nipopow" }
+ergo-merkle-tree = { version = "^0.16.0", path = "./ergo-merkle-tree", default-features = false }
+ergo-rest = { version = "^0.14.0", path = "./ergo-rest" }
+ergo-lib = { version = "^0.29.0", path = "./ergo-lib" }
 k256 = { version = "0.13.1", default-features = false, features = [
     "arithmetic",
     "ecdsa",
@@ -91,7 +91,11 @@ getrandom = { version = "0.2.16" }
 itertools = { version = "0.14", default-features = false }
 miette = { version = "7.6.0", features = ["fancy"] }
 hashbrown = { version = "0.16.1", features = ["serde"] }
-core2 = { version = "0.4.0", default-features = false, features = ["alloc"] }
+# core2 0.4.0 (and all core2 releases) are yanked upstream. core3 0.1.2 is the latest
+# non-yanked release of its successor; audited against core2 0.4.0 with no
+# serialization-semantic difference for the enabled features. Exact pin prevents silent
+# drift to future 0.1.x releases.
+core3 = { version = "=0.1.2", default-features = false, features = ["alloc"] }
 # dev-dependencies
 proptest = { version = "=1.6.0", default-features = false, features = [
     "alloc",
@@ -99,7 +103,7 @@ proptest = { version = "=1.6.0", default-features = false, features = [
 ] }
 proptest-derive = "0.5.1"
 pretty_assertions = "1.3"
-wasm-bindgen-test = "0.3.37"
+wasm-bindgen-test = "0.3.76"
 expect-test = "1.4.1"
 criterion = { version = "0.5.1", features = ["default", "cargo_bench_support"] }
 

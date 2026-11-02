@@ -5,8 +5,6 @@ extern crate wasm_bindgen_test;
 use ergo_lib_wasm::secret_key::SecretKey;
 use wasm_bindgen_test::*;
 
-wasm_bindgen_test_configure!(run_in_browser);
-
 #[allow(dead_code)]
 #[wasm_bindgen_test]
 fn test_random() {

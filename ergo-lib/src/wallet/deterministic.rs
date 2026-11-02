@@ -3,7 +3,7 @@ use ergotree_interpreter::sigma_protocol::{
     private_input::PrivateInput,
     prover::{
         hint::{CommitmentHint, Hint, HintsBag, OwnCommitment, RealCommitment},
-        Prover,
+        Prover, ProverError,
     },
     unproven_tree::NodePosition,
     FirstProverMessage,
@@ -15,17 +15,18 @@ pub(super) fn generate_commitments_for<P: Prover + ?Sized>(
     sigma_tree: &SigmaBoolean,
     msg: &[u8],
     aux_rand: &[u8],
-) -> Option<HintsBag> {
+) -> Result<HintsBag, ProverError> {
     let position = NodePosition::crypto_tree_prefix();
     match sigma_tree {
         SigmaBoolean::ProofOfKnowledge(SigmaProofOfKnowledgeTree::ProveDlog(pk)) => {
             let PrivateInput::DlogProverInput(sk) = prover
                 .secrets()
                 .iter()
-                .find(|secret| secret.public_image() == *sigma_tree)?
+                .find(|secret| secret.public_image() == *sigma_tree)
+                .ok_or(ProverError::SecretNotFound)?
                 .clone()
             else {
-                return None;
+                return Err(ProverError::SecretNotFound);
             };
             let (r, a) = first_message_deterministic(&sk, msg, aux_rand);
             let mut bag = HintsBag::empty();
@@ -44,11 +45,15 @@ pub(super) fn generate_commitments_for<P: Prover + ?Sized>(
                 }));
             bag.add_hint(real_commitment);
             bag.add_hint(own_commitment);
-            Some(bag)
+            Ok(bag)
         }
-        SigmaBoolean::TrivialProp(_)
-        | SigmaBoolean::ProofOfKnowledge(_)
-        | SigmaBoolean::SigmaConjecture(_) => None,
+        SigmaBoolean::TrivialProp(true) => Ok(HintsBag::empty()),
+        SigmaBoolean::TrivialProp(false) => Err(ProverError::ReducedToFalse),
+        SigmaBoolean::ProofOfKnowledge(_) | SigmaBoolean::SigmaConjecture(_) => {
+            Err(ProverError::Unexpected(
+                "deterministic signing requires a single ProveDlog or trivial true reduction",
+            ))
+        }
     }
 }
 
@@ -75,6 +80,176 @@ mod test {
     use crate::wallet::secret_key::SecretKey;
     use crate::wallet::signing::TransactionContext;
     use crate::wallet::Wallet;
+
+    fn fixed_dlog(value: u8) -> SecretKey {
+        let mut bytes = [0; 32];
+        bytes[31] = value;
+        SecretKey::dlog_from_bytes(&bytes).unwrap()
+    }
+
+    fn public_image(secret: &SecretKey) -> super::SigmaBoolean {
+        super::PrivateInput::from(secret.clone()).public_image()
+    }
+
+    fn contract_context(
+        sigma: super::SigmaBoolean,
+    ) -> (
+        TransactionContext<UnsignedTransaction>,
+        crate::chain::ergo_state_context::ErgoStateContext,
+    ) {
+        use ergotree_ir::{
+            chain::tx_id::TxId,
+            mir::{constant::Constant, expr::Expr},
+        };
+        let expr: Expr = Constant::from(sigma).into();
+        let tree = expr.try_into().unwrap();
+        let candidate = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, tree, 0)
+            .build()
+            .unwrap();
+        let input_box = ErgoBox::from_box_candidate(&candidate, TxId::zero(), 0).unwrap();
+        let tx = UnsignedTransaction::new_from_vec(
+            vec![UnsignedInput::new(
+                input_box.box_id(),
+                ContextExtension::empty(),
+            )],
+            vec![],
+            vec![candidate],
+        )
+        .unwrap();
+        (
+            TransactionContext::new(tx, vec![input_box], vec![]).unwrap(),
+            force_any_val(),
+        )
+    }
+
+    fn assert_contract_rejected(wallet: &Wallet, sigma: super::SigmaBoolean) {
+        let (context, state) = contract_context(sigma);
+        let reduced =
+            crate::chain::transaction::reduced::reduce_tx(context.clone(), &state).unwrap();
+        assert!(wallet
+            .generate_deterministic_commitments(&reduced, &[])
+            .is_err());
+        assert!(wallet
+            .sign_reduced_transaction_deterministic(reduced, &[])
+            .is_err());
+        assert!(wallet
+            .sign_transaction_deterministic(context, &state, &[])
+            .is_err());
+    }
+
+    #[test]
+    fn deterministic_contract_rejects_two_key_and() {
+        use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+        let keys = vec![fixed_dlog(1), fixed_dlog(2)];
+        let sigma = Cand::normalized(
+            keys.iter()
+                .map(public_image)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        );
+        let wallet = Wallet::from_secrets(keys);
+        let (context, state) = contract_context(sigma.clone());
+        if let Ok(first) = wallet.sign_transaction_deterministic(context.clone(), &state, &[]) {
+            let second = wallet
+                .sign_transaction_deterministic(context, &state, &[])
+                .unwrap();
+            assert!(first.inputs.first().spending_proof.proof == second.inputs.first().spending_proof.proof,
+                "unsupported two-key AND produced different proofs for identical deterministic signing inputs");
+            panic!("unsupported two-key AND was signed");
+        }
+        assert_contract_rejected(&wallet, sigma);
+    }
+
+    #[test]
+    fn deterministic_contract_rejects_dhtuple() {
+        use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
+        use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
+        let super::PrivateInput::DlogProverInput(secret) = super::PrivateInput::from(fixed_dlog(3))
+        else {
+            unreachable!()
+        };
+        let generator = ergo_chain_types::ec_point::generator();
+        let point = *secret.public_image().h;
+        let key = SecretKey::DhtSecretKey(DhTupleProverInput {
+            w: secret.w,
+            common_input: ProveDhTuple::new(generator, generator, point, point),
+        });
+        let sigma = public_image(&key);
+        assert_contract_rejected(&Wallet::from_secrets(vec![key]), sigma);
+    }
+
+    #[test]
+    fn deterministic_contract_rejects_missing_key() {
+        assert_contract_rejected(&Wallet::from_secrets(vec![]), public_image(&fixed_dlog(1)));
+    }
+
+    #[test]
+    fn deterministic_contract_rejects_false() {
+        assert_contract_rejected(&Wallet::from_secrets(vec![]), false.into());
+    }
+
+    #[test]
+    fn deterministic_contract_single_dlog_is_repeatable() {
+        let key = fixed_dlog(1);
+        let sigma = public_image(&key);
+        let (context, state) = contract_context(sigma.clone());
+        let message = context.spending_tx.bytes_to_sign().unwrap();
+        let wallet = Wallet::from_secrets(vec![key]);
+        let reduced =
+            crate::chain::transaction::reduced::reduce_tx(context.clone(), &state).unwrap();
+        let first = wallet
+            .sign_transaction_deterministic(context.clone(), &state, &[])
+            .unwrap();
+        let second = wallet
+            .sign_transaction_deterministic(context, &state, &[])
+            .unwrap();
+        let from_reduced = wallet
+            .sign_reduced_transaction_deterministic(reduced, &[])
+            .unwrap();
+        assert_eq!(first, second);
+        assert_eq!(first, from_reduced);
+        assert!(!first
+            .inputs
+            .first()
+            .spending_proof
+            .proof
+            .clone()
+            .to_bytes()
+            .is_empty());
+        assert!(
+            ergotree_interpreter::sigma_protocol::verifier::verify_signature(
+                sigma,
+                &message,
+                &first.inputs.first().spending_proof.proof.clone().to_bytes(),
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn deterministic_contract_true_needs_no_witness() {
+        let (context, state) = contract_context(true.into());
+        let wallet = Wallet::from_secrets(vec![]);
+        let reduced =
+            crate::chain::transaction::reduced::reduce_tx(context.clone(), &state).unwrap();
+        let first = wallet
+            .sign_transaction_deterministic(context, &state, &[])
+            .unwrap();
+        let from_reduced = wallet
+            .sign_reduced_transaction_deterministic(reduced, &[])
+            .unwrap();
+        assert_eq!(first, from_reduced);
+        assert!(first
+            .inputs
+            .first()
+            .spending_proof
+            .proof
+            .clone()
+            .to_bytes()
+            .is_empty());
+    }
+
     fn gen_boxes() -> impl Strategy<Value = (SecretKey, Vec<ErgoBox>)> {
         any::<Wscalar>()
             .prop_map(|s| SecretKey::DlogSecretKey(DlogProverInput::new(s)))

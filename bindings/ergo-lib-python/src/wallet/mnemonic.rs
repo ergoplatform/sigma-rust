@@ -6,7 +6,7 @@ use pyo3::{pyclass, pyfunction, pymethods, PyResult};
 use crate::to_value_error;
 /// Create a new MnemonicGenerator. Allowed languages are "english", "chinese_simplified", "chinese_traditional", "french", "italian", "japanese", "korean" and "spanish"
 /// Strength must be atleast 128 bits, allowed values are [128, 160, 192, 224, 256]
-#[pyclass(frozen)]
+#[pyclass(frozen, skip_from_py_object)]
 pub(crate) struct MnemonicGenerator(wallet::mnemonic_generator::MnemonicGenerator);
 
 #[pymethods]

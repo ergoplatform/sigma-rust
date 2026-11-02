@@ -27,7 +27,7 @@ pub mod data_input;
 pub mod input;
 pub mod tx_builder;
 
-#[pyclass(eq, frozen, hash, str = "{0}")]
+#[pyclass(eq, frozen, hash, str = "{0}", from_py_object)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash, From, Into)]
 pub(crate) struct TxId(TxIdInner);
 
@@ -56,7 +56,7 @@ impl TxId {
     }
 }
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct UnsignedTransaction(pub UnsignedTransactionInner);
 
@@ -119,7 +119,7 @@ impl UnsignedTransaction {
     }
 }
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct Transaction(TransactionInner);
 
@@ -209,7 +209,7 @@ impl Transaction {
             .map_err(Into::into)
     }
 }
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub(crate) struct ReducedTransaction(ergo_lib::chain::transaction::reduced::ReducedTransaction);
 

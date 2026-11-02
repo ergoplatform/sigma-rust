@@ -14,6 +14,7 @@ use self::abortable::spawn_abortable;
 
 use super::callback::AbortCallback;
 use super::callback::CompletionCallback;
+use super::callback::GatedCompletionCallback;
 use super::request_handle::RequestHandle;
 use super::request_handle::RequestHandlePtr;
 use super::runtime::RestApiRuntimePtr;
@@ -30,13 +31,15 @@ pub unsafe fn rest_api_node_get_info(
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
+    let callback = GatedCompletionCallback::new(callback);
+    let callback_gate = callback.gate();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_info(node_conf).await {
             Ok(node_info) => callback.succeeded(node_info),
             Err(e) => callback.failed(e.into()),
         }
     })?;
-    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    let request_handle = RequestHandle::with_gate(abort_handle, abort_callback, callback_gate);
     *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }
@@ -53,13 +56,15 @@ pub unsafe fn rest_api_node_get_header(
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
     let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
+    let callback = GatedCompletionCallback::new(callback);
+    let callback_gate = callback.gate();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_header(node_conf, header_id).await {
             Ok(header) => callback.succeeded(header),
             Err(e) => callback.failed(e.into()),
         }
     })?;
-    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    let request_handle = RequestHandle::with_gate(abort_handle, abort_callback, callback_gate);
     *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }
@@ -79,6 +84,8 @@ pub unsafe fn rest_api_node_get_blocks_header_id_proof_for_tx_id(
     let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
     let tx_id = const_ptr_as_ref(tx_id_ptr, "tx_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
+    let callback = GatedCompletionCallback::new(callback);
+    let callback_gate = callback.gate();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_blocks_header_id_proof_for_tx_id(
             node_conf, header_id, tx_id,
@@ -90,7 +97,7 @@ pub unsafe fn rest_api_node_get_blocks_header_id_proof_for_tx_id(
             Err(e) => callback.failed(e.into()),
         }
     })?;
-    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    let request_handle = RequestHandle::with_gate(abort_handle, abort_callback, callback_gate);
     *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }
@@ -109,6 +116,8 @@ pub unsafe fn rest_api_node_get_nipopow_proof_by_header_id(
     let node_conf = const_ptr_as_ref(node_conf_ptr, "node_conf_ptr")?.0;
     let header_id = const_ptr_as_ref(header_id_ptr, "header_id_ptr")?.0;
     let abort_callback: AbortCallback = (&callback).into();
+    let callback = GatedCompletionCallback::new(callback);
+    let callback_gate = callback.gate();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::get_nipopow_proof_by_header_id(
             node_conf,
@@ -122,7 +131,7 @@ pub unsafe fn rest_api_node_get_nipopow_proof_by_header_id(
             Err(e) => callback.failed(e.into()),
         }
     })?;
-    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    let request_handle = RequestHandle::with_gate(abort_handle, abort_callback, callback_gate);
     *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }
@@ -165,6 +174,8 @@ pub unsafe fn rest_api_node_peer_discovery(
         .ok_or_else(|| Error::Misc("max_parallel_requests must be > 0".into()))?;
     let runtime = const_ptr_as_ref(runtime_ptr, "runtime_ptr")?;
     let abort_callback: AbortCallback = (&callback).into();
+    let callback = GatedCompletionCallback::new(callback);
+    let callback_gate = callback.gate();
     let abort_handle = spawn_abortable(runtime, async move {
         match ergo_lib::ergo_rest::api::node::peer_discovery(
             seeds_bounded_vec,
@@ -195,7 +206,7 @@ pub unsafe fn rest_api_node_peer_discovery(
             Err(e) => callback.failed(e.into()),
         }
     })?;
-    let request_handle = RequestHandle::new(abort_handle, abort_callback);
+    let request_handle = RequestHandle::with_gate(abort_handle, abort_callback, callback_gate);
     *request_handle_out = Box::into_raw(Box::new(request_handle));
     Ok(())
 }

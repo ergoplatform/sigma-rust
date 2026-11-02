@@ -7,7 +7,7 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use crate::to_value_error;
 
 use super::ergo_box::BoxId;
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, Clone, Copy, From, Into)]
 pub(crate) struct Token(pub token::Token);
 
@@ -37,7 +37,7 @@ impl Token {
     }
 }
 
-#[pyclass(eq, frozen, hash)]
+#[pyclass(eq, frozen, hash, from_py_object)]
 #[derive(PartialEq, Eq, Clone, Copy, Hash, From)]
 pub(crate) struct TokenId(token::TokenId);
 

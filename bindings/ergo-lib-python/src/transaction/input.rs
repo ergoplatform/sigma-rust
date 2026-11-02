@@ -13,7 +13,7 @@ use crate::{
     errors::{JsonError, SigmaParsingError, SigmaSerializationError},
 };
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct UnsignedInput(UnsignedInputInner);
 
@@ -37,7 +37,7 @@ impl UnsignedInput {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct Input(InputInner);
 
@@ -74,7 +74,7 @@ impl Input {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub struct ProverResult(ProverResultInner);
 

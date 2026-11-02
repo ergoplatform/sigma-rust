@@ -10,6 +10,7 @@ wasm-pack.log
 **/node_modules
 **/dist
 package-lock.json
+!bindings/ergo-lib-wasm/package-lock.json
 # Generated C headers
 h/
 

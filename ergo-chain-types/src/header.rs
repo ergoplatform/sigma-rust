@@ -5,8 +5,9 @@ use crate::autolykos_pow_scheme::{
 use crate::{ADDigest, BlockId, Digest32, EcPoint};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use core2::io::Write;
+use core3::io::Write;
 use num_bigint::{BigUint, ToBigInt};
+use num_traits::Zero;
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{
     ScorexParsingError, ScorexSerializable, ScorexSerializationError, ScorexSerializeResult,
@@ -99,10 +100,15 @@ impl Header {
         Ok(data)
     }
     /// Check that proof of work was valid for header. Only Autolykos2 is supported
+    /// Returns [`AutolykosPowSchemeError::OutOfBounds`] if the decoded difficulty is zero.
     pub fn check_pow(&self) -> Result<bool, AutolykosPowSchemeError> {
         if self.version != 1 {
             let hit = AutolykosPowScheme::default().pow_hit(self)?;
-            let target = order_bigint() / decode_compact_bits(self.n_bits);
+            let difficulty = decode_compact_bits(self.n_bits);
+            if difficulty.is_zero() {
+                return Err(AutolykosPowSchemeError::OutOfBounds);
+            }
+            let target = order_bigint() / difficulty;
             #[allow(clippy::unwrap_used)] // unsigned -> signed conversion never fails
             Ok(hit.to_bigint().unwrap() < target)
         } else {
@@ -130,11 +136,11 @@ impl ScorexSerializable for Header {
         let timestamp = r.get_u64()?;
         let extension_root = Digest32::scorex_parse(r)?;
         let mut n_bits_buf = [0u8, 0, 0, 0];
-        r.read_exact(&mut n_bits_buf)?;
+        r.get_bytes_into(&mut n_bits_buf)?;
         let n_bits = u32::from_be_bytes(n_bits_buf);
         let height = r.get_u32()?;
         let mut votes_bytes = [0u8, 0, 0];
-        r.read_exact(&mut votes_bytes)?;
+        r.get_bytes_into(&mut votes_bytes)?;
         let votes = Votes(votes_bytes);
 
         // For block version >= 2, a new byte encodes length of possible new fields.  If this byte >
@@ -143,7 +149,7 @@ impl ScorexSerializable for Header {
             let new_field_size = r.get_u8()?;
             if new_field_size > 0 {
                 let mut field_bytes: Vec<u8> = vec![0; new_field_size as usize];
-                r.read_exact(&mut field_bytes)?;
+                r.get_bytes_into(&mut field_bytes)?;
                 field_bytes.into()
             } else {
                 Box::new([])
@@ -157,10 +163,10 @@ impl ScorexSerializable for Header {
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let pow_onetime_pk = Some(EcPoint::scorex_parse(r)?.into());
             let mut nonce: Vec<u8> = vec![0; 8];
-            r.read_exact(&mut nonce)?;
+            r.get_bytes_into(&mut nonce)?;
             let d_bytes_len = r.get_u8()?;
             let mut d_bytes: Vec<u8> = vec![0; d_bytes_len as usize];
-            r.read_exact(&mut d_bytes)?;
+            r.get_bytes_into(&mut d_bytes)?;
             let pow_distance = Some(BigUint::from_bytes_be(&d_bytes));
             AutolykosSolution {
                 miner_pk,
@@ -174,7 +180,7 @@ impl ScorexSerializable for Header {
             let pow_distance = None;
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let mut nonce: Vec<u8> = vec![0; 8];
-            r.read_exact(&mut nonce)?;
+            r.get_bytes_into(&mut nonce)?;
             AutolykosSolution {
                 miner_pk,
                 pow_onetime_pk,
@@ -404,6 +410,72 @@ mod arbitrary {
                 )
                 .boxed()
         }
+    }
+}
+
+#[cfg(test)]
+mod pow_boundary_tests {
+    use super::*;
+
+    fn header(n_bits: u32) -> Header {
+        Header {
+            version: 2,
+            id: BlockId(Digest32::zero()),
+            parent_id: BlockId(Digest32::zero()),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits,
+            height: 1,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::new(crate::ec_point::generator()),
+                pow_onetime_pk: None,
+                nonce: vec![0; 8],
+                pow_distance: None,
+            },
+            votes: Votes([0; 3]),
+            unparsed_bytes: Box::new([]),
+        }
+    }
+
+    #[test]
+    fn check_pow_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_truncated_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0x01003456).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_signed_zero_difficulty_returns_error() {
+        assert_eq!(
+            header(0x03800000).check_pow(),
+            Err(AutolykosPowSchemeError::OutOfBounds)
+        );
+    }
+
+    #[test]
+    fn check_pow_nonzero_compact_boundaries_preserved() {
+        assert_eq!(header(0x01010000).check_pow(), Ok(true));
+        assert_eq!(header(0x03000001).check_pow(), Ok(true));
+        assert_eq!(header(0x01810000).check_pow(), Ok(false));
+        assert_eq!(header(0xff7fffff).check_pow(), Ok(false));
+        let mut unsupported = header(0);
+        unsupported.version = 1;
+        assert_eq!(
+            unsupported.check_pow(),
+            Err(AutolykosPowSchemeError::Unsupported)
+        );
     }
 }
 

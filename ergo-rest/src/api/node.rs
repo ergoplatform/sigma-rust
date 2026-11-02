@@ -169,14 +169,50 @@ pub async fn get_blocks_header_id_proof_for_tx_id(
         .await?)
 }
 
+/// Known-live mainnet nodes (REST API on :9053) used as fallbacks for network-dependent tests.
+#[cfg(test)]
+pub(crate) fn fallback_node_confs() -> Vec<NodeConf> {
+    use ergo_chain_types::PeerAddr;
+    use std::str::FromStr;
+
+    ["213.239.193.208:9053", "159.65.11.55:9053"]
+        .iter()
+        .map(|addr| NodeConf {
+            #[allow(clippy::unwrap_used)]
+            addr: PeerAddr::from_str(addr).unwrap(),
+            api_key: None,
+            timeout: Some(std::time::Duration::from_secs(30)),
+        })
+        .collect()
+}
+
+/// Run `f` against each fallback node, returning the first success. Panics if all nodes fail.
+#[cfg(test)]
+#[allow(clippy::panic)]
+pub(crate) async fn try_nodes<F, Fut, T>(f: F) -> T
+where
+    F: Fn(NodeConf) -> Fut,
+    Fut: std::future::Future<Output = Result<T, NodeError>>,
+{
+    let mut errors = Vec::new();
+    for node_conf in fallback_node_confs() {
+        match f(node_conf).await {
+            Ok(res) => return res,
+            Err(e) => {
+                eprintln!("node request failed: {e}");
+                errors.push(e);
+            }
+        }
+    }
+    panic!("all fallback nodes failed: {errors:?}");
+}
+
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
     use std::convert::TryFrom;
     use std::str::FromStr;
     use std::time::Duration;
-
-    use ergo_chain_types::PeerAddr;
 
     use super::*;
 
@@ -186,12 +222,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let node_conf = NodeConf {
-            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
-            api_key: None,
-            timeout: Some(Duration::from_secs(5)),
-        };
-        let res = runtime_inner.block_on(async { get_info(node_conf).await.unwrap() });
+        let res = runtime_inner.block_on(try_nodes(get_info));
         assert_ne!(res.name, "");
     }
 
@@ -208,18 +239,11 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let node_conf = NodeConf {
-            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
-            api_key: None,
-            timeout: Some(Duration::from_secs(5)),
-        };
         let m = 7;
         let k = 6;
-        let res = runtime_inner.block_on(async {
+        let res = runtime_inner.block_on(try_nodes(|node_conf| {
             get_nipopow_proof_by_header_id(node_conf, m, k, header_id)
-                .await
-                .unwrap()
-        });
+        }));
         assert_eq!(res.suffix_head.header.id, header_id);
         assert!(!res.prefix.is_empty());
         assert_eq!(res.m, m);

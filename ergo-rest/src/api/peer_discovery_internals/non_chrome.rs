@@ -422,7 +422,6 @@ impl<T> ChannelTrySender<T> for futures::channel::mpsc::Sender<T> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
 
     #[test]
     fn test_get_peers_all() {
@@ -430,12 +429,7 @@ mod tests {
             .enable_all()
             .build()
             .unwrap();
-        let node_conf = NodeConf {
-            addr: PeerAddr::from_str("213.239.193.208:9053").unwrap(),
-            api_key: None,
-            timeout: Some(Duration::from_secs(5)),
-        };
-        let res = runtime_inner.block_on(async { get_peers_all(node_conf).await.unwrap() });
+        let res = runtime_inner.block_on(crate::api::node::try_nodes(get_peers_all));
         assert!(!res.is_empty())
     }
 }

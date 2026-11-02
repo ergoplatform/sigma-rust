@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::from_json;
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq, From, Into, Deserialize)]
 pub(crate) struct Parameters(ParametersInner);
 

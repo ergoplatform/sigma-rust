@@ -19,7 +19,7 @@ fn wrap_arith_op(
 
 #[wasm_bindgen]
 impl UnsignedBigInt {
-    /// Create a new UnsignedBigInt from Number or JS BigInt
+    /// Create a new UnsignedBigInt from a nonnegative safe integer Number or JS BigInt
     #[wasm_bindgen(constructor)]
     pub fn new(number: wasm_bindgen::JsValue) -> Result<Self, JsError> {
         match number.dyn_into::<js_sys::BigInt>() {
@@ -31,11 +31,18 @@ impl UnsignedBigInt {
                     .map_err(|_| JsError::new("failed to convert to UnsignedBigInt"))
             }
             Err(number) => {
-                let num: u64 = number
+                let num = number
                     .as_f64()
-                    .ok_or_else(|| JsError::new("UnsignedBigInt.new: expected numeric type"))?
-                    as u64;
-                Ok(Self(unsignedbigint256::UnsignedBigInt::from(num)))
+                    .ok_or_else(|| JsError::new("UnsignedBigInt.new: expected numeric type"))?;
+                if !num.is_finite()
+                    || !(0.0..=9_007_199_254_740_991.0).contains(&num)
+                    || num.fract() != 0.0
+                {
+                    return Err(JsError::new(
+                        "UnsignedBigInt.new: expected nonnegative safe integer Number; use BigInt for larger integers",
+                    ));
+                }
+                Ok(Self(unsignedbigint256::UnsignedBigInt::from(num as u64)))
             }
         }
     }

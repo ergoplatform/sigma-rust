@@ -9,7 +9,7 @@ use ergo_lib::ergotree_ir::{
 use crate::errors::SigmaSerializationError;
 
 use super::constant::Constant;
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub struct ContextExtension(ContextExtensionInner);
 

@@ -29,6 +29,7 @@ use crate::unsignedbigint256::UnsignedBigInt;
 use ergo_chain_types::EcPoint;
 
 use super::sigma_byte_writer::SigmaByteWrite;
+use super::types::TypeCode;
 use alloc::sync::Arc;
 use core::convert::TryInto;
 
@@ -124,8 +125,14 @@ impl DataSerializer {
         r: &mut R,
     ) -> Result<Literal, SigmaParsingError> {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/DataSerializer.scala#L84-L84
+        // Every data value is one nesting level, released only on success
+        // (sigmastate v6.0.6 `CoreDataSerializer.deserialize`,
+        // `CoreDataSerializer.scala:94-148`, and the Box/Header arms of
+        // `DataSerializer.deserialize`, `DataSerializer.scala:31-49`).
+        let depth = r.level();
+        r.set_level(depth + 1)?;
         use SType::*;
-        Ok(match tpe {
+        let literal = match tpe {
             SBoolean => Literal::Boolean(r.get_u8()? != 0),
             SByte => Literal::Byte(r.get_i8()?),
             SShort => Literal::Short(r.get_i16()?),
@@ -133,8 +140,9 @@ impl DataSerializer {
             SLong => Literal::Long(r.get_i64()?),
             SString => {
                 let len = r.get_u32()?;
+                r.check_remaining(len as usize)?;
                 let mut buf = vec![0; len as usize];
-                r.read_exact(&mut buf)?;
+                r.get_bytes_into(&mut buf)?;
                 Literal::String(String::from_utf8_lossy(&buf).into())
             }
             SBigInt => Literal::BigInt(BigInt256::sigma_parse(r)?),
@@ -149,7 +157,7 @@ impl DataSerializer {
             SColl(elem_type) if **elem_type == SByte => {
                 let len = r.get_u16()? as usize;
                 let mut buf = vec![0u8; len];
-                r.read_exact(&mut buf)?;
+                r.get_bytes_into(&mut buf)?;
                 Literal::Coll(CollKind::NativeColl(NativeColl::CollByte(
                     buf.into_iter().map(|v| v as i8).collect(),
                 )))
@@ -196,14 +204,108 @@ impl DataSerializer {
             SHeader if r.tree_version() >= ErgoTreeVersion::V3 => {
                 Literal::Header(Box::new(Header::scorex_parse(r)?))
             }
-            STypeVar(_) => return Err(SigmaParsingError::NotSupported("TypeVar data")),
-            SAny => return Err(SigmaParsingError::NotSupported("SAny data")),
+            // Non-serializable constant data types: mirror sigma-state's
+            // `CoreDataSerializer` fallback + rule 1009 (`CheckSerializableTypeCode`).
+            // A type code that is neither `OptionTypeCode` (36) nor `> LastDataType`
+            // (111) is NOT soft-forkable — the JVM throws a hard `SerializerException`
+            // that escapes `deserializeErgoTree`'s `UnparsedErgoTree` fallback, so a
+            // size-flagged tree carrying one is rejected (`NonSerializableTypeCode`).
+            // `SOption` (36) and `SFunc` (112 > 111) ARE soft-forkable and keep the
+            // degradable `NotSupported` (a size-flagged tree carrying one degrades to
+            // `Unparsed`, matching the JVM soft-fork).
+            STypeVar(_) => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::STYPE_VAR.value(),
+                ))
+            }
+            SAny => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SANY.value(),
+                ))
+            }
             SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),
             SFunc(_) => return Err(SigmaParsingError::NotSupported("SFunc data")),
-            SContext => return Err(SigmaParsingError::NotSupported("SContext data")),
-            SHeader => return Err(SigmaParsingError::NotSupported("SHeader data")),
-            SPreHeader => return Err(SigmaParsingError::NotSupported("SPreHeader data")),
-            SGlobal => return Err(SigmaParsingError::NotSupported("SGlobal data")),
-        })
+            SContext => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SCONTEXT.value(),
+                ))
+            }
+            SHeader => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SHEADER.value(),
+                ))
+            }
+            SPreHeader => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SPRE_HEADER.value(),
+                ))
+            }
+            SGlobal => {
+                return Err(SigmaParsingError::NonSerializableTypeCode(
+                    TypeCode::SGLOBAL.value(),
+                ))
+            }
+        };
+        r.set_level(r.level().saturating_sub(1))?;
+        Ok(literal)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod depth_limit_tests {
+    //! JVM parity: every data value is one nesting level (sigmastate v6.0.6
+    //! `CoreDataSerializer.deserialize`, `CoreDataSerializer.scala:94-148`), up to
+    //! `MaxTreeDepth` = 110 per reader. A constant read on its own, as a segregated
+    //! tree constant is, counts data levels only.
+    use crate::mir::constant::Constant;
+    use crate::serialization::{SigmaParsingError, SigmaSerializable};
+    use alloc::vec::Vec;
+
+    /// `Coll^n[Byte]` constant (n ≥ 2): type `0c`×(n−2) `1a`, data `01`×(n−1) `00`.
+    fn coll_n_byte(n: usize) -> Vec<u8> {
+        let mut bytes = vec![0x0c; n - 2];
+        bytes.push(0x1a);
+        bytes.extend(vec![0x01; n - 1]);
+        bytes.push(0x00);
+        bytes
+    }
+
+    /// `Coll^n[Int]` constant (n ≥ 2) whose innermost `Coll[Int]` is empty or holds
+    /// one `Int` 0: type `0c`×(n−2) `1c`, data `01`×(n−1) then the innermost.
+    fn coll_n_int(n: usize, innermost_holds_an_int: bool) -> Vec<u8> {
+        let mut bytes = vec![0x0c; n - 2];
+        bytes.push(0x1c);
+        bytes.extend(vec![0x01; n - 1]);
+        if innermost_holds_an_int {
+            bytes.extend([0x01, 0x00]);
+        } else {
+            bytes.push(0x00);
+        }
+        bytes
+    }
+
+    fn depth_exceeded(r: Result<Constant, SigmaParsingError>) -> bool {
+        matches!(r, Err(SigmaParsingError::DeserializeCallDepthExceeded(111)))
+    }
+
+    #[test]
+    fn nested_coll_of_bytes_reaches_exactly_max_tree_depth() {
+        // Coll[Byte] reads its bytes in bulk, so Coll^n[Byte] takes n levels.
+        assert!(Constant::sigma_parse_bytes(&coll_n_byte(110)).is_ok());
+        assert!(depth_exceeded(Constant::sigma_parse_bytes(&coll_n_byte(
+            111
+        ))));
+    }
+
+    #[test]
+    fn each_element_of_a_non_byte_coll_is_one_more_level() {
+        // Coll[Int] reads each element as a data value: one level past the collection.
+        assert!(Constant::sigma_parse_bytes(&coll_n_int(109, true)).is_ok());
+        assert!(depth_exceeded(Constant::sigma_parse_bytes(&coll_n_int(
+            110, true
+        ))));
+        // An empty innermost Coll[Int] reads no element.
+        assert!(Constant::sigma_parse_bytes(&coll_n_int(110, false)).is_ok());
     }
 }

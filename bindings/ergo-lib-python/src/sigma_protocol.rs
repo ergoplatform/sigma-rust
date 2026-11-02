@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 
 use crate::chain::ec_point::EcPoint;
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(PartialEq, Eq, From, Into, Clone)]
 pub(crate) struct ProveDlog(pub(crate) ProveDlogInner);
 

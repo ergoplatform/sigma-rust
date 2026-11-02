@@ -1,8 +1,8 @@
 use std::ffi::CStr;
 
 use ergo_lib_c_core::unsignedbigint256::{
-    CheckedAdd, CheckedMul, CheckedRem, CheckedSub, ConstUnsignedBigIntPtr, Num, UnsignedBigInt,
-    UnsignedBigIntPtr, UnsignedBigIntRaw,
+    CheckedAdd, CheckedDiv, CheckedMul, CheckedRem, CheckedSub, ConstUnsignedBigIntPtr, Num,
+    UnsignedBigInt, UnsignedBigIntPtr, UnsignedBigIntRaw,
 };
 
 unsafe fn cast_ptr<'a>(ptr: ConstUnsignedBigIntPtr) -> Option<&'a UnsignedBigIntRaw> {
@@ -81,14 +81,14 @@ pub unsafe extern "C" fn ergo_lib_u256_mul(
 }
 
 /// Divide a by b, putting result in out
-/// Arithmetic is checked, so if the result overflowed 1 will be returned and nothing will be written to out
+/// Returns 1 if b is zero and nothing will be written to out
 #[no_mangle]
 pub unsafe extern "C" fn ergo_lib_u256_div(
     a: ConstUnsignedBigIntPtr,
     b: ConstUnsignedBigIntPtr,
     out: UnsignedBigIntPtr,
 ) -> u32 {
-    wrap_arith_op(out, || cast_ptr(a)?.checked_mul(cast_ptr(b)?))
+    wrap_arith_op(out, || cast_ptr(a)?.checked_div(cast_ptr(b)?))
 }
 
 /// Compute (a + b) mod modulus
@@ -183,9 +183,87 @@ pub unsafe extern "C" fn ergo_lib_u256_cmp(
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod test {
-    use super::{ergo_lib_u256_add, ergo_lib_u256_new};
+    use super::{
+        ergo_lib_u256_add, ergo_lib_u256_div, ergo_lib_u256_mod_inv, ergo_lib_u256_mod_sub,
+        ergo_lib_u256_new,
+    };
     use crate::{ergo_lib_u256_cmp, ergo_lib_u256_from_long, ergo_lib_u256_from_str_radix};
     use std::ffi::CString;
+
+    #[test]
+    fn division_returns_quotient() {
+        // Inputs and output are distinct, initialized, correctly aligned values.
+        unsafe {
+            let a = ergo_lib_u256_from_long(10);
+            let b = ergo_lib_u256_from_long(2);
+            let mut out = ergo_lib_u256_from_long(99);
+            assert_eq!(ergo_lib_u256_div(&a, &b, &mut out), 0);
+            assert_eq!(out.0, [5, 0, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn division_truncates_remainder() {
+        // Inputs and output are distinct, initialized, correctly aligned values.
+        unsafe {
+            let a = ergo_lib_u256_from_long(11);
+            let b = ergo_lib_u256_from_long(2);
+            let mut out = ergo_lib_u256_from_long(99);
+            assert_eq!(ergo_lib_u256_div(&a, &b, &mut out), 0);
+            assert_eq!(out.0, [5, 0, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn division_by_zero_preserves_output() {
+        // Inputs and output are distinct, initialized, correctly aligned values.
+        unsafe {
+            let a = ergo_lib_u256_from_long(10);
+            let zero = ergo_lib_u256_new();
+            let mut out = ergo_lib_u256_from_long(99);
+            assert_eq!(ergo_lib_u256_div(&a, &zero, &mut out), 1);
+            assert_eq!(out.0, [99, 0, 0, 0]);
+        }
+    }
+
+    fn assert_mod_sub_zero_preserves_output(a: u64, b: u64) {
+        // Inputs and output are distinct, initialized, correctly aligned values.
+        unsafe {
+            let a = ergo_lib_u256_from_long(a);
+            let b = ergo_lib_u256_from_long(b);
+            let zero = ergo_lib_u256_new();
+            let mut out = ergo_lib_u256_from_long(99);
+            assert_eq!(ergo_lib_u256_mod_sub(&a, &b, &zero, &mut out), 1);
+            assert_eq!(out.0, [99, 0, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn mod_sub_zero_modulus_greater_operands_preserves_output() {
+        assert_mod_sub_zero_preserves_output(5, 3);
+    }
+
+    #[test]
+    fn mod_sub_zero_modulus_equal_operands_preserves_output() {
+        assert_mod_sub_zero_preserves_output(3, 3);
+    }
+
+    #[test]
+    fn mod_sub_zero_modulus_less_operands_preserves_output() {
+        assert_mod_sub_zero_preserves_output(1, 3);
+    }
+
+    #[test]
+    fn mod_inv_zero_modulus_preserves_output() {
+        // Inputs and output are distinct, initialized, correctly aligned values.
+        unsafe {
+            let a = ergo_lib_u256_from_long(5);
+            let zero = ergo_lib_u256_new();
+            let mut out = ergo_lib_u256_from_long(99);
+            assert_eq!(ergo_lib_u256_mod_inv(&a, &zero, &mut out), 1);
+            assert_eq!(out.0, [99, 0, 0, 0]);
+        }
+    }
 
     #[test]
     fn test_ops() {

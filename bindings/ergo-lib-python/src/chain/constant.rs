@@ -159,7 +159,7 @@ impl SType {
     }
 }
 /// Constant value that can be used in ErgoBox registers, ErgoTree constants and ContextExtension
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, Debug, From, Into)]
 pub(crate) struct Constant(constant::Constant);
 

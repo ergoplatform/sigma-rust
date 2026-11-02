@@ -9,7 +9,7 @@ use crate::to_value_error;
 /// According to
 /// BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 /// and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, from_py_object)]
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub(crate) struct DerivationPath(pub(crate) derivation_path::DerivationPath);
 

@@ -441,6 +441,30 @@ mod tests {
     }
 
     #[test]
+    fn test_nipopow_verifier_two_proofs_picks_better_autolykos_v1() {
+        use ergo_nipopow::NipopowVerifier;
+        let m = 30;
+        let k = 30;
+        let popow_algos = NipopowAlgos::default();
+
+        let long_chain = generate_popowheader_chain(100, None);
+        let short_chain = long_chain[0..70].to_vec();
+        let long_proof = popow_algos.prove(&long_chain, k, m).unwrap();
+        let short_proof = popow_algos.prove(&short_chain, k, m).unwrap();
+        assert!(long_proof.is_better_than(&short_proof).unwrap());
+
+        // feed the worse proof first to exercise the replacement branch of `process`
+        let mut verifier = NipopowVerifier::new(long_chain[0].header.id);
+        verifier.process(short_proof).unwrap();
+        verifier.process(long_proof.clone()).unwrap();
+        let best_proof = verifier.best_proof().unwrap();
+        assert_eq!(
+            best_proof.suffix_head.header.id,
+            long_proof.suffix_head.header.id
+        );
+    }
+
+    #[test]
     fn test_nipopow_is_better_than_disconnected_chain_should_not_win_autolykos_v1() {
         let m = 50;
         let k = 1;

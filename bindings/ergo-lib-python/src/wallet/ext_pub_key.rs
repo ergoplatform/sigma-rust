@@ -8,7 +8,7 @@ use ergo_lib::{ergotree_ir::chain::address, wallet::derivation_path::ChildIndexN
 use pyo3::{pyclass, pymethods, PyResult};
 
 #[derive(From, Clone, PartialEq, Eq)]
-#[pyclass(frozen, eq)]
+#[pyclass(frozen, eq, from_py_object)]
 pub(crate) struct ExtPubKey(ext_pub_key::ExtPubKey);
 
 #[pymethods]

@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 
 use crate::to_value_error;
 
-#[pyclass(eq, frozen, str)]
+#[pyclass(eq, frozen, str, from_py_object)]
 #[derive(PartialEq, Eq, Display, Clone, From, Into)]
 pub(crate) struct EcPoint(pub(crate) EcPointInner);
 

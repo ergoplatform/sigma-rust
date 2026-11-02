@@ -9,7 +9,7 @@ use super::{
     secret_key::SecretKey,
 };
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, skip_from_py_object)]
 #[derive(PartialEq, Eq, From)]
 pub(crate) struct ExtSecretKey(ext_secret_key::ExtSecretKey);
 

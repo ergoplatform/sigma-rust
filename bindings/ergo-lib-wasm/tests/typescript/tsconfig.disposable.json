@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.es2020.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "ESNext.Disposable"]
+  },
+  "files": ["disposable.ts"]
+}

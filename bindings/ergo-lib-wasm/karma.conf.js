@@ -2,11 +2,16 @@ const webpack = require("webpack");
 const outputDir = __dirname + "/dist";
 
 module.exports = function (config) {
+  const browserTests = [
+    "tests_browser/integration_tests_rest_api.js",
+    "tests_browser/test_rest_api.js",
+  ];
+
   config.set({
     frameworks: ["mocha", "chai", "webpack"],
     files: [
       "tests/**/*.js",
-      "tests_browser/**/*.js",
+      ...browserTests,
       { pattern: `${outputDir}/*.wasm`, included: false, served: true },
     ],
     client: {
@@ -57,7 +62,19 @@ module.exports = function (config) {
     port: 9876,
     logLevel: config.LOG_INFO,
 
-    browsers: ["ChromeHeadless"],
+    browsers: ["ChromeHeadlessNoSandbox"],
+    customLaunchers: {
+      ChromeHeadlessNoSandbox: {
+        base: "ChromeHeadless",
+        flags: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--headless=new",
+          "--disable-gpu",
+        ],
+      },
+    },
     browserNoActivityTimeout: 900000,
 
     autoWatch: false,

@@ -24,7 +24,8 @@ impl NodeConf {
         Ok(ergo_lib::ergo_rest::NodeConf {
             addr: peer_addr,
             api_key: None,
-            timeout: None,
+            // default request timeout so a stalled node does not block fallbacks
+            timeout: Some(std::time::Duration::from_secs(30)),
         }
         .into())
     }

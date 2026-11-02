@@ -17,7 +17,7 @@ use crate::{
 
 use super::{data_input::DataInput, UnsignedTransaction};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone)]
 pub(crate) struct TxBuilder(TxBuilderInner<ergo_lib::ergotree_ir::chain::ergo_box::ErgoBox>);
 

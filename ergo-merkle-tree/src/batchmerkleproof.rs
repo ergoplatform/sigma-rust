@@ -162,33 +162,29 @@ impl ScorexSerializable for BatchMerkleProof {
         }
         let indices_len = read_u32_be(r)? as usize;
         let proofs_len = read_u32_be(r)? as usize;
-        let indices = (0..indices_len)
-            .map(|_| {
-                let index = read_u32_be(r)? as usize;
-                let mut hash = Digest32::zero();
-                r.read_exact(&mut hash.0[..])?;
-                Ok(BatchMerkleProofIndex { index, hash })
-            })
-            .collect::<Result<Vec<BatchMerkleProofIndex>, sigma_ser::ScorexParsingError>>()?;
+        let mut indices = Vec::new();
+        for _ in 0..indices_len {
+            let index = read_u32_be(r)? as usize;
+            let mut hash = Digest32::zero();
+            r.read_exact(&mut hash.0[..])?;
+            indices.push(BatchMerkleProofIndex { index, hash });
+        }
 
-        let proofs = (0..proofs_len)
-            .map(|_| {
-                let mut hash = Digest32::zero();
-                r.read_exact(&mut hash.0[..])?;
-                let empty = hash.as_ref().iter().all(|&b| b == 0);
-                let side: NodeSide = r.get_u8()?.try_into().map_err(|_| {
-                    sigma_ser::ScorexParsingError::ValueOutOfBounds(
-                        "Side can only be 0 or 1".into(),
-                    )
-                })?;
+        let mut proofs = Vec::new();
+        for _ in 0..proofs_len {
+            let mut hash = Digest32::zero();
+            r.read_exact(&mut hash.0[..])?;
+            let empty = hash.as_ref().iter().all(|&b| b == 0);
+            let side: NodeSide = r.get_u8()?.try_into().map_err(|_| {
+                sigma_ser::ScorexParsingError::ValueOutOfBounds("Side can only be 0 or 1".into())
+            })?;
 
-                if empty {
-                    Ok(crate::LevelNode::empty_node(side))
-                } else {
-                    Ok(crate::LevelNode::new(hash, side))
-                }
-            })
-            .collect::<Result<Vec<crate::LevelNode>, sigma_ser::ScorexParsingError>>()?;
+            if empty {
+                proofs.push(crate::LevelNode::empty_node(side));
+            } else {
+                proofs.push(crate::LevelNode::new(hash, side));
+            }
+        }
         Ok(BatchMerkleProof::new(indices, proofs))
     }
 }

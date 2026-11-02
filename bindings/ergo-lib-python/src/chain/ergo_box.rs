@@ -27,7 +27,7 @@ use crate::{
 
 use super::{address::Address, constant::Constant, token::Token};
 
-#[pyclass(eq, frozen, hash, ord)]
+#[pyclass(eq, frozen, hash, ord, from_py_object)]
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy, Debug)]
 #[repr(u8)]
 pub(crate) enum NonMandatoryRegisterId {
@@ -60,7 +60,7 @@ impl From<NonMandatoryRegisterId> for ergo_box::NonMandatoryRegisterId {
 }
 
 /// Identifier of an :class:`ErgoBox`
-#[pyclass(str = "{0}", eq)]
+#[pyclass(str = "{0}", eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, Copy, From, Into)]
 pub(crate) struct BoxId(pub ergo_box::BoxId);
 
@@ -91,7 +91,7 @@ impl BoxId {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq, From, Into, Debug)]
 pub(crate) struct ErgoBoxCandidate(ergo_box::ErgoBoxCandidate);
 
@@ -152,22 +152,6 @@ impl ErgoBoxCandidate {
         }
         builder.build().map(Self).map_err(to_value_error)
     }
-    // this is only exists to fix stubtest errors
-    #[allow(clippy::too_many_arguments)]
-    #[pyo3(signature=(*, value, script, creation_height, tokens=None, registers=None, mint_token= None, mint_token_name = None, mint_token_desc=None, mint_token_decimals=None))]
-    fn __init__(
-        &self,
-        value: u64,
-        script: &Bound<'_, PyAny>,
-        creation_height: u32,
-        tokens: Option<Vec<Token>>,
-        registers: Option<HashMap<NonMandatoryRegisterId, Constant>>,
-        mint_token: Option<Token>,
-        mint_token_name: Option<&str>,
-        mint_token_desc: Option<&str>,
-        mint_token_decimals: Option<usize>,
-    ) {
-    }
     #[getter]
     fn value(&self) -> u64 {
         *self.0.value.as_u64()
@@ -199,7 +183,7 @@ impl ErgoBoxCandidate {
     }
 }
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into, Deserialize, Serialize)]
 pub(crate) struct ErgoBox(pub ergo_box::ErgoBox);
 
@@ -289,7 +273,7 @@ impl ErgoBox {
     }
 }
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, skip_from_py_object)]
 #[derive(PartialEq, Eq, From, Into)]
 pub(crate) struct NonMandatoryRegisters(NonMandatoryRegistersInner);
 

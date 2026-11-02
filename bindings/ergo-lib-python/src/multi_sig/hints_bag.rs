@@ -9,7 +9,7 @@ use crate::errors::JsonError;
 
 use super::hints::{RealCommitment, RealSecretProof, SimulatedCommitment, SimulatedSecretProof};
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(From, Into, Clone)]
 pub(crate) struct HintsBag(HintsBagInner);
 
@@ -103,7 +103,7 @@ impl HintsBag {
     }
 }
 
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, From, Into, AsRef)]
 pub(crate) struct TransactionHintsBag(TransactionHintsBagInner);
 

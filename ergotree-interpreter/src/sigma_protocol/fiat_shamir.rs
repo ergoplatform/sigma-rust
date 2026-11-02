@@ -130,8 +130,8 @@ pub enum FiatShamirTreeSerializationError {
     IoError(String),
 }
 
-impl From<core2::io::Error> for FiatShamirTreeSerializationError {
-    fn from(error: core2::io::Error) -> FiatShamirTreeSerializationError {
+impl From<core3::io::Error> for FiatShamirTreeSerializationError {
+    fn from(error: core3::io::Error) -> FiatShamirTreeSerializationError {
         FiatShamirTreeSerializationError::IoError(error.to_string())
     }
 }

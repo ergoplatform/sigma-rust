@@ -1322,6 +1322,39 @@ mod tests {
     }
 
     #[test]
+    fn string_over_4096_bytes_roundtrips() {
+        // the JVM's SString data has no length cap (sigmastate v6.0.6
+        // `CoreDataSerializer.scala:104-110`); only a reader window bounds it
+        let s = "a".repeat(5000);
+        let constant = Constant::from(s.clone());
+        let bytes = constant.sigma_serialize_bytes().unwrap();
+        let parsed = Constant::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(parsed.v, Literal::String(s.into()));
+    }
+
+    #[test]
+    fn string_len_over_remaining_rejected_on_parse() {
+        // serialized: [SSTRING typecode = 102, VLQ u32 len = 4097 = 0x81 0x20, one payload byte]
+        let bytes: Vec<u8> = vec![102, 0x81, 0x20, b'a'];
+        assert!(matches!(
+            Constant::sigma_parse_bytes(&bytes),
+            Err(SigmaParsingError::Io(_))
+        ));
+    }
+
+    #[test]
+    fn string_len_huge_declared_rejected_on_parse() {
+        // serialized: [SSTRING typecode = 102, VLQ u32 len = u32::MAX = 0xFF 0xFF 0xFF 0xFF 0x0F,
+        // one payload byte]; must be rejected before any allocation (pre-fix code pre-allocated
+        // the declared length, ~4GiB, which aborts on 32-bit/WASM targets)
+        let bytes: Vec<u8> = vec![102, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F, b'a'];
+        assert!(matches!(
+            Constant::sigma_parse_bytes(&bytes),
+            Err(SigmaParsingError::Io(_))
+        ));
+    }
+
+    #[test]
     fn constant_from_iter() {
         let iter1 = [
             Constant::from(1i32),

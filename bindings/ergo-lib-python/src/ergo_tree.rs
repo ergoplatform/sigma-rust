@@ -9,7 +9,7 @@ use crate::{
 
 use super::chain::constant::Constant;
 
-#[pyclass(eq)]
+#[pyclass(eq, from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct ErgoTree(pub ergo_tree::ErgoTree);
 

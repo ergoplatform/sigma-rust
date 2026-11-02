@@ -3,7 +3,7 @@ use ergo_lib::ergotree_ir::chain::address::{self, AddressEncoder};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 
 use crate::{ergo_tree::ErgoTree, sigma_protocol::ProveDlog, to_value_error};
-#[pyclass(eq, eq_int, frozen)]
+#[pyclass(eq, eq_int, frozen, from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NetworkPrefix {
     Mainnet = 0x00,
@@ -17,7 +17,7 @@ impl From<NetworkPrefix> for address::NetworkPrefix {
     }
 }
 
-#[pyclass(eq, frozen)]
+#[pyclass(eq, frozen, from_py_object)]
 #[derive(From, Into, Clone, PartialEq, Eq)]
 pub(crate) struct Address(pub(crate) address::Address);
 

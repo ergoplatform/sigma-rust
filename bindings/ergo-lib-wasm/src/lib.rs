@@ -20,6 +20,18 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[wasm_bindgen(typescript_custom_section)]
+const TYPESCRIPT_SYMBOL_DISPOSE_COMPAT: &str = r#"
+declare const __wbg_dispose_fallback: unique symbol;
+declare const Symbol: {
+    readonly dispose: typeof globalThis.Symbol extends {
+        readonly dispose: infer T;
+    } ? T : typeof __wbg_dispose_fallback;
+};
+"#;
+
 pub mod address;
 pub mod ast;
 pub mod batchmerkleproof;

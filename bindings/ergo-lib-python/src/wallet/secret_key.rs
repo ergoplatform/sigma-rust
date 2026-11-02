@@ -5,7 +5,7 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use crate::{errors::JsonError, from_json, sigma_protocol::ProveDlog, to_value_error};
 
 /// Secret Key
-#[pyclass(eq, frozen, str = "{0:?}")]
+#[pyclass(eq, frozen, str = "{0:?}", from_py_object)]
 #[derive(PartialEq, Eq, Clone, From, Into)]
 pub(crate) struct SecretKey(secret_key::SecretKey);
 
