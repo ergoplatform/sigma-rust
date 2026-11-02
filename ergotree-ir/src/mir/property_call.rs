@@ -21,7 +21,7 @@ pub struct PropertyCall {
     pub obj: Box<Expr>,
     /// Property to be invoked
     pub method: SMethod,
-    /// Type arguments that cannot be inferred from the receiver, such as Global.none[T]
+    /// Type arguments that cannot be inferred from the receiver, such as `Global.none[T]`
     pub explicit_type_args: HashMap<STypeVar, SType>,
 }
 
