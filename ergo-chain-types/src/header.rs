@@ -175,8 +175,11 @@ impl ScorexSerializable for Header {
                 pow_distance,
             }
         } else {
-            // autolykos v2
-            let pow_onetime_pk = None;
+            // autolykos v2: the wire carries no one-time pk; the reference impl
+            // fills it with the group generator at parse
+            // (`ErgoHeader.scala`: `wForV2 = CryptoConstants.dlogGroup.generator`),
+            // and that is what `Header.powOnetimePk` surfaces in scripts.
+            let pow_onetime_pk = Some(Box::new(crate::ec_point::generator()));
             let pow_distance = None;
             let miner_pk = EcPoint::scorex_parse(r)?.into();
             let mut nonce: Vec<u8> = vec![0; 8];
@@ -372,11 +375,13 @@ mod arbitrary {
                         let id = BlockId(blake2b256_hash(&id_bytes));
                         header.id = id;
 
-                        // Manually set the following parameters to `None` for autolykos v2. This is
-                        // allowable since serialization/deserialization of the `Header` ignores
-                        // these fields for version > 1.
+                        // For autolykos v2 the serialized form carries neither field:
+                        // parsing fills the one-time pk with the group generator (as the
+                        // reference impl does) and leaves the distance empty, so generate
+                        // headers in that post-parse shape for roundtrips.
                         if header.version > 1 {
-                            header.autolykos_solution.pow_onetime_pk = None;
+                            header.autolykos_solution.pow_onetime_pk =
+                                Some(Box::new(crate::ec_point::generator()));
                             header.autolykos_solution.pow_distance = None;
                         }
 
