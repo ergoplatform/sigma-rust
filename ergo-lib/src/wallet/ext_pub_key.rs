@@ -109,12 +109,15 @@ impl ExtPubKey {
     /// Derive a new extended pub key based on the provided derivation path
     pub fn derive(&self, up_path: DerivationPath) -> Result<Self, ExtPubKeyError> {
         // TODO: branch visibility must also be equal
-        let is_matching_path = up_path.0[..self.derivation_path.depth()]
-            .iter()
-            .zip(self.derivation_path.0.iter())
-            .all(|(a, b)| a == b);
+        // The depth check must come first: slicing `up_path` by this key's
+        // depth panics when the target path is shorter than this key's path.
+        let is_matching_path = up_path.depth() >= self.derivation_path.depth()
+            && up_path.0[..self.derivation_path.depth()]
+                .iter()
+                .zip(self.derivation_path.0.iter())
+                .all(|(a, b)| a == b);
 
-        if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
+        if is_matching_path {
             up_path.0[self.derivation_path.depth()..]
                 .iter()
                 .try_fold(self.clone(), |parent, i| match i {
@@ -247,6 +250,38 @@ mod tests {
                 .try_into()
                 .unwrap();
         assert_eq!(child.pub_key_bytes(), expected_child_pub_key_bytes);
+    }
+
+    #[test]
+    fn derive_with_shorter_path_returns_error() {
+        // Deriving to a path shorter than the key's own path is
+        // incompatible; it must return an error, not panic while
+        // comparing the path prefix.
+        let derivation_path =
+            DerivationPath::new(ChildIndexHardened::from_31_bit(0).unwrap(), vec![]);
+        let pub_key_bytes =
+            base16::decode(b"035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56")
+                .unwrap();
+        let chain_code =
+            base16::decode(b"47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141")
+                .unwrap();
+        let ext_pub_key = ExtPubKey::new(
+            pub_key_bytes.try_into().unwrap(),
+            chain_code.try_into().unwrap(),
+            derivation_path,
+        )
+        .unwrap();
+        // The key sits at depth 4 (m/44'/429'/0'/0); m/44' has depth 1.
+        let res = ext_pub_key.derive("m/44'".parse().unwrap());
+        assert!(matches!(
+            res,
+            Err(ExtPubKeyError::IncompatibleDerivation(_))
+        ));
+        let res_master = ext_pub_key.derive(DerivationPath::master_path());
+        assert!(matches!(
+            res_master,
+            Err(ExtPubKeyError::IncompatibleDerivation(_))
+        ));
     }
 
     #[test]

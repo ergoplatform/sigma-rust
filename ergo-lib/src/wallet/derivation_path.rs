@@ -271,8 +271,8 @@ impl FromStr for DerivationPath {
         }
         let path = parts
             .into_iter()
-            .flat_map(ChildIndex::from_str)
-            .collect::<Vec<_>>();
+            .map(ChildIndex::from_str)
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(path.into_boxed_slice().into())
     }
 }
@@ -314,6 +314,62 @@ mod tests {
         let expected = "m/44'/429'/1'/0/4";
 
         assert_eq!(expected, new_path.to_string());
+    }
+
+    #[test]
+    fn test_parse_rejects_non_numeric_component() {
+        // A component that is not a valid child index must be an error,
+        // not silently dropped (which would derive a different path).
+        assert!(matches!(
+            "m/foo".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+        assert!(matches!(
+            "m/44'/429'/0'/0/abc".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_rejects_out_of_range_component() {
+        // 2^31 does not fit a 31-bit child index.
+        assert!(matches!(
+            "m/2147483648".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+        assert!(matches!(
+            "m/2147483648'".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+        // Far beyond u32: the integer parse itself fails.
+        assert!(matches!(
+            "m/99999999999999999999999999".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_rejects_empty_component() {
+        assert!(matches!(
+            "m//1".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+        assert!(matches!(
+            "m/1/".parse::<DerivationPath>(),
+            Err(DerivationPathError::ChildIndex(_))
+        ));
+    }
+
+    #[test]
+    fn test_parse_valid_paths_unchanged() {
+        assert_eq!(
+            "m".parse::<DerivationPath>().unwrap(),
+            DerivationPath::master_path()
+        );
+        assert_eq!(
+            "m/44'/429'/0'/0/1".parse::<DerivationPath>().unwrap(),
+            DerivationPath::new(ChildIndexHardened(0), vec![ChildIndexNormal(1)])
+        );
     }
 
     // Test derivation_path.next() returns error if empty (doesn't panic)
