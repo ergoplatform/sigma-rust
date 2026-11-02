@@ -5,7 +5,6 @@ use ergo_lib_c_core::{
     ergo_tree::*,
     Error,
 };
-use paste::paste;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -171,4 +170,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_tree_delete(ptr: ErgoTreePtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(ErgoTree);
+make_ffi_eq! {
+    eq_fn: ergo_lib_ergo_tree_eq,
+    const_ptr: ConstErgoTreePtr
+}

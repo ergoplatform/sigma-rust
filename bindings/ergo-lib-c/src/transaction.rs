@@ -12,7 +12,6 @@ use ergo_lib_c_core::{
     Error, ErrorPtr,
 };
 
-use paste::paste;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -404,4 +403,7 @@ pub unsafe extern "C" fn ergo_lib_tx_id_delete(ptr: TxIdPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(TxId);
+make_ffi_eq! {
+    eq_fn: ergo_lib_tx_id_eq,
+    const_ptr: ConstTxIdPtr
+}

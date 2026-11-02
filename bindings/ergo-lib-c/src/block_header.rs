@@ -1,5 +1,4 @@
 //! Block header
-use paste::paste;
 
 use ergo_lib_c_core::{
     block_header::{
@@ -67,7 +66,37 @@ pub unsafe extern "C" fn ergo_lib_block_id_delete(ptr: BlockIdPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(BlockHeaders, BlockHeader);
-make_ffi_eq!(BlockHeader);
-make_collection!(BlockIds, BlockId);
-make_ffi_eq!(BlockId);
+make_collection! {
+    collection: BlockHeaders,
+    collection_ptr: BlockHeadersPtr,
+    const_collection_ptr: ConstBlockHeadersPtr,
+    item: BlockHeader,
+    item_ptr: BlockHeaderPtr,
+    const_item_ptr: ConstBlockHeaderPtr,
+    new_fn: ergo_lib_block_headers_new,
+    delete_fn: ergo_lib_block_headers_delete,
+    len_fn: ergo_lib_block_headers_len,
+    get_fn: ergo_lib_block_headers_get,
+    add_fn: ergo_lib_block_headers_add
+}
+make_ffi_eq! {
+    eq_fn: ergo_lib_block_header_eq,
+    const_ptr: ConstBlockHeaderPtr
+}
+make_collection! {
+    collection: BlockIds,
+    collection_ptr: BlockIdsPtr,
+    const_collection_ptr: ConstBlockIdsPtr,
+    item: BlockId,
+    item_ptr: BlockIdPtr,
+    const_item_ptr: ConstBlockIdPtr,
+    new_fn: ergo_lib_block_ids_new,
+    delete_fn: ergo_lib_block_ids_delete,
+    len_fn: ergo_lib_block_ids_len,
+    get_fn: ergo_lib_block_ids_get,
+    add_fn: ergo_lib_block_ids_add
+}
+make_ffi_eq! {
+    eq_fn: ergo_lib_block_id_eq,
+    const_ptr: ConstBlockIdPtr
+}
