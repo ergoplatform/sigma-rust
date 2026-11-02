@@ -64,6 +64,12 @@ impl STypeVar {
         STypeVar::new_from_str("T").unwrap()
     }
 
+    /// "R" type variable
+    pub fn r() -> Self {
+        #[allow(clippy::unwrap_used)]
+        STypeVar::new_from_str("R").unwrap()
+    }
+
     /// "IV"(Input Value) type variable
     pub fn iv() -> STypeVar {
         #[allow(clippy::unwrap_used)]
