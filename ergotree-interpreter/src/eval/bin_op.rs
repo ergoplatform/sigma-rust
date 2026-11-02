@@ -8,6 +8,9 @@ use ergotree_ir::mir::bin_op::{BinOp, BitOp};
 use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
+use ergotree_ir::sigma_protocol::sigma_boolean::{
+    SigmaBoolean, SigmaConjecture, SigmaConjectureItems,
+};
 use ergotree_ir::unsignedbigint256::UnsignedBigInt;
 use num_traits::CheckedAdd;
 use num_traits::CheckedDiv;
@@ -165,6 +168,65 @@ fn eval_le<'ctx>(lv: Value<'ctx>, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalEr
     }
 }
 
+/// Equality with Scala `DataValueComparer.equalDataValues` semantics: SigmaProp
+/// operands are compared via [`equal_sigma_boolean`], which can throw; all other
+/// types compare structurally (`PartialEq`).
+fn eval_eq<'ctx>(lv: Value<'ctx>, rv: Value<'ctx>) -> Result<bool, EvalError> {
+    match (&lv, &rv) {
+        (Value::SigmaProp(l), Value::SigmaProp(r)) => equal_sigma_boolean(l.value(), r.value()),
+        _ => Ok(lv == rv),
+    }
+}
+
+/// Scala `DataValueComparer.equalSigmaBoolean` (DataValueComparer.scala:253):
+/// dispatches on the LEFT node. The leaf arms (ProveDlog / ProveDHTuple /
+/// TrivialProp) return `false` on a mismatched right via their inner
+/// `case _ => false`; the conjecture arms are *guarded*
+/// (`case CAND(children) if r.isInstanceOf[CAND]`), so a conjecture left
+/// against a different-kind right falls through every arm to the top-level
+/// `case _ => sys.error(...)` — evaluation throws. Children recurse through
+/// this same function, so a nested mismatch throws too.
+fn equal_sigma_boolean(l: &SigmaBoolean, r: &SigmaBoolean) -> Result<bool, EvalError> {
+    use SigmaBoolean::{ProofOfKnowledge, SigmaConjecture as Conj, TrivialProp};
+    use SigmaConjecture::{Cand, Cor, Cthreshold};
+    match (l, r) {
+        (ProofOfKnowledge(x), ProofOfKnowledge(y)) => Ok(x == y),
+        (TrivialProp(a), TrivialProp(b)) => Ok(a == b),
+        (Conj(Cand(x)), Conj(Cand(y))) => equal_sigma_booleans(&x.items, &y.items),
+        (Conj(Cor(x)), Conj(Cor(y))) => equal_sigma_booleans(&x.items, &y.items),
+        (Conj(Cthreshold(x)), Conj(Cthreshold(y))) => {
+            // `k == sb2.k && equalSigmaBooleans(...)`: a k mismatch
+            // short-circuits before the children are compared.
+            Ok(x.k == y.k && equal_sigma_booleans(&x.children, &y.children)?)
+        }
+        _ => match l {
+            ProofOfKnowledge(_) | TrivialProp(_) => Ok(false),
+            Conj(_) => Err(EvalError::Misc(format!(
+                "Cannot compare SigmaBoolean values {l:?} and {r:?}: unknown type"
+            ))),
+        },
+    }
+}
+
+/// Scala `DataValueComparer.equalSigmaBooleans` (DataValueComparer.scala:241):
+/// a length mismatch is `false` without comparing children; children compare
+/// pairwise, stopping at the first `false` (a later child that would throw is
+/// never reached).
+fn equal_sigma_booleans(
+    xs: &SigmaConjectureItems<SigmaBoolean>,
+    ys: &SigmaConjectureItems<SigmaBoolean>,
+) -> Result<bool, EvalError> {
+    if xs.len() != ys.len() {
+        return Ok(false);
+    }
+    for (x, y) in xs.iter().zip(ys.iter()) {
+        if !equal_sigma_boolean(x, y)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn eval_max<'ctx, T>(lv_raw: T, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalError>
 where
     T: Num + Ord + TryExtractFrom<Value<'ctx>> + Into<Value<'ctx>>,
@@ -208,8 +270,8 @@ impl Evaluable for BinOp {
                 )),
             },
             BinOpKind::Relation(op) => match op {
-                RelationOp::Eq => Ok(Value::Boolean(lv == rv()?)),
-                RelationOp::NEq => Ok(Value::Boolean(lv != rv()?)),
+                RelationOp::Eq => Ok(Value::Boolean(eval_eq(lv, rv()?)?)),
+                RelationOp::NEq => Ok(Value::Boolean(!eval_eq(lv, rv()?)?)),
                 RelationOp::Gt => eval_gt(lv, rv()?),
                 RelationOp::Lt => eval_lt(lv, rv()?),
                 RelationOp::Ge => eval_ge(lv, rv()?),
@@ -350,13 +412,20 @@ impl Evaluable for BinOp {
 mod tests {
     use super::*;
     use crate::eval::test_util::eval_out_wo_ctx;
+    use crate::eval::test_util::try_eval_out_with_version;
     use crate::eval::test_util::try_eval_out_wo_ctx;
     use alloc::boxed::Box;
+    use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+    use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
+    use ergotree_ir::sigma_protocol::sigma_boolean::{ProveDlog, SigmaProp};
     use ergotree_ir::unsignedbigint256::UnsignedBigInt;
     use num_traits::Bounded;
     use proptest::prelude::*;
+    use sigma_test_util::force_any_val;
 
     fn check_eq_neq(left: Constant, right: Constant) -> bool {
         let eq_op: Expr = BinOp {
@@ -688,5 +757,166 @@ mod tests {
             prop_assert_eq!(eval_logical_op(LogicalOp::Or, l, r), l || r);
             prop_assert_eq!(eval_logical_op(LogicalOp::Xor, l, r), l ^ r);
         }
+    }
+
+    // --- SigmaProp EQ/NEQ: Scala `DataValueComparer.equalSigmaBoolean` parity ---
+
+    // The two ProveDlog points embedded in the blessed vectors below
+    // (secp256k1 G and 2G).
+    const PK_A_HEX: &str = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    const PK_B_HEX: &str = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5";
+
+    fn pk(point_hex: &str) -> SigmaBoolean {
+        let p = ergo_chain_types::EcPoint::sigma_parse_bytes(&base16::decode(point_hex).unwrap())
+            .unwrap();
+        ProveDlog::new(p).into()
+    }
+
+    fn cand(items: Vec<SigmaBoolean>) -> SigmaBoolean {
+        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cand(Cand {
+            items: items.try_into().unwrap(),
+        }))
+    }
+
+    fn cthreshold(k: u8, children: Vec<SigmaBoolean>) -> SigmaBoolean {
+        SigmaBoolean::SigmaConjecture(SigmaConjecture::Cthreshold(Cthreshold {
+            k,
+            children: children.try_into().unwrap(),
+        }))
+    }
+
+    fn eval_sigmaprop_relation(
+        op: RelationOp,
+        l: SigmaBoolean,
+        r: SigmaBoolean,
+    ) -> Result<bool, EvalError> {
+        let expr: Expr = BinOp {
+            kind: BinOpKind::Relation(op),
+            left: Box::new(Constant::from(SigmaProp::new(l)).into()),
+            right: Box::new(Constant::from(SigmaProp::new(r)).into()),
+        }
+        .into();
+        try_eval_out_wo_ctx::<bool>(&expr)
+    }
+
+    fn assert_throws_unknown_type(res: Result<bool, EvalError>) {
+        let err = res.unwrap_err();
+        assert!(
+            format!("{err:?}").contains("Cannot compare SigmaBoolean"),
+            "expected the equalSigmaBoolean sys.error mirror, got: {err:?}"
+        );
+    }
+
+    // JVM-blessed byte vectors (santa-eval `EQ_of_SigmaProp_conjecture_mismatch`,
+    // eval/v5/authored): closed v2 trees, `EQ(CP(0), CP(1))` over two segregated
+    // SigmaProp constants (pkA/pkB above). The blessed sized header (`1a` + size
+    // VLQ) is rewritten to the non-sized `12` (size bit cleared, size bytes
+    // dropped) because the sized parse path rejects non-SigmaProp roots — the
+    // same lenient deserialize the conformance runner applies to
+    // expression-rooted corpus trees; body bytes verbatim.
+    fn eval_blessed_eq_tree(tree_hex: &str) -> Result<bool, EvalError> {
+        let tree_bytes = base16::decode(tree_hex).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&tree_bytes).unwrap();
+        let expr = tree.proposition().unwrap();
+        let ctx = force_any_val::<Context>();
+        try_eval_out_with_version::<bool>(&expr, &ctx, 2, 2)
+    }
+
+    #[test]
+    fn eq_sigmaprop_cand_left_dlog_right_throws_blessed_bytes() {
+        // `{ (pkA && pkB) == pkA }` (cand-vs-dlog#0): conjecture left, leaf
+        // right — every guarded conjecture arm fails and the top-level
+        // `case _` is sys.error → eval throws.
+        assert_throws_unknown_type(eval_blessed_eq_tree(
+            "1202089602cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798cd02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee508cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817989373007301",
+        ));
+    }
+
+    #[test]
+    fn eq_sigmaprop_dlog_left_cand_right_false_blessed_bytes() {
+        // `{ pkA == (pkA && pkB) }` (dlog-vs-cand#1): leaf left — the
+        // ProveDlog arm's inner `case _ => false`. The asymmetry twin of the
+        // throw above.
+        assert!(!eval_blessed_eq_tree(
+            "120208cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798089602cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798cd02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee59373007301",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn eq_sigmaprop_trivial_left_dlog_right_false_blessed_bytes() {
+        // `{ sigmaProp(true) == pkA }` (trivial-vs-dlog#2): TrivialProp left →
+        // false, no throw.
+        assert!(!eval_blessed_eq_tree(
+            "120208d308cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817989373007301",
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn eq_sigmaprop_cthreshold_left_cand_right_throws_blessed_bytes() {
+        // `{ cthreshold(1, pkA, pkB) == (pkA && pkB) }` (cthreshold-vs-cand#3):
+        // conjecture left vs a different conjecture kind → throws.
+        assert_throws_unknown_type(eval_blessed_eq_tree(
+            "120208980102cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798cd02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5089602cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798cd02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee59373007301",
+        ));
+    }
+
+    #[test]
+    fn neq_sigmaprop_conjecture_mismatch_throws() {
+        // NEQ is EQ-negated over the same comparer, so the mismatch throws
+        // under `!=` too.
+        let (a, b) = (pk(PK_A_HEX), pk(PK_B_HEX));
+        assert_throws_unknown_type(eval_sigmaprop_relation(
+            RelationOp::NEq,
+            cand(vec![a.clone(), b]),
+            a,
+        ));
+    }
+
+    #[test]
+    fn eq_sigmaprop_nested_conjecture_mismatch_throws() {
+        // Matching CAND tops (same length) recurse into the children, where
+        // child 0 is CAND-vs-ProveDlog → the nested mismatch throws.
+        let (a, b) = (pk(PK_A_HEX), pk(PK_B_HEX));
+        let l = cand(vec![cand(vec![a.clone(), b.clone()]), a.clone()]);
+        let r = cand(vec![a.clone(), a]);
+        assert_throws_unknown_type(eval_sigmaprop_relation(RelationOp::Eq, l, r));
+    }
+
+    #[test]
+    fn eq_sigmaprop_matching_conjectures_compare_structurally() {
+        let (a, b) = (pk(PK_A_HEX), pk(PK_B_HEX));
+        // Equal CANDs are true under EQ and false under NEQ.
+        assert!(check_eq_neq(
+            SigmaProp::new(cand(vec![a.clone(), b.clone()])).into(),
+            SigmaProp::new(cand(vec![a.clone(), b.clone()])).into(),
+        ));
+        // A leaf-level child mismatch inside matching tops is plain false.
+        assert!(!eval_sigmaprop_relation(
+            RelationOp::Eq,
+            cand(vec![a.clone(), a.clone()]),
+            cand(vec![a.clone(), b.clone()]),
+        )
+        .unwrap());
+        // A length mismatch is false without comparing children (child 0
+        // would throw if it were reached).
+        assert!(!eval_sigmaprop_relation(
+            RelationOp::Eq,
+            cand(vec![cand(vec![a.clone(), b.clone()]), a.clone()]),
+            cand(vec![a.clone(), b.clone(), a.clone()]),
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn eq_sigmaprop_cthreshold_k_mismatch_short_circuits() {
+        // Scala: `k == sb2.k && equalSigmaBooleans(...)` — a k mismatch
+        // returns false before the children (which here would throw) are
+        // compared.
+        let (a, b) = (pk(PK_A_HEX), pk(PK_B_HEX));
+        let l = cthreshold(1, vec![cand(vec![a.clone(), b.clone()]), a.clone()]);
+        let r = cthreshold(2, vec![a.clone(), a]);
+        assert!(!eval_sigmaprop_relation(RelationOp::Eq, l, r).unwrap());
     }
 }
