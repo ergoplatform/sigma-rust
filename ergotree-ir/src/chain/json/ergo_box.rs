@@ -352,6 +352,19 @@ mod tests {
     }
 
     #[test]
+    fn parse_node_box_with_unsized_tree_that_does_not_parse() {
+        // Output as the node 6.0.7 API serves it, with an unsized tree the node accepts
+        // but this library cannot parse. The box id is the node's.
+        let box_json = r#"{"boxId":"1815bfcc63bd0bc1ec1112e50aca444d2509374d23054dbceccee6e18909fdeb","value":1000000000,"ergoTree":"00d193b2100202040200000402","assets":[],"creationHeight":1650000,"additionalRegisters":{},"transactionId":"3d912605036eb79a02bbc2525be5d554c480b1186eb4402a826a41fb9c2a62af","index":0}"#;
+        let b: ErgoBox = serde_json::from_str(box_json).unwrap();
+        let id: String = b.box_id().into();
+        assert_eq!(
+            id,
+            "1815bfcc63bd0bc1ec1112e50aca444d2509374d23054dbceccee6e18909fdeb"
+        );
+    }
+
+    #[test]
     fn parse_ergo_box_alternative_box_id_field_name() {
         // check that using "id" field name instead of "boxId" also works
         // used in explorer API
