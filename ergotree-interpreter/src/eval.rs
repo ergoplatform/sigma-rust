@@ -485,23 +485,23 @@ pub mod test_util {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod test {
     use ergotree_ir::{
-        chain::context::Context,
+        chain::{context::Context, context_extension::ContextExtension},
         ergo_tree::ErgoTree,
         mir::{
             bin_op::{BinOp, BinOpKind, RelationOp},
             block::BlockValue,
-            expr::Expr,
+            expr::{Expr, SubstDeserializeError},
             val_def::ValDef,
             val_use::ValUse,
         },
-        serialization::SigmaSerializable,
+        serialization::{SigmaParsingError, SigmaSerializable},
         sigma_protocol::sigma_boolean::SigmaBoolean,
         types::stype::SType,
     };
     use expect_test::expect;
     use sigma_test_util::force_any_val;
 
-    use crate::eval::reduce_to_crypto;
+    use crate::eval::{reduce_to_crypto, EvalError};
 
     #[test]
     fn diag_on_reduced_to_false() {
@@ -549,14 +549,39 @@ mod test {
     #[test]
     fn v3_tree_neq_int_long_rejected() {
         // v3 tree `sigmaProp(1 != 1L)` with no Upcast node; v3 trees get no auto-upcast,
-        // so the mixed operand types are rejected at parse and the tree must not reduce
+        // so the mixed operand types are rejected at parse (not degraded to an Unparsed tree)
         let tree_bytes = base16::decode("0b06d19404020502").unwrap();
-        let reduced = ErgoTree::sigma_parse_bytes(&tree_bytes)
-            .ok()
-            .and_then(|tree| {
-                let ctx = force_any_val::<Context>();
-                reduce_to_crypto(&tree, &ctx).ok()
-            });
-        assert!(reduced.is_none());
+        assert!(matches!(
+            ErgoTree::sigma_parse_bytes(&tree_bytes),
+            Err(SigmaParsingError::ConstraintFailed(_))
+        ));
+    }
+
+    #[test]
+    fn v3_tree_deserialize_context_neq_int_long_rejected() {
+        // v3 tree `sigmaProp(DeserializeContext[Boolean](1))`; the var body is parsed under the
+        // tree's version, so `1 != 1L` is rejected while `1 != 1` reduces to false
+        let tree = ErgoTree::sigma_parse_bytes(&base16::decode("0b04d1d40101").unwrap()).unwrap();
+        for (body, rejected) in [("9404020502", true), ("9404020402", false)] {
+            let mut ext = ContextExtension::empty();
+            ext.values.insert(1u8, base16::decode(body).unwrap().into());
+            let ctx = force_any_val::<Context>().with_extension(&ext);
+            let res = reduce_to_crypto(&tree, &ctx);
+            if rejected {
+                assert!(
+                    matches!(
+                        res,
+                        Err(EvalError::SubstDeserializeError(
+                            SubstDeserializeError::ExprParsingError(
+                                SigmaParsingError::ConstraintFailed(_)
+                            )
+                        ))
+                    ),
+                    "{res:?}"
+                );
+            } else {
+                assert_eq!(res.unwrap().sigma_prop, false.into());
+            }
+        }
     }
 }
