@@ -74,7 +74,7 @@ pub(crate) static LAST_BLOCK_UTXO_ROOT_HASH_EVAL_FN: EvalFn = |_mc, _env, ctx, o
             obj
         )));
     }
-    let digest = ctx.headers[0].state_root;
+    let digest = ctx.headers[0].state_root.0.to_vec();
     let tree_flags = AvlTreeFlags::new(true, true, true);
     Ok(Value::AvlTree(Box::from(AvlTreeData {
         digest,
@@ -203,7 +203,7 @@ mod tests {
         .unwrap()
         .into();
         let ctx = force_any_val::<Context>();
-        let digest = ctx.headers[0].state_root;
+        let digest = ctx.headers[0].state_root.0.to_vec();
         let tree_flags = AvlTreeFlags::new(true, true, true);
         let avl_tree_data = AvlTreeData {
             digest,
