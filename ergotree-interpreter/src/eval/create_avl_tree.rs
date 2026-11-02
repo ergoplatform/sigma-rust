@@ -50,9 +50,11 @@ mod tests {
     use super::*;
     use crate::eval::test_util::eval_out_wo_ctx;
 
+    use alloc::sync::Arc;
     use ergo_avltree_rust::authenticated_tree_ops::AuthenticatedTreeOps;
     use ergo_avltree_rust::batch_avl_prover::BatchAVLProver;
     use ergo_avltree_rust::batch_node::{AVLTree, Node, NodeHeader};
+    use ergo_avltree_rust::operation::Digest32;
     use ergo_chain_types::ADDigest;
     use ergotree_ir::mir::{
         avl_tree_data::{AvlTreeData, AvlTreeFlags},
@@ -64,7 +66,7 @@ mod tests {
     fn eval_create_avl_tree() {
         let prover = BatchAVLProver::new(
             AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                Arc::new(|digest: &Digest32| Node::LabelOnly(NodeHeader::new(Some(*digest), None))),
                 1,
                 None,
             ),
