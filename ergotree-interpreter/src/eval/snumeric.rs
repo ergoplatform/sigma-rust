@@ -659,6 +659,24 @@ mod test {
         .into();
         eval_out_wo_ctx(&shl_mc)
     }
+    fn try_shl<T: Numeric>(v: T, rhs: u32, methods: &[SMethod]) -> Result<T, EvalError> {
+        let shl_mc: Expr = MethodCall::new(
+            <T as Into<Constant>>::into(v.clone()).into(),
+            methods
+                .iter()
+                .find(|method| method.method_id() == SHIFT_LEFT_METHOD_ID)
+                .unwrap()
+                .clone(),
+            vec![Constant::from(rhs as i32).into()],
+        )
+        .unwrap()
+        .into();
+        try_eval_out_wo_ctx(&shl_mc)
+    }
+    // Exact (unbounded) value of `v << shift`, independent of the 256-bit types.
+    fn exact_shl(v: &impl ToString, shift: u32) -> num_bigint::BigInt {
+        num_bigint::BigInt::parse_bytes(v.to_string().as_bytes(), 10).unwrap() << shift
+    }
     fn shr<T: Numeric>(v: T, rhs: u32, methods: &[SMethod]) -> T {
         let shr_mc: Expr = MethodCall::new(
             <T as Into<Constant>>::into(v.clone()).into(),
@@ -841,11 +859,27 @@ mod test {
         }
         #[test]
         fn shl_bigint_arbitrary(a in any::<BigInt256>(), shift in 0u32..256) {
-            assert_eq!(shl(a, shift, &snumeric::sbigint::METHODS), a << shift);
+            // Scala CBigInt.shiftLeft errors if the result leaves the signed 256-bit range
+            let exact = exact_shl(&a, shift);
+            let bound = num_bigint::BigInt::from(1) << 255u32;
+            let res = try_shl(a, shift, &snumeric::sbigint::METHODS);
+            if exact >= -bound.clone() && exact < bound {
+                assert_eq!(exact_shl(&res.unwrap(), 0), exact);
+            } else {
+                assert!(res.is_err());
+            }
         }
         #[test]
         fn shl_unsigned_bigint_arbitrary(a in any::<UnsignedBigInt>(), shift in 0u32..256) {
-            assert_eq!(shl(a, shift, &snumeric::sunsignedbigint::METHODS), a << shift);
+            // Scala CUnsignedBigInt.shiftLeft errors if the result exceeds 256 bits
+            let exact = exact_shl(&a, shift);
+            let bound = num_bigint::BigInt::from(1) << 256u32;
+            let res = try_shl(a, shift, &snumeric::sunsignedbigint::METHODS);
+            if exact < bound {
+                assert_eq!(exact_shl(&res.unwrap(), 0), exact);
+            } else {
+                assert!(res.is_err());
+            }
         }
         #[test]
         #[should_panic]

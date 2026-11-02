@@ -225,8 +225,12 @@ impl CheckedNeg for BigInt256 {
 }
 
 impl CheckedShl for BigInt256 {
+    /// Returns `None` if `rhs >= 256` or if the result does not fit in a signed
+    /// 256-bit integer, matching Scala `CBigInt.shiftLeft`.
     fn checked_shl(&self, rhs: u32) -> Option<Self> {
-        self.0.checked_shl(rhs).map(Self)
+        let res = self.0.checked_shl(rhs)?;
+        // An arithmetic shift back recovers the input only if no bits were lost.
+        (res.checked_shr(rhs)? == self.0).then_some(Self(res))
     }
 }
 
@@ -393,5 +397,47 @@ mod tests {
         bytes[1] = 0x80;
         let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
         assert!(bigint_from_bytes.is_none());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod shift_left_overflow_tests {
+    use super::BigInt256;
+    use num_traits::{Bounded, CheckedShl, Num, Zero};
+
+    // Scala CBigInt.shiftLeft applies toSignedBigIntValueExact: a result
+    // outside the signed 256-bit range is an error, not a wrap.
+    #[test]
+    fn checked_shl_rejects_value_overflow() {
+        assert_eq!(BigInt256::from(1i64).checked_shl(255), None);
+        assert_eq!(BigInt256::from(2i64).checked_shl(254), None);
+        assert_eq!(BigInt256::max_value().checked_shl(1), None);
+        assert_eq!(BigInt256::min_value().checked_shl(1), None);
+    }
+
+    #[test]
+    fn checked_shl_keeps_in_range_results() {
+        let two_pow_254 = BigInt256::from_str_radix(
+            "4000000000000000000000000000000000000000000000000000000000000000",
+            16,
+        )
+        .unwrap();
+        assert_eq!(BigInt256::from(1i64).checked_shl(254), Some(two_pow_254));
+        assert_eq!(
+            BigInt256::from(-1i64).checked_shl(255),
+            Some(BigInt256::min_value())
+        );
+        assert_eq!(
+            BigInt256::from(-3i64).checked_shl(2),
+            Some(BigInt256::from(-12i64))
+        );
+        assert_eq!(BigInt256::zero().checked_shl(255), Some(BigInt256::zero()));
+    }
+
+    #[test]
+    fn checked_shl_rejects_shift_of_256_or_more() {
+        assert_eq!(BigInt256::from(1i64).checked_shl(256), None);
+        assert_eq!(BigInt256::zero().checked_shl(256), None);
     }
 }

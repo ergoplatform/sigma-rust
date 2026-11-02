@@ -263,8 +263,12 @@ impl CheckedRem for UnsignedBigInt {
 }
 
 impl CheckedShl for UnsignedBigInt {
+    /// Returns `None` if `rhs >= 256` or if the result does not fit in 256 bits,
+    /// matching Scala `CUnsignedBigInt.shiftLeft`.
     fn checked_shl(&self, rhs: u32) -> Option<Self> {
-        self.0.checked_shl(rhs).map(Self)
+        let res = self.0.checked_shl(rhs)?;
+        // A logical shift back recovers the input only if no bits were lost.
+        (res.checked_shr(rhs)? == self.0).then_some(Self(res))
     }
 }
 
@@ -509,5 +513,51 @@ mod test {
             let modulus_bigint = to_bigint(modulus);
             assert_eq!(UnsignedBigInt::from_signed_mod(a, modulus).map(to_bigint), a_bigint.checked_rem_euclid(&modulus_bigint));
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod shift_left_overflow_tests {
+    use super::UnsignedBigInt;
+    use num_traits::{Bounded, CheckedAdd, CheckedShl, CheckedShr, Zero};
+
+    fn two_pow_255() -> UnsignedBigInt {
+        UnsignedBigInt::max_value()
+            .checked_shr(1)
+            .unwrap()
+            .checked_add(&UnsignedBigInt::from(1u32))
+            .unwrap()
+    }
+
+    // Scala CUnsignedBigInt.shiftLeft builds a new CUnsignedBigInt, whose
+    // constructor rejects values wider than 256 bits: overflow is an error.
+    #[test]
+    fn checked_shl_rejects_value_overflow() {
+        assert_eq!(UnsignedBigInt::max_value().checked_shl(1), None);
+        assert_eq!(two_pow_255().checked_shl(1), None);
+        assert_eq!(UnsignedBigInt::from(3u32).checked_shl(255), None);
+    }
+
+    #[test]
+    fn checked_shl_keeps_in_range_results() {
+        assert_eq!(
+            UnsignedBigInt::from(1u32).checked_shl(255),
+            Some(two_pow_255())
+        );
+        assert_eq!(
+            UnsignedBigInt::max_value().checked_shl(0),
+            Some(UnsignedBigInt::max_value())
+        );
+        assert_eq!(
+            UnsignedBigInt::zero().checked_shl(255),
+            Some(UnsignedBigInt::zero())
+        );
+    }
+
+    #[test]
+    fn checked_shl_rejects_shift_of_256_or_more() {
+        assert_eq!(UnsignedBigInt::from(1u32).checked_shl(256), None);
+        assert_eq!(UnsignedBigInt::zero().checked_shl(256), None);
     }
 }
