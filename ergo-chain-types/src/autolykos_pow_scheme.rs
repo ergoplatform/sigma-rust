@@ -245,7 +245,10 @@ impl AutolykosPowScheme {
                 BigInt::from_bytes_be(Sign::Plus, &extended_hash[i..(i + 4)])
                     .modpow(&BigInt::from(1u32), &BigInt::from(big_n))
                     .to_u32_digits()
-                    .1[0],
+                    .1
+                    .first()
+                    .copied()
+                    .unwrap_or(0),
             );
         }
         res
@@ -519,6 +522,30 @@ mod tests {
             -0x1235
         );
     }
+
+    #[test]
+    fn test_gen_indexes_zero_modulo() {
+        // Regression: gen_indexes must not panic when a 4-byte window
+        // in the seed hash is an exact multiple of N, producing index 0.
+        // JVM reference AutolykosPowScheme.genIndexes handles this correctly.
+        let pow = AutolykosPowScheme::default();
+        let n_base = pow.big_n_base.get(); // 2^26 = 67108864 = 0x04000000
+
+        // Seed hash where bytes[0..4] == N, so N % N == 0
+        let mut seed_hash = [0u8; 32];
+        seed_hash[0..4].copy_from_slice(&n_base.to_be_bytes());
+
+        let indexes = pow.gen_indexes(&seed_hash, n_base);
+        assert_eq!(indexes.len(), 32);
+        assert_eq!(indexes[0], 0);
+
+        // All-zero seed: every 4-byte window is 0, and 0 % N == 0
+        let zero_seed = [0u8; 32];
+        let indexes = pow.gen_indexes(&zero_seed, n_base);
+        assert_eq!(indexes.len(), 32);
+        assert!(indexes.iter().all(|&idx| idx == 0));
+    }
+
     #[cfg(feature = "arbitrary")]
     mod proptests {
         use num_bigint::{BigInt, Sign};
