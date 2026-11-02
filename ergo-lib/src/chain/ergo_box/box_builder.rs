@@ -8,6 +8,7 @@ use hashbrown::HashMap;
 
 use ergotree_ir::chain::address::AddressEncoderError;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+use ergotree_ir::chain::ergo_box::box_value::BoxValueError;
 use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::ergo_box::NonMandatoryRegisterId;
@@ -56,6 +57,10 @@ pub enum ErgoBoxCandidateBuilderError {
         "Too many Tokens. The maximum number of Tokens in an Ergo Box is ErgoBox::MAX_TOKENS_COUNT"
     )]
     TooManyTokensError,
+
+    /// Box value error
+    #[error("Box value error: {0}")]
+    BoxValueError(#[from] BoxValueError),
 
     /// AddressEncoder error
     #[error("address encoder error: {0}")]
@@ -130,9 +135,13 @@ impl ErgoBoxCandidateBuilder {
     pub fn calc_min_box_value(&self) -> Result<BoxValue, ErgoBoxCandidateBuilderError> {
         let box_size_bytes = self.calc_box_size_bytes()?;
 
-        // Won't be overflowing an i64, so unwrap is safe.
-        #[allow(clippy::unwrap_used)]
-        Ok(BoxValue::try_from(box_size_bytes as i64 * self.min_value_per_byte as i64).unwrap())
+        // The product can fall below the smallest representable BoxValue when
+        // min_value_per_byte is set to a small value (e.g. 0), and can overflow
+        // for a huge per-byte value; both cases are errors, not panics.
+        let min_box_value = (box_size_bytes as i64)
+            .checked_mul(self.min_value_per_byte as i64)
+            .ok_or(BoxValueError::Overflow)?;
+        Ok(BoxValue::try_from(min_box_value)?)
     }
 
     /// Set register with a given id (R4-R9) to the given value
@@ -335,6 +344,51 @@ mod tests {
         let builder =
             ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
         assert!(builder.calc_min_box_value().unwrap() > BoxValue::MIN);
+    }
+
+    #[test]
+    fn test_calc_min_box_value_zero_per_byte() {
+        // A per-byte value of 0 makes size * per-byte = 0, which is below the
+        // smallest representable BoxValue; this must be an error, not a panic.
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_min_box_value_per_byte(0);
+        assert_eq!(
+            builder.calc_min_box_value(),
+            Err(ErgoBoxCandidateBuilderError::BoxValueError(
+                BoxValueError::OutOfBounds(0)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_calc_min_box_value_tiny_per_byte() {
+        // 1 nanoERG per byte on a small box is also below the minimum
+        // representable BoxValue (30 bytes * 360 = 10800 nanoERG).
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_min_box_value_per_byte(1);
+        let box_size_bytes = builder.calc_box_size_bytes().unwrap();
+        assert_eq!(
+            builder.calc_min_box_value(),
+            Err(ErgoBoxCandidateBuilderError::BoxValueError(
+                BoxValueError::OutOfBounds(box_size_bytes as u64)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_calc_min_box_value_custom_per_byte() {
+        // A per-byte value whose product is in bounds is returned unchanged:
+        // exactly the serialized box size times the per-byte value.
+        let mut builder =
+            ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, force_any_val::<ErgoTree>(), 1);
+        builder.set_min_box_value_per_byte(1000);
+        let box_size_bytes = builder.calc_box_size_bytes().unwrap();
+        assert_eq!(
+            builder.calc_min_box_value().unwrap(),
+            BoxValue::try_from((box_size_bytes * 1000) as i64).unwrap()
+        );
     }
 
     #[test]
