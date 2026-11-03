@@ -74,6 +74,22 @@ jobs:
         run: |
           npm run build-nodejs
           npm run build-browser
+      - name: Assert WASM artifacts do not embed build paths
+        working-directory: bindings/ergo-lib-wasm
+        run: |
+          for wasm in pkg-nodejs/ergo_lib_wasm_bg.wasm pkg-browser/ergo_lib_wasm_bg.wasm; do
+            if [ ! -f "$wasm" ]; then
+              echo "::error::$wasm was not built"
+              exit 1
+            fi
+            for dir in "$GITHUB_WORKSPACE" "$CARGO_TARGET_DIR" "${CARGO_HOME:-$HOME/.cargo}"; do
+              [ -n "$dir" ] || continue
+              if grep --fixed-strings --quiet --text -- "$dir" "$wasm"; then
+                echo "::error::$wasm embeds the build path $dir"
+                exit 1
+              fi
+            done
+          done
       - name: Assert generated package identities
         working-directory: bindings/ergo-lib-wasm
         run: |
