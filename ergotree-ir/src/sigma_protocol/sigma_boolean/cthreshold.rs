@@ -113,29 +113,35 @@ impl SigmaSerializable for Cthreshold {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        // k is serialized as u16 (see sigma_serialize); only 0..=255 is valid on the wire.
-        // Mirror the JVM reference `require(k <= children.length && children.length <= 255)`
-        // and reject out-of-range k instead of silently truncating it.
-        let k: u8 = r.get_u16()?.try_into().map_err(|_| {
-            SigmaParsingError::ValueOutOfBounds("Cthreshold threshold k exceeds 255".to_string())
-        })?;
+        // sigmastate reads `k` and `n` with `getUShort`, which caps neither, parses every
+        // child, and only then builds the node: its constructor's
+        // `require(k >= 0 && k <= children.length && children.length <= 255)` is the only
+        // bound (v6.0.6 `SigmaBoolean.scala:94-100`, `:221-223`). Narrowing `k` here would
+        // reject bytes the reference reads further into, so `k` stays wide until the
+        // children are read.
+        let k = r.get_u16()?;
         let items_count = r.get_u16()?;
         let mut items = Vec::new();
         for _ in 0..items_count {
             items.push(SigmaBoolean::sigma_parse(r)?);
         }
         let children: SigmaConjectureItems<SigmaBoolean> = items.try_into()?;
-        // `k > n` is malformed (the JVM reference rejects it at construction); reject it
-        // here so that the proof parser can never hit the `n_children - k` usize
-        // underflow downstream (which would abort the process on a huge allocation).
-        if k as usize > children.len() {
+        // `SigmaConjectureItems` already holds `children.len() <= 255`, so `k <= n` is the
+        // whole of the reference's requirement: it rules out a `k` above 255 as well, and it
+        // keeps the proof parser's `n_children - k` from underflowing downstream (which
+        // would abort the process on a huge allocation).
+        if usize::from(k) > children.len() {
             return Err(SigmaParsingError::ValueOutOfBounds(format!(
                 "Cthreshold threshold k={0} exceeds children count n={1}",
                 k,
                 children.len()
             )));
         }
-        Ok(Cthreshold { k, children })
+        Ok(Cthreshold {
+            // `k <= children.len() <= 255` holds by the check above
+            k: k as u8,
+            children,
+        })
     }
 }
 
@@ -177,6 +183,30 @@ mod tests {
         assert_eq!(
             SigmaBoolean::sigma_parse_bytes(&control_bytes).unwrap(),
             control
+        );
+    }
+
+    // sigmastate reads `k` and `n` with `getUShort`, which caps neither, parses every
+    // child, and only then builds the node, whose constructor carries the only bound
+    // (v6.0.6 `SigmaBoolean.scala:94-100`, `:221-223`). So a `k` above 255 must not
+    // short-circuit the children: the first failure the reference meets is the child's.
+    #[test]
+    fn a_k_above_255_does_not_pre_empt_the_children() {
+        let mut bytes = threshold(1, 1).sigma_serialize_bytes().unwrap();
+        // layout: [op_code][k VLQ][n VLQ][children]; k=1 encodes to a single 0x01 byte
+        assert_eq!(bytes[1], 0x01);
+        // k = 257, VLQ-encoded
+        bytes[1] = 0x81;
+        bytes.insert(2, 0x02);
+        // drop the one declared child, so reading it is the first thing that can fail
+        bytes.truncate(4);
+        assert!(
+            matches!(
+                SigmaBoolean::sigma_parse_bytes(&bytes),
+                Err(SigmaParsingError::Io(_))
+            ),
+            "expected the absent child to fail first, got {:?}",
+            SigmaBoolean::sigma_parse_bytes(&bytes)
         );
     }
 
