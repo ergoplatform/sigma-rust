@@ -108,7 +108,11 @@ impl SigmaSerializable for Cthreshold {
         // put_u16 is used in sigmastate
         // https://github.com/ScorexFoundation/sigmastate-interpreter/blob/e64ca7930ff818403bb3020eadd4b5d8c029d9b6/sigmastate/src/main/scala/sigmastate/Values.scala#L799-L799
         w.put_u16(self.k as u16)?;
+        // k is Scala `putUShort` => PutUnsignedNumericCost(3) under `Global.serialize`
+        w.add_put_numeric_cost();
         w.put_u16(self.children.len() as u16)?;
+        // child count is Scala `putUShort` => PutUnsignedNumericCost(3) under `Global.serialize`
+        w.add_put_numeric_cost();
         self.children.iter().try_for_each(|i| i.sigma_serialize(w))
     }
 

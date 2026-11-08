@@ -5,18 +5,24 @@ use hashbrown::hash_map::Entry;
 use hashbrown::HashMap;
 
 use crate::chain::ergo_state_context::ErgoStateContext;
+use crate::chain::parameters::Parameters;
 use crate::chain::transaction::ergo_transaction::{ErgoTransaction, TxValidationError};
-use crate::chain::transaction::{verify_tx_input_proof, Transaction, TransactionError};
+use crate::chain::transaction::storage_rent::try_spend_storage_rent;
+use crate::chain::transaction::{Transaction, TransactionError};
 use crate::ergotree_ir::chain::ergo_box::BoxId;
-use ergotree_interpreter::sigma_protocol::verifier::VerificationResult;
-use ergotree_ir::chain::context::TxIoVec;
+use ergotree_interpreter::eval::reduce_to_crypto;
+use ergotree_interpreter::sigma_protocol::crypto_cost::estimate_crypto_cost;
+use ergotree_interpreter::sigma_protocol::verifier::{
+    verify_signature, VerificationResult, VerifierError,
+};
+use ergotree_ir::chain::context::{CostLimitExceeded, TxIoVec};
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBox};
 use ergotree_ir::chain::token::{TokenAmount, TokenId};
 use ergotree_ir::serialization::SigmaSerializable;
 use thiserror::Error;
 
-use super::signing::make_context;
+use super::signing::{make_context, update_context};
 
 /// Transaction and an additional info required for signing or verification
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -99,11 +105,50 @@ impl<T: ErgoTransaction> TransactionContext<T> {
     }
 }
 
+/// Fixed JIT cost (in block-cost units) charged once per transaction for interpreter
+/// initialization, matching Scala's `interpreterInitCost`.
+pub(crate) const INTERPRETER_INIT_COST: u64 = 10_000;
+
+/// Count (total_entries, distinct_token_count) across the given boxes' token sets.
+fn count_tokens(boxes: &[ErgoBox]) -> (u64, u64) {
+    let mut total_entries = 0u64;
+    let mut distinct: hashbrown::HashSet<TokenId> = hashbrown::HashSet::new();
+    for b in boxes {
+        for t in b.tokens.iter().flatten() {
+            total_entries += 1;
+            distinct.insert(t.token_id);
+        }
+    }
+    (total_entries, distinct.len() as u64)
+}
+
+/// Per-tx init cost in block-cost units. Port of PR 846's `compute_tx_init_cost`,
+/// which was validated against 19,549 mainnet txs and matches Scala's
+/// `ErgoTransaction.computeInitiationCost`.
+fn compute_tx_init_cost(
+    tx: &Transaction,
+    boxes_to_spend: &[ErgoBox],
+    parameters: &Parameters,
+) -> u64 {
+    let n_data_inputs = tx.data_inputs.as_ref().map_or(0, |d| d.len()) as u64;
+    let structural = INTERPRETER_INIT_COST
+        + tx.inputs.len() as u64 * parameters.input_cost() as u64
+        + n_data_inputs * parameters.data_input_cost() as u64
+        + tx.outputs.len() as u64 * parameters.output_cost() as u64;
+
+    let (in_entries, in_distinct) = count_tokens(boxes_to_spend);
+    let (out_entries, out_distinct) = count_tokens(tx.outputs.as_slice());
+    let token_cost = (in_entries + out_entries + in_distinct + out_distinct)
+        * parameters.token_access_cost() as u64;
+
+    structural + token_cost
+}
+
 impl TransactionContext<Transaction> {
-    /// Verify transaction using blockchain parameters
-    // TODO: costing
+    /// Verify transaction using blockchain parameters.
+    /// Returns the total accumulated script evaluation cost (in block cost units).
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
-    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
+    pub fn validate(&self, state_context: &ErgoStateContext) -> Result<u64, TxValidationError> {
         // Check that input sum does not overflow
         let input_sum = BoxValue::new(
             self.boxes_to_spend
@@ -145,17 +190,109 @@ impl TransactionContext<Transaction> {
         let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
         let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
         verify_assets(self.spending_tx.inputs_ids(), in_assets, out_assets)?;
-        // Verify input proofs. This is usually the most expensive check so it's done last
+        // Verify input proofs with cost tracking.
+        // This is usually the most expensive check so it's done last.
         let bytes_to_sign = self.spending_tx.bytes_to_sign()?;
+        let max_block_cost = state_context.parameters.max_block_cost() as u64;
         let mut context = make_context(state_context, self, 0)?;
-        for input_idx in 0..self.spending_tx.inputs.len() {
-            if let res @ VerificationResult { result: false, .. } =
-                verify_tx_input_proof(self, &mut context, state_context, input_idx, &bytes_to_sign)?
-            {
-                return Err(TxValidationError::ReducedToFalse(input_idx, res));
-            }
+
+        // Per-tx init cost (gaps S1 + S2): interpreter baseline + per-input,
+        // per-data-input, per-output, per-token structural costs — all front-loaded,
+        // mirroring the JVM's `initialCost` in `ErgoTransaction.validateStateful`
+        // (interpreterInitCost + inputs·inputCost + dataInputs·dataInputCost +
+        // outputs·outputCost, plus the token-access cost). Reject upfront if it
+        // already exceeds MaxBlockCost (the JVM's `maxCost >= startCost` gate) — we
+        // can't honestly blame any specific input.
+        let init_cost_block = compute_tx_init_cost(
+            &self.spending_tx,
+            self.boxes_to_spend.as_slice(),
+            &state_context.parameters,
+        );
+        if init_cost_block > max_block_cost {
+            return Err(TxValidationError::InitCostExceeded(
+                init_cost_block.saturating_mul(10),
+            ));
         }
-        Ok(())
+
+        // Running tx cost in BLOCK units, mirroring the JVM's `currentTxCost`. The
+        // cost limit is enforced in block units — NOT against the raw JIT accumulator.
+        // The JVM floors each input's JIT cost to block cost (`JitCost.toBlockCost`,
+        // i.e. `/ 10`) per input and per component (script eval and crypto verify are
+        // floored separately) before accumulating, discarding each input's
+        // sub-block-unit (mod-10) remainder. A tx whose floored block total equals
+        // MaxBlockCost is therefore accepted even though the un-floored JIT sum exceeds
+        // MaxBlockCost * 10 — the exact-fit boundary we must admit.
+        let mut total_cost: u64 = init_cost_block;
+        for input_idx in 0..self.spending_tx.inputs.len() {
+            update_context(&mut context, self, input_idx)?;
+            let input = self
+                .spending_tx
+                .inputs
+                .get(input_idx)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+            let input_box = self
+                .get_input_box(&input.box_id)
+                .ok_or(TransactionContextError::InputBoxNotFound(input_idx))?;
+
+            // Storage rent bypass: consensus-exempted from script eval + sigma verification.
+            if try_spend_storage_rent(input, input_box, state_context, &context).is_some() {
+                continue;
+            }
+
+            // The JVM verifies each input with a FRESH interpreter whose
+            // `costLimit = maxCost - currentTxCost` (the remaining BLOCK budget,
+            // `initCost = 0`) — `ErgoTransaction.verifyInput`. Mirror it: reset the
+            // accumulator and cap it at the remaining budget × 10 (the evaluator's
+            // `CostAccumulator` works in the JitCost scale). The remaining budget
+            // shrinks as inputs accrue, so splitting expensive work across many inputs
+            // still cannot exceed MaxBlockCost in aggregate (the S4 concern) — while
+            // per-input flooring keeps the exact-fit boundary byte-identical to the JVM.
+            let remaining_block = max_block_cost.saturating_sub(total_cost);
+            context.reset_jit_cost();
+            context.jit_cost_limit = Some(remaining_block.saturating_mul(10));
+
+            // Reduce the ErgoTree to a SigmaBoolean. The per-input JIT cap above
+            // mirrors the JVM evaluator's `CostAccumulator` (throws once accumulated
+            // JIT exceeds `remaining_block * 10`); `reduction.cost` is the floored
+            // block cost (`(jit_after - 0) / 10`).
+            let reduction = reduce_to_crypto(&input_box.ergo_tree, &context)
+                .map_err(|e| TxValidationError::VerifierError(input_idx, e.into()))?;
+
+            // Sigma-protocol verification cost, floored to block units separately
+            // (JVM `addCryptoCost`: `estimateCryptoVerifyCost(...).toBlockCost`), then
+            // the combined per-input block cost is checked against the remaining block
+            // budget (JVM `addCostChecked` / `bsBlockTransactionsCost`, block units).
+            let crypto_cost_block = estimate_crypto_cost(&reduction.sigma_prop) / 10;
+            let input_cost_block = reduction.cost + crypto_cost_block;
+            if input_cost_block > remaining_block {
+                return Err(TxValidationError::VerifierError(
+                    input_idx,
+                    VerifierError::EvalError(
+                        CostLimitExceeded(remaining_block.saturating_mul(10)).into(),
+                    ),
+                ));
+            }
+
+            let verified = verify_signature(
+                reduction.sigma_prop.clone(),
+                &bytes_to_sign,
+                input.spending_proof.proof.as_ref(),
+            )
+            .map_err(|e| TxValidationError::VerifierError(input_idx, e))?;
+            if !verified {
+                return Err(TxValidationError::ReducedToFalse(
+                    input_idx,
+                    VerificationResult {
+                        result: false,
+                        cost: reduction.cost,
+                        diag: reduction.diag,
+                    },
+                ));
+            }
+
+            total_cost += input_cost_block;
+        }
+        Ok(total_cost)
     }
 }
 
@@ -653,6 +790,76 @@ mod test {
             }
         });
     }
+    // Regression for S4 (JIT_COSTING_FIX_PLAN.md): validate() must enforce the cost
+    // limit cumulatively across the whole tx — inputs that individually fit must not
+    // collectively exceed MaxBlockCost. We match the JVM (`ErgoTransaction.verifyInput`):
+    // each input gets a FRESH budget of `maxCost - currentTxCost` (the *remaining*
+    // block budget), which shrinks as inputs accrue, so the aggregate is still capped.
+    // Use Const(true) inputs (50 JitCost = 5 block each, TrivialProp → 0 crypto cost)
+    // and zero-out structural Parameters so init reduces to the fixed
+    // INTERPRETER_INIT_COST baseline; then size max_block_cost so 2 inputs fit
+    // (init + 2 × 5) and the 3rd overflows its remaining budget.
+    #[test]
+    fn test_validate_enforces_cumulative_jit_cost_across_inputs() {
+        use ergotree_interpreter::eval::EvalError;
+        use ergotree_interpreter::sigma_protocol::verifier::VerifierError;
+
+        // Non-segregated SigmaProp(TrivialProp(true)) tree: the proposition
+        // reduces via `trivial_reduce`, which charges exactly
+        // `EVAL_SIGMA_PROP_CONSTANT = 50` JitCost per input. 50 is a clean
+        // multiple of 10, so the JIT→block-cost round-trip in `Parameters`
+        // doesn't lose precision — critical for sizing the limit at the
+        // exact overflow boundary.
+        let true_tree = ErgoTree::new(
+            ErgoTreeHeader::v0(false),
+            &Expr::Const(Constant {
+                tpe: ergotree_ir::types::stype::SType::SSigmaProp,
+                v: Literal::SigmaProp(alloc::boxed::Box::new(
+                    ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp::new(
+                        ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean::TrivialProp(true),
+                    ),
+                )),
+            }),
+        )
+        .unwrap();
+        proptest!(|((boxes, tx) in valid_transaction_gen_with_tree(true_tree))| {
+            prop_assume!(tx.inputs.len() >= 3);
+
+            let mut state_context: ErgoStateContext = force_any_val();
+            let tx_context = TransactionContext::new(tx.clone(), boxes.clone(), vec![]).unwrap();
+            // Baseline: tx must validate cleanly with default params, otherwise the
+            // sample failed for non-cost-related reasons — skip.
+            prop_assume!(tx_context.validate(&state_context).is_ok());
+
+            // Zero out structural Parameters so compute_tx_init_cost reduces to the
+            // fixed INTERPRETER_INIT_COST regardless of tx shape, then size the
+            // budget to exactly the 3rd-input overflow boundary.
+            const PER_INPUT_JIT: u64 = 50; // trivial_reduce charges EVAL_SIGMA_PROP_CONSTANT
+            let init_jit = super::INTERPRETER_INIT_COST * 10;
+            let limit_jit = init_jit + 2 * PER_INPUT_JIT; // 2 inputs fit, 3 overflow
+            let mbc = i32::try_from(limit_jit / 10).unwrap();
+            state_context.parameters = crate::chain::parameters::Parameters::new(
+                1, 1_250_000, 360, 512 * 1024, mbc, 0, 0, 0, 0,
+            );
+            let tx_context = TransactionContext::new(tx, boxes, vec![]).unwrap();
+            match tx_context.validate(&state_context) {
+                Err(TxValidationError::VerifierError(_, verr)) => {
+                    let is_cost = match &verr {
+                        VerifierError::EvalError(EvalError::CostError(_)) => true,
+                        VerifierError::EvalError(EvalError::Spanned(e)) => {
+                            matches!(*e.error, EvalError::CostError(_))
+                        }
+                        VerifierError::ErgoTreeError(_)
+                        | VerifierError::EvalError(_)
+                        | VerifierError::SigParsingError(_)
+                        | VerifierError::FiatShamirTreeSerializationError(_) => false,
+                    };
+                    prop_assert!(is_cost, "expected CostError, got {verr:?}");
+                }
+                other => panic!("expected cost-limit rejection, got {other:?}"),
+            }
+        });
+    }
     #[test]
     fn test_monotonic_box_creation() {
         let true_tree = ErgoTree::new(
@@ -732,7 +939,7 @@ mod test {
                 other => panic!("Expected validation to succeed, got {other:?}")
             }
             match (monotonic_valid, tx_context.validate(&context3)) {
-                (true, Ok(())) => {},
+                (true, Ok(_)) => {},
                 (false, Err(TxValidationError::MonotonicHeightError(_, _))) => {},
                 other => panic!("Expected validation to fail, got {other:?}")
             }

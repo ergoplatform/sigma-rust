@@ -12,6 +12,7 @@ impl Evaluable for ExtractCreationInfo {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(16)?; // ExtractCreationInfo = Fixed(16)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::CBox(b) => Ok(b.creation_info().into()),

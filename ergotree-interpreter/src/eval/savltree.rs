@@ -20,28 +20,79 @@ use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::{CollKind, NativeColl, Value};
 use sigma_ser::ScorexSerializable;
 
+use super::Context;
 use super::EvalError;
 use super::EvalFn;
 use ergotree_ir::types::stype::SType;
 
-pub(crate) static DIGEST_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+/// Tree height as recorded in the digest's last byte — the same source Scala's
+/// `BatchAVLVerifier.rootNodeHeight` reads (`startingDigest.last & 0xff`), used
+/// to scale per-operation verifier costs.
+///
+/// `rootNodeHeight` is assigned only AFTER reconstruction's up-front
+/// `require`s pass (`keyLength > 0`, digest length); when they fail no root is
+/// built and the height stays 0, so the JVM charges degenerate trees a
+/// zero-height walk (`CAvlTreeVerifier.treeHeight`). `keyLength` is a signed
+/// `Int` on the JVM — wire values with the high bit set are negative there.
+/// (Failures *during* proof parsing — malformed proof bytes, wrong value
+/// length — happen after the assignment and keep the digest-derived height.)
+fn tree_height(avl_tree_data: &AvlTreeData) -> u32 {
+    if (avl_tree_data.key_length as i32) <= 0 {
+        return 0;
+    }
+    avl_tree_data.digest.0.last().copied().unwrap_or(0) as u32
+}
+
+/// Build the batch AVL verifier for `avl_tree_data` over `proof`, charging the
+/// proof-size-scaled construction cost: `CreateAvlVerifier_Info` =
+/// PerItemCost(110, 20, 64) per proof byte (Scala `CErgoTreeEvaluator.createVerifier`
+/// — "the cost of tree reconstruction from proof is O(proof.length)").
+fn create_verifier(
+    ctx: &Context,
+    avl_tree_data: &AvlTreeData,
+    proof: &Bytes,
+) -> Result<BatchAVLVerifier, EvalError> {
+    ctx.add_per_item_jit_cost(110, 20, 64, proof.len() as u32)?;
+    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
+    BatchAVLVerifier::new(
+        &starting_digest,
+        proof,
+        AVLTree::new(
+            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+            avl_tree_data.key_length as usize,
+            avl_tree_data
+                .value_length_opt
+                .as_ref()
+                .map(|v| **v as usize),
+        ),
+        None,
+        None,
+    )
+    .map_err(map_eval_err)
+}
+
+pub(crate) static DIGEST_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Coll(CollKind::NativeColl(NativeColl::CollByte(
         avl_tree_data.digest.0.iter().map(|&b| b as i8).collect(),
     ))))
 };
 
-pub(crate) static ENABLED_OPERATIONS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static ENABLED_OPERATIONS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Byte(avl_tree_data.tree_flags.serialize() as i8))
 };
 
-pub(crate) static KEY_LENGTH_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static KEY_LENGTH_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Int(avl_tree_data.key_length as i32))
 };
 
-pub(crate) static VALUE_LENGTH_OPT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static VALUE_LENGTH_OPT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Opt(
         avl_tree_data
@@ -51,22 +102,26 @@ pub(crate) static VALUE_LENGTH_OPT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _arg
     ))
 };
 
-pub(crate) static IS_INSERT_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static IS_INSERT_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Boolean(avl_tree_data.tree_flags.insert_allowed()))
 };
 
-pub(crate) static IS_UPDATE_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static IS_UPDATE_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Boolean(avl_tree_data.tree_flags.update_allowed()))
 };
 
-pub(crate) static IS_REMOVE_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static IS_REMOVE_ALLOWED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     Ok(Value::Boolean(avl_tree_data.tree_flags.remove_allowed()))
 };
 
-pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(45)?;
     let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     let new_operations = {
         let v = args.first().cloned().ok_or_else(|| {
@@ -78,7 +133,8 @@ pub(crate) static UPDATE_OPERATIONS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, arg
     Ok(Value::AvlTree(Box::new(avl_tree_data)))
 };
 
-pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(40)?;
     let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     let new_digest = {
         let v = args.first().cloned().ok_or_else(|| {
@@ -91,7 +147,7 @@ pub(crate) static UPDATE_DIGEST_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     Ok(Value::AvlTree(Box::new(avl_tree_data)))
 };
 
-pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     let key = {
         let v = args
@@ -108,23 +164,10 @@ pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         Bytes::from(v.try_extract_into::<Vec<u8>>()?)
     };
 
-    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-    let mut bv = BatchAVLVerifier::new(
-        &starting_digest,
-        &proof,
-        AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-            avl_tree_data.key_length as usize,
-            avl_tree_data
-                .value_length_opt
-                .as_ref()
-                .map(|v| **v as usize),
-        ),
-        None,
-        None,
-    )
-    .map_err(map_eval_err)?;
-
+    let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+    // The cost of a tree lookup is O(treeHeight): `LookupAvlTree_Info` =
+    // PerItemCost(40, 10, 1) per height item (Scala `get_eval`).
+    ctx.add_per_item_jit_cost(40, 10, 1, tree_height(&avl_tree_data))?;
     match bv.perform_one_operation(&Operation::Lookup(Bytes::from(key))) {
         Ok(opt) => match opt {
             Some(v) => Ok(Value::Opt(Some(Box::new(Value::Coll(
@@ -140,7 +183,7 @@ pub(crate) static GET_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
 };
 
 pub(crate) static GET_MANY_EVAL_FN: EvalFn =
-    |_mc, _env, _ctx, obj, args| {
+    |_mc, _env, ctx, obj, args| {
         let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
         let keys = {
@@ -156,26 +199,15 @@ pub(crate) static GET_MANY_EVAL_FN: EvalFn =
             Bytes::from(v.try_extract_into::<Vec<u8>>()?)
         };
 
-        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-        let mut bv = BatchAVLVerifier::new(
-            &starting_digest,
-            &proof,
-            AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-                avl_tree_data.key_length as usize,
-                avl_tree_data
-                    .value_length_opt
-                    .as_ref()
-                    .map(|v| **v as usize),
-            ),
-            None,
-            None,
-        )
-        .map_err(map_eval_err)?;
-
+        let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+        let height = tree_height(&avl_tree_data);
         let res = keys
             .into_iter()
             .map(|key| {
+                // Per key, the cost of a tree lookup is O(treeHeight):
+                // `LookupAvlTree_Info` = PerItemCost(40, 10, 1) per height item
+                // (Scala `getMany_eval`).
+                ctx.add_per_item_jit_cost(40, 10, 1, height)?;
                 if let Ok(r) = bv.perform_one_operation(&Operation::Lookup(Bytes::from(key))) {
                     if let Some(v) = r {
                         Ok(Value::Opt(Some(Box::new(Value::Coll(
@@ -205,6 +237,8 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
     |_mc, _env, ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
+        // Flag-check cost: `isInsertAllowed_Info` = FixedCost(15) (Scala `insert_eval`).
+        ctx.add_jit_cost(15)?;
         if !avl_tree_data.tree_flags.insert_allowed() {
             return Ok(Value::Opt(None));
         }
@@ -223,23 +257,14 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
             Bytes::from(v.try_extract_into::<Vec<u8>>()?)
         };
 
-        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-        let mut bv = BatchAVLVerifier::new(
-            &starting_digest,
-            &proof,
-            AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-                avl_tree_data.key_length as usize,
-                avl_tree_data
-                    .value_length_opt
-                    .as_ref()
-                    .map(|v| **v as usize),
-            ),
-            None,
-            None,
-        )
-        .map_err(map_eval_err)?;
+        let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+        // When the tree is empty we still need to add the insert cost (Scala
+        // `insert_eval`: `nItems = Math.max(bv.treeHeight, 1)`).
+        let n_items = tree_height(&avl_tree_data).max(1);
         for (key, value) in entries {
+            // The cost of a tree insert is O(treeHeight): `InsertIntoAvlTree_Info`
+            // = PerItemCost(40, 10, 1) per height item.
+            ctx.add_per_item_jit_cost(40, 10, 1, n_items)?;
             if bv
                 .perform_one_operation(&Operation::Insert(KeyValue {
                     key: key.into(),
@@ -258,6 +283,8 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
             }
         }
         Ok(if let Some(new_digest) = bv.digest() {
+            // Digest extraction after mutation: `updateDigest_Info` = FixedCost(40).
+            ctx.add_jit_cost(40)?;
             let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Value::Opt(Some(Box::new(Value::AvlTree(avl_tree_data.into()))))
@@ -267,9 +294,11 @@ pub(crate) static INSERT_EVAL_FN: EvalFn =
     };
 
 pub(crate) static REMOVE_EVAL_FN: EvalFn =
-    |_mc, _env, _ctx, obj, args| {
+    |_mc, _env, ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
+        // Flag-check cost: `isRemoveAllowed_Info` = FixedCost(15) (Scala `remove_eval`).
+        ctx.add_jit_cost(15)?;
         if !avl_tree_data.tree_flags.remove_allowed() {
             return Ok(Value::Opt(None));
         }
@@ -288,23 +317,14 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
             Bytes::from(v.try_extract_into::<Vec<u8>>()?)
         };
 
-        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-        let mut bv = BatchAVLVerifier::new(
-            &starting_digest,
-            &proof,
-            AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-                avl_tree_data.key_length as usize,
-                avl_tree_data
-                    .value_length_opt
-                    .as_ref()
-                    .map(|v| **v as usize),
-            ),
-            None,
-            None,
-        )
-        .map_err(map_eval_err)?;
+        let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+        // When the tree is empty we still need to add the remove cost (Scala
+        // `remove_eval`: `nItems = Math.max(bv.treeHeight, 1)`).
+        let n_items = tree_height(&avl_tree_data).max(1);
         for key in keys {
+            // The cost of a tree remove is O(treeHeight): `RemoveAvlTree_Info`
+            // = PerItemCost(100, 15, 1) per height item.
+            ctx.add_per_item_jit_cost(100, 15, 1, n_items)?;
             if bv
                 .perform_one_operation(&Operation::Remove(Bytes::from(key)))
                 .is_err()
@@ -315,7 +335,12 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
                 )));
             }
         }
+        // Digest read after the operation loop: `digest_Info` = FixedCost(15)
+        // (Scala `remove_eval` charges it unconditionally, unlike insert/update).
+        ctx.add_jit_cost(15)?;
         if let Some(new_digest) = bv.digest() {
+            // Digest extraction after mutation: `updateDigest_Info` = FixedCost(40).
+            ctx.add_jit_cost(40)?;
             let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Ok(Value::Opt(Some(Box::new(Value::AvlTree(
@@ -326,7 +351,7 @@ pub(crate) static REMOVE_EVAL_FN: EvalFn =
         }
     };
 
-pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
     let key = {
         let v = args
@@ -344,23 +369,10 @@ pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         Bytes::from(v.try_extract_into::<Vec<u8>>()?)
     };
 
-    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-    let mut bv = BatchAVLVerifier::new(
-        &starting_digest,
-        &proof,
-        AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-            avl_tree_data.key_length as usize,
-            avl_tree_data
-                .value_length_opt
-                .as_ref()
-                .map(|v| **v as usize),
-        ),
-        None,
-        None,
-    )
-    .map_err(map_eval_err)?;
-
+    let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+    // The cost of a tree lookup is O(treeHeight): `LookupAvlTree_Info` =
+    // PerItemCost(40, 10, 1) per height item (Scala `contains_eval`).
+    ctx.add_per_item_jit_cost(40, 10, 1, tree_height(&avl_tree_data))?;
     Ok(match bv.perform_one_operation(&Operation::Lookup(key)) {
         Ok(s) => match s {
             Some(_e) => Value::Boolean(true),
@@ -371,9 +383,11 @@ pub(crate) static CONTAINS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
 };
 
 pub(crate) static UPDATE_EVAL_FN: EvalFn =
-    |_mc, _env, _ctx, obj, args| {
+    |_mc, _env, ctx, obj, args| {
         let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
+        // Flag-check cost: `isUpdateAllowed_Info` = FixedCost(15) (Scala `update_eval`).
+        ctx.add_jit_cost(15)?;
         if !avl_tree_data.tree_flags.update_allowed() {
             return Ok(Value::Opt(None));
         }
@@ -392,23 +406,14 @@ pub(crate) static UPDATE_EVAL_FN: EvalFn =
             Bytes::from(v.try_extract_into::<Vec<u8>>()?)
         };
 
-        let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-        let mut bv = BatchAVLVerifier::new(
-            &starting_digest,
-            &proof,
-            AVLTree::new(
-                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-                avl_tree_data.key_length as usize,
-                avl_tree_data
-                    .value_length_opt
-                    .as_ref()
-                    .map(|v| **v as usize),
-            ),
-            None,
-            None,
-        )
-        .map_err(map_eval_err)?;
+        let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+        // When the tree is empty we still need to add the update cost (Scala
+        // `update_eval`: `nItems = Math.max(bv.treeHeight, 1)`).
+        let n_items = tree_height(&avl_tree_data).max(1);
         for (key, value) in entries {
+            // The cost of a tree update is O(treeHeight): `UpdateAvlTree_Info`
+            // = PerItemCost(120, 20, 1) per height item.
+            ctx.add_per_item_jit_cost(120, 20, 1, n_items)?;
             if bv
                 .perform_one_operation(&Operation::Update(KeyValue {
                     key: key.into(),
@@ -420,6 +425,8 @@ pub(crate) static UPDATE_EVAL_FN: EvalFn =
             }
         }
         Ok(if let Some(new_digest) = bv.digest() {
+            // Digest extraction after mutation: `updateDigest_Info` = FixedCost(40).
+            ctx.add_jit_cost(40)?;
             let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
             avl_tree_data.digest = digest;
             Value::Opt(Some(Value::AvlTree(avl_tree_data.into()).into()))
@@ -428,9 +435,13 @@ pub(crate) static UPDATE_EVAL_FN: EvalFn =
         })
     };
 
-pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
     let mut avl_tree_data = obj.try_extract_into::<AvlTreeData>()?;
 
+    // Flag-check costs: `isUpdateAllowed_Info` + `isInsertAllowed_Info` =
+    // FixedCost(15) each (Scala `insertOrUpdate_eval` charges both).
+    ctx.add_jit_cost(15)?;
+    ctx.add_jit_cost(15)?;
     if !avl_tree_data.tree_flags.insert_allowed() || !avl_tree_data.tree_flags.update_allowed() {
         return Ok(Value::Opt(None));
     }
@@ -451,23 +462,14 @@ pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args
         Bytes::from(v.try_extract_into::<Vec<u8>>()?)
     };
 
-    let starting_digest = Bytes::from(avl_tree_data.digest.0.to_vec());
-    let mut bv = BatchAVLVerifier::new(
-        &starting_digest,
-        &proof,
-        AVLTree::new(
-            |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
-            avl_tree_data.key_length as usize,
-            avl_tree_data
-                .value_length_opt
-                .as_ref()
-                .map(|v| **v as usize),
-        ),
-        None,
-        None,
-    )
-    .map_err(map_eval_err)?;
+    let mut bv = create_verifier(ctx, &avl_tree_data, &proof)?;
+    // When the tree is empty we still need to add the insert cost (Scala
+    // `insertOrUpdate_eval`: `nItems = Math.max(bv.treeHeight, 1)`).
+    let n_items = tree_height(&avl_tree_data).max(1);
     for (key, value) in entries {
+        // Per entry, Scala `insertOrUpdate_eval` charges `UpdateAvlTree_Info`
+        // = PerItemCost(120, 20, 1) per height item.
+        ctx.add_per_item_jit_cost(120, 20, 1, n_items)?;
         if bv
             .perform_one_operation(&Operation::InsertOrUpdate(KeyValue {
                 key: key.into(),
@@ -479,6 +481,8 @@ pub(crate) static INSERT_OR_UPDATE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args
         }
     }
     Ok(if let Some(new_digest) = bv.digest() {
+        // Digest extraction after mutation: `updateDigest_Info` = FixedCost(40).
+        ctx.add_jit_cost(40)?;
         let digest = ADDigest::scorex_parse_bytes(&new_digest)?;
         avl_tree_data.digest = digest;
         Value::Opt(Some(Box::new(Value::AvlTree(avl_tree_data.into()))))
@@ -1212,5 +1216,226 @@ mod tests {
             Literal::from(vec![x]),
             Literal::from(y.to_be_bytes().to_vec()),
         ]
+    }
+
+    /// SANTA tx-tier regression (captured testnet txs at heights 2666 / 28474):
+    /// the verifier-backed AvlTree ops must charge the JVM's verifier costs
+    /// (Scala `CErgoTreeEvaluator.createVerifier` + per-op height-scaled costs).
+    /// Pre-fix all seven ops charged nothing, under-counting the aggregate tx
+    /// cost of any AVL-using script — the consensus-risky direction near
+    /// MaxBlockCost.
+    ///
+    /// Expectations are formula-derived (no magic totals), mirroring Scala:
+    ///   createVerifier = 110 + 20 * chunks(proof.len, 64)
+    ///   lookup         = 40 + 10 * h          (contains/get; per key in getMany)
+    ///   insert         = 40 + 10 * max(h, 1)  per entry
+    ///   remove         = 100 + 15 * max(h, 1) per key, then digest read (15)
+    ///   updateDigest   = 40 on successful mutation
+    /// where h = the digest's height byte (what `BatchAVLVerifier.rootNodeHeight`
+    /// reads) and chunks(n, sz) = (n - 1)/sz + 1.
+    #[test]
+    fn avl_verifier_op_costs_match_jvm() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+
+        let chunks = |n: u64, sz: u64| (n - 1) / sz + 1;
+        // Expr overhead outside the AvlTree method eval itself:
+        // Const(tree) 5 + MethodCall 4 + Const(arg1) 5 + Const(arg2) 5.
+        const EXPR_OVERHEAD: u64 = 19;
+
+        let cost_of = |expr: &Expr| -> u64 {
+            let ctx = force_any_val::<Context>();
+            let before = ctx.jit_cost_value();
+            let _ = try_eval_out::<Value>(expr, &ctx).unwrap();
+            ctx.jit_cost_value() - before
+        };
+
+        let keys_const = |keys: &[Vec<u8>]| Constant {
+            tpe: SType::SColl(Arc::new(SType::SColl(Arc::new(SType::SByte)))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: keys.iter().map(|k| Literal::from(k.clone())).collect(),
+                elem_tpe: SType::SColl(Arc::new(SType::SByte)),
+            }),
+        };
+        let tree_const = |digest: &ADDigest, flags: AvlTreeFlags| {
+            Expr::Const(
+                AvlTreeData {
+                    digest: *digest,
+                    tree_flags: flags,
+                    key_length: 1,
+                    value_length_opt: None,
+                }
+                .into(),
+            )
+        };
+
+        // --- get: createVerifier + one height-scaled lookup ---
+        let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
+        let digest = ADDigest::scorex_parse_bytes(&prover.digest().unwrap()).unwrap();
+        let h = u64::from(*digest.0.last().unwrap());
+        prover
+            .perform_one_operation(&Operation::Lookup(Bytes::from(vec![1u8])))
+            .unwrap();
+        let proof_bytes: Vec<u8> = prover.generate_proof().into_iter().collect();
+        let plen = proof_bytes.len() as u64;
+        let expr: Expr = MethodCall::new(
+            tree_const(&digest, AvlTreeFlags::new(false, false, false)),
+            savltree::GET_METHOD.clone(),
+            vec![
+                Constant::from(vec![1u8]).into(),
+                Constant::from(proof_bytes).into(),
+            ],
+        )
+        .unwrap()
+        .into();
+        assert_eq!(
+            cost_of(&expr),
+            EXPR_OVERHEAD + (110 + 20 * chunks(plen, 64)) + (40 + 10 * h),
+            "get = expr overhead + createVerifier(proof) + lookup(h)"
+        );
+
+        // --- getMany: createVerifier + per-key height-scaled lookups ---
+        let mut prover = populate_tree(vec![
+            (vec![1u8], 10u64.to_be_bytes().to_vec()),
+            (vec![2u8], 20u64.to_be_bytes().to_vec()),
+        ]);
+        let digest = ADDigest::scorex_parse_bytes(&prover.digest().unwrap()).unwrap();
+        let h = u64::from(*digest.0.last().unwrap());
+        for k in [vec![1u8], vec![2u8], vec![3u8]] {
+            prover
+                .perform_one_operation(&Operation::Lookup(Bytes::from(k)))
+                .unwrap();
+        }
+        let proof_bytes: Vec<u8> = prover.generate_proof().into_iter().collect();
+        let plen = proof_bytes.len() as u64;
+        let expr: Expr = MethodCall::new(
+            tree_const(&digest, AvlTreeFlags::new(false, false, false)),
+            savltree::GET_MANY_METHOD.clone(),
+            vec![
+                keys_const(&[vec![1u8], vec![2u8], vec![3u8]]).into(),
+                Constant::from(proof_bytes).into(),
+            ],
+        )
+        .unwrap()
+        .into();
+        assert_eq!(
+            cost_of(&expr),
+            EXPR_OVERHEAD + (110 + 20 * chunks(plen, 64)) + 3 * (40 + 10 * h),
+            "getMany = expr overhead + createVerifier(proof) + 3 lookups"
+        );
+
+        // --- remove: flag check + createVerifier + per-key remove + digest
+        //     read + updateDigest (remove is the one mutation that also
+        //     charges the unconditional digest read, mirroring Scala) ---
+        let mut prover = populate_tree(vec![(vec![1u8], 10u64.to_be_bytes().to_vec())]);
+        let digest = ADDigest::scorex_parse_bytes(&prover.digest().unwrap()).unwrap();
+        let h = u64::from(*digest.0.last().unwrap());
+        prover
+            .perform_one_operation(&Operation::Remove(Bytes::from(vec![1u8])))
+            .unwrap();
+        let proof_bytes: Vec<u8> = prover.generate_proof().into_iter().collect();
+        let plen = proof_bytes.len() as u64;
+        let expr: Expr = MethodCall::new(
+            tree_const(&digest, AvlTreeFlags::new(false, false, true)),
+            savltree::REMOVE_METHOD.clone(),
+            vec![
+                keys_const(&[vec![1u8]]).into(),
+                Constant::from(proof_bytes).into(),
+            ],
+        )
+        .unwrap()
+        .into();
+        assert_eq!(
+            cost_of(&expr),
+            EXPR_OVERHEAD + 15 + (110 + 20 * chunks(plen, 64)) + (100 + 15 * h.max(1)) + 15 + 40,
+            "remove = expr overhead + isRemoveAllowed + createVerifier(proof) \
+             + remove(max(h,1)) + digest + updateDigest"
+        );
+
+        // --- insert on an empty tree: max(h, 1) keeps per-entry cost nonzero ---
+        let prover = BatchAVLProver::new(
+            AVLTree::new(
+                |digest| Node::LabelOnly(NodeHeader::new(Some(*digest), None)),
+                1,
+                None,
+            ),
+            true,
+        );
+        let digest = ADDigest::scorex_parse_bytes(&prover.digest().unwrap()).unwrap();
+        let h = u64::from(*digest.0.last().unwrap());
+        assert_eq!(h, 0, "fresh tree digest height byte");
+        let mut prover = prover;
+        prover
+            .perform_one_operation(&Operation::Insert(KeyValue {
+                key: Bytes::from(vec![1u8]),
+                value: Bytes::from(10u64.to_be_bytes().to_vec()),
+            }))
+            .unwrap();
+        let proof_bytes: Vec<u8> = prover.generate_proof().into_iter().collect();
+        let plen = proof_bytes.len() as u64;
+        let entries = Constant {
+            tpe: SType::SColl(Arc::new(SType::STuple(STuple::pair(
+                SType::SColl(Arc::new(SType::SByte)),
+                SType::SColl(Arc::new(SType::SByte)),
+            )))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::new([Literal::Tup(mk_pair(1u8, 10u64).into())]),
+                elem_tpe: SType::STuple(STuple::pair(
+                    SType::SColl(Arc::new(SType::SByte)),
+                    SType::SColl(Arc::new(SType::SByte)),
+                )),
+            }),
+        };
+        let insert_expr = |flags: AvlTreeFlags, proof: Vec<u8>| -> Expr {
+            MethodCall::new(
+                tree_const(&digest, flags),
+                savltree::INSERT_METHOD.clone(),
+                vec![entries.clone().into(), Constant::from(proof).into()],
+            )
+            .unwrap()
+            .into()
+        };
+        assert_eq!(
+            cost_of(&insert_expr(
+                AvlTreeFlags::new(true, false, false),
+                proof_bytes.clone()
+            )),
+            EXPR_OVERHEAD + 15 + (110 + 20 * chunks(plen, 64)) + (40 + 10 * h.max(1)) + 40,
+            "insert = expr overhead + isInsertAllowed + createVerifier(proof) \
+             + insert(max(h,1)) + updateDigest"
+        );
+
+        // --- disallowed mutation: only the flag check is charged ---
+        assert_eq!(
+            cost_of(&insert_expr(
+                AvlTreeFlags::new(false, false, false),
+                proof_bytes
+            )),
+            EXPR_OVERHEAD + 15,
+            "insert on a non-insert-allowed tree charges only the flag check"
+        );
+    }
+
+    /// JVM parity: `BatchAVLVerifier.rootNodeHeight` is assigned from the
+    /// digest's trailing byte only after the `keyLength > 0` require; a
+    /// non-positive keyLength (signed `Int` on the JVM) fails reconstruction
+    /// before the assignment, so the op-cost height is 0
+    /// (`CAvlTreeVerifier.treeHeight`).
+    #[test]
+    fn tree_height_zero_when_reconstruction_cannot_start() {
+        let mut digest_bytes = [0u8; 33];
+        digest_bytes[32] = 4;
+        let tree = |key_length: u32| AvlTreeData {
+            digest: ADDigest::try_from(digest_bytes.to_vec()).unwrap(),
+            tree_flags: AvlTreeFlags::new(false, false, false),
+            key_length,
+            value_length_opt: None,
+        };
+        // a valid-shaped tree keeps its digest-derived height
+        assert_eq!(tree_height(&tree(32)), 4);
+        // keyLength 0 or negative-on-the-JVM (high bit set) => height 0
+        assert_eq!(tree_height(&tree(0)), 0);
+        assert_eq!(tree_height(&tree(u32::MAX)), 0); // JVM Int -1
+        assert_eq!(tree_height(&tree(0x8000_0000)), 0); // JVM Int.MinValue
     }
 }

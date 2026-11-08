@@ -77,6 +77,12 @@ pub enum TxValidationError {
     /// Verifying input script failed
     #[error("Verifier error on input {0}: {1}")]
     VerifierError(usize, VerifierError),
+    /// Transaction initialization cost (INTERPRETER_INIT_COST + per-input/output/
+    /// data-input/token structural cost) already exceeds the per-tx JIT cost limit
+    /// before any input script evaluation begins. The u64 is the init cost in
+    /// JitCost units (block cost × 10).
+    #[error("Init cost {0} exceeds tx cost limit")]
+    InitCostExceeded(u64),
 }
 
 /// Exposes common properties for signed and unsigned transactions

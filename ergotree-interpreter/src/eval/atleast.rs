@@ -31,6 +31,7 @@ impl Evaluable for Atleast {
                 input_v
             ))),
         }?;
+        ctx.add_per_item_jit_cost(20, 3, 5, normalized_input_vals.len() as u32)?;
 
         let bound = bound_v.try_extract_into::<i32>()?;
         let input = normalized_input_vals

@@ -2,6 +2,7 @@
 
 #![deny(clippy::unwrap_used)]
 
+pub mod crypto_cost;
 pub mod private_input;
 pub mod prover;
 pub mod verifier;

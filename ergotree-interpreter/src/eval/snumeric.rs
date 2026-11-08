@@ -20,7 +20,15 @@ use num_traits::{CheckedRem, CheckedShl, CheckedShr};
 
 use super::{EvalError, EvalFn};
 
-const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+/// Scala `FixedCost(JitCost(5))` charged per numeric 6.0 method call —
+/// `SNumericTypeMethods.{ToBytes,ToBits,BitwiseOp}_CostKind` and
+/// `SBigIntMethods.ToUnsignedCostKind` in sigma-state `ast/methods.scala`.
+/// Charged inside each eval fn below, mirroring how every other method family
+/// charges its own costKind (scoll PerItemCost; sbox/savltree/sglobal FixedCost).
+const NUMERIC_METHOD_COST_KIND: u64 = 5;
+
+const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     Ok(match obj {
         Value::Byte(obj) => obj.to_be_bytes().to_vec().into(),
         Value::Short(obj) => obj.to_be_bytes().to_vec().into(),
@@ -36,7 +44,8 @@ const TO_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     fn byte_to_bits(mut byte: u8) -> [bool; 8] {
         let mut res = [false; 8];
         let mut i = 8;
@@ -70,7 +79,8 @@ static TO_BITS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     Ok(match obj {
         Value::Byte(obj) => (!obj).into(),
         Value::Short(obj) => (!obj).into(),
@@ -86,7 +96,8 @@ static BITWISE_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     })
 };
 
-static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let rhs = args[0].clone();
     Ok(match _mc.obj_type {
         STypeCompanion::SByte => {
@@ -115,7 +126,8 @@ static BITWISE_OR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let rhs = args[0].clone();
     Ok(match _mc.obj_type {
         STypeCompanion::SByte => {
@@ -144,7 +156,8 @@ static BITWISE_AND_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static BITWISE_XOR_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static BITWISE_XOR_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let rhs = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("rhs missing".into()))?
@@ -181,7 +194,8 @@ fn invalid_shift_err() -> EvalError {
     EvalError::Misc("shift value is out of bounds".into())
 }
 
-static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let shift_value: u32 = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("shift arg missing".into()))?
@@ -222,7 +236,8 @@ static SHIFT_LEFT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let shift_value: u32 = args
         .first()
         .ok_or_else(|| EvalError::UnexpectedValue("shift arg missing".into()))?
@@ -263,14 +278,28 @@ static SHIFT_RIGHT_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
     })
 };
 
-static TO_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_UNSIGNED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(NUMERIC_METHOD_COST_KIND)?;
     let signed = obj.try_extract_into::<BigInt256>()?;
     UnsignedBigInt::try_from(signed)
         .map_err(|err| EvalError::ArithmeticException(err.into()))
         .map(Value::from)
 };
 
-static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+// UnsignedBigInt modular-method costKinds -- each a Scala FixedCost(JitCost(n))
+// (SBigIntMethods.toUnsignedMod / SUnsignedBigIntMethods.*, methods.scala
+// 551-609). Each eval fn charges its FixedCost per call, mirroring
+// NUMERIC_METHOD_COST_KIND above.
+const TO_UNSIGNED_MOD_COST: u64 = 15;
+const MOD_INVERSE_COST: u64 = 150;
+const PLUS_MOD_COST: u64 = 30;
+const SUBTRACT_MOD_COST: u64 = 30;
+const MULTIPLY_MOD_COST: u64 = 40;
+const MOD_COST: u64 = 20;
+const TO_SIGNED_COST: u64 = 10;
+
+static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(TO_UNSIGNED_MOD_COST)?;
     let signed = obj.try_extract_into::<BigInt256>()?;
     let modulus = args
         .first()
@@ -282,7 +311,8 @@ static TO_UNSIGNED_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("toUnsignedMod: can't divide by 0".into()))
 };
 
-static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(MOD_INVERSE_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let modulus = args
         .first()
@@ -294,7 +324,8 @@ static MOD_INVERSE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("modInv: can't divide by 0".into()))
 };
 
-static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(PLUS_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -311,7 +342,8 @@ static PLUS_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("plusMod: can't divide by 0".into()))
 };
 
-static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(SUBTRACT_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -328,7 +360,8 @@ static SUBTRACT_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("subtractMod: can't divide by 0".into()))
 };
 
-static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(MULTIPLY_MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let b = args
         .first()
@@ -345,7 +378,8 @@ static MULTIPLY_MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("multiplyMod: can't divide by 0".into()))
 };
 
-static MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
+static MOD_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(MOD_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     let modulus = args
         .first()
@@ -357,7 +391,8 @@ static MOD_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, args| {
         .ok_or_else(|| EvalError::ArithmeticException("mod: can't divide by 0".into()))
 };
 
-static TO_SIGNED_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+static TO_SIGNED_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(TO_SIGNED_COST)?;
     let obj = obj.try_extract_into::<UnsignedBigInt>()?;
     BigInt256::try_from(obj)
         .map_err(|e| EvalError::ArithmeticException(e.into()))
@@ -677,6 +712,131 @@ mod test {
     fn bitwise_or_byte() {
         assert_eq!(bitwise_or(127i8, -128i8, &snumeric::sbyte::METHODS), -1i8);
     }
+
+    /// Regression: a numeric 6.0 method call must charge its
+    /// `FixedCost(JitCost(5))` costKind (sigma-state `ToBytes_CostKind` etc.).
+    /// Isolated by subtracting the receiver-eval cost: a `MethodCall` evaluates its
+    /// object exactly once, so `mc_cost - obj_cost == MethodCall Fixed(4) + 5`.
+    #[test]
+    fn numeric_method_charges_costkind() {
+        use crate::eval::test_util::eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        let obj_expr: Expr = Constant::from(5i64).into();
+        let mc: Expr = MethodCall::new(
+            obj_expr.clone(),
+            snumeric::slong::METHODS
+                .iter()
+                .find(|m| m.method_id() == TO_BYTES_METHOD_ID)
+                .unwrap()
+                .clone(),
+            vec![],
+        )
+        .unwrap()
+        .into();
+
+        let ctx = force_any_val::<Context>();
+        let c0 = ctx.jit_cost_value();
+        let _ = eval_out::<i64>(&obj_expr, &ctx);
+        let obj_cost = ctx.jit_cost_value() - c0;
+        let _ = eval_out::<Vec<u8>>(&mc, &ctx);
+        let mc_cost = ctx.jit_cost_value() - c0 - obj_cost;
+        // MethodCall Fixed(4) + ToBytes_CostKind FixedCost(JitCost(5)) = 9.
+        assert_eq!(mc_cost - obj_cost, 9);
+    }
+
+    #[test]
+    fn unsigned_bigint_modular_methods_charge_scala_costkinds() {
+        use crate::eval::test_util::try_eval_out;
+        use ergotree_ir::chain::context::Context;
+        use sigma_test_util::force_any_val;
+
+        // Each UnsignedBigInt modular method is a Scala FixedCost (methods.scala
+        // 551-609): toUnsignedMod 15, modInverse 150, plusMod 30, subtractMod 30,
+        // multiplyMod 40, mod 20, toSigned 10. Isolate it like
+        // `numeric_method_charges_costkind`: the MethodCall node charges Fixed(4)
+        // and evaluates the receiver + each arg separately, so
+        // `full - receiver - args` leaves exactly `4 + costKind`. A receiver/arg
+        // Constant costs the same standalone as inside the call, so it cancels
+        // regardless of value (and of the cost-only extraction type below).
+        // Pre-fix every modular eval fn took `_ctx` and charged nothing.
+        let charge_of = |receiver: Expr, method: SMethod, args: Vec<Expr>| -> u64 {
+            let mc: Expr = MethodCall::new(receiver.clone(), method, args.clone())
+                .unwrap()
+                .into();
+            let ctx = force_any_val::<Context>();
+            let base = ctx.jit_cost_value();
+            let _ = try_eval_out::<UnsignedBigInt>(&receiver, &ctx);
+            for a in &args {
+                let _ = try_eval_out::<UnsignedBigInt>(a, &ctx);
+            }
+            let receiver_and_args = ctx.jit_cost_value() - base;
+            let before_mc = ctx.jit_cost_value();
+            let _ = try_eval_out::<UnsignedBigInt>(&mc, &ctx);
+            (ctx.jit_cost_value() - before_mc) - receiver_and_args
+        };
+
+        let ubi = |n: u64| -> Expr { Constant::from(UnsignedBigInt::from(n)).into() };
+        let on_ubi = |desc| SMethod::new(STypeCompanion::SUnsignedBigInt, desc);
+
+        assert_eq!(
+            charge_of(
+                Constant::from(BigInt256::from(7i64)).into(),
+                SMethod::new(STypeCompanion::SBigInt, TO_UNSIGNED_MOD_METHOD_DESC.clone()),
+                vec![ubi(5)],
+            ),
+            4 + 15,
+            "toUnsignedMod: MethodCall Fixed(4) + ToUnsignedMod FixedCost(15)",
+        );
+        assert_eq!(
+            charge_of(
+                ubi(7),
+                on_ubi(MOD_INVERSE_METHOD_DESC.clone()),
+                vec![ubi(5)]
+            ),
+            4 + 150,
+            "modInverse: Fixed(4) + ModInverse FixedCost(150)",
+        );
+        assert_eq!(
+            charge_of(
+                ubi(7),
+                on_ubi(PLUS_MOD_METHOD_DESC.clone()),
+                vec![ubi(3), ubi(5)]
+            ),
+            4 + 30,
+            "plusMod: Fixed(4) + PlusMod FixedCost(30)",
+        );
+        assert_eq!(
+            charge_of(
+                ubi(7),
+                on_ubi(SUBTRACT_MOD_METHOD_DESC.clone()),
+                vec![ubi(3), ubi(5)]
+            ),
+            4 + 30,
+            "subtractMod: Fixed(4) + SubtractMod FixedCost(30)",
+        );
+        assert_eq!(
+            charge_of(
+                ubi(7),
+                on_ubi(MULTIPLY_MOD_METHOD_DESC.clone()),
+                vec![ubi(3), ubi(5)]
+            ),
+            4 + 40,
+            "multiplyMod: Fixed(4) + MultiplyMod FixedCost(40)",
+        );
+        assert_eq!(
+            charge_of(ubi(7), on_ubi(MOD_METHOD_DESC.clone()), vec![ubi(5)]),
+            4 + 20,
+            "mod: Fixed(4) + Mod FixedCost(20)",
+        );
+        assert_eq!(
+            charge_of(ubi(7), on_ubi(TO_SIGNED_METHOD_DESC.clone()), vec![]),
+            4 + 10,
+            "toSigned: Fixed(4) + ToSigned FixedCost(10)",
+        );
+    }
+
     proptest! {
         #[test]
         fn byte_big_endian_roundtrip(byte in any::<i8>()) {

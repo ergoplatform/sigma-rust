@@ -12,6 +12,7 @@ impl Evaluable for MultiplyGroup {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(40)?; // MultiplyGroup = Fixed(40)
         let left_v = self.left.eval(env, ctx)?;
         let right_v = self.right.eval(env, ctx)?;
 

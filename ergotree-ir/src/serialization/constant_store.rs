@@ -33,6 +33,7 @@ impl ConstantStore {
         ConstantPlaceholder {
             id: (self.constants.len() - 1) as u32,
             tpe: c.tpe,
+            resolved: None,
         }
     }
 

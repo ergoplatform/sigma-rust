@@ -12,6 +12,7 @@ impl Evaluable for BitInversion {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(1)?; // BitOp = Fixed(1)
         let input_v = self.input.eval(env, ctx)?;
         match input_v {
             Value::Byte(v) => Ok(Value::Byte(!v)),

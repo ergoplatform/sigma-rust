@@ -13,6 +13,7 @@ impl Evaluable for LogicalNot {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(15)?; // LogicalNot = Fixed(15)
         let input_v = self.input.eval(env, ctx)?;
         let input_v_bool = input_v.try_extract_into::<bool>()?;
         Ok((!input_v_bool).into())

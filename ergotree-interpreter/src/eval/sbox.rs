@@ -11,13 +11,15 @@ use ergotree_ir::types::stype::SType;
 
 use super::EvalFn;
 
-pub(crate) static VALUE_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static VALUE_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(8)?;
     Ok(Value::Long(
         obj.try_extract_into::<Ref<'_, ErgoBox>>()?.value.as_i64(),
     ))
 };
 
 pub(crate) static GET_REG_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
+    ctx.add_jit_cost(50)?;
     if ctx.tree_version() < ErgoTreeVersion::V3 {
         return Err(EvalError::ScriptVersionError {
             required_version: ErgoTreeVersion::V3,
@@ -67,7 +69,8 @@ pub(crate) static GET_REG_EVAL_FN: EvalFn = |mc, _env, ctx, obj, args| {
     }
 };
 
-pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, ctx, obj, _args| {
+    ctx.add_jit_cost(15)?;
     let res: Value = obj
         .try_extract_into::<Ref<'_, ErgoBox>>()?
         .tokens_raw()

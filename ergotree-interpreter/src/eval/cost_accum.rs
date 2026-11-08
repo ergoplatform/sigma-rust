@@ -1,43 +1,14 @@
-use super::costs::{Cost, Costs};
-use ergotree_ir::mir::expr::Expr;
+use ergotree_ir::chain::context::CostLimitExceeded;
 use thiserror::Error;
-
-#[derive(Debug)]
-#[allow(dead_code)] // TODO: Reintroduce this type for JIT costing
-pub struct CostAccumulator {
-    costs: Costs,
-    accum: u64,
-    limit: Option<u64>,
-}
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
 pub enum CostError {
-    #[error("Limit ({0}) exceeded")]
-    LimitExceeded(u64),
+    #[error("Cost limit exceeded: {0}")]
+    LimitExceeded(CostLimitExceeded),
 }
 
-#[allow(dead_code)] // TODO: Reintroduce this type for JIT costing
-impl CostAccumulator {
-    pub fn new(initial_cost: u64, cost_limit: Option<u64>) -> CostAccumulator {
-        CostAccumulator {
-            costs: Costs::DEFAULT,
-            accum: initial_cost,
-            limit: cost_limit,
-        }
-    }
-
-    pub fn add_cost_of(&mut self, expr: &Expr) -> Result<(), CostError> {
-        let cost = self.costs.cost_of(expr);
-        self.add(cost)
-    }
-
-    pub fn add(&mut self, cost: Cost) -> Result<(), CostError> {
-        self.accum += u32::from(cost) as u64;
-        if let Some(limit) = self.limit {
-            if self.accum > limit {
-                return Err(CostError::LimitExceeded(limit));
-            }
-        }
-        Ok(())
+impl From<CostLimitExceeded> for CostError {
+    fn from(e: CostLimitExceeded) -> Self {
+        CostError::LimitExceeded(e)
     }
 }

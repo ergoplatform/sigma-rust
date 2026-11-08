@@ -54,6 +54,7 @@ impl Evaluable for Append {
         }
         let input_vecval: Vec<Value> = extract_vecval(input_v)?;
         let col_2_vecval: Vec<Value> = extract_vecval(col2_v)?;
+        ctx.add_per_item_jit_cost(20, 2, 100, (input_vecval.len() + col_2_vecval.len()) as u32)?;
         let concat_vecval = concat(input_vecval, col_2_vecval);
         Ok(Value::Coll(CollKind::from_collection(
             input_elem_tpe,

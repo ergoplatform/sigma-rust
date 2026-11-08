@@ -15,6 +15,7 @@ impl Evaluable for ByIndex {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(30)?; // ByIndex = Fixed(30)
         let input_v = self.input.eval(env, ctx)?;
         let index_v = self.index.eval(env, ctx)?;
         let normalized_input_vals: &CollKind<Value<'ctx>> = match &input_v {

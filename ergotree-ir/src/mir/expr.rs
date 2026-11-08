@@ -8,6 +8,7 @@ use core::convert::TryFrom;
 use core::convert::TryInto;
 
 use crate::chain::context::Context;
+use crate::chain::context::CostLimitExceeded;
 use crate::chain::ergo_box::RegisterId;
 use crate::chain::ergo_box::RegisterIdOutOfBounds;
 use crate::chain::ergo_box::RegisterValueError;
@@ -423,6 +424,13 @@ impl Expr {
                             .ok_or(SubstDeserializeError::ExtensionKeyNotFound(*id))?
                             .clone()
                             .try_extract_into::<Vec<u8>>()?;
+                        // Each actually-substituted node charges the JVM's
+                        // deserialization complexity — `scriptBytes.length ×
+                        // CostPerByteDeserialized(2)` block cost
+                        // (`Interpreter.deserializeMeasured`). Unlike the
+                        // per-tree-byte presence charge, this lands in the
+                        // reported cost pre-V6 too.
+                        ctx.add_jit_cost(vec.len() as u64 * 20)?;
                         (
                             tpe,
                             sigma_byte_reader::from_bytes(&vec)
@@ -434,10 +442,15 @@ impl Expr {
                             .self_box
                             .get_register(*reg)?
                             .map(|constant| -> Result<_, SubstDeserializeError> {
-                                Ok(sigma_byte_reader::from_bytes(
-                                    &constant.try_extract_into::<Vec<u8>>()?,
-                                )
-                                .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?)
+                                let bytes = constant.try_extract_into::<Vec<u8>>()?;
+                                // Same per-byte deserialization charge as the
+                                // context-var arm (`ErgoLikeInterpreter.
+                                // substDeserialize` → `deserializeMeasured`);
+                                // an absent register falling back to `default`
+                                // charges nothing.
+                                ctx.add_jit_cost(bytes.len() as u64 * 20)?;
+                                Ok(sigma_byte_reader::from_bytes(&bytes)
+                                    .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?)
                             })
                             .transpose()?
                             .or(default.as_deref().cloned());
@@ -467,12 +480,34 @@ impl Expr {
         self.try_rewrite_bu::<SigmaParsingError>(
             |expr| matches!(expr, Expr::ConstPlaceholder(_)),
             |expr| {
-                if let Expr::ConstPlaceholder(ConstantPlaceholder { id, tpe: _ }) = expr {
+                if let Expr::ConstPlaceholder(ConstantPlaceholder { id, .. }) = expr {
                     *expr = constants
                         .get(*id as usize)
                         .cloned()
                         .map(Expr::from)
                         .ok_or(SigmaParsingError::ConstantForPlaceholderNotFound(*id))?;
+                }
+                Ok(())
+            },
+        )
+    }
+
+    /// Set the `resolved` field on every [`ConstantPlaceholder`] node, leaving
+    /// the node in place. Contrast with `substitute_constants`, which rewrites
+    /// placeholder nodes into `Expr::Const` and erases the distinction; this
+    /// method preserves it so the evaluator can charge the correct per-node
+    /// JIT cost (ConstPlaceholder = 1, Const = 5).
+    pub fn resolve_placeholders(self, constants: &[Constant]) -> Result<Self, SigmaParsingError> {
+        self.try_rewrite_bu::<SigmaParsingError>(
+            |expr| matches!(expr, Expr::ConstPlaceholder(_)),
+            |expr| {
+                if let Expr::ConstPlaceholder(cp) = expr {
+                    cp.resolved = Some(
+                        constants
+                            .get(cp.id as usize)
+                            .cloned()
+                            .ok_or(SigmaParsingError::ConstantForPlaceholderNotFound(cp.id))?,
+                    );
                 }
                 Ok(())
             },
@@ -687,6 +722,14 @@ pub enum SubstDeserializeError {
     ExprParsingError(#[from] SigmaParsingError),
     #[error("Expected tpe {expected}, found {actual}")]
     ExprTpeError { expected: SType, actual: SType },
+    #[error("Cost limit exceeded during deserialize substitution: {0}")]
+    CostLimitExceeded(CostLimitExceeded),
+}
+
+impl From<CostLimitExceeded> for SubstDeserializeError {
+    fn from(e: CostLimitExceeded) -> Self {
+        SubstDeserializeError::CostLimitExceeded(e)
+    }
 }
 
 impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {

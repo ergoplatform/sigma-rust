@@ -17,6 +17,7 @@ pub fn map_eval<'ctx>(
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
 ) -> Result<Value<'ctx>, EvalError> {
+    ctx.add_jit_cost(20)?;
     let input_v = obj;
     let lambda_v = args
         .first()
@@ -65,6 +66,7 @@ pub fn filter_eval<'ctx>(
     obj: Value<'ctx>,
     args: Vec<Value<'ctx>>,
 ) -> Result<Value<'ctx>, EvalError> {
+    ctx.add_jit_cost(20)?;
     let input_v = obj;
     let lambda_v = args
         .first()

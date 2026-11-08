@@ -16,6 +16,7 @@ impl Evaluable for Exponentiate {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(900)?; // Exponentiate = Fixed(900)
         let left_v = self.left.eval(env, ctx)?.try_extract_into()?;
         let right_v = self.right.eval(env, ctx)?.try_extract_into()?;
 

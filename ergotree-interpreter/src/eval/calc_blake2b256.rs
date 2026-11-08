@@ -20,6 +20,7 @@ impl Evaluable for CalcBlake2b256 {
         let input_v = self.input.eval(env, ctx)?;
         match input_v.clone() {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(coll_byte))) => {
+                ctx.add_per_item_jit_cost(20, 7, 128, coll_byte.len() as u32)?;
                 let expected_hash: Vec<u8> =
                     blake2b256_hash(coll_byte.as_vec_u8().as_slice()).to_vec();
                 Ok(expected_hash.into())
@@ -56,5 +57,21 @@ mod tests {
             assert_eq!(eval_out::<Vec<i8>>(&expr, &ctx).as_vec_u8(), expected_hash);
         }
 
+    }
+
+    #[test]
+    fn calc_blake2b256_empty_jit_cost() {
+        // santa eval fixture `calc_blake2b256_empty` (tree 00cb0e00): hash of an
+        // empty Coll[Byte] constant. Cost = Const(empty coll) 5 + per-item at
+        // n=0 (base 20 + one chunk * per_chunk 7 = 27, post n=0 chunks fix) = 32.
+        // Matches the JVM under activated=3 (was 25 before the n=0 fix).
+        let expr: Expr = CalcBlake2b256 {
+            input: Box::new(Expr::Const(Vec::<u8>::new().into())),
+        }
+        .into();
+        let ctx = force_any_val::<Context>();
+        let before = ctx.jit_cost_value();
+        let _ = eval_out::<Vec<i8>>(&expr, &ctx);
+        assert_eq!(ctx.jit_cost_value() - before, 32);
     }
 }

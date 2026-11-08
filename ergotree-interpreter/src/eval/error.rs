@@ -17,6 +17,8 @@ use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializationError;
 use thiserror::Error;
 
+use ergotree_ir::chain::context::CostLimitExceeded;
+
 use super::cost_accum::CostError;
 use super::env::Env;
 
@@ -91,6 +93,12 @@ pub enum EvalError {
     /// Autolykos PoW error
     #[error("Autolykos PoW error: {0}")]
     AutolykosPowSchemeError(#[from] AutolykosPowSchemeError),
+}
+
+impl From<CostLimitExceeded> for EvalError {
+    fn from(e: CostLimitExceeded) -> Self {
+        EvalError::CostError(CostError::from(e))
+    }
 }
 
 /// Wrapped error with source span
@@ -184,6 +192,21 @@ impl Debug for SpannedWithSourceEvalError {
 }
 
 impl EvalError {
+    /// True if the root cause is a cost-limit error. `enrich_err` wraps every
+    /// error — including `CostError` — in `Spanned` at each eval node
+    /// boundary, so a bare-variant match misses wrapped cost errors; this
+    /// unwraps the span layers (and the deserialize-substitution carrier)
+    /// before matching.
+    pub fn is_cost_error(&self) -> bool {
+        match self {
+            EvalError::CostError(_) => true,
+            EvalError::SubstDeserializeError(SubstDeserializeError::CostLimitExceeded(_)) => true,
+            EvalError::Spanned(e) => e.error.is_cost_error(),
+            EvalError::SpannedWithSource(e) => e.error.is_cost_error(),
+            _ => false,
+        }
+    }
+
     /// Wrap eval error with source span
     pub fn wrap(self, source_span: SourceSpan, env: Env) -> Self {
         EvalError::Spanned(SpannedEvalError {

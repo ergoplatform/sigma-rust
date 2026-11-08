@@ -18,6 +18,7 @@ impl Evaluable for ExtractRegisterAs {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        ctx.add_jit_cost(50)?; // ExtractRegisterAs = Fixed(50)
         let ir_box = self
             .input
             .eval(env, ctx)?
