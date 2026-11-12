@@ -430,17 +430,18 @@ impl Expr {
                         )
                     }
                     Expr::DeserializeRegister(DeserializeRegister { reg, tpe, default }) => {
-                        let expr = ctx
-                            .self_box
-                            .get_register(*reg)?
-                            .map(|constant| -> Result<_, SubstDeserializeError> {
-                                Ok(sigma_byte_reader::from_bytes(
-                                    &constant.try_extract_into::<Vec<u8>>()?,
-                                )
-                                .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?)
-                            })
-                            .transpose()?
-                            .or(default.as_deref().cloned());
+                        let expr = match ctx.self_box.get_register(*reg)? {
+                            Some(constant) => match constant.try_extract_into::<Vec<u8>>() {
+                                Ok(bytes) => Some(
+                                    sigma_byte_reader::from_bytes(&bytes)
+                                        .with_tree_version(ctx.tree_version(), Expr::sigma_parse)?,
+                                ),
+                                // Register is not a Coll[Byte]: leave DeserializeRegisterNode unchanged and do not
+                                // use the default, so it only errors if evaluation reaches it
+                                Err(_) => return Ok(()),
+                            },
+                            None => default.as_deref().cloned(),
+                        };
                         match expr {
                             Some(expr) => (tpe, expr),
                             None => return Ok(()), // When script in register is not found, and default is not defined, leave DeserializeRegisterNode unchanged, which will error on evaluation
