@@ -619,4 +619,20 @@ mod tests {
             prop_assert![encoder.parse_address_from_str(&s).is_err()];
         }
     }
+
+    #[test]
+    fn p2s_script_with_unsized_tree_that_does_not_parse() {
+        // P2S address (as sigmastate encodes it) of an unsized tree the node accepts but
+        // this library cannot parse: `script()` keeps the tree bytes.
+        let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let addr = "8E2sfP7pGLLbgG81eg7TyVA5";
+        let tree_hex = "00d193b2100202040200000402";
+        let address = encoder.parse_address_from_str(addr).unwrap();
+        let tree = address.script().unwrap();
+        assert_eq!(
+            base16::encode_lower(&tree.sigma_serialize_bytes().unwrap()),
+            tree_hex
+        );
+        assert_eq!(encoder.address_to_str(&address), addr);
+    }
 }

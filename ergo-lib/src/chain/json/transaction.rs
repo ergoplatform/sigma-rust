@@ -219,4 +219,21 @@ mod tests {
             .into()
         );
     }
+
+    #[test]
+    fn parse_node_tx_with_unsized_tree_that_does_not_parse() {
+        // Transaction as the node 6.0.7 API serves it, with one output whose unsized tree
+        // the node accepts but this library cannot parse. The transaction and box ids are
+        // the node's.
+        let tx_json = r#"{"id":"3d912605036eb79a02bbc2525be5d554c480b1186eb4402a826a41fb9c2a62af","inputs":[{"boxId":"854599b094f0b455521c65fbc8848cfd27aa6d6617bfa437f39aec584cf39161","spendingProof":{"proofBytes":"","extension":{}}}],"dataInputs":[],"outputs":[{"boxId":"1815bfcc63bd0bc1ec1112e50aca444d2509374d23054dbceccee6e18909fdeb","value":1000000000,"ergoTree":"00d193b2100202040200000402","assets":[],"creationHeight":1650000,"additionalRegisters":{},"transactionId":"3d912605036eb79a02bbc2525be5d554c480b1186eb4402a826a41fb9c2a62af","index":0}],"size":61}"#;
+        let tx_id = "3d912605036eb79a02bbc2525be5d554c480b1186eb4402a826a41fb9c2a62af";
+        let box_id = "1815bfcc63bd0bc1ec1112e50aca444d2509374d23054dbceccee6e18909fdeb";
+        let tx: Transaction = serde_json::from_str(tx_json).unwrap();
+        assert_eq!(
+            tx.id(),
+            Digest32::try_from(tx_id.to_string()).unwrap().into()
+        );
+        let id: String = tx.outputs.first().box_id().into();
+        assert_eq!(id, box_id);
+    }
 }

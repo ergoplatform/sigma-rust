@@ -558,6 +558,27 @@ impl SigmaSerializable for ErgoTree {
         r.set_position_limit(previous_limit);
         tree
     }
+
+    /// Parses a standalone tree (JSON, addresses and the bindings use this). As in 0.28, a tree
+    /// without the size flag whose body does not parse is kept as `Unparsed` with the input
+    /// bytes, so a script the node accepted but this library cannot parse still loads with
+    /// correct box and transaction ids. Sized trees are unchanged. The box and transaction
+    /// parser (`sigma_parse`) has no such fallback.
+    /// If the tree cannot be parsed, the whole input is kept, including any bytes after the
+    /// tree, whereas sigmastate stops at the tree's end.
+    fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
+        let mut r = SigmaByteReader::new(Cursor::new(bytes), ConstantStore::empty());
+        let tree = r.with_tree_version(ErgoTreeVersion::MAX_SCRIPT_VERSION, ErgoTree::sigma_parse);
+        let unsized_tree =
+            matches!(bytes.first().map(|&h| ErgoTreeHeader::new(h)), Some(Ok(h)) if !h.has_size());
+        match tree {
+            Err(error) if unsized_tree => Ok(ErgoTree::Unparsed {
+                tree_bytes: bytes.to_vec(),
+                error: error.into(),
+            }),
+            tree => tree,
+        }
+    }
 }
 
 impl TryFrom<ErgoTree> for ProveDlog {
@@ -674,9 +695,21 @@ mod tests {
             99,
             99,
         ];
+        let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
         assert_eq!(
-            ErgoTree::sigma_parse_bytes(&bytes),
+            ErgoTree::sigma_parse(&mut r),
             Err(SigmaParsingError::InvalidTypeCode(0))
+        );
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(tree.parsed_tree().is_err(), "parsing constants should fail");
+        assert_eq!(
+            tree.sigma_serialize_bytes().unwrap(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert!(
+            tree.template_bytes().is_err(),
+            "template bytes should not be parsed"
         );
     }
 
@@ -708,7 +741,44 @@ mod tests {
     fn deserialization_non_parseable_root_v0() {
         // no constant segregation, Expr is invalid
         let bytes = [ErgoTreeHeader::v0(false).serialized(), 0, 1];
-        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+        let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
+        assert_eq!(
+            ErgoTree::sigma_parse(&mut r),
+            Err(SigmaParsingError::InvalidTypeCode(0))
+        );
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(tree.parsed_tree().is_err(), "parsing root should fail");
+        assert_eq!(
+            tree.sigma_serialize_bytes().unwrap(),
+            bytes,
+            "serialization should return original bytes"
+        );
+        assert!(
+            tree.template_bytes().is_err(),
+            "template bytes should not be parsed"
+        );
+    }
+
+    #[test]
+    fn unsized_tree_that_does_not_parse_loads_from_bytes() {
+        // Trees the node accepts (sigmastate parses them) that this library cannot parse.
+        // `sigma_parse_bytes` keeps the input bytes, as 0.28 did, so box and transaction
+        // ids computed from them are correct.
+        // sigmaProp(Coll(1, 2)(0.toByte) == 1)
+        let hex = "00d193b2100202040200000402";
+        let bytes = base16::decode(hex).unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes, "{hex}");
+    }
+
+    #[test]
+    fn unsized_tree_that_does_not_parse_keeps_trailing_bytes() {
+        // The whole input is kept as `Unparsed`, including the byte after the tree.
+        let bytes = base16::decode("00d193b210020204020000040200").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
+        assert_eq!(bytes.len(), 14);
     }
 
     #[test]
@@ -994,11 +1064,17 @@ mod tests {
         let tree = ErgoTree::sigma_parse_bytes(&sized).unwrap();
         assert!(matches!(tree, ErgoTree::Unparsed { .. }));
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), sized);
+        // In a box or transaction (`sigma_parse`) the unsized one is rejected;
+        // `sigma_parse_bytes` keeps it as `Unparsed`, as 0.28 did.
         let unsized_tree = base16::decode("100170010404007300").unwrap();
+        let mut r = SigmaByteReader::new(Cursor::new(&unsized_tree[..]), ConstantStore::empty());
         assert!(matches!(
-            ErgoTree::sigma_parse_bytes(&unsized_tree),
+            ErgoTree::sigma_parse(&mut r),
             Err(SigmaParsingError::InvalidTypeCode(112))
         ));
+        let tree = ErgoTree::sigma_parse_bytes(&unsized_tree).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), unsized_tree);
     }
 
     #[test]
@@ -1528,9 +1604,12 @@ mod tree_window_tests {
         let mut bytes = vec![0x00];
         bytes.extend(eq_body(&coll_byte(4090), &coll_byte(1)));
         assert!(matches!(
-            ErgoTree::sigma_parse_bytes(&bytes),
+            ErgoTree::sigma_parse(&mut from_bytes(&bytes)),
             Err(e) if e.is_position_limit_exceeded()
         ));
+        // `sigma_parse_bytes` keeps it as `Unparsed`
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { tree_bytes, .. } if tree_bytes == bytes));
     }
 
     #[test]
@@ -1564,7 +1643,8 @@ mod root_type_tests {
     //! JVM parity: sigmastate checks every tree's root type (rule 1001
     //! `CheckDeserializedScriptIsSigmaProp`, `ErgoTreeSerializer.scala:173-175`). A
     //! size-flagged tree with a non-`SigmaProp` root degrades; an unsized one cannot, so
-    //! it is rejected (`:204-207`).
+    //! it is rejected (`:204-207`) in a box or transaction. `sigma_parse_bytes` keeps the
+    //! unsized one as `Unparsed`. 0.28 did not check the root type and returned it parsed.
     use super::*;
 
     #[test]
@@ -1576,7 +1656,11 @@ mod root_type_tests {
     #[test]
     fn unsized_tree_with_a_non_sigma_prop_root_rejects() {
         // `Int` 1
-        assert!(ErgoTree::sigma_parse_bytes(&[0x00, 0x04, 0x02]).is_err());
+        let bytes = [0x00, 0x04, 0x02];
+        let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
+        assert!(ErgoTree::sigma_parse(&mut r).is_err());
+        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { .. }));
     }
 
     #[test]
