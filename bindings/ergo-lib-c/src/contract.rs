@@ -5,7 +5,6 @@ use ergo_lib_c_core::{
     ergo_tree::{ConstErgoTreePtr, ErgoTreePtr},
     Error, ErrorPtr,
 };
-use paste::paste;
 
 use std::{ffi::CStr, os::raw::c_char};
 
@@ -58,4 +57,7 @@ pub unsafe extern "C" fn ergo_lib_contract_delete(ptr: ContractPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(Contract);
+make_ffi_eq! {
+    eq_fn: ergo_lib_contract_eq,
+    const_ptr: ConstContractPtr
+}

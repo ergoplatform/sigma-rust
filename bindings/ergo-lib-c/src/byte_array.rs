@@ -4,7 +4,6 @@ use ergo_lib_c_core::{
     util::{byte_array_from_raw_parts, ByteArray, ByteArrayPtr, ConstByteArrayPtr},
     Error, ErrorPtr,
 };
-use paste::paste;
 
 use crate::delete_ptr;
 
@@ -23,4 +22,16 @@ pub unsafe extern "C" fn ergo_lib_byte_array_delete(ptr: ByteArrayPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(ByteArrays, ByteArray);
+make_collection! {
+    collection: ByteArrays,
+    collection_ptr: ByteArraysPtr,
+    const_collection_ptr: ConstByteArraysPtr,
+    item: ByteArray,
+    item_ptr: ByteArrayPtr,
+    const_item_ptr: ConstByteArrayPtr,
+    new_fn: ergo_lib_byte_arrays_new,
+    delete_fn: ergo_lib_byte_arrays_delete,
+    len_fn: ergo_lib_byte_arrays_len,
+    get_fn: ergo_lib_byte_arrays_get,
+    add_fn: ergo_lib_byte_arrays_add
+}

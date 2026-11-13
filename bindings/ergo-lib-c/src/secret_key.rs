@@ -1,5 +1,4 @@
 use ergo_lib_c_core::{address::AddressPtr, secret_key::*, Error};
-use paste::paste;
 
 use crate::{delete_ptr, ErrorPtr};
 
@@ -47,4 +46,16 @@ pub unsafe extern "C" fn ergo_lib_secret_key_delete(ptr: SecretKeyPtr) {
     delete_ptr(ptr)
 }
 
-make_collection!(SecretKeys, SecretKey);
+make_collection! {
+    collection: SecretKeys,
+    collection_ptr: SecretKeysPtr,
+    const_collection_ptr: ConstSecretKeysPtr,
+    item: SecretKey,
+    item_ptr: SecretKeyPtr,
+    const_item_ptr: ConstSecretKeyPtr,
+    new_fn: ergo_lib_secret_keys_new,
+    delete_fn: ergo_lib_secret_keys_delete,
+    len_fn: ergo_lib_secret_keys_len,
+    get_fn: ergo_lib_secret_keys_get,
+    add_fn: ergo_lib_secret_keys_add
+}

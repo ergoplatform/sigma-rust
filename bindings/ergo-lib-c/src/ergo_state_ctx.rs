@@ -6,7 +6,6 @@ use ergo_lib_c_core::{
     parameters::ConstParametersPtr,
     Error,
 };
-use paste::paste;
 
 /// Create new context from pre-header
 #[no_mangle]
@@ -25,4 +24,7 @@ pub unsafe extern "C" fn ergo_lib_ergo_state_context_delete(ptr: ErgoStateContex
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(ErgoStateContext);
+make_ffi_eq! {
+    eq_fn: ergo_lib_ergo_state_context_eq,
+    const_ptr: ConstErgoStateContextPtr
+}
