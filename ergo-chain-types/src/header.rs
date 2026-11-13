@@ -88,6 +88,12 @@ impl Header {
         let n_bits_be = self.n_bits.to_be_bytes();
         w.write_all(&n_bits_be)?;
 
+        // sigmastate holds the height as an Int; larger values cannot be read back
+        if self.height > i32::MAX as u32 {
+            return Err(ScorexSerializationError::Misc(
+                "header height must be <= i32::MAX",
+            ));
+        }
         w.put_u32(self.height)?;
         w.write_all(&self.votes.0)?;
 
@@ -139,6 +145,12 @@ impl ScorexSerializable for Header {
         r.get_bytes_into(&mut n_bits_buf)?;
         let n_bits = u32::from_be_bytes(n_bits_buf);
         let height = r.get_u32()?;
+        // sigmastate reads the height with getUInt().toIntExact
+        if height > i32::MAX as u32 {
+            return Err(ScorexParsingError::ValueOutOfBounds(alloc::format!(
+                "header height {height} > i32::MAX"
+            )));
+        }
         let mut votes_bytes = [0u8, 0, 0];
         r.get_bytes_into(&mut votes_bytes)?;
         let votes = Votes(votes_bytes);
@@ -167,7 +179,14 @@ impl ScorexSerializable for Header {
             let d_bytes_len = r.get_u8()?;
             let mut d_bytes: Vec<u8> = vec![0; d_bytes_len as usize];
             r.get_bytes_into(&mut d_bytes)?;
-            let pow_distance = Some(BigUint::from_bytes_be(&d_bytes));
+            let d = BigUint::from_bytes_be(&d_bytes);
+            // sigmastate reads d with toSignedBigIntValueExact: it must be < 2^255
+            if d.bits() > 255 {
+                return Err(ScorexParsingError::ValueOutOfBounds(
+                    "autolykos v1 pow_distance >= 2^255".into(),
+                ));
+            }
+            let pow_distance = Some(d);
             AutolykosSolution {
                 miner_pk,
                 pow_onetime_pk,
@@ -276,13 +295,19 @@ impl AutolykosSolution {
                 .scorex_serialize(w)?;
             w.write_all(&self.nonce)?;
 
-            let d_bytes = self
+            let d = self
                 .pow_distance
                 .as_ref()
                 .ok_or(ScorexSerializationError::Misc(
                     "pow_distance must be == Some(_) for autolykos v1",
-                ))?
-                .to_bytes_be();
+                ))?;
+            // sigmastate cannot read back a d >= 2^255
+            if d.bits() > 255 {
+                return Err(ScorexSerializationError::Misc(
+                    "pow_distance must be < 2^255 for autolykos v1",
+                ));
+            }
+            let d_bytes = d.to_bytes_be();
             w.put_u8(d_bytes.len() as u8)?;
             w.write_all(&d_bytes)?;
         } else {
@@ -578,5 +603,126 @@ mod tests {
                 .unwrap()
             )
         );
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
+mod numeric_range_tests {
+    use super::*;
+
+    fn header(version: u8, height: u32, pow_distance: Option<BigUint>) -> Header {
+        Header {
+            version,
+            id: BlockId(Digest32::zero()),
+            parent_id: BlockId(Digest32::zero()),
+            ad_proofs_root: Digest32::zero(),
+            state_root: ADDigest::zero(),
+            transaction_root: Digest32::zero(),
+            timestamp: 0,
+            n_bits: 0x0101_0000,
+            height,
+            extension_root: Digest32::zero(),
+            autolykos_solution: AutolykosSolution {
+                miner_pk: Box::new(crate::ec_point::generator()),
+                pow_onetime_pk: (version == 1).then(|| Box::new(crate::ec_point::generator())),
+                nonce: vec![0; 8],
+                pow_distance,
+            },
+            votes: Votes([0; 3]),
+            unparsed_bytes: Box::new([]),
+        }
+    }
+
+    fn replace_once(bytes: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
+        let pos: Vec<usize> = bytes
+            .windows(from.len())
+            .enumerate()
+            .filter(|(_, w)| *w == from)
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(pos.len(), 1);
+        let mut out = bytes[..pos[0]].to_vec();
+        out.extend_from_slice(to);
+        out.extend_from_slice(&bytes[pos[0] + from.len()..]);
+        out
+    }
+
+    // sigmastate HeaderWithoutPowSerializer reads the height with getUInt().toIntExact
+    #[test]
+    fn height_above_i32_max_is_rejected() {
+        let bytes = header(2, i32::MAX as u32, None)
+            .scorex_serialize_bytes()
+            .unwrap();
+        assert_eq!(
+            Header::scorex_parse_bytes(&bytes).unwrap().height,
+            i32::MAX as u32
+        );
+        // VLQ: 0x7fffffff = ff ff ff ff 07, 0x80000000 = 80 80 80 80 08, 0xffffffff = ff ff ff ff 0f
+        for over in [
+            [0x80u8, 0x80, 0x80, 0x80, 0x08],
+            [0xff, 0xff, 0xff, 0xff, 0x0f],
+        ] {
+            let bad = replace_once(&bytes, &[0xff, 0xff, 0xff, 0xff, 0x07], &over);
+            assert!(Header::scorex_parse_bytes(&bad).is_err());
+        }
+    }
+
+    #[test]
+    fn height_above_i32_max_is_not_serialized() {
+        assert!(header(2, 0x8000_0000, None)
+            .scorex_serialize_bytes()
+            .is_err());
+    }
+
+    // sigmastate AutolykosSolution.sigmaSerializerV1 reads d with toSignedBigIntValueExact
+    #[test]
+    fn v1_distance_of_2_pow_255_or_more_is_rejected() {
+        let d_max = (BigUint::from(1u32) << 255u32) - 1u32;
+        let bytes = header(1, 1, Some(d_max.clone()))
+            .scorex_serialize_bytes()
+            .unwrap();
+        assert_eq!(
+            Header::scorex_parse_bytes(&bytes)
+                .unwrap()
+                .autolykos_solution
+                .pow_distance,
+            Some(d_max)
+        );
+        // d is the last field: a length byte (0x20 here) and the 32 value bytes
+        assert_eq!(bytes[bytes.len() - 33], 0x20);
+        let prefix = &bytes[..bytes.len() - 33];
+        let mut over = prefix.to_vec();
+        over.extend_from_slice(&[0x20, 0x80]);
+        over.extend_from_slice(&[0; 31]);
+        assert!(Header::scorex_parse_bytes(&over).is_err());
+        let mut over_padded = prefix.to_vec();
+        over_padded.extend_from_slice(&[0x21, 0x00, 0x80]);
+        over_padded.extend_from_slice(&[0; 31]);
+        assert!(Header::scorex_parse_bytes(&over_padded).is_err());
+    }
+
+    #[test]
+    fn v1_distance_of_2_pow_255_is_not_serialized() {
+        assert!(header(1, 1, Some(BigUint::from(1u32) << 255u32))
+            .scorex_serialize_bytes()
+            .is_err());
+    }
+
+    // An in-range d with a leading zero byte is accepted and written back minimal; the
+    // id is the hash of that re-serialization, as in the node.
+    #[test]
+    fn v1_distance_with_leading_zero_is_normalised() {
+        let d = BigUint::from(1u32) << 254u32;
+        let bytes = header(1, 1, Some(d.clone()))
+            .scorex_serialize_bytes()
+            .unwrap();
+        let mut padded = bytes[..bytes.len() - 33].to_vec();
+        padded.extend_from_slice(&[0x21, 0x00]);
+        padded.extend_from_slice(&bytes[bytes.len() - 32..]);
+        let h = Header::scorex_parse_bytes(&padded).unwrap();
+        assert_eq!(h.autolykos_solution.pow_distance, Some(d));
+        assert_eq!(h.scorex_serialize_bytes().unwrap(), bytes);
+        assert_eq!(h.id.0 .0, *blake2b256_hash(&bytes));
     }
 }
