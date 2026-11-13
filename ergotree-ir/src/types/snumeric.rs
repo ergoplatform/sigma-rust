@@ -42,7 +42,7 @@ lazy_static! {
         method_id: TO_BYTE_METHOD_ID,
         name: "toByte",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SByte.into(),
             tpe_params: vec![],
         },
@@ -53,7 +53,7 @@ lazy_static! {
         method_id: TO_SHORT_METHOD_ID,
         name: "toShort",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SShort.into(),
             tpe_params: vec![],
         },
@@ -64,7 +64,7 @@ lazy_static! {
         method_id: TO_INT_METHOD_ID,
         name: "toInt",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SInt.into(),
             tpe_params: vec![],
         },
@@ -75,7 +75,7 @@ lazy_static! {
         method_id: TO_LONG_METHOD_ID,
         name: "toLong",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SLong.into(),
             tpe_params: vec![],
         },
@@ -86,7 +86,7 @@ lazy_static! {
         method_id: TO_BIGINT_METHOD_ID,
         name: "toBigInt",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SBigInt.into(),
             tpe_params: vec![],
         },
@@ -97,7 +97,7 @@ lazy_static! {
         method_id: TO_BYTES_METHOD_ID,
         name: "toBytes",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SColl(SType::SByte.into()).into(),
             tpe_params: vec![],
         },
@@ -108,7 +108,7 @@ lazy_static! {
         method_id: TO_BITS_METHOD_ID,
         name: "toBits",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
             t_range: SType::SColl(SType::SBoolean.into()).into(),
             tpe_params: vec![],
         },
@@ -119,8 +119,8 @@ lazy_static! {
         method_id: BITWISE_INVERSE_METHOD_ID,
         name: "bitwiseInverse",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t())],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_dom: vec![SType::STypeVar(STypeVar::t_num())],
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -131,10 +131,10 @@ lazy_static! {
         name: "bitwiseOr",
         tpe: SFunc {
             t_dom: vec![
-                SType::STypeVar(STypeVar::t()),
-                SType::STypeVar(STypeVar::t())
+                SType::STypeVar(STypeVar::t_num()),
+                SType::STypeVar(STypeVar::t_num())
             ],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -145,10 +145,10 @@ lazy_static! {
         name: "bitwiseAnd",
         tpe: SFunc {
             t_dom: vec![
-                SType::STypeVar(STypeVar::t()),
-                SType::STypeVar(STypeVar::t())
+                SType::STypeVar(STypeVar::t_num()),
+                SType::STypeVar(STypeVar::t_num())
             ],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -159,10 +159,10 @@ lazy_static! {
         name: "bitwiseXor",
         tpe: SFunc {
             t_dom: vec![
-                SType::STypeVar(STypeVar::t()),
-                SType::STypeVar(STypeVar::t())
+                SType::STypeVar(STypeVar::t_num()),
+                SType::STypeVar(STypeVar::t_num())
             ],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -172,8 +172,8 @@ lazy_static! {
         method_id: SHIFT_LEFT_METHOD_ID,
         name: "shiftLeft",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t()), SType::SInt],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_dom: vec![SType::STypeVar(STypeVar::t_num()), SType::SInt],
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -183,8 +183,8 @@ lazy_static! {
         method_id: SHIFT_RIGHT_METHOD_ID,
         name: "shiftRight",
         tpe: SFunc {
-            t_dom: vec![SType::STypeVar(STypeVar::t()), SType::SInt],
-            t_range: SType::STypeVar(STypeVar::t()).into(),
+            t_dom: vec![SType::STypeVar(STypeVar::t_num()), SType::SInt],
+            t_range: SType::STypeVar(STypeVar::t_num()).into(),
             tpe_params: vec![]
         },
         explicit_type_args: vec![],
@@ -210,7 +210,7 @@ fn specialize_method(method: &SMethodDesc, tpe: SType) -> SMethodDesc {
     SMethodDesc {
         tpe: method
             .tpe
-            .with_subst(&[(STypeVar::t(), tpe)].into_iter().collect()),
+            .with_subst(&[(STypeVar::t_num(), tpe)].into_iter().collect()),
         ..method.clone()
     }
 }
@@ -499,11 +499,24 @@ mod test {
         ergo_tree::ErgoTreeVersion,
         mir::{constant::Constant, expr::Expr, method_call::MethodCall},
         serialization::roundtrip_new_feature,
-        types::{stype::SType, stype_companion::STypeCompanion},
+        types::{stype::SType, stype_companion::STypeCompanion, stype_param::STypeVar},
         unsignedbigint256::UnsignedBigInt,
     };
 
     use super::sbigint::{TO_UNSIGNED_METHOD_DESC, TO_UNSIGNED_MOD_METHOD_DESC};
+
+    #[test]
+    fn generic_method_descs_use_tnum_type_var() {
+        // Scala names the numeric types' generic type variable TNum (see issue #642)
+        for desc in super::METHOD_DESC.iter() {
+            assert_eq!(
+                desc.tpe.t_dom[0],
+                SType::STypeVar(STypeVar::t_num()),
+                "method {} should use the TNum type variable",
+                desc.name
+            );
+        }
+    }
 
     #[test]
     fn byte_method_roundtrips() {
