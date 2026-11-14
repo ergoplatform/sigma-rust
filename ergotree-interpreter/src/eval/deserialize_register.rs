@@ -12,6 +12,7 @@ mod tests {
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::deserialize_register::DeserializeRegister;
     use ergotree_ir::mir::expr::Expr;
+    use ergotree_ir::mir::expr::SubstDeserializeError;
     use ergotree_ir::mir::global_vars::GlobalVars;
     use ergotree_ir::mir::if_op::If;
     use ergotree_ir::mir::value::Value;
@@ -82,7 +83,7 @@ mod tests {
         assert!(matches!(
             try_eval_with_deserialize::<i32>(&expr, &ctx),
             Err(EvalError::SubstDeserializeError(
-                ergotree_ir::mir::expr::SubstDeserializeError::ExprTpeError {
+                SubstDeserializeError::ExprTpeError {
                     expected: _,
                     actual: _
                 }

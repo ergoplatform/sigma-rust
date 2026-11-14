@@ -93,6 +93,12 @@ pub enum EvalError {
     AutolykosPowSchemeError(#[from] AutolykosPowSchemeError),
 }
 
+impl From<ergotree_ir::soft_fork::SoftForkError> for EvalError {
+    fn from(err: ergotree_ir::soft_fork::SoftForkError) -> Self {
+        Self::ErgoTreeError(err.into())
+    }
+}
+
 /// Wrapped error with source span
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SpannedEvalError {
