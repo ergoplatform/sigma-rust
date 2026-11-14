@@ -13,8 +13,10 @@ use super::{
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
     SigmaBoolean, UncheckedTree,
 };
+use crate::eval::env::Env;
 use crate::eval::EvalError;
 use crate::eval::{reduce_to_crypto, ReductionDiagnosticInfo};
+use crate::sigma_protocol::check_soft_fork_condition;
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::chain::context::Context;
 use ergotree_ir::ergo_tree::ErgoTree;
@@ -64,6 +66,16 @@ pub trait Verifier {
         proof: ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
+        if check_soft_fork_condition(tree, ctx)? {
+            return Ok(VerificationResult {
+                result: true,
+                cost: 0,
+                diag: ReductionDiagnosticInfo {
+                    env: Env::empty(),
+                    pretty_printed_expr: None,
+                },
+            });
+        }
         let reduction_result = reduce_to_crypto(tree, ctx)?;
         let res: bool = match reduction_result.sigma_prop {
             SigmaBoolean::TrivialProp(b) => b,
@@ -179,12 +191,14 @@ mod tests {
     use crate::sigma_protocol::prover::{Prover, TestProver};
 
     use super::*;
+    use ergotree_ir::ergo_tree::{ErgoTreeHeader, ErgoTreeVersion};
     use ergotree_ir::mir::atleast::Atleast;
     use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::mir::sigma_and::SigmaAnd;
     use ergotree_ir::mir::sigma_or::SigmaOr;
     use ergotree_ir::mir::value::CollKind;
+    use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
     use ergotree_ir::types::stype::SType;
     use proptest::collection::vec;
@@ -201,6 +215,67 @@ mod tests {
             }
         }
     }
+
+    // Test that Verifier accepts an ErgoTree without evaluating it if its version is greater than what our interpreter can understand
+    #[test]
+    fn test_soft_fork() {
+        let verifier = TestVerifier;
+        let tree = ErgoTree::new(
+            ErgoTreeHeader::new(u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1).unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(false))).into(),
+        )
+        .unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(
+            verifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .unwrap()
+                .result,
+        );
+
+        // If the ErgoTree version is higher than the activated version, the script is rejected
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1;
+        assert!(verifier
+            .verify(&tree, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+
+        // Even if the interpreter supports the tree version, reject if higher than activated version
+        let supported_tree = ErgoTree::new(
+            ErgoTreeHeader::new(u8::from(ErgoTreeVersion::V1)).unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(true))).into(),
+        )
+        .unwrap();
+        ctx.pre_header.version = 1; // activated_script_version = V0
+        assert!(verifier
+            .verify(&supported_tree, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+
+        // Sized Unparsed tree with soft-forkable unknown opcode (0xfd):
+        // rejected when activated_script_version <= MAX_SCRIPT_VERSION, accepted when > MAX_SCRIPT_VERSION
+        let sized_unparsed_bytes = [ErgoTreeHeader::v1(false).serialized(), 1, 0xfd];
+        let sized_unparsed = ErgoTree::sigma_parse_bytes(&sized_unparsed_bytes).unwrap();
+        assert!(matches!(sized_unparsed, ErgoTree::Unparsed { .. }));
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1;
+        assert!(verifier
+            .verify(&sized_unparsed, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(
+            verifier
+                .verify(&sized_unparsed, &ctx, ProofBytes::Empty, &[])
+                .unwrap()
+                .result
+        );
+
+        // Unsized Unparsed tree from sigma_parse_bytes must still be rejected by Verifier
+        let unsized_unparsed = ErgoTree::sigma_parse_bytes(&[0x00, 0xfd]).unwrap();
+        assert!(matches!(unsized_unparsed, ErgoTree::Unparsed { .. }));
+        assert!(verifier
+            .verify(&unsized_unparsed, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]

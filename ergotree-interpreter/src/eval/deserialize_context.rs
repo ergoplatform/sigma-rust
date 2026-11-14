@@ -148,4 +148,61 @@ mod tests {
             UnsignedBigInt::zero()
         );
     }
+
+    #[test]
+    fn reduce_to_crypto_soft_fork_deserialize() {
+        use ergotree_ir::chain::ergo_box::{ErgoBox, NonMandatoryRegisterId};
+        use ergotree_ir::mir::bool_to_sigma::BoolToSigmaProp;
+        use ergotree_ir::mir::deserialize_register::DeserializeRegister;
+        use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
+
+        // DeserializeContext with unknown opcode (0xfd) is soft-forkable only when
+        // activated_script_version > MAX_SCRIPT_VERSION (Interpreter.scala#L249)
+        let expr: Expr = BoolToSigmaProp {
+            input: Box::new(
+                DeserializeContext {
+                    tpe: SType::SBoolean,
+                    id: 1,
+                }
+                .into(),
+            ),
+        }
+        .into();
+        let tree = ErgoTree::new(ErgoTreeHeader::v1(true), &expr).unwrap();
+        let ctx_ext = ContextExtension {
+            values: [(1u8, vec![0xfdu8].into())].into_iter().collect(),
+        };
+        let mut ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1;
+        assert!(reduce_to_crypto(&tree, &ctx).is_err());
+
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            SigmaBoolean::TrivialProp(true)
+        );
+
+        // DeserializeRegister type mismatch (ExprTpeError) is NOT soft-forkable even after soft-fork
+        let reg_expr: Expr = BoolToSigmaProp {
+            input: Box::new(
+                DeserializeRegister {
+                    reg: NonMandatoryRegisterId::R4.into(),
+                    tpe: SType::SBoolean,
+                    default: None,
+                }
+                .into(),
+            ),
+        }
+        .into();
+        let reg_tree = ErgoTree::new(ErgoTreeHeader::v1(true), &reg_expr).unwrap();
+        let wrong_tpe_bytes = Expr::from(GlobalVars::Height)
+            .sigma_serialize_bytes()
+            .unwrap();
+        let self_box = force_any_val::<ErgoBox>()
+            .with_additional_registers(vec![Constant::from(wrong_tpe_bytes)].try_into().unwrap());
+        let mut reg_ctx = force_any_val::<Context>();
+        reg_ctx.self_box = Box::leak(Box::new(self_box));
+        reg_ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(reduce_to_crypto(&reg_tree, &reg_ctx).is_err());
+    }
 }

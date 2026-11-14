@@ -3,7 +3,6 @@ use ergo_chain_types::Header;
 use sigma_ser::ScorexSerializable;
 
 use alloc::string::String;
-use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 use sigma_util::AsVecU8;
@@ -17,12 +16,12 @@ use crate::mir::constant::TryExtractFromError;
 use crate::mir::constant::TryExtractInto;
 use crate::mir::value::CollKind;
 use crate::mir::value::NativeColl;
-use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::{sigma_boolean::SigmaBoolean, sigma_boolean::SigmaProp};
+use crate::soft_fork::SoftForkError;
 use crate::types::stuple;
 use crate::types::stype::SType;
 use crate::unsignedbigint256::UnsignedBigInt;
@@ -60,9 +59,10 @@ impl DataSerializer {
                 v.sigma_serialize(w)?
             }
             Literal::UnsignedBigInt(_) => {
-                return Err(SigmaSerializationError::NotSupported(
-                    "Can't serialize UnsignedBigInt with tree version < 3".into(),
-                ))
+                return Err(SoftForkError::NotSerializable(
+                    "Can't serialize UnsignedBigInt with tree version < 3",
+                )
+                .into())
             }
             Literal::AvlTree(a) => a.sigma_serialize(w)?,
             Literal::CBox(b) => b.sigma_serialize(w)?,
@@ -107,14 +107,16 @@ impl DataSerializer {
             // unsupported, see
             // https://github.com/ScorexFoundation/sigmastate-interpreter/issues/659
             Literal::Opt(_) => {
-                return Err(SigmaSerializationError::NotSupported(
-                    "Option serialization is not supported".to_string(),
-                ));
+                return Err(SoftForkError::NotSerializable(
+                    "Option serialization is not supported",
+                )
+                .into());
             }
             Literal::Header(_) => {
-                return Err(SigmaSerializationError::NotSupported(
-                    "Header serialization is not supported".to_string(),
-                ));
+                return Err(SoftForkError::NotSerializable(
+                    "Header serialization is not supported",
+                )
+                .into());
             }
         })
     }
@@ -191,9 +193,10 @@ impl DataSerializer {
                 Literal::Tup(items.try_into()?)
             }
             SUnsignedBigInt => {
-                return Err(SigmaParsingError::NotSupported(
+                return Err(SoftForkError::NotSerializable(
                     "UnsignedBigInt can't be serialized on tree versions < 3",
-                ))
+                )
+                .into())
             }
             SOption(inner_tpe) if r.tree_version() >= ErgoTreeVersion::V3 => {
                 let res = r.get_option(|r| DataSerializer::sigma_parse(inner_tpe, r))?;
@@ -210,8 +213,8 @@ impl DataSerializer {
             // (111) is NOT soft-forkable — the JVM throws a hard `SerializerException`
             // that escapes `deserializeErgoTree`'s `UnparsedErgoTree` fallback, so a
             // size-flagged tree carrying one is rejected (`NonSerializableTypeCode`).
-            // `SOption` (36) and `SFunc` (112 > 111) ARE soft-forkable and keep the
-            // degradable `NotSupported` (a size-flagged tree carrying one degrades to
+            // `SOption` (36) and `SFunc` (112 > 111) ARE soft-forkable and return
+            // `SoftForkError::NotSerializable` (a size-flagged tree carrying one degrades to
             // `Unparsed`, matching the JVM soft-fork).
             STypeVar(_) => {
                 return Err(SigmaParsingError::NonSerializableTypeCode(
@@ -223,8 +226,8 @@ impl DataSerializer {
                     TypeCode::SANY.value(),
                 ))
             }
-            SOption(_) => return Err(SigmaParsingError::NotSupported("SOption data")),
-            SFunc(_) => return Err(SigmaParsingError::NotSupported("SFunc data")),
+            SOption(_) => return Err(SoftForkError::NotSerializable("SOption data").into()),
+            SFunc(_) => return Err(SoftForkError::NotSerializable("SFunc data").into()),
             SContext => {
                 return Err(SigmaParsingError::NonSerializableTypeCode(
                     TypeCode::SCONTEXT.value(),
