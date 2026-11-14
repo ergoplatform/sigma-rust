@@ -10,6 +10,8 @@ use crate::serialization::{
     SigmaParsingError, SigmaSerializable,
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
+use crate::soft_fork::IsSoftForkable;
+use crate::soft_fork::SoftForkError;
 use crate::types::stype::SType;
 
 use alloc::string::String;
@@ -100,16 +102,16 @@ pub enum ErgoTreeError {
     ConstantsError(ErgoTreeConstantError),
     /// ErgoTree serialization error
     #[error("ErgoTree serialization error: {0}")]
-    RootSerializationError(SigmaSerializationError),
+    RootSerializationError(#[source] SigmaSerializationError),
     /// Sigma parsing error
     #[error("Sigma parsing error: {0:?}")]
-    SigmaParsingError(SigmaParsingError),
+    SigmaParsingError(#[source] SigmaParsingError),
     /// IO error
     #[error("IO error: {0:?}")]
     IoError(String),
-    /// ErgoTree root error. ErgoTree root TPE should be SigmaProp
-    #[error("Root Tpe error: expected SigmaProp, got {0}")]
-    RootTpeError(SType),
+    /// Soft-fork error condition
+    #[error("Soft fork error: {0}")]
+    SoftForkError(#[source] SoftForkError),
 }
 
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -152,7 +154,7 @@ impl ErgoTree {
         r: &mut R,
         header: ErgoTreeHeader,
         check_root_tpe: bool,
-    ) -> Result<ParsedErgoTree, ErgoTreeError> {
+    ) -> Result<ParsedErgoTree, SigmaParsingError> {
         let constants = if header.is_constant_segregation() {
             ErgoTree::sigma_parse_constants(r)?
         } else {
@@ -167,7 +169,7 @@ impl ErgoTree {
         let has_deserialize = r.was_deserialize();
         r.set_deserialize(was_deserialize);
         if check_root_tpe && root.tpe() != SType::SSigmaProp {
-            return Err(ErgoTreeError::RootTpeError(root.tpe()));
+            return Err(SoftForkError::InvalidRootType.into());
         }
         r.set_constant_store(previous_store);
         Ok(ParsedErgoTree {
@@ -522,9 +524,10 @@ impl SigmaSerializable for ErgoTree {
                 (Ok(parsed_tree), _) => Ok(parsed_tree.into()),
                 // An unsized tree cannot degrade: its body error rejects it (`:204-207`),
                 // a root that is not a `SigmaProp` included.
-                (Err(ErgoTreeError::SigmaParsingError(e)), None) => Err(e),
-                (Err(error), None) => Err(SigmaParsingError::Misc(error.to_string())),
-                (Err(error), Some(tree_size)) => {
+                (Err(error), None) => Err(error),
+                (Err(error), Some(tree_size))
+                    if error.is_soft_fork() && !error.escapes_sized_tree_degrade() =>
+                {
                     // Mirror sigma-state `ErgoTreeSerializer.deserializeErgoTree`:
                     // the size-flagged `UnparsedErgoTree` fallback wraps ONLY a
                     // soft-forkable `ValidationException`. A HARD wire-structure
@@ -535,12 +538,7 @@ impl SigmaSerializable for ErgoTree {
                     // deeper than `MaxTreeDepth` — the JVM's `SerializerException` /
                     // `IllegalArgumentException` / `IOException`. Position-limit (rule
                     // 1014) is the one soft-forkable wire error and still degrades. See
-                    // `SigmaParsingError::escapes_sized_tree_degrade`.
-                    if let ErgoTreeError::SigmaParsingError(e) = &error {
-                        if e.escapes_sized_tree_degrade() {
-                            return Err(e.clone());
-                        }
-                    }
+                    // `IsSoftForkable::is_soft_fork` and `SigmaParsingError::escapes_sized_tree_degrade`.
                     // The raw tree is the header, the size and the declared number of
                     // bytes (`:199-202`), whatever the failed body parse consumed.
                     let num_bytes = (body_pos - start_pos) + tree_size as u64;
@@ -550,9 +548,11 @@ impl SigmaSerializable for ErgoTree {
                     r.get_bytes_into(&mut bytes)?;
                     Ok(ErgoTree::Unparsed {
                         tree_bytes: bytes,
-                        error,
+                        #[allow(clippy::unwrap_used)] // Error is checked to be soft fork condition above
+                        error: error.to_soft_fork().unwrap().clone().into(),
                     })
                 }
+                (Err(error), Some(_)) => Err(error),
             }
         });
         r.set_position_limit(previous_limit);
@@ -663,6 +663,7 @@ mod tests {
     use crate::mir::constant::Literal;
     use crate::mir::deserialize_context::DeserializeContext;
     use crate::sigma_protocol::sigma_boolean::SigmaProp;
+    use crate::soft_fork::SoftForkError;
     use proptest::prelude::*;
 
     proptest! {
@@ -698,7 +699,9 @@ mod tests {
         let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
         assert_eq!(
             ErgoTree::sigma_parse(&mut r),
-            Err(SigmaParsingError::InvalidTypeCode(0))
+            Err(SigmaParsingError::SoftForkError(
+                SoftForkError::InvalidPrimitiveType(0)
+            ))
         );
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert!(tree.parsed_tree().is_err(), "parsing constants should fail");
@@ -744,7 +747,9 @@ mod tests {
         let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
         assert_eq!(
             ErgoTree::sigma_parse(&mut r),
-            Err(SigmaParsingError::InvalidTypeCode(0))
+            Err(SigmaParsingError::SoftForkError(
+                SoftForkError::InvalidPrimitiveType(0)
+            ))
         );
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert!(tree.parsed_tree().is_err(), "parsing root should fail");
@@ -1011,7 +1016,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes,
-                error: ErgoTreeError::RootTpeError(SType::SByte)
+                error: SoftForkError::InvalidRootType.into()
             }
         );
     }
@@ -1070,7 +1075,9 @@ mod tests {
         let mut r = SigmaByteReader::new(Cursor::new(&unsized_tree[..]), ConstantStore::empty());
         assert!(matches!(
             ErgoTree::sigma_parse(&mut r),
-            Err(SigmaParsingError::InvalidTypeCode(112))
+            Err(SigmaParsingError::SoftForkError(
+                SoftForkError::InvalidTypeCode(112)
+            ))
         ));
         let tree = ErgoTree::sigma_parse_bytes(&unsized_tree).unwrap();
         assert!(matches!(tree, ErgoTree::Unparsed { .. }));
@@ -1107,11 +1114,16 @@ mod tests {
                 VlqEncodingError::PositionLimitExceeded,
             )),
             // soft-forkable type/opcode errors keep degrading (behavior unchanged)
-            SigmaParsingError::NotSupported("SOption data"),
-            SigmaParsingError::InvalidOpCode(0xff),
+            SigmaParsingError::SoftForkError(SoftForkError::NotSerializable("SOption data")),
+            SigmaParsingError::SoftForkError(SoftForkError::InvalidOpCode(
+                "255(shift 145)".to_string(),
+            )),
         ];
         for e in &degrades {
-            assert!(!e.escapes_sized_tree_degrade(), "should degrade: {e:?}");
+            assert!(
+                e.is_soft_fork() && !e.escapes_sized_tree_degrade(),
+                "should degrade: {e:?}"
+            );
         }
         let rejects = [
             // invalid EC point (this finding)
@@ -1128,7 +1140,10 @@ mod tests {
             SigmaParsingError::DeserializeCallDepthExceeded(111),
         ];
         for e in &rejects {
-            assert!(e.escapes_sized_tree_degrade(), "should reject: {e:?}");
+            assert!(
+                !e.is_soft_fork() && e.escapes_sized_tree_degrade(),
+                "should reject: {e:?}"
+            );
         }
     }
 
@@ -1144,7 +1159,7 @@ mod tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes: bytes,
-                error: ErgoTreeError::RootTpeError(SType::SShort)
+                error: SoftForkError::InvalidRootType.into()
             }
         );
     }
@@ -1584,10 +1599,7 @@ mod tree_window_tests {
             ErgoTree::Unparsed { tree_bytes, error } => {
                 // the header, the size and the declared 5 bytes
                 assert_eq!(tree_bytes, bytes[..7]);
-                assert!(matches!(
-                    error,
-                    ErgoTreeError::SigmaParsingError(e) if e.is_position_limit_exceeded()
-                ));
+                assert_eq!(error, SoftForkError::PositionLimitExceeded.into());
             }
             ErgoTree::Parsed(_) => panic!("must degrade"),
         }
@@ -1671,7 +1683,7 @@ mod root_type_tests {
             tree,
             ErgoTree::Unparsed {
                 tree_bytes: bytes.to_vec(),
-                error: ErgoTreeError::RootTpeError(SType::SInt),
+                error: SoftForkError::InvalidRootType.into(),
             }
         );
     }
