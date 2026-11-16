@@ -157,7 +157,7 @@ async fn peer_discovery_impl_chrome(
     let rx_timeout_signal = {
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
-            wasmtimer::tokio::sleep(settings.global_timeout).await;
+            gloo_timers::future::sleep(settings.global_timeout).await;
             tx.send(()).unwrap();
         });
         rx.into_stream()
@@ -362,7 +362,7 @@ async fn peer_discovery_impl_chrome(
     //     pending_requests_after_timeout.len(),
     // );
     //console_log!("Waiting 180sec for Chrome to relinquish pending HTTP requests");
-    wasmtimer::tokio::sleep(Duration::from_secs(180)).await;
+    gloo_timers::future::sleep(Duration::from_secs(180)).await;
     Ok(ChromePeerDiscoveryScan {
         active_peers,
         visited_peers,
@@ -417,7 +417,7 @@ fn spawn_http_request_task_chrome(
                                         // that will timeout from no response.
                                         spawn_local(async move {
                                             let _ =
-                                                wasmtimer::tokio::sleep(Duration::from_secs(80))
+                                                gloo_timers::future::sleep(Duration::from_secs(80))
                                                     .await;
                                             let _ = tx_msg.send(Msg::PreflightRequestFailed).await;
                                         });
@@ -454,7 +454,7 @@ fn spawn_http_request_task_chrome(
                                             // This task simulates the waiting of a preflight
                                             // request that will timeout from no response.
                                             spawn_local(async move {
-                                                wasmtimer::tokio::sleep(Duration::from_secs(80))
+                                                gloo_timers::future::sleep(Duration::from_secs(80))
                                                     .await;
 
                                                 let _ =

@@ -137,7 +137,7 @@ async fn peer_discovery_impl<
     let rx_timeout_signal = {
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
-            let _ = wasmtimer::tokio::sleep(settings.global_timeout).await;
+            let _ = gloo_timers::future::sleep(settings.global_timeout).await;
             let _ = tx.send(());
         });
         rx.into_stream()
