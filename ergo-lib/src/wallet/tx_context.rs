@@ -61,6 +61,18 @@ impl<T: ErgoTransaction> TransactionContext<T> {
             .enumerate()
             .map(|(i, b)| (b.box_id(), i as u16))
             .collect();
+        // Check that no box is spent more than once (txInputsUnique validation rule)
+        let inputs_len = spending_tx.inputs_ids().len();
+        let unique_inputs_len = spending_tx
+            .inputs_ids()
+            .collect::<hashbrown::HashSet<_>>()
+            .len();
+        if unique_inputs_len != inputs_len {
+            return Err(TransactionContextError::DuplicateInput(
+                unique_inputs_len,
+                inputs_len,
+            ));
+        }
         for (i, unsigned_input) in spending_tx.inputs_ids().enumerate() {
             if !box_index.contains_key(&unsigned_input) {
                 return Err(TransactionContextError::InputBoxNotFound(i));
@@ -104,6 +116,8 @@ impl TransactionContext<Transaction> {
     // TODO: costing
     // This is based on validateStateful() in Ergo: https://github.com/ergoplatform/ergo/blob/48239ef98ced06617dc21a0eee5670235e362933/ergo-core/src/main/scala/org/ergoplatform/modifiers/mempool/ErgoTransaction.scala#L357
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
+        // Stateless checks first (input uniqueness, output sum overflow), matching the node's order
+        self.spending_tx.validate_stateless()?;
         // Check that input sum does not overflow
         let input_sum = BoxValue::new(
             self.boxes_to_spend
@@ -276,6 +290,9 @@ pub enum TransactionContextError {
     /// Input box not found
     #[error("Input box not found: {0}")]
     InputBoxNotFound(usize),
+    /// The transaction is attempting to spend the same box more than once (unique inputs: {0}, actual inputs: {1})
+    #[error("Duplicate input: unique inputs {0}, actual inputs {1}")]
+    DuplicateInput(usize, usize),
     /// Too many data input boxes
     #[error("Too many data input boxes: {0}")]
     TooManyDataInputBoxes(usize),
@@ -316,7 +333,7 @@ mod test {
     use crate::chain::transaction::{Input, Transaction, UnsignedInput};
     use crate::wallet::Wallet;
 
-    use super::TransactionContext;
+    use super::{TransactionContext, TransactionContextError};
 
     // Disperse token_count tokens across inputs
     fn disperse_tokens(inputs: u16, token_count: u8) -> Vec<Option<BoxTokens>> {
@@ -629,6 +646,27 @@ mod test {
             other => panic!("Expected validation to fail, got {other:?}")
         }
     }
+    }
+    // Test that a transaction spending the same box twice is rejected, even though a verifier
+    // resolving each input id would build boxes_to_spend with the same box twice
+    #[test]
+    fn test_duplicate_input() {
+        proptest!(|((boxes, tx) in valid_transaction_generator())| {
+            let mut inputs: Vec<Input> = tx.inputs.iter().cloned().collect();
+            inputs.push(inputs[0].clone());
+            let dup_tx = Transaction::new(
+                TxIoVec::from_vec(inputs).unwrap(),
+                tx.data_inputs.clone(),
+                tx.output_candidates.clone(),
+            )
+            .unwrap();
+            let mut dup_boxes = boxes.clone();
+            dup_boxes.push(boxes[0].clone());
+            match TransactionContext::new(dup_tx, dup_boxes, vec![]) {
+                Err(TransactionContextError::DuplicateInput(_, _)) => {},
+                other => panic!("Expected DuplicateInput error, got {other:?}")
+            }
+        });
     }
     // Test that unspendable boxes can't be included in a transaction
     // TODO: When sigma-rust lands support for storage rent transactions, there should be a test that successfully passes validation when box is old enough

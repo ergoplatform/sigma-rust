@@ -326,7 +326,7 @@ mod tests {
 
         #[test]
         fn test_tx_signing(secrets in vec(any::<DlogProverInput>(), 3..10)) {
-            let mut boxes_to_spend: Vec<ErgoBox> = secrets.iter().map(|secret|{
+            let mut boxes_to_spend: Vec<ErgoBox> = secrets.iter().enumerate().map(|(i, secret)|{
                 let pk = secret.public_image();
                 let tree = ErgoTree::try_from(Expr::Const(pk.into())).unwrap();
                 ErgoBox::new(BoxValue::SAFE_USER_MIN,
@@ -335,7 +335,7 @@ mod tests {
                              NonMandatoryRegisters::empty(),
                              0,
                              TxId::zero(),
-                             0).unwrap()
+                             i as u16).unwrap()
             }).collect();
             let prover = Rc::new(TestProver {
                 secrets: secrets.clone().into_iter().map(PrivateInput::DlogProverInput).collect(),

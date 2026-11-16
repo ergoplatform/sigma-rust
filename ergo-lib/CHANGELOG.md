@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Performance: precomputed generator tables https://github.com/ergoplatform/sigma-rust/pull/790, pre-computed `DlogProverInput.public_image`, lazy `Option`/`Coll` `getOrElse` https://github.com/ergoplatform/sigma-rust/pull/798, zero-alloc base16 decoding for `TokenId`/`Digest32`/`BlockId`
 
 ### Fixed
+- `TransactionContext::new` rejects transactions with duplicate input box ids and `TransactionContext::validate` runs stateless validation first, so a transaction spending the same box twice can no longer pass the ERG/token preservation checks with inflated input sums (the `txInputsUnique` consensus rule)
 - Parsing checks wire-declared lengths against the remaining input before allocating, as the JVM reference does, and no longer pre-allocates from wire-declared element counts, so a malformed length or count field can't abort the process with a huge allocation (DoS); string literals have no fixed length cap, as on the JVM https://github.com/ergoplatform/sigma-rust/pull/927
 - Reject malformed `Cthreshold` sigma propositions (`k > n` or `k > 255`) at parse time instead of aborting the process during proof verification; the verifier's proof parser also tolerates in-memory malformed thresholds defensively.
 - `ContextExtension` serialization order now matches the JVM's Scala 2.12 HAMT ordering for extensions with 5+ entries, fixing signature mismatch with the node https://github.com/ergoplatform/sigma-rust/pull/843 https://github.com/ergoplatform/sigma-rust/pull/921
