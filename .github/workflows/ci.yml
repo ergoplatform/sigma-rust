@@ -136,7 +136,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "lts/*"
+          # pinned as in release_preflight.yml: mocha 8.4.0 does not start on Node 26
+          node-version: "24.13.1"
 
       - name: install Chrome
         uses: browser-actions/setup-chrome@v1
