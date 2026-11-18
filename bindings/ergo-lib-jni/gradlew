@@ -66,6 +66,43 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+# Gradle 8.5 supports up to JDK 21 (class file major version 65), while build.gradle targets Java 18.
+# Fall back to an installed JDK 21 if the active JAVA_HOME / java points to JDK 22+ (e.g. JDK 25 on Ubuntu 26.04).
+_probe_java="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+_java_major=$("$_probe_java" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | head -n 1)
+if [ -n "$_java_major" ] && [ "$_java_major" -gt 21 ] 2>/dev/null ; then
+    if [ "$darwin" = "true" ] && [ -x /usr/libexec/java_home ] ; then
+        _mac_jdk21=$(/usr/libexec/java_home -v 21 2>/dev/null || true)
+    else
+        _mac_jdk21=""
+    fi
+    for _candidate in \
+        "$JAVA_HOME_21_X64" \
+        "$JAVA_HOME_21_ARM64" \
+        "$_mac_jdk21" \
+        /usr/lib/jvm/temurin-21-jdk-* \
+        /usr/lib/jvm/java-21-openjdk-* \
+        /usr/lib/jvm/zulu-21-* ; do
+        if [ -n "$_candidate" ] && [ -x "$_candidate/bin/java" ] ; then
+            JAVA_HOME="$_candidate"
+            export JAVA_HOME
+            PATH="$JAVA_HOME/bin:$PATH"
+            export PATH
+            break
+        fi
+    done
+fi
+
+# Python 3.13+ (default on Ubuntu 26.04) removed stdlib `pipes` (PEP 594), which rust-android-gradle 0.9.2
+# imports inside generated linker-wrapper.py (`pipes.quote`). Provide a `shlex.quote` compatibility shim if needed.
+if command -v python3 >/dev/null 2>&1 && ! python3 -c "import pipes" >/dev/null 2>&1 ; then
+    _py_compat="$APP_HOME/build/py-compat"
+    mkdir -p "$_py_compat"
+    printf 'from shlex import quote\n' > "$_py_compat/pipes.py"
+    PYTHONPATH="$_py_compat${PYTHONPATH:+:$PYTHONPATH}"
+    export PYTHONPATH
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then

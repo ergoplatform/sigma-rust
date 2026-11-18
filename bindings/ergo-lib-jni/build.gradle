@@ -121,6 +121,14 @@ tasks.whenTaskAdded { task ->
     if ((task.name == 'javaPreCompileDebug' || task.name == 'javaPreCompileRelease')) {
         task.dependsOn 'cargoBuild'
     }
+    if (task.name == 'generateLinkerWrapper') {
+        task.doLast {
+            def wrapperPy = new File(buildDir, 'linker-wrapper/linker-wrapper.py')
+            if (wrapperPy.exists()) {
+                wrapperPy.text = wrapperPy.text.replace('import pipes', 'import shlex as pipes')
+            }
+        }
+    }
 }
 
 
