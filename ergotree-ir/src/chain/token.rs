@@ -32,6 +32,12 @@ impl TokenId {
     }
 }
 
+impl core::fmt::Display for TokenId {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl From<BoxId> for TokenId {
     fn from(i: BoxId) -> Self {
         TokenId(i.into())
@@ -279,6 +285,7 @@ pub mod arbitrary {
 }
 
 #[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -293,6 +300,13 @@ mod tests {
         #[test]
         fn token_id_roundtrip(v in any::<TokenId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+
+        #[test]
+        fn token_id_display_roundtrip(v in any::<TokenId>()) {
+            let displayed = alloc::format!("{}", v);
+            prop_assert_eq!(displayed.clone(), String::from(v));
+            prop_assert_eq!(displayed.parse::<TokenId>().unwrap(), v);
         }
     }
 }
