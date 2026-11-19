@@ -324,7 +324,9 @@ pub(crate) mod arbitrary {
 mod tests {
     use super::*;
     use crate::ergo_tree::ErgoTreeVersion;
-    use crate::serialization::{sigma_serialize_roundtrip, sigma_serialize_roundtrip_versioned};
+    #[cfg(feature = "arbitrary")]
+    use crate::serialization::sigma_serialize_roundtrip;
+    use crate::serialization::sigma_serialize_roundtrip_versioned;
     use crate::unsignedbigint256::UnsignedBigInt;
     #[cfg(feature = "arbitrary")]
     use proptest::prelude::*;
