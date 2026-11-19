@@ -55,6 +55,14 @@ impl ErgoTreeHeader {
         let version = ErgoTreeVersion::parse_version(header_byte);
         let has_size = header_byte & Self::HAS_SIZE_FLAG != 0;
         let is_constant_segregation = header_byte & Self::CONSTANT_SEGREGATION_FLAG != 0;
+        // Mirrors the reference implementation's CheckHeaderSizeBit
+        // validation rule (1012), which the sigmastate-interpreter serializer
+        // runs on the header byte during deserialization: for version > 0 the
+        // size bit must be set (without a size the tree body cannot be
+        // skipped, so an unparseable body would abort the whole parse).
+        if version != ErgoTreeVersion::V0 && !has_size {
+            return Err(ErgoTreeHeaderError::MissingSizeBit(header_byte));
+        }
         Ok(ErgoTreeHeader {
             version,
             is_constant_segregation,
@@ -114,6 +122,9 @@ pub enum ErgoTreeHeaderError {
     /// Invalid version
     #[error("Invalid version: {0}")]
     VersionError(ErgoTreeVersionError),
+    /// Size bit is not set in a header with version > 0
+    #[error("Invalid ErgoTreeHeader {0:#04x}, size bit is expected for version > 0")]
+    MissingSizeBit(u8),
     /// IO error
     #[error("IO error: {0}")]
     IoError(String),
