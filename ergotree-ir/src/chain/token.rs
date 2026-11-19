@@ -207,9 +207,9 @@ pub mod arbitrary {
     #[derive(Default)]
     pub enum ArbTokenIdParam {
         /// From a list of predefined token ids
-        #[default]
         Predef,
         /// Arbitrary token id
+        #[default]
         Arbitrary,
     }
 
@@ -293,6 +293,15 @@ mod tests {
         #[test]
         fn token_id_roundtrip(v in any::<TokenId>()) {
             prop_assert_eq![sigma_serialize_roundtrip(&v), v];
+        }
+
+        #[test]
+        fn token_id_default_arbitrary_does_not_reuse_predef_ids(ids in proptest::collection::vec(any::<TokenId>(), 10)) {
+            // The default strategy must not be limited to the predefined id
+            // pool (ArbTokenIdParam::Predef holds only 3 ids): reusing ids by
+            // default is only available by opting into that parameter.
+            let distinct: std::collections::HashSet<_> = ids.iter().collect();
+            prop_assert!(distinct.len() > 3);
         }
     }
 }
