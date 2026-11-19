@@ -333,6 +333,40 @@ mod tests {
     }
 
     #[test]
+    fn parse_ergo_box_issue_842() {
+        // Regression test for https://github.com/ergoplatform/sigma-rust/issues/842:
+        // this mainnet box (as returned by the node /utxo/byId API) was reported
+        // to fail JSON parsing with "Box id parsed from JSON ... differs from
+        // calculated from box serialized bytes ...". It parses on current
+        // develop; pin the box so the mismatch cannot silently return.
+        let box_json = r#"{
+          "boxId": "e75700ef081f64e6c5df7084840078b31d13eeb427fb3e30cef629d7cbb31394",
+          "value": 1003000000,
+          "ergoTree": "092f0204a00b08cd021dde34603426402615658f1d970cfa7c7bd92ac81a8b16ee20427901040404040004020504040402",
+          "assets": [],
+          "creationHeight": 1702685,
+          "additionalRegisters": {
+            "R4": "08cd03600bd3ae6b722f3c4ab3e4dbb2d8410ea8d9c5cb41f7b3fc0a1a151a8ffad61b",
+            "R5": "0e209916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec",
+            "R6": "055c",
+            "R7": "058092f401"
+          },
+          "transactionId": "ad5879cf5902b652d3cacd1d1fa4b03fed6486fe05f8c61218773e1b639f79d6",
+          "index": 0
+        }"#;
+        let b: ErgoBox = serde_json::from_str(box_json).unwrap();
+        let id: String = b.box_id().into();
+        assert_eq!(
+            id,
+            "e75700ef081f64e6c5df7084840078b31d13eeb427fb3e30cef629d7cbb31394"
+        );
+        // the parsed box must also survive a JSON round-trip unchanged
+        let b_roundtrip: ErgoBox =
+            serde_json::from_str(&serde_json::to_string(&b).unwrap()).unwrap();
+        assert_eq!(b, b_roundtrip);
+    }
+
+    #[test]
     fn parse_ergo_box_without_id() {
         let box_json = r#"{
           "value": 67500000000,
