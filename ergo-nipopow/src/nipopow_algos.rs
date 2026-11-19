@@ -62,7 +62,16 @@ impl NipopowAlgos {
         let acc = loop {
             let mut args = vec![];
             for h in chain {
-                if (self.max_level_of(h)? as u32) >= res.level {
+                // The level is signed: a header whose PoW hit is far above
+                // its target has a negative level and counts at no level
+                // >= 1. Casting it to u32 first would turn it into a value
+                // near 2^32 that clears every level threshold, so with at
+                // least `m` such headers the loop below would never stop.
+                // The reference implementation filters with the signed
+                // comparison (`maxLevelOf(_) >= level`); `update_interlinks`
+                // keeps the level signed for the same reason.
+                let level_of_h = self.max_level_of(h)?;
+                if level_of_h >= 0 && (level_of_h as u32) >= res.level {
                     args.push(h);
                 }
             }
