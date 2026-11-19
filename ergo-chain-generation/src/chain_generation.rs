@@ -1,5 +1,6 @@
 //! Chain generation with Autolykos v1 and v2 proof of work. To make things tests tractable the
-//! difficulty is set to 1.
+//! difficulty is set to 2, the lowest at which every Autolykos v1 distance below the target
+//! (`d < q / 2 < 2^255`) is within the range sigmastate accepts.
 
 use std::convert::TryFrom;
 
@@ -134,8 +135,9 @@ fn prove_block(
     timestamp: u64,
     extension_candidate: ExtensionCandidate,
 ) -> Option<ErgoFullBlock> {
-    // Corresponds to initial difficulty of 1, in line with the ergo test suite.
-    let n_bits = 16842752_u32;
+    // Corresponds to a difficulty of 2 (compact bits 0x01020000). At difficulty 1 the target is
+    // q, so a mined Autolykos v1 distance can be >= 2^255, which headers cannot serialize.
+    let n_bits = 0x0102_0000_u32;
     let state_root = ADDigest::zero();
     let votes = Votes([0, 0, 0]);
 
