@@ -41,7 +41,7 @@ impl ExtPubKey {
     /// index is expected to be a 31-bit value(32th bit should not be set)
     pub fn child(&self, index: u32) -> Result<ExtPubKey, JsValue> {
         let index = ChildIndexNormal::normal(index).map_err(to_js)?;
-        Ok(self.0.child(index).into())
+        Ok(self.0.child(index).map_err(to_js)?.into())
     }
 
     /// Derive a new extended pub key from the derivation path

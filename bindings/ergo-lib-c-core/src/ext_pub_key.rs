@@ -52,7 +52,7 @@ pub unsafe fn ext_pub_key_child(
     let ext_pub_key = const_ptr_as_ref(derive_from_key_ptr, "derive_from_key_ptr")?;
     let ext_pub_key_out = mut_ptr_as_mut(ext_pub_key_out, "ext_pub_key_out")?;
     let index = ChildIndexNormal::normal(child_index).map_err(Error::misc)?;
-    let key = ext_pub_key.0.child(index);
+    let key = ext_pub_key.0.child(index).map_err(Error::misc)?;
     *ext_pub_key_out = Box::into_raw(Box::new(ExtPubKey(key)));
     Ok(())
 }

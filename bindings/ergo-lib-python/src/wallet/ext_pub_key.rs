@@ -40,7 +40,7 @@ impl ExtPubKey {
     /// Derive child public key with the given index
     fn child(&self, index: u32) -> PyResult<ExtPubKey> {
         let index = ChildIndexNormal::normal(index).map_err(to_value_error)?;
-        Ok(self.0.child(index).into())
+        Ok(self.0.child(index).map_err(to_value_error)?.into())
     }
 
     /// Derive a new extended pub key from the derivation path
