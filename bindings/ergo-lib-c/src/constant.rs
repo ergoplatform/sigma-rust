@@ -9,7 +9,6 @@ use ergo_lib_c_core::{
     unsignedbigint256::{UnsignedBigInt, UnsignedBigIntPtr},
     Error, ErrorPtr,
 };
-use paste::paste;
 
 use crate::{delete_ptr, ReturnNum};
 
@@ -246,4 +245,7 @@ pub extern "C" fn ergo_lib_constant_delete(ptr: ConstantPtr) {
     unsafe { delete_ptr(ptr) }
 }
 
-make_ffi_eq!(Constant);
+make_ffi_eq! {
+    eq_fn: ergo_lib_constant_eq,
+    const_ptr: ConstConstantPtr
+}

@@ -1,6 +1,5 @@
 //! Token types
 use ergo_lib_c_core::{ergo_box::ConstBoxIdPtr, token::*, Error};
-use paste::paste;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -50,7 +49,10 @@ pub unsafe extern "C" fn ergo_lib_token_id_delete(ptr: TokenIdPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(TokenId);
+make_ffi_eq! {
+    eq_fn: ergo_lib_token_id_eq,
+    const_ptr: ConstTokenIdPtr
+}
 
 // `TokenAmount` bindings --------------------------------------------------------------------------
 
@@ -79,7 +81,10 @@ pub unsafe extern "C" fn ergo_lib_token_amount_delete(ptr: TokenAmountPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(TokenAmount);
+make_ffi_eq! {
+    eq_fn: ergo_lib_token_amount_eq,
+    const_ptr: ConstTokenAmountPtr
+}
 
 // `Token` bindings --------------------------------------------------------------------------------
 
@@ -137,5 +142,20 @@ pub unsafe extern "C" fn ergo_lib_token_delete(ptr: TokenPtr) {
     delete_ptr(ptr)
 }
 
-make_ffi_eq!(Token);
-make_collection!(Tokens, Token);
+make_ffi_eq! {
+    eq_fn: ergo_lib_token_eq,
+    const_ptr: ConstTokenPtr
+}
+make_collection! {
+    collection: Tokens,
+    collection_ptr: TokensPtr,
+    const_collection_ptr: ConstTokensPtr,
+    item: Token,
+    item_ptr: TokenPtr,
+    const_item_ptr: ConstTokenPtr,
+    new_fn: ergo_lib_tokens_new,
+    delete_fn: ergo_lib_tokens_delete,
+    len_fn: ergo_lib_tokens_len,
+    get_fn: ergo_lib_tokens_get,
+    add_fn: ergo_lib_tokens_add
+}
