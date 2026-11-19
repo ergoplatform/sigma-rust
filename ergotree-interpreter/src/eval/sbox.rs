@@ -143,6 +143,35 @@ mod tests {
         );
     }
 
+    #[test]
+    fn eval_reg_out_v6_method_call() {
+        // The v6 MethodCall form of getReg (method id 19) evaluates exactly
+        // like the id 7 form: register 0 holds the box value
+        let type_args = std::iter::once((STypeVar::t(), SType::SLong)).collect();
+        let expr: Expr = MethodCall::with_type_args(
+            GlobalVars::SelfBox.into(),
+            sbox::GET_REG_V6_METHOD
+                .clone()
+                .with_concrete_types(&type_args),
+            vec![Constant::from(0i32).into()],
+            type_args,
+        )
+        .unwrap()
+        .into();
+        let ctx = force_any_val::<Context>();
+        assert_eq!(
+            try_eval_out_with_version::<Option<i64>>(
+                &expr,
+                &ctx,
+                ErgoTreeVersion::V3.into(),
+                ErgoTreeVersion::V3.into()
+            )
+            .unwrap()
+            .unwrap(),
+            ctx.self_box.value.as_i64()
+        );
+    }
+
     // Attempt to extract SigmaProp from register of type SLong
     #[test]
     fn eval_reg_out_wrong_type() {
