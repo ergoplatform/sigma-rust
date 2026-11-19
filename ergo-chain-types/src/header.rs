@@ -579,4 +579,107 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn parse_block_header_explorer_v2() {
+        // The header object as returned by the explorer API
+        // (GET /api/v1/blocks/3e60ec22d110981f596be206ed81e9e8c6c37def060c631947617bf846d38325),
+        // which differs from the node format pinned above: `votes` is an array,
+        // `difficulty` is a number, there are extra `epoch`/`size` fields, and
+        // `powSolutions.d` is a string. See #424.
+        let json = r#"{
+          "id": "3e60ec22d110981f596be206ed81e9e8c6c37def060c631947617bf846d38325",
+          "parentId": "847b79e94f63075c6864736fd67935592d341f9f0d721f38014993fdd017b4c1",
+          "version": 4,
+          "height": 1891488,
+          "epoch": 1847,
+          "difficulty": 64251469234176,
+          "adProofsRoot": "e0a01fabf1ea7a984541d32dcb0d565c7a1a6d9f1cb138e06ba25a447c34d213",
+          "stateRoot": "45fc98724cc39650a2e9c001a3e52a549cf8f145c8c20b84c46b9321811b624c19",
+          "transactionsRoot": "bcd9f60b38b28809416ef375acebe0af9f15c2d63f8e80561da4ee774e3ef743",
+          "timestamp": 1791628556107,
+          "nBits": 104492982,
+          "size": 8707,
+          "extensionHash": "07f0044c4498c4c138d338bb5ca6399dab15a3984aee805ca9bf4c9bc9524e2d",
+          "powSolutions": {
+            "pk": "0274e729bb6615cbda94d9d176a2f1525068f12b330e38bbbf387232797dfd891f",
+            "w": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "n": "834ff35d14b54bd4",
+            "d": "0"
+          },
+          "votes": [0, 0, 0]
+        }"#;
+        let header: Header = serde_json::from_str(json).unwrap();
+        assert_eq!(header.height, 1891488);
+        assert_eq!(
+            header.id.to_string(),
+            "3e60ec22d110981f596be206ed81e9e8c6c37def060c631947617bf846d38325"
+        );
+        assert!(header.check_pow().unwrap());
+        assert_eq!(
+            header.autolykos_solution.pow_distance,
+            Some(BigUint::from_str("0").unwrap())
+        );
+        // The binary form of an Autolykos v2 header carries only the miner pk
+        // and the nonce: the `w`/`d` values present in JSON are not serialized,
+        // so the roundtripped solution drops them while every other field —
+        // including the block id the binary parser recomputes — is preserved.
+        let roundtripped = scorex_serialize_roundtrip(&header);
+        assert_eq!(roundtripped.id, header.id);
+        assert!(roundtripped.check_pow().unwrap());
+        assert_eq!(
+            roundtripped.autolykos_solution.miner_pk,
+            header.autolykos_solution.miner_pk
+        );
+        assert_eq!(
+            roundtripped.autolykos_solution.nonce,
+            header.autolykos_solution.nonce
+        );
+        assert_eq!(roundtripped.autolykos_solution.pow_onetime_pk, None);
+        assert_eq!(roundtripped.autolykos_solution.pow_distance, None);
+    }
+
+    #[test]
+    fn parse_block_header_explorer_v1_string_d() {
+        // Explorer form of an Autolykos v1 header: same shape as above, with
+        // the PoW distance `d` as a (66-digit) string instead of the raw JSON
+        // number the node emits (pinned in parse_block_header_explorer_v1).
+        // See https://api.ergoplatform.com/api/v1/blocks/a9a35c7ad796a06215b29cce0caaf54e738bcd8b9299168fe28bd6a0361ccdec
+        let json = r#"{
+          "id": "a9a35c7ad796a06215b29cce0caaf54e738bcd8b9299168fe28bd6a0361ccdec",
+          "parentId": "3b5e299f5615e8020bc702cfa87cce51ce624266df739dbf8fb0f097d480f3c9",
+          "version": 1,
+          "height": 100089,
+          "epoch": 97,
+          "difficulty": 161318971637760,
+          "adProofsRoot": "4041ef53d7a720cc5ffa8de1934f2a23f3fd90799cf0826e043c7b94c27bbdba",
+          "stateRoot": "c73d09a685364f579b34cef8ec1e8a1a066ae42c30fb13697bf6c56166438ba714",
+          "transactionsRoot": "c39af4e22b4aadb6c0517fb10cb65585d7c477428e6d61ae785ff94a8e4d7821",
+          "timestamp": 1573978802819,
+          "nBits": 117478072,
+          "size": 2943,
+          "extensionHash": "818615a8b3b1bdea54d181d4255b4282f418187381f4a9f971e89149e0ecf427",
+          "powSolutions": {
+            "pk": "031e0b5fbae1f1d948d10cc615b3fba60885a266cdef80e08d50a13187be408627",
+            "w": "03386cdb7674eff4ad48f855b995018dfd07d9ff125d7e9beb11cf9ef49c1633c5",
+            "n": "001c883d01855bfb",
+            "d": "447889015686256252939334510286174159941274257772532341110867784"
+          },
+          "votes": [0, 0, 0]
+        }"#;
+        let header: Header = serde_json::from_str(json).unwrap();
+        assert_eq!(header.height, 100089);
+        assert_eq!(
+            header.autolykos_solution.pow_distance,
+            Some(
+                BigUint::from_str(
+                    "447889015686256252939334510286174159941274257772532341110867784"
+                )
+                .unwrap()
+            )
+        );
+        // Unlike v2, the v1 binary form does carry `w` and `d`, so the
+        // roundtrip is exact.
+        assert_eq!(scorex_serialize_roundtrip(&header), header);
+    }
 }
