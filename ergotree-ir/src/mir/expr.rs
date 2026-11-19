@@ -416,13 +416,15 @@ impl Expr {
             |expr| {
                 let (tpe, parsed_expr): (&mut SType, Expr) = match expr {
                     Expr::DeserializeContext(DeserializeContext { tpe, id }) => {
-                        let vec = ctx
-                            .extension
-                            .values
-                            .get(&*id)
-                            .ok_or(SubstDeserializeError::ExtensionKeyNotFound(*id))?
-                            .clone()
-                            .try_extract_into::<Vec<u8>>()?;
+                        let Some(ext_val) = ctx.extension.values.get(&*id) else {
+                            // Leave DeserializeContext unchanged when variable is absent or not
+                            // a Coll[Byte] so it only fails if evaluation reaches it (matching
+                            // JVM Interpreter.substDeserialize).
+                            return Ok(());
+                        };
+                        let Ok(vec) = ext_val.clone().try_extract_into::<Vec<u8>>() else {
+                            return Ok(());
+                        };
                         (
                             tpe,
                             sigma_byte_reader::from_bytes(&vec)
