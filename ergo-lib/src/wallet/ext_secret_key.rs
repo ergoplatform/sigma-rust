@@ -169,12 +169,15 @@ impl ExtSecretKey {
     /// Derive a new extended secret key based on the provided derivation path
     pub fn derive(&self, up_path: DerivationPath) -> Result<ExtSecretKey, ExtSecretKeyError> {
         // TODO: branch visibility must also be equal
-        let is_matching_path = up_path.0[..self.derivation_path.depth()]
-            .iter()
-            .zip(self.derivation_path.0.iter())
-            .all(|(a, b)| a == b);
+        // The depth check must come first: slicing `up_path` by this key's
+        // depth panics when the target path is shorter than this key's path.
+        let is_matching_path = up_path.depth() >= self.derivation_path.depth()
+            && up_path.0[..self.derivation_path.depth()]
+                .iter()
+                .zip(self.derivation_path.0.iter())
+                .all(|(a, b)| a == b);
 
-        if up_path.depth() >= self.derivation_path.depth() && is_matching_path {
+        if is_matching_path {
             up_path.0[self.derivation_path.depth()..]
                 .iter()
                 .try_fold(self.clone(), |parent, i| parent.child(*i))
@@ -405,6 +408,28 @@ mod tests {
             NetworkAddress::new(ergotree_ir::chain::address::NetworkPrefix::Mainnet, &p2pk);
 
         assert_eq!(expected_p2pk, mainnet_p2pk.to_base58());
+    }
+
+    #[test]
+    fn derive_with_shorter_path_returns_error() {
+        // Deriving to a path shorter than the key's own path is
+        // incompatible; it must return an error, not panic while
+        // comparing the path prefix.
+        let seed_str = "edge talent poet tortoise trumpet dose";
+        let seed = Mnemonic::to_seed(seed_str, "");
+        let root = ExtSecretKey::derive_master(seed).unwrap();
+        let derived = root.derive("m/44'/429'/0'/0/0".parse().unwrap()).unwrap();
+        let res = derived.derive("m/44'".parse().unwrap());
+        assert!(matches!(
+            res,
+            Err(ExtSecretKeyError::IncompatibleDerivation(_))
+        ));
+        // The master path (depth 0) is shorter still.
+        let res_master = derived.derive(DerivationPath::master_path());
+        assert!(matches!(
+            res_master,
+            Err(ExtSecretKeyError::IncompatibleDerivation(_))
+        ));
     }
 
     #[test]
