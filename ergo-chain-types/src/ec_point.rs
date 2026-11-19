@@ -173,6 +173,124 @@ mod arbitrary {
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[allow(clippy::panic)]
+mod golden_tests {
+    use super::*;
+
+    /// Golden vectors for the serialization format defined by the reference
+    /// implementation's `GroupElementSerializer`
+    /// (sigmastate-interpreter, `sigma/serialization/GroupElementSerializer.scala`):
+    /// a point is encoded in compressed form as 33 bytes — prefix 0x02 if the
+    /// affine Y coordinate is even, 0x03 if it is odd, followed by the 32-byte
+    /// big-endian X coordinate; the identity (infinity) point is 33 zero bytes.
+    ///
+    /// The expected byte strings below were computed independently of this
+    /// crate (plain secp256k1 arithmetic), starting from the generator's
+    /// well-known compressed encoding, so they pin the wire format itself
+    /// rather than this implementation's self-consistency.
+    fn golden_vectors() -> Vec<(EcPoint, [u8; EcPoint::GROUP_SIZE])> {
+        let g = generator();
+        // `Mul` on `EcPoint` is point addition (the group is written
+        // multiplicatively), so `g * &g` is the point 2*g.
+        let g2 = g * &g;
+        let g3 = g2 * &g;
+        // 12345*g via double-and-add over the group operation.
+        let mut g12345 = identity();
+        let mut base = g;
+        let mut k = 12345u32;
+        while k > 0 {
+            if k & 1 == 1 {
+                g12345 = g12345 * &base;
+            }
+            base = base * &base;
+            k >>= 1;
+        }
+        let decode = |hex: &str| -> [u8; EcPoint::GROUP_SIZE] {
+            base16::decode(hex).unwrap().try_into().unwrap()
+        };
+        vec![
+            (identity(), [0u8; EcPoint::GROUP_SIZE]),
+            (
+                g,
+                decode("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),
+            ),
+            (
+                g2,
+                decode("02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"),
+            ),
+            (
+                g3,
+                decode("02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"),
+            ),
+            // -g: same X as g, odd Y, hence the 0x03 prefix.
+            (
+                -g,
+                decode("0379be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),
+            ),
+            // 12345*g also has odd Y (0x03 prefix).
+            (
+                g12345,
+                decode("03f01d6b9018ab421dd410404cb869072065522bf85734008f105cf385a023a80f"),
+            ),
+        ]
+    }
+
+    #[test]
+    fn serialize_matches_reference_format() {
+        for (point, expected) in golden_vectors() {
+            assert_eq!(point.scorex_serialize_bytes().unwrap(), expected.to_vec());
+        }
+    }
+
+    #[test]
+    fn parse_matches_reference_format() {
+        for (point, bytes) in golden_vectors() {
+            let parsed = EcPoint::scorex_parse_bytes(&bytes).unwrap();
+            assert_eq!(parsed, point);
+            // Re-serializing a parsed point reproduces the input byte-exactly.
+            assert_eq!(parsed.scorex_serialize_bytes().unwrap(), bytes.to_vec());
+        }
+    }
+
+    #[test]
+    fn parse_zero_prefix_is_identity_regardless_of_trailing_bytes() {
+        // Both this implementation and the reference `parse` branch on the
+        // first byte only: 0x00 means the identity point, whatever follows.
+        let mut bytes = [0xabu8; EcPoint::GROUP_SIZE];
+        bytes[0] = 0;
+        let parsed = EcPoint::scorex_parse_bytes(&bytes).unwrap();
+        assert!(is_identity(&parsed));
+        assert_eq!(
+            parsed.scorex_serialize_bytes().unwrap(),
+            vec![0u8; EcPoint::GROUP_SIZE]
+        );
+    }
+
+    #[test]
+    fn parse_rejects_invalid_encodings() {
+        let g_bytes = golden_vectors()[1].1;
+        // Truncated input (32 of 33 bytes).
+        assert!(EcPoint::scorex_parse_bytes(&g_bytes[..32]).is_err());
+        // Uncompressed-point tag 0x04 is not a valid 33-byte encoding.
+        let mut bad_tag = g_bytes;
+        bad_tag[0] = 0x04;
+        assert!(EcPoint::scorex_parse_bytes(&bad_tag).is_err());
+        // X coordinate equal to the field prime p is out of range.
+        let x_at_p =
+            base16::decode("02fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f")
+                .unwrap();
+        assert!(EcPoint::scorex_parse_bytes(&x_at_p).is_err());
+        // X = 5 is a valid field element but x^3 + 7 is not a quadratic
+        // residue mod p, so there is no such point on the curve.
+        let mut x5 = [0u8; EcPoint::GROUP_SIZE];
+        x5[0] = 0x02;
+        x5[32] = 5;
+        assert!(EcPoint::scorex_parse_bytes(&x5).is_err());
+    }
+}
+
+#[allow(clippy::unwrap_used)]
+#[cfg(test)]
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::panic)]
 mod tests {
