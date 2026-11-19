@@ -161,6 +161,7 @@ mod tests {
         let expr: Expr = PropertyCall {
             obj: Box::new(Expr::Context),
             method: spreheader::VERSION_PROPERTY.clone(),
+            explicit_type_args: Default::default(),
         }
         .into();
         assert!(try_eval_out_wo_ctx::<i8>(&expr).is_err());

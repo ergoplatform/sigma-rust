@@ -197,7 +197,7 @@ lazy_static! {
             t_range:SType::SOption(SType::STypeVar(STypeVar::t()).into()).into(),
             tpe_params: vec![],
         },
-        explicit_type_args: vec![],
+        explicit_type_args: vec![STypeVar::t()],
         min_version: ErgoTreeVersion::V3
     };
     /// GLOBAL.some
