@@ -24,10 +24,10 @@ use crate::serialization::{
 use crate::unsignedbigint256::UnsignedBigInt;
 use bnum::types::{I256, U256};
 use bnum::BTryFrom;
-use elliptic_curve::rand_core::RngCore;
 use elliptic_curve::PrimeField;
 use k256::Scalar;
 use num_traits::Num;
+use rand_core::RngCore;
 use sigma_ser::ScorexSerializable;
 
 // /// Creates a random member of this Dlog group
@@ -39,7 +39,13 @@ use sigma_ser::ScorexSerializable;
 /// Creates a random scalar, a big-endian integer in the range [0, n), where n is group order
 /// Use cryptographically secure PRNG (like rand::thread_rng())
 pub fn random_scalar_in_group_range(mut rng: impl RngCore) -> Scalar {
-    Scalar::generate_vartime(&mut rng)
+    let mut bytes = k256::FieldBytes::default();
+    loop {
+        rng.fill_bytes(&mut bytes);
+        if let Some(scalar) = Scalar::from_repr(bytes).into() {
+            return scalar;
+        }
+    }
 }
 
 /// Attempts to create BigInt256 from Scalar

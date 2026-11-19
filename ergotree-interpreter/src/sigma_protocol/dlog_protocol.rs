@@ -132,14 +132,15 @@ pub mod interactive_prover {
             .zip(aux_rand_hash)
             .for_each(|(a, b)| *a ^= b);
         #[allow(clippy::unwrap_used)] // unwrap will only fail if OOM
-        let hash = Blake2b256::new()
+        let hash: [u8; 32] = Blake2b256::new()
             .chain_update(NONCE_TAG)
             .chain_update(sk_bytes)
             .chain_update(sk.public_image().h.sigma_serialize_bytes().unwrap())
             .chain_update(msg)
-            .finalize();
+            .finalize()
+            .into();
 
-        let r = <Scalar as Reduce<k256::U256>>::reduce_bytes(&hash);
+        let r = <Scalar as Reduce<k256::FieldBytes>>::reduce(&hash.into());
         (
             r.into(),
             FirstDlogProverMessage {

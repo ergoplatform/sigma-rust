@@ -41,7 +41,6 @@ hashbrown = { workspace = true }
 core3 = { workspace = true }
 sigma-test-util = { workspace = true, optional = true }
 
-generic-array = "=0.14.7" #TODO: unpin this when k256 and elliptic-curve upgrade to generic-array 1.0 and remove the deprecation warnings
 
 [features]
 json = [

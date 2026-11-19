@@ -204,7 +204,7 @@ impl From<u64> for UnsignedBigInt {
 impl From<UnsignedBigInt> for Scalar {
     fn from(value: UnsignedBigInt) -> Self {
         let bytes = *bnum::BUintD8::<32>::cast_from(value.0).to_be().digits();
-        <Scalar as Reduce<k256::U256>>::reduce_bytes(&bytes.into())
+        <Scalar as Reduce<k256::FieldBytes>>::reduce(&bytes.into())
     }
 }
 
