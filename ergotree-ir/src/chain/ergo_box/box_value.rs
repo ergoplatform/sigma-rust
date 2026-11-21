@@ -150,7 +150,9 @@ impl From<BoxValue> for u64 {
 
 impl From<BoxValue> for i64 {
     fn from(v: BoxValue) -> Self {
-        // it's safe since upper bound is i64::MAX
+        // Values constructed via `new`/`try_from` are bounded by i64::MAX; values
+        // parsed from the wire may exceed it and wrap to their signed view here,
+        // mirroring the reference implementation where the box value is a signed Long.
         v.0 as i64
     }
 }
@@ -167,8 +169,14 @@ impl SigmaSerializable for BoxValue {
         Ok(())
     }
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        // The wire value is unbounded: the reference implementation parses it with
+        // `r.getULong()` and no range check (`ErgoBoxCandidate.parseBodyWithIndexedDigests`),
+        // so values outside `[MIN_RAW, MAX_RAW]` must hydrate (and values in
+        // `[2^63, 2^64)` surface as their signed view at eval, e.g. `SELF.value`).
+        // Bounds stay enforced in the construction API (`new`/`try_from`) used by
+        // transaction building.
         let v = r.get_u64()?;
-        Ok(BoxValue::try_from(v)?)
+        Ok(BoxValue(v))
     }
 }
 
