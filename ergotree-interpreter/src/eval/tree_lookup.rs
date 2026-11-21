@@ -28,7 +28,7 @@ impl Evaluable for TreeLookup {
         let normalized_key_val = self.key.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
         let normalized_proof_val = self.proof.eval(env, ctx)?.try_extract_into::<Vec<i8>>()?;
 
-        let starting_digest = Bytes::from(normalized_tree_val.digest.0.to_vec());
+        let starting_digest = Bytes::from(normalized_tree_val.digest.clone());
         let proof = Bytes::from(normalized_proof_val.as_vec_u8());
 
         let mut bv = BatchAVLVerifier::new(
@@ -103,7 +103,7 @@ mod tests {
         let tree_flags = AvlTreeFlags::new(false, false, false);
         let obj = Expr::Const(
             AvlTreeData {
-                digest: initial_digest,
+                digest: initial_digest.0.to_vec(),
                 tree_flags,
                 key_length: 1,
                 value_length_opt: None,
