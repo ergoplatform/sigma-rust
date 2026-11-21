@@ -1,24 +1,40 @@
 # Swift wrapper for [C bindings](../ergo-lib-c) of ergo-lib.
 
-
 ## Build instructions
 
-First build `ergo-lib-c`:
+### Prerequisites
+
+- Xcode 15 or newer
+- Rust toolchain (`stable` for builds, `nightly` only for `cbindgen`)
+- Installed iOS targets (use only what you need):
+
+```shell
+rustup target add x86_64-apple-ios
+rustup target add aarch64-apple-ios
+rustup target add aarch64-apple-ios-sim
+```
+
+### 1. Build `ergo-lib-c`
+
+From the `sigma-rust` repository root, build one or more targets:
+
 ```shell
 cargo build --release --features rest --features mnemonic_gen -p ergo-lib-c
+cargo build --release --target x86_64-apple-ios -p ergo-lib-c
+cargo build --release --target aarch64-apple-ios -p ergo-lib-c
+cargo build --release --target aarch64-apple-ios-sim -p ergo-lib-c
 ```
-adding:
-- `--target x86_64-apple-ios` for iPhone simulator on Intel macs,
-- `--target aarch64-apple-ios` for iPhone on Apple silicon macs,
-- `--target aarch64-apple-ios-sim` for iPhone simulator on Apple silicon macs.
 
-To install a target run `rustup target add <target>` using triple for target from the list above.
+Library locations:
 
-This creates a static library under `<project_root_directory>/target/release`. Next we use `cbindgen`
-to generate C-headers.
-**Important:** we need a nightly version of `rustc` for this step, as we use macros to generate
-*portions of the C-bindings. `cbindgen` can't 'see' through the macros so the nightly compiler is
-used to expand the macros before `cbindgen` passes over the code.
+- Host build: `target/release/libergo.a`
+- Intel simulator: `target/x86_64-apple-ios/release/libergo.a`
+- Apple Silicon simulator: `target/aarch64-apple-ios-sim/release/libergo.a`
+- iPhone device: `target/aarch64-apple-ios/release/libergo.a`
+
+### 2. Generate C headers
+
+`cbindgen` requires nightly just for header generation:
 
 ```shell
 cd bindings/ergo-lib-c
@@ -27,58 +43,42 @@ cbindgen --config cbindgen.toml --crate ergo-lib-c --output h/ergo_lib.h
 rustup override set stable
 ```
 
+### 3. Build and test the Swift package
 
-To build this project we need to point `swift` to this directory for linking.
 ```shell
 cd ../ergo-lib-ios
 swift build -Xlinker -L../../target/release/
-```
-
-To run tests we must also pass in the library directory:
-```shell
 swift test -Xlinker -L../../target/release/ --skip RestNodeApiTests --skip RestNodeApiIntegrationTests
 ```
-The `RestNodeApiTests` assume you have an ergo node running on localhost.
- 
 
-### Building Xcode 13 project for `iPhoneSimulator` 
+`RestNodeApiTests` assumes an Ergo node is running on localhost.
 
-Make sure `ergo-lib-c` is built as described above.
+## Xcode 15+
 
-Starting at the root of the `sigma-rust` repository, type:
+Open `bindings/ergo-lib-ios/Package.swift` in Xcode and pick the matching target configuration below.
+
+### iPhone Simulator (Apple Silicon)
 
 ```shell
 cd bindings/ergo-lib-ios
-swift package generate-xcodeproj
-xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/iPhoneSimulator_{arm|intel}.xcconfig -sdk iphonesimulator
+xcodebuild -scheme ErgoLib -configuration Release -xcconfig ./Config/iPhoneSimulator_arm.xcconfig -sdk iphonesimulator
 ```
 
-choosing either `arm` or `intel` in the last line depending on your mac's architecture.
+### iPhone Simulator (Intel)
 
-Then double click `ErgoLib.xcodeproj` which opens Xcode. You need to manually point the linker towards the directory where the `ergo-lib` static library resides. Refer to the following image: 
+```shell
+cd bindings/ergo-lib-ios
+xcodebuild -scheme ErgoLib -configuration Release -xcconfig ./Config/iPhoneSimulator_intel.xcconfig -sdk iphonesimulator
+```
+
+### iPhone (iOS device)
+
+```shell
+cd bindings/ergo-lib-ios
+xcodebuild -scheme ErgoLib -configuration Release -xcconfig ./Config/iPhoneOS.xcconfig -sdk iphoneos
+```
+
+If you customize paths, ensure linker flags point to the matching `target/<triple>/release` directory.
 
 ![image](xcode_linker_settings.png)
-
-Set `Other Linker Flags` to be `-L/absolute/path/to/sigma-rust/target/release` for x86_64 and ` -L/absolute/path/to/sigma-rust/target/aarch64-apple-ios-sim/release` for simulator on Apple silicon macs. The project can now be built.
-
-### Building Xcode 13 project for `iPhone(iOS)`
-
-First we need to build an ARM64 target for `ergo-lib-c`: 
-
-```shell
-rustup target add aarch64-apple-ios
-cargo build --release --target=aarch64-apple-ios -p ergo-lib-c
-```
-
-Next starting at the root of the `sigma-rust` repository, type:
-
-```shell
-cd bindings/ergo-lib-ios
-swift package generate-xcodeproj
-xcodebuild -project ./ErgoLib.xcodeproj -xcconfig ./Config/iPhoneOS.xcconfig -sdk iphoneos
-```
-
-Next navigate in Xcode to `Build Settings` as indicated by 1 and 2 in the picture below. Set the fields `Base SDK`, `Excluded Architecture` and `Supported Platforms` **exactly** as pictured by 3 and 4.
 ![image](xcode_ios_settings.png)
-
-Then set `Other Linker Flags` to be `-L/absolute/path/to/sigma-rust/aarch64-apple-ios/release`. Finally we can build the project.
