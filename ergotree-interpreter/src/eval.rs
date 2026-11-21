@@ -520,6 +520,7 @@ mod test {
             BlockValue {
                 items: vec![ValDef {
                     id: 1.into(),
+                    tpe_args: vec![],
                     rhs: Box::new(Expr::Const(1i32.into())),
                 }
                 .into()],
