@@ -2,11 +2,13 @@ use crate::eval::EvalError;
 
 use alloc::boxed::Box;
 use alloc::string::ToString;
+use alloc::vec::Vec;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::ergo_tree::ErgoTreeVersion;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::reference::Ref;
+use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::types::stype::SType;
 
 use super::EvalFn;
@@ -75,6 +77,45 @@ pub(crate) static TOKENS_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
     Ok(res)
 };
 
+// The accessor method-forms (PropertyCall 99:2..6) dispatch through the same box
+// accessors as their op-form twins (ExtractScriptBytes/ExtractBytes/ExtractBytesWithNoRef/
+// ExtractId/ExtractCreationInfo), so a hand-crafted `PropertyCall(99,N)` tree evaluates
+// (JVM `MethodCall.eval` -> `invokeFixed`, methods.scala SBoxMethods, present from
+// v5Methods with no version gate) instead of erroring.
+
+pub(crate) static PROPOSITION_BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+    Ok(obj
+        .try_extract_into::<Ref<'_, ErgoBox>>()?
+        .script_bytes()?
+        .into())
+};
+
+pub(crate) static BYTES_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+    Ok(obj
+        .try_extract_into::<Ref<'_, ErgoBox>>()?
+        .sigma_serialize_bytes()?
+        .into())
+};
+
+pub(crate) static BYTES_WITHOUT_REF_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+    Ok(obj
+        .try_extract_into::<Ref<'_, ErgoBox>>()?
+        .bytes_without_ref()?
+        .into())
+};
+
+pub(crate) static ID_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+    let bytes: Vec<i8> = obj.try_extract_into::<Ref<'_, ErgoBox>>()?.box_id().into();
+    Ok(bytes.into())
+};
+
+pub(crate) static CREATION_INFO_EVAL_FN: EvalFn = |_mc, _env, _ctx, obj, _args| {
+    Ok(obj
+        .try_extract_into::<Ref<'_, ErgoBox>>()?
+        .creation_info()
+        .into())
+};
+
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]
 #[cfg(test)]
@@ -113,6 +154,48 @@ mod tests {
         assert_eq!(
             eval_out::<Vec<(Vec<i8>, i64)>>(&expr, &ctx),
             ctx.self_box.tokens_raw()
+        );
+    }
+
+    // The accessor method-forms (PropertyCall 99:2..6) must dispatch (instead of erroring)
+    // and return the same value as their op-form twins
+    // (ExtractScriptBytes/ExtractBytes/ExtractBytesWithNoRef/ExtractId/ExtractCreationInfo) —
+    // the JVM evaluates them via `MethodCall.eval`'s `invokeFixed` reflection over
+    // `commonBoxMethods` (methods.scala SBoxMethods), present from v5Methods with no gate.
+    #[test]
+    fn eval_box_accessor_method_forms() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use sigma_util::AsVecI8;
+
+        let ctx = force_any_val::<Context>();
+        let pc = |m: &ergotree_ir::types::smethod::SMethod| -> Expr {
+            PropertyCall::new(GlobalVars::SelfBox.into(), m.clone())
+                .unwrap()
+                .into()
+        };
+
+        // propositionBytes (99:2) == ExtractScriptBytes
+        assert_eq!(
+            eval_out::<Vec<i8>>(&pc(&sbox::PROPOSITION_BYTES_METHOD), &ctx),
+            ctx.self_box.script_bytes().unwrap()
+        );
+        // bytes (99:3) == ExtractBytes (the box's serialized content on this branch)
+        assert_eq!(
+            eval_out::<Vec<i8>>(&pc(&sbox::BYTES_METHOD), &ctx),
+            ctx.self_box.sigma_serialize_bytes().unwrap().as_vec_i8()
+        );
+        // bytesWithoutRef (99:4) == ExtractBytesWithNoRef
+        assert_eq!(
+            eval_out::<Vec<i8>>(&pc(&sbox::BYTES_WITHOUT_REF_METHOD), &ctx),
+            ctx.self_box.bytes_without_ref().unwrap()
+        );
+        // id (99:5) == ExtractId
+        let id: Vec<i8> = ctx.self_box.box_id().into();
+        assert_eq!(eval_out::<Vec<i8>>(&pc(&sbox::ID_METHOD), &ctx), id);
+        // creationInfo (99:6) == ExtractCreationInfo
+        assert_eq!(
+            eval_out::<(i32, Vec<i8>)>(&pc(&sbox::CREATION_INFO_METHOD), &ctx),
+            ctx.self_box.creation_info()
         );
     }
 
