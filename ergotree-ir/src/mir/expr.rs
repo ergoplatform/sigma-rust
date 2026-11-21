@@ -321,24 +321,47 @@ impl Expr {
         }
     }
 
-    /// Check if given expected_tpe type is the same as the expression's post-evaluation type
+    /// Check that the expression's post-evaluation type is compatible with the
+    /// expected type.
+    ///
+    /// Strict equality is the primary acceptance rule. As a parse-time leniency,
+    /// `SOption(T)` is also accepted where `T` is expected — this matches the
+    /// JVM v6.0.3 sigmastate-interpreter, whose
+    /// `OneArgumentOperationSerializer.parse` uses an unchecked `asValue[T]`
+    /// cast and performs no type validation when deserializing. Real on-chain
+    /// scripts trigger this case by passing `getVar[T](id)` (post-eval type
+    /// `SOption(T)`) directly into a combinator that statically expects `T` —
+    /// most commonly `blake2b256` / `sha256` / `byteArrayToBigInt` /
+    /// `byteArrayToLong` of `getVar[Coll[Byte]](id)` without an explicit
+    /// `.get`. Such scripts are accepted by the JVM at parse time and would
+    /// fail at evaluation time only if actually executed (our evaluator's
+    /// `EvalError::UnexpectedValue` arm matches the JVM runtime failure).
+    /// Without this leniency sigma-rust would reject txs the JVM accepts and
+    /// ergo-node-rust would diverge from consensus.
+    ///
+    /// See: mainnet block 1,711,120 tx[1] output[0] for a real-world reproducer
+    /// (`parse_block_1711120_output0` in `serialization::expr::tests`).
     pub fn check_post_eval_tpe(
         &self,
         expected_tpe: &SType,
     ) -> Result<(), InvalidExprEvalTypeError> {
         let expr_tpe = self.post_eval_tpe();
         if &expr_tpe == expected_tpe {
-            Ok(())
-        } else {
-            #[cfg(feature = "std")]
-            let backtrace = std::backtrace::Backtrace::capture();
-            #[cfg(not(feature = "std"))]
-            let backtrace = "Backtraces not supported without std";
-            Err(InvalidExprEvalTypeError(format!(
-                "expected: {0:?}, got: {1:?}\nBacktrace:\n{backtrace}",
-                expected_tpe, expr_tpe
-            )))
+            return Ok(());
         }
+        if let SType::SOption(inner) = &expr_tpe {
+            if inner.as_ref() == expected_tpe {
+                return Ok(());
+            }
+        }
+        #[cfg(feature = "std")]
+        let backtrace = std::backtrace::Backtrace::capture();
+        #[cfg(not(feature = "std"))]
+        let backtrace = "Backtraces not supported without std";
+        Err(InvalidExprEvalTypeError(format!(
+            "expected: {0:?}, got: {1:?}\nBacktrace:\n{backtrace}",
+            expected_tpe, expr_tpe
+        )))
     }
 
     /// Rewrite tree bottom-up, matching nodes that satisfy `rule` and applying `subst` to them
