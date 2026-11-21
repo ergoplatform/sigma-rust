@@ -147,7 +147,8 @@ impl ErgoTree {
     /// The tree's constant store is in place for the root and the reader's previous store
     /// comes back only once the tree parsed; the deserialize flag comes back after the
     /// root. A failed parse leaves both as the failure left them. `check_root_tpe` is
-    /// sigmastate's `checkType` (rule 1001, `:173-175`), which every tree parse sets.
+    /// sigmastate's `checkType` (rule 1001, `:173-175`): every tree parse sets it but
+    /// `sigma_parse_bytes_lenient`.
     fn sigma_parse_body<R: SigmaByteRead>(
         r: &mut R,
         header: ErgoTreeHeader,
@@ -176,6 +177,96 @@ impl ErgoTree {
             root,
             #[cfg(feature = "std")]
             has_deserialize: has_deserialize.into(),
+        })
+    }
+
+    /// The tree reader behind [`SigmaSerializable::sigma_parse`] (`check_root_tpe = true`) and
+    /// `ErgoTree::sigma_parse_bytes_lenient` (`false`). `check_root_tpe` reaches only this
+    /// tree's own root: a tree nested in it is read by `sigma_parse`.
+    fn parse_with<R: SigmaByteRead>(
+        r: &mut R,
+        check_root_tpe: bool,
+    ) -> Result<Self, SigmaParsingError> {
+        let start_pos = r.position()?;
+        // A tree reads within its own window, `MaxPropositionSize` from its first byte,
+        // which replaces the enclosing one (a box's `MaxBoxSize` window). The enclosing
+        // window comes back after the tree, parsed or degraded; sigmastate reads the header
+        // before that `try`/`finally`, so a failed header leaves the tree's window in place
+        // (`ErgoTreeSerializer.scala:141-145`, `:210-212`).
+        let previous_limit = r.position_limit();
+        r.set_position_limit(start_pos.saturating_add(ErgoTree::MAX_PROPOSITION_SIZE as u64));
+        let header = ErgoTreeHeader::sigma_parse(r)?;
+        let tree = r.with_tree_version(header.version(), |r| {
+            // sigmastate parses the body on the box's own reader
+            // (`ErgoBoxCandidate.scala:194`) and carries on wherever the body ends. The
+            // declared size is read but only bounds the raw bytes of a tree that degrades
+            // (`ErgoTreeSerializer.scala:141-215`).
+            let tree_size = if header.has_size() {
+                Some(r.get_u32()?)
+            } else {
+                None
+            };
+            let body_pos = r.position()?;
+            match (
+                ErgoTree::sigma_parse_body(r, header, check_root_tpe),
+                tree_size,
+            ) {
+                (Ok(parsed_tree), _) => Ok(parsed_tree.into()),
+                // An unsized tree cannot degrade: its body error rejects it (`:204-207`),
+                // a root that is not a `SigmaProp` included when `check_root_tpe` is set.
+                (Err(ErgoTreeError::SigmaParsingError(e)), None) => Err(e),
+                (Err(error), None) => Err(SigmaParsingError::Misc(error.to_string())),
+                (Err(error), Some(tree_size)) => {
+                    // Mirror sigma-state `ErgoTreeSerializer.deserializeErgoTree`:
+                    // the size-flagged `UnparsedErgoTree` fallback wraps ONLY a
+                    // soft-forkable `ValidationException`. A HARD wire-structure
+                    // failure escapes the fallback and REJECTS instead of
+                    // degrading to `Unparsed`: a non-soft-forkable data type code
+                    // (rule 1009 `CheckSerializableTypeCode` does not fire), an
+                    // invalid EC point, EOF/truncation, a VLQ overflow, or nesting
+                    // deeper than `MaxTreeDepth` — the JVM's `SerializerException` /
+                    // `IllegalArgumentException` / `IOException`. Position-limit (rule
+                    // 1014) is the one soft-forkable wire error and still degrades. See
+                    // `SigmaParsingError::escapes_sized_tree_degrade`.
+                    if let ErgoTreeError::SigmaParsingError(e) = &error {
+                        if e.escapes_sized_tree_degrade() {
+                            return Err(e.clone());
+                        }
+                    }
+                    // The raw tree is the header, the size and the declared number of
+                    // bytes (`:199-202`), whatever the failed body parse consumed.
+                    let num_bytes = (body_pos - start_pos) + tree_size as u64;
+                    r.seek(io::SeekFrom::Start(start_pos))?;
+                    r.check_remaining(num_bytes as usize)?;
+                    let mut bytes = vec![0; num_bytes as usize];
+                    r.get_bytes_into(&mut bytes)?;
+                    Ok(ErgoTree::Unparsed {
+                        tree_bytes: bytes,
+                        error,
+                    })
+                }
+            }
+        });
+        r.set_position_limit(previous_limit);
+        tree
+    }
+
+    /// Parses a tree WITHOUT the check that its root is a `SigmaProp`: sigmastate's
+    /// `ErgoTreeSerializer.deserializeErgoTree(.., checkType = false)`. Everything else is the
+    /// box and transaction reader's parse ([`SigmaSerializable::sigma_parse`]): the header, the
+    /// size, the constants, the root, and a tree nested in this one is read with the check.
+    /// A size-flagged tree whose body fails softly comes back `Unparsed`, as from that reader.
+    /// Unlike [`SigmaSerializable::sigma_parse_bytes`] it does not keep an unsized tree it
+    /// cannot parse as `Unparsed`: that tree is an error.
+    ///
+    /// For tooling and conformance tests that evaluate an expression of any type as a tree's
+    /// root. It is compiled only with the `arbitrary` feature, as
+    /// `ergotree_interpreter::eval::test_util` is: a default build does not have it.
+    #[cfg(feature = "arbitrary")]
+    pub fn sigma_parse_bytes_lenient(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
+        let mut r = SigmaByteReader::new(Cursor::new(bytes), ConstantStore::empty());
+        r.with_tree_version(ErgoTreeVersion::MAX_SCRIPT_VERSION, |r| {
+            ErgoTree::parse_with(r, false)
         })
     }
 
@@ -498,65 +589,7 @@ impl SigmaSerializable for ErgoTree {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let start_pos = r.position()?;
-        // A tree reads within its own window, `MaxPropositionSize` from its first byte,
-        // which replaces the enclosing one (a box's `MaxBoxSize` window). The enclosing
-        // window comes back after the tree, parsed or degraded; sigmastate reads the header
-        // before that `try`/`finally`, so a failed header leaves the tree's window in place
-        // (`ErgoTreeSerializer.scala:141-145`, `:210-212`).
-        let previous_limit = r.position_limit();
-        r.set_position_limit(start_pos.saturating_add(ErgoTree::MAX_PROPOSITION_SIZE as u64));
-        let header = ErgoTreeHeader::sigma_parse(r)?;
-        let tree = r.with_tree_version(header.version(), |r| {
-            // sigmastate parses the body on the box's own reader
-            // (`ErgoBoxCandidate.scala:194`) and carries on wherever the body ends. The
-            // declared size is read but only bounds the raw bytes of a tree that degrades
-            // (`ErgoTreeSerializer.scala:141-215`).
-            let tree_size = if header.has_size() {
-                Some(r.get_u32()?)
-            } else {
-                None
-            };
-            let body_pos = r.position()?;
-            match (ErgoTree::sigma_parse_body(r, header, true), tree_size) {
-                (Ok(parsed_tree), _) => Ok(parsed_tree.into()),
-                // An unsized tree cannot degrade: its body error rejects it (`:204-207`),
-                // a root that is not a `SigmaProp` included.
-                (Err(ErgoTreeError::SigmaParsingError(e)), None) => Err(e),
-                (Err(error), None) => Err(SigmaParsingError::Misc(error.to_string())),
-                (Err(error), Some(tree_size)) => {
-                    // Mirror sigma-state `ErgoTreeSerializer.deserializeErgoTree`:
-                    // the size-flagged `UnparsedErgoTree` fallback wraps ONLY a
-                    // soft-forkable `ValidationException`. A HARD wire-structure
-                    // failure escapes the fallback and REJECTS instead of
-                    // degrading to `Unparsed`: a non-soft-forkable data type code
-                    // (rule 1009 `CheckSerializableTypeCode` does not fire), an
-                    // invalid EC point, EOF/truncation, a VLQ overflow, or nesting
-                    // deeper than `MaxTreeDepth` — the JVM's `SerializerException` /
-                    // `IllegalArgumentException` / `IOException`. Position-limit (rule
-                    // 1014) is the one soft-forkable wire error and still degrades. See
-                    // `SigmaParsingError::escapes_sized_tree_degrade`.
-                    if let ErgoTreeError::SigmaParsingError(e) = &error {
-                        if e.escapes_sized_tree_degrade() {
-                            return Err(e.clone());
-                        }
-                    }
-                    // The raw tree is the header, the size and the declared number of
-                    // bytes (`:199-202`), whatever the failed body parse consumed.
-                    let num_bytes = (body_pos - start_pos) + tree_size as u64;
-                    r.seek(io::SeekFrom::Start(start_pos))?;
-                    r.check_remaining(num_bytes as usize)?;
-                    let mut bytes = vec![0; num_bytes as usize];
-                    r.get_bytes_into(&mut bytes)?;
-                    Ok(ErgoTree::Unparsed {
-                        tree_bytes: bytes,
-                        error,
-                    })
-                }
-            }
-        });
-        r.set_position_limit(previous_limit);
-        tree
+        ErgoTree::parse_with(r, true)
     }
 
     /// Parses a standalone tree (JSON, addresses and the bindings use this). As in 0.28, a tree
@@ -779,6 +812,181 @@ mod tests {
         assert!(matches!(tree, ErgoTree::Unparsed { .. }));
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
         assert_eq!(bytes.len(), 14);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_accepts_a_root_that_is_not_a_sigma_prop() {
+        let expr: Expr = 1i32.into();
+        let bytes = ErgoTree::new(ErgoTreeHeader::v1(true), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        // the box and transaction reader keeps the sized tree unparsed
+        let strict = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
+        assert!(matches!(
+            strict,
+            ErgoTree::Unparsed {
+                error: ErgoTreeError::RootTpeError(SType::SInt),
+                ..
+            }
+        ));
+        let lenient = ErgoTree::sigma_parse_bytes_lenient(&bytes).unwrap();
+        assert!(matches!(lenient, ErgoTree::Parsed(_)));
+        assert_eq!(lenient.proposition().unwrap().tpe(), SType::SInt);
+        assert_eq!(lenient.sigma_serialize_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_accepts_an_unsized_root_that_is_not_a_sigma_prop() {
+        // v0, no size: `sigma_parse` rejects it, `sigma_parse_bytes` keeps it unparsed
+        let expr: Expr = 1i32.into();
+        let bytes = ErgoTree::new(ErgoTreeHeader::v0(false), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert!(matches!(
+            ErgoTree::sigma_parse_bytes(&bytes).unwrap(),
+            ErgoTree::Unparsed { .. }
+        ));
+        let lenient = ErgoTree::sigma_parse_bytes_lenient(&bytes).unwrap();
+        assert_eq!(lenient.proposition().unwrap().tpe(), SType::SInt);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_rejects_an_unsized_tree_it_cannot_parse() {
+        // v0, unsized, one segregated constant of type code 112 (refused before v3):
+        // `sigma_parse_bytes` keeps it as `Unparsed`, the lenient entry does not
+        let bytes = base16::decode("100170010404007300").unwrap();
+        assert!(matches!(
+            ErgoTree::sigma_parse_bytes(&bytes).unwrap(),
+            ErgoTree::Unparsed { .. }
+        ));
+        assert!(matches!(
+            ErgoTree::sigma_parse_bytes_lenient(&bytes),
+            Err(SigmaParsingError::InvalidTypeCode(112))
+        ));
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_handles_a_failed_body_as_the_strict_reader_does() {
+        // a sized tree whose body does not parse is kept unparsed
+        let degrades = [ErgoTreeHeader::v1(false).serialized(), 2, 0, 1];
+        let strict = ErgoTree::sigma_parse_bytes(&degrades);
+        assert!(matches!(strict, Ok(ErgoTree::Unparsed { .. })));
+        assert_eq!(ErgoTree::sigma_parse_bytes_lenient(&degrades), strict);
+        // a sized tree with a constant of a type code that is not soft-forkable is rejected
+        let rejects = base16::decode(SHEADER_CONSTANT_TREE).unwrap();
+        let strict = ErgoTree::sigma_parse_bytes(&rejects);
+        assert!(strict.is_err());
+        assert_eq!(ErgoTree::sigma_parse_bytes_lenient(&rejects), strict);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_on_short_and_long_input() {
+        // no bytes, and a header with nothing after it: errors, as for the strict reader
+        assert!(ErgoTree::sigma_parse_bytes_lenient(&[]).is_err());
+        assert!(
+            ErgoTree::sigma_parse_bytes_lenient(&[ErgoTreeHeader::v1(true).serialized()]).is_err()
+        );
+        // bytes after the tree are not read
+        let expr: Expr = 1i32.into();
+        let bytes = ErgoTree::new(ErgoTreeHeader::v1(true), &expr)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        let mut longer = bytes.clone();
+        longer.push(0xff);
+        let tree = ErgoTree::sigma_parse_bytes_lenient(&longer).unwrap();
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_reads_a_sigma_prop_tree_as_the_strict_reader_does() {
+        // ordinary trees: a `SigmaProp` constant unsized and sized, a P2PK tree, and that tree's
+        // root again in a sized v1 tree with its constant segregated
+        let p2pk = "0008cd02a706374307f3038cb2f16e7ae9d3e29ca03ea5333681ca06a9bd87baab1164bc";
+        let root = ErgoTree::sigma_parse_bytes(&base16::decode(p2pk).unwrap())
+            .unwrap()
+            .proposition()
+            .unwrap();
+        let segregated = ErgoTree::new(ErgoTreeHeader::v1(true), &root)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        assert_eq!(segregated[0], 0x19);
+        let trees = [
+            base16::decode("0008d3").unwrap(),
+            base16::decode("090208d3").unwrap(),
+            base16::decode(p2pk).unwrap(),
+            segregated,
+        ];
+        for bytes in trees {
+            let lenient = ErgoTree::sigma_parse_bytes_lenient(&bytes).unwrap();
+            assert!(matches!(lenient, ErgoTree::Parsed(_)));
+            assert_eq!(lenient, ErgoTree::sigma_parse_bytes(&bytes).unwrap());
+            assert_eq!(lenient.sigma_serialize_bytes().unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn a_leniently_parsed_tree_is_written_from_its_structure() {
+        // v0 with the size bit, the size 2 written in two bytes (`82 00`), the root `1: Int`:
+        // the writer computes the size again and writes it in one byte, so the tree does not
+        // hand back the bytes it was read from
+        let bytes = base16::decode("0882000402").unwrap();
+        let tree = ErgoTree::sigma_parse_bytes_lenient(&bytes).unwrap();
+        assert!(matches!(tree, ErgoTree::Parsed(_)));
+        assert_eq!(
+            tree.sigma_serialize_bytes().unwrap(),
+            base16::decode("08020402").unwrap()
+        );
+    }
+
+    #[test]
+    fn sigma_parse_bytes_lenient_reads_a_nested_tree_strictly() {
+        use crate::chain::ergo_box::box_value::BoxValue;
+        use crate::chain::ergo_box::{ErgoBox, NonMandatoryRegisters};
+        use crate::chain::tx_id::TxId;
+        use crate::mir::constant::Constant;
+        // a box whose own tree is sized and has an `Int` root
+        let int_root: Expr = 1i32.into();
+        let inner = ErgoTree::new(ErgoTreeHeader::v1(true), &int_root).unwrap();
+        let ergo_box = ErgoBox::new(
+            BoxValue::SAFE_USER_MIN,
+            inner,
+            None,
+            NonMandatoryRegisters::empty(),
+            0,
+            TxId::zero(),
+            0,
+        )
+        .unwrap();
+        // the outer tree's root is that box as a constant, which is not a `SigmaProp` either
+        let root: Expr = Constant {
+            tpe: SType::SBox,
+            v: Literal::from(ergo_box),
+        }
+        .into();
+        let bytes = ErgoTree::new(ErgoTreeHeader::v1(true), &root)
+            .unwrap()
+            .sigma_serialize_bytes()
+            .unwrap();
+        let outer = ErgoTree::sigma_parse_bytes_lenient(&bytes).unwrap();
+        let Expr::Const(Constant {
+            v: Literal::CBox(read_box),
+            ..
+        }) = outer.proposition().unwrap()
+        else {
+            unreachable!("the root is the box constant")
+        };
+        // only the tree handed to the entry skips the root check
+        assert!(matches!(
+            read_box.ergo_tree,
+            ErgoTree::Unparsed {
+                error: ErgoTreeError::RootTpeError(SType::SInt),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -1028,6 +1236,10 @@ mod tests {
         assert_eq!(tree.sigma_serialize_bytes().unwrap(), valid_ergo_tree_bytes);
     }
 
+    /// SANTA's wire reject vector `ErgoTree.unparsed_soft_fork_header_constant`: a v2 tree with
+    /// the size flag and one segregated `SHeader` constant (type code 104)
+    const SHEADER_CONSTANT_TREE: &str = "1adb01016802000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0843d0000000000000000000000000000000000000000000000000000000000000000070239b8010000000000000000000000000000000000000000000000000000000000000000000000000000000001000000017300";
+
     #[test]
     fn sized_tree_rejects_non_soft_forkable_data_type_code() {
         // SANTA wire reject vector `ErgoTree.unparsed_soft_fork_header_constant`: a
@@ -1037,7 +1249,7 @@ mod tests {
         // 111), so the JVM throws a hard `SerializerException` that escapes
         // `deserializeErgoTree`'s `UnparsedErgoTree` fallback and REJECTS — even with
         // the size flag set. We must reject, not degrade to `Unparsed`.
-        let bytes = base16::decode("1adb01016802000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0843d0000000000000000000000000000000000000000000000000000000000000000070239b8010000000000000000000000000000000000000000000000000000000000000000000000000000000001000000017300").unwrap();
+        let bytes = base16::decode(SHEADER_CONSTANT_TREE).unwrap();
         assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
     }
 
@@ -1366,6 +1578,33 @@ mod depth_limit_tests {
         assert_eq!(r.level(), 10);
     }
 
+    #[cfg(feature = "arbitrary")]
+    #[test]
+    fn the_lenient_entry_has_the_depth_limit() {
+        // `LogicalNot` m times over `true`, a `Boolean` root in a size-flagged v1 tree: m + 2
+        // levels, as in the test above, and no root check to fail first
+        let tree = |m: usize| {
+            let mut body = vec![OpCode::LOGICAL_NOT.value(); m];
+            body.extend([0x01, 0x01]);
+            sized_tree(0x09, &body)
+        };
+        // A debug build takes ~40 KB of stack per expression level.
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                assert!(matches!(
+                    ErgoTree::sigma_parse_bytes_lenient(&tree(108)),
+                    Ok(ErgoTree::Parsed(_))
+                ));
+                assert!(depth_exceeded(ErgoTree::sigma_parse_bytes_lenient(&tree(
+                    109
+                ))));
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
     #[test]
     fn depth_error_escapes_nested_size_flagged_trees() {
         // A Box constant whose size-flagged tree holds Coll^110[Byte] (110 levels on its
@@ -1622,6 +1861,26 @@ mod tree_window_tests {
         let tree = ErgoTree::sigma_parse(&mut r).unwrap();
         assert!(matches!(tree, ErgoTree::Parsed(_)));
         assert_eq!(r.position_limit(), 3);
+    }
+
+    #[cfg(feature = "arbitrary")]
+    #[test]
+    fn the_lenient_entry_reads_under_the_tree_window() {
+        // the two trees of the tests above: the window is tripped before the root is read
+        let sized_tree = sized(5, &eq_body(&coll_byte(4090), &coll_byte(1)));
+        let lenient = ErgoTree::sigma_parse_bytes_lenient(&sized_tree);
+        assert!(matches!(
+            &lenient,
+            Ok(ErgoTree::Unparsed { tree_bytes, error: ErgoTreeError::SigmaParsingError(e) })
+                if tree_bytes[..] == sized_tree[..7] && e.is_position_limit_exceeded()
+        ));
+        assert_eq!(lenient, ErgoTree::sigma_parse(&mut from_bytes(&sized_tree)));
+        let mut unsized_tree = vec![0x00];
+        unsized_tree.extend(eq_body(&coll_byte(4090), &coll_byte(1)));
+        assert!(matches!(
+            ErgoTree::sigma_parse_bytes_lenient(&unsized_tree),
+            Err(e) if e.is_position_limit_exceeded()
+        ));
     }
 
     #[test]

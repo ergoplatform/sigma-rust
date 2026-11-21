@@ -1,0 +1,69 @@
+# SANTA's PR check, the commenter (https://github.com/mwaddip/santa, pr-check/README.md), copied into this repository
+# as .github/workflows/santa-comment.yml. GitHub runs a workflow_run workflow only from the DEFAULT branch: it takes
+# effect once it is there. It never checks out or runs anything from the pull request: it reads the check's artifact
+# as data and posts (or updates) one comment, only on the pull request whose head the check ran on.
+name: SANTA comment
+on:
+  workflow_run:
+    workflows: [SANTA] # the check's name
+    types: [completed]
+permissions:
+  actions: read # download the check's artifact
+  pull-requests: write # post or update the comment
+concurrency:
+  # one at a time per pull request branch: two runs finishing together cannot both post a first comment
+  group: santa-comment-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: read the check's artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          # The artifact comes from the pull request's run, so it is read as data and never extracted: its zip is
+          # fetched and the two files the comment needs are read out of it as text, so nothing in it picks a path on
+          # this runner's disk.
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" \
+                 --jq '.artifacts[] | select(.name == "santa-pr") | .id')
+          [[ "$id" =~ ^[0-9]+$ ]] || { echo "run $RUN_ID has no single santa-pr artifact"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > santa-pr.zip
+          mkdir santa-pr
+          unzip -p santa-pr.zip pr.json > santa-pr/pr.json
+          unzip -p santa-pr.zip comment.md > santa-pr/comment.md
+      - name: post or update the comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # The artifact comes from the pull request's run, so nothing in it is trusted: the number is used only
+          # when that pull request's head is the commit the check ran on. (For a fork's pull request GitHub leaves
+          # the event's pull_requests empty, so the number has to come from the artifact.)
+          pr=$(jq -r '.number' santa-pr/pr.json)
+          [[ "$pr" =~ ^[0-9]+$ ]] || { echo "no pull request number in the artifact"; exit 1; }
+          info=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq '[.state, .head.sha] | join(" ")')
+          state=${info%% *} head=${info#* }
+          if [ "$state" != "open" ]; then
+            echo "pull request #$pr is $state: not posting"
+            exit 0
+          fi
+          if [ "$head" != "$HEAD_SHA" ]; then
+            echo "pull request #$pr's head is $head, the check ran on $HEAD_SHA: not posting"
+            exit 0
+          fi
+          marker='<!-- santa-pr -->'
+          { echo "$marker"; cat santa-pr/comment.md; } > body.md
+          ids=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$pr/comments" \
+                  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id")
+          # the first, without a pipe into head: under pipefail gh could fail on the pipe head closed
+          id=${ids%%$'\n'*}
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@body.md > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$pr/comments" -F body=@body.md > /dev/null
+          fi

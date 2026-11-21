@@ -1,0 +1,19 @@
+[package]
+name = "santa-harness"
+version = "0.1.0"
+edition = "2021"
+description = "What a Rust SANTA runner needs besides its implementation: the grading interpreter (a copy of SANTA's santa-check), selection, the oracle self-checks, the bounded-file watchdog, results.json. Copied byte for byte into each Rust runner SANTA maintains; reads a SANTA checkout as data only."
+publish = false
+
+[dependencies]
+serde_json = "1"
+libc = "0.2"
+
+[dev-dependencies]
+jsonschema = { version = "0.46", default-features = false }
+
+# The harness is its own workspace root. A runner hosted inside an implementation's cargo workspace (sigma-rust's
+# `santa/`, itself a workspace that excludes the harness) would otherwise have cargo walk up to the implementation's
+# root workspace when the harness's tests run, and refuse ("believes it's in a workspace when it's not"). Where the
+# runner's own manifest declares no workspace (SANTA's runners), this changes nothing.
+[workspace]
