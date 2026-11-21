@@ -1,7 +1,9 @@
 target/
 **/*.rs.bk
 Cargo.lock
+!santa/harness/Cargo.lock
 bin/
+!santa/harness/src/bin/
 pkg/
 pkg-browser/
 wasm-pack.log
