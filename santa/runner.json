@@ -1,0 +1,5 @@
+{
+  "version": "v6",
+  "tiers": ["eval", "wire", "transaction", "nipopow"],
+  "cost": false
+}

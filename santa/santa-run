@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# santa-run <impl-path> <santa-dir> <out-dir>  — grade this checkout against a SANTA checkout.
+#
+# The self-contained runner of SANTA's runner-integration contract (§3): it selects the vector
+# files of its scope (runner.json) from <santa-dir>, runs them, bounds the files that carry a
+# budget, grades every answer and writes <out-dir>/results.json and <out-dir>/actuals/.
+#
+# SANTA checks this repository out and calls the runner it finds in it (its runner-integration
+# contract, "A runner the implementation hosts"). The runner is built against the crates of the
+# checkout it sits in (Cargo.toml's `../<crate>` paths), so <impl-path> is not used here.
+#
+# Toolchain: the repository's own (`../rust-toolchain`), provisioned through mise: re-exec once
+# under `mise exec` so cargo is on PATH for the build. SANTA's orchestrator stays
+# toolchain-agnostic; `mise` on PATH is the one bootstrap dependency.
+set -euo pipefail
+# The physical directory: SANTA can reach this checkout through a symlink, and cargo must see
+# one path for it (two paths into one target directory do not build).
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+if [ -z "${SANTA_MISE_ACTIVE:-}" ]; then
+  rust="rust@$(tr -d '[:space:]' < "$here/../rust-toolchain")"
+  mise install "$rust"
+  exec env SANTA_MISE_ACTIVE=1 mise exec "$rust" -- "$0" "$@"
+fi
+cargo build --release --manifest-path "$here/Cargo.toml" >/dev/null
+# exec: the runner takes this script's place, so that a signal sent to it reaches the runner,
+# which stops a bounded file's child before it dies (the harness's trap).
+exec "$here/target/release/blitzen" run "$here/runner.json" "$2" "$3"
