@@ -681,7 +681,9 @@ mod tests {
         for tx in [in_extension, in_register] {
             assert!(matches!(
                 Transaction::sigma_parse_bytes(&tx),
-                Err(SigmaParsingError::InvalidTypeCode(112))
+                Err(SigmaParsingError::SoftForkError(
+                    ergotree_ir::soft_fork::SoftForkError::InvalidTypeCode(112)
+                ))
             ));
         }
     }

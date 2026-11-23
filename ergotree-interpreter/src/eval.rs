@@ -2,9 +2,10 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt::Display;
-use ergotree_ir::ergo_tree::ErgoTree;
-use ergotree_ir::mir::constant::TryExtractInto;
+use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader, ErgoTreeVersion};
+use ergotree_ir::mir::constant::{Constant, TryExtractInto};
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
+use ergotree_ir::soft_fork::{try_soft_forkable, IsSoftForkable};
 use snumeric::numeric_method_evalfn;
 
 use ergotree_ir::mir::expr::Expr;
@@ -160,10 +161,35 @@ pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResul
     // `tree_version >= V3`) see the `Cell`'s `V0` default and reject valid V3
     // trees the JVM accepts — a consensus divergence on any caller (the node)
     // that doesn't set it.
+    if ctx.activated_script_version() > ErgoTreeVersion::MAX_SCRIPT_VERSION {
+        if let ErgoTree::Unparsed { tree_bytes, error } = tree {
+            let is_sized = tree_bytes
+                .first()
+                .and_then(|&b| ErgoTreeHeader::new(b).ok())
+                .is_some_and(|h| h.has_size());
+            if is_sized && error.is_soft_fork() {
+                return Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(true),
+                    cost: 0,
+                    diag: ReductionDiagnosticInfo {
+                        env: Env::empty(),
+                        pretty_printed_expr: None,
+                    },
+                });
+            }
+        }
+    }
     ctx.tree_version.set(tree.header()?.version());
     let expr = tree.proposition()?;
     let expr = if tree.has_deserialize() {
-        expr.substitute_deserialize(ctx)?
+        if ctx.activated_script_version() > ErgoTreeVersion::MAX_SCRIPT_VERSION {
+            try_soft_forkable(
+                || expr.substitute_deserialize(ctx),
+                || Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(true))).into(),
+            )?
+        } else {
+            expr.substitute_deserialize(ctx)?
+        }
     } else {
         expr
     };
