@@ -69,10 +69,7 @@ impl ScorexSerializable for PeerFeature {
     fn scorex_parse<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
         r: &mut R,
     ) -> Result<Self, sigma_ser::ScorexParsingError> {
-        let feature_id = PeerFeatureId::scorex_parse(r)?;
-        let feature_size = r.get_u16()?;
-        let mut feature_buf = vec![0u8; feature_size as usize];
-        r.read_exact(&mut feature_buf)?;
+        let (feature_id, feature_buf) = read_id_and_body(r, u16::MAX)?;
 
         let feature = match feature_id {
             PeerFeatureId(2) => PeerFeature::LocalAddress(
@@ -83,6 +80,45 @@ impl ScorexSerializable for PeerFeature {
 
         Ok(feature)
     }
+}
+
+impl PeerFeature {
+    /// Parse one feature of a peer's spec the way the reference node does (`PeerSpecSerializer.parse`):
+    /// a feature with an id this crate has no parser for, or whose body does not parse, is read past
+    /// and `None` is returned. An error means the feature's id, size or body could not be read at all,
+    /// or the size is one the reference node refuses.
+    pub(crate) fn scorex_parse_or_skip<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
+        r: &mut R,
+    ) -> Result<Option<Self>, ScorexParsingError> {
+        // the reference node refuses a size that does not fit a signed 16-bit integer
+        let (feature_id, feature_buf) = read_id_and_body(r, i16::MAX as u16)?;
+
+        Ok(match feature_id {
+            PeerFeatureId(2) => LocalAddressPeerFeature::scorex_parse_bytes(&feature_buf)
+                .ok()
+                .map(PeerFeature::LocalAddress),
+            _ => None,
+        })
+    }
+}
+
+/// A feature's id and its body: the id, the body's size and that many bytes. A size above
+/// `max_size` is an error, before anything is read for it.
+fn read_id_and_body<R: sigma_ser::vlq_encode::ReadSigmaVlqExt>(
+    r: &mut R,
+    max_size: u16,
+) -> Result<(PeerFeatureId, Vec<u8>), ScorexParsingError> {
+    let feature_id = PeerFeatureId::scorex_parse(r)?;
+    let feature_size = r.get_u16()?;
+    if feature_size > max_size {
+        return Err(ScorexParsingError::ValueOutOfBounds(format!(
+            "peer feature of {} bytes, more than {}",
+            feature_size, max_size
+        )));
+    }
+    let mut feature_buf = vec![0u8; feature_size as usize];
+    r.read_exact(&mut feature_buf)?;
+    Ok((feature_id, feature_buf))
 }
 
 /// Arbitrary
