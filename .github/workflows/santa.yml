@@ -1,0 +1,106 @@
+# SANTA's PR check (https://github.com/mwaddip/santa, pr-check/README.md), copied into this repository as
+# .github/workflows/santa.yml with .github/santa-pr/delta.jq and comment.jq. This repository's own SANTA runner grades
+# the pull request's base and its head on SANTA's current vectors; the comparison is jq; no SANTA code runs here.
+# Read-only token: it posts nothing (santa-comment.yml does, from the default branch), so a fork's pull request is safe.
+name: SANTA
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  santa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RUNNER_DIR: santa                   # this repository's runner: the directory holding runner.json and santa-run
+      LABEL: ${{ github.repository }}     # the runner's name in the comment
+      SANTA_REF: main                     # SANTA's vectors: main, or a commit to hold them still
+      HEAD_SHA: ${{ github.sha }}         # the pull request merged into its base: a base that moved on is not its doing
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0             # the base is graded from this checkout's history
+          persist-credentials: false # nothing after the checkout talks to GitHub with git
+      - name: the base, the merge commit's first parent
+        run: |
+          # HEAD_SHA merges the pull request (its second parent) into the base branch as it is now (its first). Not
+          # pull_request.base.sha: GitHub leaves that where the base was when the pull request was opened.
+          read -r merge base head more <<< "$(git rev-list --parents -n 1 "$HEAD_SHA")"
+          [ -n "$head" ] && [ -z "$more" ] || { echo "$HEAD_SHA is not the pull request merged into its base"; exit 1; }
+          echo "BASE_SHA=$base" >> "$GITHUB_ENV"
+      - name: install mise (the binary; the runner provisions its own toolchain)
+        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          version: 2026.5.18
+          install: false
+      - name: install jq, pinned (the image's jq can change under the programs, as 1.7 → 1.8 did)
+        run: |
+          # fails here, not two steps on: a failed mise, or anything but the path, must not become $JQ
+          jq=$(mise x jq@1.8.1 -- which jq)
+          [ -f "$jq" ] && [ -x "$jq" ] || { echo "mise gave no jq executable: $jq"; exit 1; }
+          echo "JQ=$jq" >> "$GITHUB_ENV"
+      - name: fetch SANTA, outside this repository's tree
+        run: |
+          # the vectors and the oracles, read as data; $RUNNER_TEMP is outside the checkout and empty at the start
+          santa="$RUNNER_TEMP/santa"
+          git -c init.defaultBranch=santa init -q "$santa"
+          git -C "$santa" fetch -q --depth 1 https://github.com/mwaddip/santa.git "$SANTA_REF"
+          git -C "$santa" checkout -q --detach FETCH_HEAD
+      - name: grade the head
+        run: |
+          # never fails the job: a head that cannot run is the comment's to say
+          runner="$RUNNER_DIR/santa-run"
+          if [ -x "$runner" ]; then
+            "$runner" - "$RUNNER_TEMP/santa" "$RUNNER_TEMP/head" && rc=0 || rc=$?
+            if [ "$rc" != 0 ]; then status="exit $rc"
+            elif [ ! -f "$RUNNER_TEMP/head/results.json" ]; then status="no results.json"
+            # JSON at all; whether delta.jq can read it, delta.jq decides (one definition)
+            elif ! "$JQ" empty "$RUNNER_TEMP/head/results.json" > /dev/null 2>&1; then status="results.json is not JSON"
+            else status=""; fi
+          else
+            status="no $RUNNER_DIR/santa-run at head"
+          fi
+          echo "HEAD_STATUS=$status" >> "$GITHUB_ENV"
+      - name: grade the base, with its own copy of the runner
+        run: |
+          # never fails the job: a base that cannot run (or be checked out) is the comment's to say
+          runner="$RUNNER_TEMP/base-tree/$RUNNER_DIR/santa-run"
+          git worktree add -q --detach "$RUNNER_TEMP/base-tree" "$BASE_SHA" && tree=1 || tree=0
+          if [ "$tree" != 1 ]; then
+            status="cannot check out the base"
+          elif [ -x "$runner" ]; then
+            "$runner" - "$RUNNER_TEMP/santa" "$RUNNER_TEMP/base" && rc=0 || rc=$?
+            if [ "$rc" != 0 ]; then status="exit $rc"
+            elif [ ! -f "$RUNNER_TEMP/base/results.json" ]; then status="no results.json"
+            elif ! "$JQ" empty "$RUNNER_TEMP/base/results.json" > /dev/null 2>&1; then status="results.json is not JSON"
+            else status=""; fi
+          else
+            status="no $RUNNER_DIR/santa-run at base"
+          fi
+          echo "BASE_STATUS=$status" >> "$GITHUB_ENV"
+      - name: compare
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          out="$GITHUB_WORKSPACE/.santa-pr/artifact"
+          mkdir -p "$out"
+          # a side that did not run passes an empty file: delta.jq reads its status
+          side() { if [ -z "$2" ]; then echo "$1/results.json"; else echo /dev/null; fi; }
+          "$JQ" -n -f .github/santa-pr/delta.jq \
+            --slurpfile base "$(side "$RUNNER_TEMP/base" "$BASE_STATUS")" \
+            --slurpfile head "$(side "$RUNNER_TEMP/head" "$HEAD_STATUS")" \
+            --arg label "$LABEL" --arg base_sha "$BASE_SHA" --arg head_sha "$HEAD_SHA" \
+            --arg base_status "$BASE_STATUS" --arg head_status "$HEAD_STATUS" > "$out/delta.json"
+          "$JQ" -r -f .github/santa-pr/comment.jq --argjson cap 50 "$out/delta.json" > "$out/comment.md"
+          "$JQ" -r -f .github/santa-pr/comment.jq --argjson cap null "$out/delta.json" >> "$GITHUB_STEP_SUMMARY"
+          printf '\n[The check run](%s/%s/actions/runs/%s): every entry in its job summary, any build error in its log.\n' \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> "$out/comment.md"
+          # The commenter does not trust these: it posts only to the open pull request whose head is PR_HEAD.
+          "$JQ" -n --arg number "$PR" --arg head "$PR_HEAD" '{number: $number, head: $head}' > "$out/pr.json"
+      - name: upload the delta
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: santa-pr
+          path: .santa-pr/artifact/
+          retention-days: 7

@@ -1,0 +1,36 @@
+[package]
+name = "blitzen"
+version = "0.1.0"
+edition = "2021"
+description = "Blitzen: sigma-rust's runner for SANTA, the Ergo consensus conformance suite (eval, wire, transaction and NiPoPoW tiers)"
+
+[dependencies]
+# The crates of this repository, by path: the runner is built against the checkout it sits
+# in. Cargo resolves `path` deps relative to this manifest (not the CWD), so the build runs
+# from any working directory.
+ergotree-ir = { path = "../ergotree-ir" }
+# The `arbitrary` feature carries `eval::test_util::try_eval_with_deserialize`, the public
+# entry that evaluates a root of any type, and (through ergotree-ir) the lenient tree parse.
+ergotree-interpreter = { path = "../ergotree-interpreter", features = ["arbitrary"] }
+ergo-chain-types = { path = "../ergo-chain-types" }
+# Signed `Transaction` (SigmaSerializable) lives here — the serializer for the wire
+# Transaction round-trip. Heavier than the IR crates (the footprint cost of tx support).
+ergo-lib = { path = "../ergo-lib" }
+# ScorexSerializable (Header parses via scorex_parse_bytes, not SigmaSerializable).
+sigma-ser = { path = "../sigma-ser" }
+# The NiPoPoW tier (interlinks + prove).
+ergo-nipopow = { path = "../ergo-nipopow" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# SANTA's harness for a runner that grades itself (`harness/`, copied unchanged from
+# santa-blitzen; see the README): the selection of this runner's vector files, the grading
+# interpreter, the checks against SANTA's oracles, the watchdog of a bounded file and
+# `results.json`.
+santa-harness = { path = "harness" }
+
+# A workspace of its own: the runner is not a member of the repository's workspace, so the
+# repository's builds, lints and tests do not build it, and it keeps its own `Cargo.lock`.
+# The harness is a workspace of its own too: its tests bring their own dependencies, which
+# stay out of this runner's `Cargo.lock`.
+[workspace]
+exclude = ["harness"]
