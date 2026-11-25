@@ -15,20 +15,30 @@ jobs:
       RUNNER_DIR: santa                   # this repository's runner: the directory holding runner.json and santa-run
       LABEL: ${{ github.repository }}     # the runner's name in the comment
       SANTA_REF: main                     # SANTA's vectors: main, or a commit to hold them still
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.sha }}         # the pull request merged into its base: a base that moved on is not its doing
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0             # the base is graded from this checkout's history
           persist-credentials: false # nothing after the checkout talks to GitHub with git
+      - name: the base, the merge commit's first parent
+        run: |
+          # HEAD_SHA merges the pull request (its second parent) into the base branch as it is now (its first). Not
+          # pull_request.base.sha: GitHub leaves that where the base was when the pull request was opened.
+          read -r merge base head more <<< "$(git rev-list --parents -n 1 "$HEAD_SHA")"
+          [ -n "$head" ] && [ -z "$more" ] || { echo "$HEAD_SHA is not the pull request merged into its base"; exit 1; }
+          echo "BASE_SHA=$base" >> "$GITHUB_ENV"
       - name: install mise (the binary; the runner provisions its own toolchain)
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           version: 2026.5.18
           install: false
       - name: install jq, pinned (the image's jq can change under the programs, as 1.7 → 1.8 did)
-        run: echo "JQ=$(mise x jq@1.8.1 -- which jq)" >> "$GITHUB_ENV"
+        run: |
+          # fails here, not two steps on: a failed mise, or anything but the path, must not become $JQ
+          jq=$(mise x jq@1.8.1 -- which jq)
+          [ -f "$jq" ] && [ -x "$jq" ] || { echo "mise gave no jq executable: $jq"; exit 1; }
+          echo "JQ=$jq" >> "$GITHUB_ENV"
       - name: fetch SANTA, outside this repository's tree
         run: |
           # the vectors and the oracles, read as data; $RUNNER_TEMP is outside the checkout and empty at the start

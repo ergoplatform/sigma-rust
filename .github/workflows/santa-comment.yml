@@ -38,6 +38,7 @@ jobs:
       - name: post or update the comment
         env:
           GH_TOKEN: ${{ github.token }}
+          POSTS_AS: github-actions[bot] # the login GH_TOKEN posts as, which finds the comment to update: change both together
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
@@ -59,7 +60,7 @@ jobs:
           marker='<!-- santa-pr -->'
           { echo "$marker"; cat santa-pr/comment.md; } > body.md
           ids=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$pr/comments" \
-                  --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id")
+                  --jq ".[] | select(.user.login == \"$POSTS_AS\" and (.body | startswith(\"$marker\"))) | .id")
           # the first, without a pipe into head: under pipefail gh could fail on the pipe head closed
           id=${ids%%$'\n'*}
           if [ -n "$id" ]; then

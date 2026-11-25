@@ -5,7 +5,7 @@
 #   jq -r -f comment.jq --argjson cap null delta.json >> "$GITHUB_STEP_SUMMARY"   # the job summary: every file, then
 #                                                                                  # every entry with its answers
 #
-# The layout is SANTA's santa-delta's: the counts, newly red and now green one row per vector file (the largest
+# The layout: the counts, newly red and now green one row per vector file (the largest
 # first), red another way folded, still red counted, files graded on one side only with their red entries. Every
 # cell is escaped, so a name cannot break the table or open a tag. The comment is cut at 60,000 characters (GitHub's
 # limit is 65,536), the job summary at 1,000,000 bytes (its limit is 1 MiB). Written for jq 1.7 and 1.8 alike: a binding inside
