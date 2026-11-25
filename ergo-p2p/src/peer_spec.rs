@@ -73,7 +73,8 @@ impl ScorexSerializable for PeerSpec {
         w.put_option(
             self.declared_addr,
             |w: &mut W, addr: PeerAddr| -> io::Result<()> {
-                w.put_u8(addr.ip_size() as u8)?;
+                // as the reference node writes it: the address's size plus four
+                w.put_u8((addr.ip_size() + 4) as u8)?;
                 addr.scorex_serialize(w)?;
 
                 Ok(())
@@ -190,6 +191,16 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
     use sigma_ser::scorex_serialize_roundtrip;
+
+    #[test]
+    fn writes_a_declared_address_as_a_mainnet_node_sent_it() {
+        // The peer spec of a handshake a mainnet seed node (agent `ergoref`, 6.0.2) sent on
+        // 2026-11-25, with its feature count set to zero. After the node name: 01, an address is
+        // declared; 08, its size plus four; 159.89.116.15; port 9030.
+        let bytes = b"\x07ergoref\x06\x00\x02\x19mainnet-seed-node-toronto\x01\x08\x9f\x59\x74\x0f\xc6\x46\x00";
+        let spec = PeerSpec::scorex_parse_bytes(bytes).unwrap();
+        assert_eq!(spec.scorex_serialize_bytes().unwrap(), bytes);
+    }
 
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(64))]
