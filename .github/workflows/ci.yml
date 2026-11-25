@@ -234,7 +234,8 @@ jobs:
 
   ios_tests:
     name: Test Swift(iOS) bindings
-    runs-on: ubuntu-latest
+    # fwal/setup-swift@v2 does not support Ubuntu 26.04, which ubuntu-latest now is
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     # Service containers to run `ergo` node in `devnet` mode
@@ -280,7 +281,8 @@ jobs:
 
   android_tests:
     name: Test JNI(Android) bindings
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04, which ubuntu-latest now is, defaults to Java 25; the Gradle 8.5 wrapper cannot run on it
+    runs-on: ubuntu-24.04
     steps:
       - name: checkout
         uses: actions/checkout@v2

@@ -120,7 +120,8 @@ jobs:
         platform:
           - runner: macos-15-intel
             target: x86_64
-          - runner: macos-14
+          # macos-14 is no longer offered; edited by hand, so a regenerated file needs this again
+          - runner: macos-26
             target: aarch64
     steps:
       - uses: actions/checkout@v4
