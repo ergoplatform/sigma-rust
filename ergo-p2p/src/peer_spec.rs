@@ -112,16 +112,26 @@ impl ScorexSerializable for PeerSpec {
                 Ok(addr)
             })?;
 
+        // A feature with no parser here, or one that does not parse, is left out and the rest of the
+        // spec is kept, as in the reference node's `PeerSpecSerializer.parse`.
         let feat_len = r.get_u8()?;
-        let features = match feat_len {
-            0 => None,
-            n => {
-                let mut f: Vec<PeerFeature> = Vec::with_capacity(n as usize);
-                for _ in 0..n {
-                    f.push(PeerFeature::scorex_parse(r)?);
-                }
-                Some(PeerFeatures::from_vec(f)?)
+        // the reference node reads the count as a signed byte and refuses a negative one
+        if feat_len > i8::MAX as u8 {
+            return Err(ScorexParsingError::ValueOutOfBounds(format!(
+                "{} peer features, more than 127",
+                feat_len
+            )));
+        }
+        let mut f: Vec<PeerFeature> = Vec::with_capacity(feat_len as usize);
+        for _ in 0..feat_len {
+            if let Some(feature) = PeerFeature::scorex_parse_or_skip(r)? {
+                f.push(feature);
             }
+        }
+        let features = if f.is_empty() {
+            None
+        } else {
+            Some(PeerFeatures::from_vec(f)?)
         };
 
         Ok(PeerSpec::new(
