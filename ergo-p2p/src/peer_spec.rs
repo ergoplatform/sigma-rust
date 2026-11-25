@@ -73,7 +73,8 @@ impl ScorexSerializable for PeerSpec {
         w.put_option(
             self.declared_addr,
             |w: &mut W, addr: PeerAddr| -> io::Result<()> {
-                w.put_u8(addr.ip_size() as u8)?;
+                // as the reference node writes it: the address's size plus four
+                w.put_u8((addr.ip_size() + 4) as u8)?;
                 addr.scorex_serialize(w)?;
 
                 Ok(())
