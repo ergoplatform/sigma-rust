@@ -21,6 +21,7 @@ mod client;
 mod codec;
 mod constants;
 mod error;
+mod frame;
 mod message;
 mod peer_connection_handler;
 mod peer_connector;
@@ -31,6 +32,7 @@ mod peer_spec;
 mod protocol_version;
 
 pub use client::Client;
+pub use frame::{FrameCodec, FrameError, MessageFrame, MAGIC_LENGTH, MAX_BODY_LENGTH};
 pub use peer_database::{in_memory::InMemoryPeerDatabase, PeerDatabase, PeerDatabaseError};
 pub use peer_feature::{LocalAddressPeerFeature, PeerFeature, PeerFeatureId};
 pub use peer_info::PeerInfo;
