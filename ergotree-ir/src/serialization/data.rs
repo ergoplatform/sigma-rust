@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::format;
 use ergo_chain_types::Header;
 use sigma_ser::ScorexSerializable;
 
@@ -32,6 +33,18 @@ use super::sigma_byte_writer::SigmaByteWrite;
 use super::types::TypeCode;
 use alloc::sync::Arc;
 use core::convert::TryInto;
+
+/// Zero-width types occupy no bytes in `DataSerializer`: `SUnit` itself, collections of
+/// zero-width elements, and tuples whose items are all zero-width.
+/// Mirrors sigmastate `CoreDataSerializer.isZeroWidth` (validation rule 1020).
+fn is_zero_width(tpe: &SType) -> bool {
+    match tpe {
+        SType::SUnit => true,
+        SType::SColl(elem_type) => is_zero_width(elem_type),
+        SType::STuple(stuple::STuple { items }) => items.iter().all(is_zero_width),
+        _ => false,
+    }
+}
 
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
@@ -84,10 +97,13 @@ impl DataSerializer {
                         .collect();
                     w.put_bits(maybe_bools?.as_slice())?
                 }
-                CollKind::WrappedColl {
-                    elem_tpe: _,
-                    items: v,
-                } => {
+                CollKind::WrappedColl { elem_tpe, items: v } => {
+                    if is_zero_width(elem_tpe) {
+                        return Err(SigmaSerializationError::NotSupported(format!(
+                            "Collection with zero-width element type {:?} cannot be serialized",
+                            elem_tpe
+                        )));
+                    }
                     w.put_usize_as_u16_unwrapped(v.len())?;
                     v.iter()
                         .try_for_each(|e| DataSerializer::sigma_serialize(e, w))?
@@ -171,7 +187,15 @@ impl DataSerializer {
                 })
             }
             SColl(elem_type) => {
+                // Read length before checking zero-width element type, matching sigmastate
+                // `CoreDataSerializer.deserialize` -> `deserializeColl` (rule 1020
+                // `CheckZeroWidthCollection`), so a truncated length still fails as EOF.
                 let len = r.get_u16()? as usize;
+                if is_zero_width(elem_type) {
+                    return Err(SigmaParsingError::NotSupported(
+                        "Collection with zero-width element type cannot be deserialized",
+                    ));
+                }
                 let elems = (0..len)
                     .map(|_| DataSerializer::sigma_parse(elem_type, r))
                     .collect::<Result<Arc<[_]>, SigmaParsingError>>()?;
@@ -307,5 +331,182 @@ mod depth_limit_tests {
         ))));
         // An empty innermost Coll[Int] reads no element.
         assert!(Constant::sigma_parse_bytes(&coll_n_int(110, false)).is_ok());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod zero_width_collection_tests {
+    //! JVM v6.0.7 parity for `CheckZeroWidthCollection` (validation rule 1020)
+    //! in `CoreDataSerializer.scala`.
+    use crate::ergo_tree::{ErgoTree, ErgoTreeError};
+    use crate::mir::constant::{Constant, Literal};
+    use crate::mir::value::CollKind;
+    use crate::serialization::sigma_byte_reader::from_bytes;
+    use crate::serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError};
+    use crate::types::stuple::STuple;
+    use crate::types::stype::SType;
+    use alloc::boxed::Box;
+    use alloc::sync::Arc;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    #[test]
+    fn parse_rejects_zero_width_collections() {
+        let cases: &[(&str, &[u8])] = &[
+            // Coll[Unit] len 0, len 1, and u16::MAX (must fail without allocating 65535 elements)
+            ("Coll[Unit] len 0", &[0x0c, 0x62, 0x00]),
+            ("Coll[Unit] len 1", &[0x0c, 0x62, 0x01]),
+            ("Coll[Unit] len u16::MAX", &[0x0c, 0x62, 0xff, 0xff, 0x03]),
+            // Coll[Coll[Unit]] via NESTED_COLL (0x18) and nested COLL (0x0c 0x0c)
+            ("Coll[Coll[Unit]] nested_coll", &[0x18, 0x62, 0x00]),
+            ("Coll[Coll[Unit]] nested_coll len 1", &[0x18, 0x62, 0x01]),
+            ("Coll[Coll[Unit]] explicit", &[0x0c, 0x0c, 0x62, 0x00]),
+            // Coll[(Unit, Unit)]
+            ("Coll[(Unit, Unit)]", &[0x0c, 0x60, 0x02, 0x62, 0x62, 0x00]),
+            // Coll[(Unit, Coll[Unit])]
+            (
+                "Coll[(Unit, Coll[Unit])]",
+                &[0x0c, 0x60, 0x02, 0x62, 0x0c, 0x62, 0x00],
+            ),
+            // (Int, Coll[Unit]) — zero-width collection nested inside a non-zero-width tuple
+            (
+                "(Int, Coll[Unit])",
+                &[0x60, 0x02, 0x04, 0x0c, 0x62, 0x00, 0x00],
+            ),
+        ];
+        for &(name, bytes) in cases {
+            let err = Constant::sigma_parse_bytes(bytes).unwrap_err();
+            assert!(
+                matches!(err, SigmaParsingError::NotSupported(_)),
+                "{name}: expected NotSupported, got {err:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn serialize_rejects_zero_width_collections() {
+        let unit_tuple_tpe = SType::STuple(STuple::pair(SType::SUnit, SType::SUnit));
+        let cases = [
+            Constant {
+                tpe: SType::SColl(SType::SUnit.into()),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    elem_tpe: SType::SUnit,
+                    items: Arc::new([]),
+                }),
+            },
+            Constant {
+                tpe: SType::SColl(SType::SUnit.into()),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    elem_tpe: SType::SUnit,
+                    items: Arc::new([Literal::Unit]),
+                }),
+            },
+            Constant {
+                tpe: SType::SColl(SType::SColl(SType::SUnit.into()).into()),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    elem_tpe: SType::SColl(SType::SUnit.into()),
+                    items: Arc::new([]),
+                }),
+            },
+            Constant {
+                tpe: SType::SColl(unit_tuple_tpe.clone().into()),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    elem_tpe: unit_tuple_tpe,
+                    items: Arc::new([]),
+                }),
+            },
+        ];
+        for c in cases {
+            let err = c.sigma_serialize_bytes().unwrap_err();
+            assert!(
+                matches!(err, SigmaSerializationError::NotSupported(_)),
+                "expected NotSupported for {:?}, got {err:?}",
+                c.tpe
+            );
+        }
+    }
+
+    #[test]
+    fn non_zero_width_unit_combinations_remain_valid() {
+        // Bare Unit
+        let unit = Constant {
+            tpe: SType::SUnit,
+            v: Literal::Unit,
+        };
+        let unit_bytes = unit.sigma_serialize_bytes().unwrap();
+        assert_eq!(Constant::sigma_parse_bytes(&unit_bytes).unwrap(), unit);
+
+        // Bare (Unit, Unit)
+        let unit_pair = Constant {
+            tpe: SType::STuple(STuple::pair(SType::SUnit, SType::SUnit)),
+            v: Literal::Tup([Literal::Unit, Literal::Unit].into()),
+        };
+        let pair_bytes = unit_pair.sigma_serialize_bytes().unwrap();
+        assert_eq!(Constant::sigma_parse_bytes(&pair_bytes).unwrap(), unit_pair);
+
+        // Coll[(Unit, Int)] — tuple contains a non-zero-width element
+        let mixed_tuple_tpe = SType::STuple(STuple::pair(SType::SUnit, SType::SInt));
+        let coll_mixed = Constant {
+            tpe: SType::SColl(mixed_tuple_tpe.clone().into()),
+            v: Literal::Coll(CollKind::WrappedColl {
+                elem_tpe: mixed_tuple_tpe,
+                items: Arc::new([Literal::Tup([Literal::Unit, Literal::Int(42)].into())]),
+            }),
+        };
+        let mixed_bytes = coll_mixed.sigma_serialize_bytes().unwrap();
+        assert_eq!(
+            Constant::sigma_parse_bytes(&mixed_bytes).unwrap(),
+            coll_mixed
+        );
+
+        // Coll[Option[Unit]] at v3 — Option writes a 1-byte tag per element
+        let opt_unit_tpe = SType::SOption(SType::SUnit.into());
+        let coll_opt_unit = Constant {
+            tpe: SType::SColl(opt_unit_tpe.clone().into()),
+            v: Literal::Coll(CollKind::WrappedColl {
+                elem_tpe: opt_unit_tpe,
+                items: Arc::new([
+                    Literal::Opt(None),
+                    Literal::Opt(Some(Box::new(Literal::Unit))),
+                ]),
+            }),
+        };
+        let opt_bytes = coll_opt_unit.sigma_serialize_bytes().unwrap();
+        assert_eq!(
+            Constant::sigma_parse_bytes(&opt_bytes).unwrap(),
+            coll_opt_unit
+        );
+    }
+
+    #[test]
+    fn sized_ergo_tree_degrades_zero_width_coll_but_rejects_truncated_length() {
+        // Sized v0 ErgoTree with segregated constants (header = 0x18 = CONSTANT_SEGREGATION | HAS_SIZE):
+        // body = [num_constants=1, Coll[Unit] len 0 (0x0c, 0x62, 0x00), root=sigmaProp(true) (0x08, 0xd3)]
+        let body = [0x01u8, 0x0c, 0x62, 0x00, 0x08, 0xd3];
+        let mut sized_tree = vec![0x18u8, body.len() as u8];
+        sized_tree.extend_from_slice(&body);
+        let parsed = ErgoTree::sigma_parse(&mut from_bytes(&sized_tree)).unwrap();
+        assert!(matches!(
+            parsed,
+            ErgoTree::Unparsed {
+                error: ErgoTreeError::SigmaParsingError(SigmaParsingError::NotSupported(_)),
+                ..
+            }
+        ));
+
+        // Unsized v0 ErgoTree with segregated constants (header = 0x10): must reject via sigma_parse.
+        let mut unsized_tree = vec![0x10u8];
+        unsized_tree.extend_from_slice(&body);
+        assert!(matches!(
+            ErgoTree::sigma_parse(&mut from_bytes(&unsized_tree)),
+            Err(SigmaParsingError::NotSupported(_))
+        ));
+
+        // Sized v0 ErgoTree truncated right before the Coll[Unit] u16 length (header=0x18,
+        // declared size=3, body=[num_constants=1, 0x0c, 0x62]): `r.get_u16()` must hit EOF
+        // BEFORE CheckZeroWidthCollection, escaping the sized-tree degrade and rejecting.
+        let truncated_sized: Vec<u8> = vec![0x18, 0x03, 0x01, 0x0c, 0x62];
+        assert!(ErgoTree::sigma_parse(&mut from_bytes(&truncated_sized)).is_err());
     }
 }
