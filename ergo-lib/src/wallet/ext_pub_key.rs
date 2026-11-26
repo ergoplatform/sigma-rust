@@ -1,7 +1,7 @@
 //! Extended public key operations according to BIP-32
 use core::convert::TryInto;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use ergo_chain_types::EcPoint;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::chain::address::Address;
@@ -51,6 +51,11 @@ impl ExtPubKey {
         derivation_path: DerivationPath,
     ) -> Result<Self, SigmaParsingError> {
         let public_key = EcPoint::sigma_parse_bytes(&public_key_bytes)?;
+        if ergo_chain_types::ec_point::is_identity(&public_key) {
+            return Err(SigmaParsingError::ValueOutOfBounds(
+                "identity point is not a valid BIP-32 public key".to_string(),
+            ));
+        }
         Ok(Self {
             public_key,
             chain_code,
@@ -283,5 +288,26 @@ mod tests {
 
             assert_eq!(expected_key, ext_pub_key_b58);
         }
+    }
+
+    #[test]
+    fn ext_pub_key_new_rejects_identity_point() {
+        let chain_code = [0x22u8; 32];
+        let zero_bytes = [0u8; 33];
+        assert!(matches!(
+            ExtPubKey::new(zero_bytes, chain_code, DerivationPath::master_path()),
+            Err(SigmaParsingError::ValueOutOfBounds(_))
+        ));
+
+        let mut leading_zero_bytes = [0x01u8; 33];
+        leading_zero_bytes[0] = 0x00;
+        assert!(matches!(
+            ExtPubKey::new(
+                leading_zero_bytes,
+                chain_code,
+                DerivationPath::master_path()
+            ),
+            Err(SigmaParsingError::ValueOutOfBounds(_))
+        ));
     }
 }

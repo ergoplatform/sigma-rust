@@ -91,6 +91,9 @@ impl DlogProverInput {
     /// Attempts to create DlogProverInput from BigUint
     /// Returns None if not in the range [0, modulus).
     pub fn from_biguint(b: BigUint) -> Option<DlogProverInput> {
+        if b.bits() > (DlogProverInput::SIZE_BYTES * 8) as u64 {
+            return None;
+        }
         /// Converts a BigUint to a byte array (big-endian).
         #[allow(clippy::unwrap_used)]
         pub fn biguint_to_32bytes(x: &BigUint) -> [u8; 32] {
@@ -306,5 +309,33 @@ pub(crate) mod arbitrary {
 }
 
 #[cfg(test)]
-#[cfg(feature = "arbitrary")]
-mod tests {}
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_biguint_rejects_values_ge_modulus_and_2_pow_256() {
+        // secp256k1 group order n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+        let n = BigUint::parse_bytes(
+            b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+            16,
+        )
+        .unwrap();
+        let one = BigUint::from(1u32);
+        let two_pow_256: BigUint = BigUint::from(1u32) << 256u32;
+
+        // Valid range [0, n)
+        assert!(DlogProverInput::from_biguint(BigUint::from(0u32)).is_some());
+        assert!(DlogProverInput::from_biguint(one.clone()).is_some());
+        assert!(DlogProverInput::from_biguint(&n - &one).is_some());
+
+        // Out of range [n, 2^256)
+        assert!(DlogProverInput::from_biguint(n.clone()).is_none());
+        assert!(DlogProverInput::from_biguint(&n + &one).is_none());
+
+        // >= 2^256 previously silently truncated to low 256 bits (turning 2^256 into 0)
+        assert!(DlogProverInput::from_biguint(two_pow_256.clone()).is_none());
+        assert!(DlogProverInput::from_biguint(&two_pow_256 + &one).is_none());
+        assert!(DlogProverInput::from_biguint(&two_pow_256 + BigUint::from(42u32)).is_none());
+    }
+}
