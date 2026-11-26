@@ -301,6 +301,14 @@ jobs:
           rustup target add aarch64-linux-android     # for arm64
           rustup target add x86_64-linux-android      # for x86_64
 
+      - name: cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches/modules-2
+            ~/.gradle/wrapper/dists
+          key: gradle-${{ runner.os }}-${{ hashFiles('bindings/ergo-lib-jni/**/*.gradle', 'bindings/ergo-lib-jni/**/gradle.properties', 'bindings/ergo-lib-jni/gradle/wrapper/gradle-wrapper.properties') }}
+
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
