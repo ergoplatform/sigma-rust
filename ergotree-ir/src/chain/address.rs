@@ -430,22 +430,15 @@ impl AddressEncoder {
         AddressEncoder { network_prefix }
     }
 
-    fn is_mainnet_address(head_byte: u8) -> bool {
-        head_byte < NetworkPrefix::Testnet as u8
-    }
-
-    fn is_testnet_address(head_byte: u8) -> bool {
-        head_byte > NetworkPrefix::Testnet as u8
-    }
-
     fn check_head_byte(&self, adr_prefix: u8) -> Result<u8, AddressEncoderError> {
-        match self.network_prefix {
-            NetworkPrefix::Mainnet if AddressEncoder::is_testnet_address(adr_prefix) => {
+        let actual_network = NetworkPrefix::try_from(adr_prefix & 0xF0)?;
+        match (self.network_prefix, actual_network) {
+            (NetworkPrefix::Mainnet, NetworkPrefix::Testnet) => {
                 Err(AddressEncoderError::InvalidNetwork(
                     "Expected mainnet address, found testnet".to_string(),
                 ))
             }
-            NetworkPrefix::Testnet if AddressEncoder::is_mainnet_address(adr_prefix) => {
+            (NetworkPrefix::Testnet, NetworkPrefix::Mainnet) => {
                 Err(AddressEncoderError::InvalidNetwork(
                     "Expected testnet address, found mainnet".to_string(),
                 ))
@@ -510,6 +503,7 @@ impl AddressEncoder {
         if bytes.len() < AddressEncoder::MIN_ADDRESS_LENGTH {
             return Err(AddressEncoderError::InvalidSize);
         };
+        let _ = NetworkPrefix::try_from(bytes[0] & 0xF0)?;
         let (without_checksum, checksum) =
             bytes.split_at(bytes.len() - AddressEncoder::CHECKSUM_LENGTH);
         let calculated_checksum = AddressEncoder::calc_checksum(without_checksum);
@@ -634,5 +628,165 @@ mod tests {
             tree_hex
         );
         assert_eq!(encoder.address_to_str(&address), addr);
+    }
+
+    #[test]
+    fn parse_rejects_invalid_network_prefix_nibbles() {
+        let p2pk = Address::P2Pk(ProveDlog::new(
+            EcPoint::sigma_parse_bytes(
+                &base16::decode(
+                    "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                )
+                .unwrap(),
+            )
+            .unwrap(),
+        ));
+        let p2sh = Address::P2SH([0x42; 24]);
+        let p2s = Address::P2S(vec![0x00, 0x7f]);
+        let mainnet = AddressEncoder::new(NetworkPrefix::Mainnet);
+        let testnet = AddressEncoder::new(NetworkPrefix::Testnet);
+        let expected_invalid_net_err =
+            AddressEncoderError::InvalidNetwork("Invalid network".to_string());
+        let expected_invalid_net: Result<Address, AddressEncoderError> =
+            Err(expected_invalid_net_err.clone());
+        let expected_invalid_net_addr: Result<NetworkAddress, AddressEncoderError> =
+            Err(expected_invalid_net_err);
+        let expected_mainnet_found_testnet = Err(AddressEncoderError::InvalidNetwork(
+            "Expected mainnet address, found testnet".to_string(),
+        ));
+        let expected_testnet_found_mainnet = Err(AddressEncoderError::InvalidNetwork(
+            "Expected testnet address, found mainnet".to_string(),
+        ));
+
+        let build_raw = |head_byte: u8, content: &[u8]| -> Vec<u8> {
+            let mut raw = vec![head_byte];
+            raw.extend_from_slice(content);
+            let checksum = AddressEncoder::calc_checksum(&raw);
+            raw.extend_from_slice(&checksum);
+            raw
+        };
+
+        for addr in [&p2pk, &p2sh, &p2s] {
+            let type_byte = addr.address_type_prefix() as u8;
+            let content = addr.content_bytes();
+
+            // Valid mainnet and testnet encodings round-trip and reject the opposite network
+            // with the exact mismatch message.
+            let main_str = mainnet.address_to_str(addr);
+            let test_str = testnet.address_to_str(addr);
+            assert_eq!(mainnet.parse_address_from_str(&main_str).unwrap(), *addr);
+            assert_eq!(testnet.parse_address_from_str(&test_str).unwrap(), *addr);
+            assert_eq!(
+                mainnet.parse_address_from_str(&test_str),
+                expected_mainnet_found_testnet
+            );
+            assert_eq!(
+                testnet.parse_address_from_str(&main_str),
+                expected_testnet_found_mainnet
+            );
+
+            // All 14 undefined high nibbles (0x20..=0xF0) with a valid low address-type nibble
+            // and valid checksum must be rejected across all five parse entry points.
+            for bad_net in (0x20u8..=0xF0).step_by(0x10) {
+                let raw = build_raw(bad_net | type_byte, &content);
+                let bad_str = bs58::encode(&raw).into_string();
+
+                assert_eq!(
+                    testnet.parse_address_from_str(&bad_str),
+                    expected_invalid_net,
+                    "testnet encoder must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+                assert_eq!(
+                    mainnet.parse_address_from_str(&bad_str),
+                    expected_invalid_net,
+                    "mainnet encoder must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+                assert_eq!(
+                    AddressEncoder::unchecked_parse_address_from_str(&bad_str),
+                    expected_invalid_net,
+                    "unchecked address str parser must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+                assert_eq!(
+                    AddressEncoder::unchecked_parse_address_from_bytes(&raw),
+                    expected_invalid_net,
+                    "unchecked address bytes parser must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+                assert_eq!(
+                    AddressEncoder::unchecked_parse_network_address_from_str(&bad_str),
+                    expected_invalid_net_addr,
+                    "unchecked network-address str parser must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+                assert_eq!(
+                    AddressEncoder::unchecked_parse_network_address_from_bytes(&raw),
+                    expected_invalid_net_addr,
+                    "unchecked network-address bytes parser must reject prefix 0x{:02x}",
+                    bad_net | type_byte
+                );
+            }
+
+            // Undefined high nibble must fail with InvalidNetwork before checksum verification
+            // across both network-checked and unchecked parsers.
+            let mut bad_cksum_raw = build_raw(0x20 | type_byte, &content);
+            *bad_cksum_raw.last_mut().unwrap() ^= 0xFF;
+            let bad_cksum_str = bs58::encode(&bad_cksum_raw).into_string();
+            assert_eq!(
+                testnet.parse_address_from_str(&bad_cksum_str),
+                expected_invalid_net
+            );
+            assert_eq!(
+                mainnet.parse_address_from_str(&bad_cksum_str),
+                expected_invalid_net
+            );
+            assert_eq!(
+                AddressEncoder::unchecked_parse_address_from_bytes(&bad_cksum_raw),
+                expected_invalid_net
+            );
+            assert_eq!(
+                AddressEncoder::unchecked_parse_network_address_from_bytes(&bad_cksum_raw),
+                expected_invalid_net_addr
+            );
+        }
+
+        // Low-nibble edge cases with valid checksum:
+        // - 0x00: InvalidNetwork on Testnet, InvalidAddressType(0) on Mainnet
+        // - 0x10: InvalidNetwork on Mainnet, InvalidAddressType(0) on Testnet
+        // - 0x04 / 0x14: InvalidAddressType(4) on their respective networks
+        let p2sh_content = p2sh.content_bytes();
+        let str_00 = bs58::encode(build_raw(0x00, &p2sh_content)).into_string();
+        assert_eq!(
+            testnet.parse_address_from_str(&str_00),
+            expected_testnet_found_mainnet
+        );
+        assert_eq!(
+            mainnet.parse_address_from_str(&str_00),
+            Err(AddressEncoderError::InvalidAddressType(0))
+        );
+
+        let str_10 = bs58::encode(build_raw(0x10, &p2sh_content)).into_string();
+        assert_eq!(
+            mainnet.parse_address_from_str(&str_10),
+            expected_mainnet_found_testnet
+        );
+        assert_eq!(
+            testnet.parse_address_from_str(&str_10),
+            Err(AddressEncoderError::InvalidAddressType(0))
+        );
+
+        let str_04 = bs58::encode(build_raw(0x04, &p2sh_content)).into_string();
+        assert_eq!(
+            mainnet.parse_address_from_str(&str_04),
+            Err(AddressEncoderError::InvalidAddressType(4))
+        );
+
+        let str_14 = bs58::encode(build_raw(0x14, &p2sh_content)).into_string();
+        assert_eq!(
+            testnet.parse_address_from_str(&str_14),
+            Err(AddressEncoderError::InvalidAddressType(4))
+        );
     }
 }
