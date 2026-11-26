@@ -158,7 +158,7 @@ async fn peer_discovery_impl_chrome(
         let (tx, rx) = futures::channel::oneshot::channel::<()>();
         wasm_bindgen_futures::spawn_local(async move {
             wasmtimer::tokio::sleep(settings.global_timeout).await;
-            tx.send(()).unwrap();
+            let _ = tx.send(());
         });
         rx.into_stream()
     };
@@ -441,8 +441,8 @@ fn spawn_http_request_task_chrome(
                                     // It's important to send this message before the `AddActiveNode`
                                     // message below, to ensure an accurate `count` variable in task 1;
                                     // see (*) above in `peer_discovery_inner`.
-                                    tx_msg.send(Msg::CheckPeers(peers)).await.unwrap();
-                                    tx_msg.send(Msg::AddActiveNode(url.clone())).await.unwrap();
+                                    let _ = tx_msg.send(Msg::CheckPeers(peers)).await;
+                                    let _ = tx_msg.send(Msg::AddActiveNode(url.clone())).await;
                                 }
                                 Err(e) => {
                                     if let NodeError::ReqwestError(r) = e {
@@ -460,6 +460,10 @@ fn spawn_http_request_task_chrome(
                                                 let _ =
                                                     tx_msg.send(Msg::PreflightRequestFailed).await;
                                             });
+                                        } else {
+                                            let _ = tx_msg
+                                                .send(Msg::PeersAllRequestFailedWithoutTimeout(url))
+                                                .await;
                                         }
                                     } else {
                                         let _ = tx_msg
