@@ -118,14 +118,21 @@ impl TransactionContext<Transaction> {
     pub fn validate(&self, state_context: &ErgoStateContext) -> Result<(), TxValidationError> {
         // Stateless checks first (input uniqueness, output sum overflow), matching the node's order
         self.spending_tx.validate_stateless()?;
+        // Resolve the exact input boxes referenced by spending_tx.inputs so duplicate or extra
+        // boxes in boxes_to_spend (or post-construction edits to pub spending_tx) cannot distort
+        // ERG/token totals or monotonic creation heights.
+        let boxes_to_spend: Vec<&ErgoBox> = self
+            .spending_tx
+            .inputs_ids()
+            .enumerate()
+            .map(|(i, box_id)| {
+                self.get_input_box(&box_id)
+                    .ok_or_else(|| TransactionContextError::InputBoxNotFound(i).into())
+            })
+            .collect::<Result<Vec<_>, TxValidationError>>()?;
         // Check that input sum does not overflow
-        let input_sum = BoxValue::new(
-            self.boxes_to_spend
-                .iter()
-                .map(|b| b.value.as_u64())
-                .sum::<u64>(),
-        )
-        .map_err(|_| TxValidationError::InputSumOverflow)?;
+        let input_sum = BoxValue::new(boxes_to_spend.iter().map(|b| b.value.as_u64()).sum::<u64>())
+            .map_err(|_| TxValidationError::InputSumOverflow)?;
         // Check that output sum does not overflow and is equal to ERG amount in inputs
         let output_sum = self
             .spending_tx
@@ -145,7 +152,7 @@ impl TransactionContext<Transaction> {
             0
         } else {
             #[allow(clippy::unwrap_used)] // Unwrap is valid here since inputs can not be empty
-            self.boxes_to_spend
+            boxes_to_spend
                 .iter()
                 .map(|b| b.creation_height)
                 .max()
@@ -156,7 +163,7 @@ impl TransactionContext<Transaction> {
             verify_output(state_context, output, max_creation_height)?;
         }
 
-        let in_assets = extract_assets(self.boxes_to_spend.iter().map(|b| &b.tokens))?;
+        let in_assets = extract_assets(boxes_to_spend.iter().map(|b| &b.tokens))?;
         let out_assets = extract_assets(self.spending_tx.outputs.iter().map(|b| &b.tokens))?;
         verify_assets(self.spending_tx.inputs_ids(), in_assets, out_assets)?;
         // Verify input proofs. This is usually the most expensive check so it's done last
@@ -332,6 +339,8 @@ mod test {
     use crate::chain::transaction::unsigned::UnsignedTransaction;
     use crate::chain::transaction::{Input, Transaction, UnsignedInput};
     use crate::wallet::Wallet;
+    use ergotree_ir::chain::ergo_box::BoxId;
+    use ergotree_ir::chain::tx_id::TxId;
 
     use super::{TransactionContext, TransactionContextError};
 
@@ -775,5 +784,251 @@ mod test {
                 other => panic!("Expected validation to fail, got {other:?}")
             }
         });
+    }
+
+    fn make_true_box(
+        value: u64,
+        tokens: Option<BoxTokens>,
+        creation_height: u32,
+        tx_id: TxId,
+        index: u16,
+    ) -> ErgoBox {
+        let true_tree = ErgoTree::new(
+            ErgoTreeHeader::v0(true),
+            &Expr::Const(Constant {
+                tpe: ergotree_ir::types::stype::SType::SBoolean,
+                v: Literal::Boolean(true),
+            }),
+        )
+        .unwrap();
+        ErgoBox::new(
+            BoxValue::new(value).unwrap(),
+            true_tree,
+            tokens,
+            NonMandatoryRegisters::empty(),
+            creation_height,
+            tx_id,
+            index,
+        )
+        .unwrap()
+    }
+
+    fn v3_state_context(height: u32) -> ErgoStateContext {
+        let mut state_context: ErgoStateContext = force_any_val();
+        state_context.pre_header.version = 3;
+        state_context.pre_header.height = height;
+        state_context.parameters = Parameters::default();
+        state_context
+    }
+
+    fn make_tx(
+        input_boxes: &[&ErgoBox],
+        output_value: u64,
+        output_tokens: Option<BoxTokens>,
+        output_height: u32,
+    ) -> Transaction {
+        let candidate = ErgoBoxCandidate {
+            value: BoxValue::new(output_value).unwrap(),
+            ergo_tree: input_boxes[0].ergo_tree.clone(),
+            tokens: output_tokens,
+            additional_registers: NonMandatoryRegisters::empty(),
+            creation_height: output_height,
+        };
+        let inputs = input_boxes
+            .iter()
+            .map(|b| Input {
+                box_id: b.box_id(),
+                spending_proof: ProverResult {
+                    proof: ProofBytes::Empty,
+                    extension: ContextExtension::empty(),
+                },
+            })
+            .collect();
+        Transaction::new(
+            TxIoVec::from_vec(inputs).unwrap(),
+            None,
+            TxIoVec::from_vec(vec![candidate]).unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn test_validate_rejects_inflated_tx_with_duplicate_box_to_spend() {
+        let state_context = v3_state_context(100);
+
+        let token_id: TokenId = make_true_box(10_000_000, None, 10, TxId::zero(), 99)
+            .box_id()
+            .into();
+        let token_100 = Token {
+            token_id,
+            amount: TokenAmount::try_from(100u64).unwrap(),
+        };
+        let token_200 = Token {
+            token_id,
+            amount: TokenAmount::try_from(200u64).unwrap(),
+        };
+
+        // Case 1: Output claims 2x box_a's ERG even though tx only spends box_a once
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        let inflated_erg_tx = make_tx(&[&box_a], 20_000_000, None, 20);
+        let ctx_erg =
+            TransactionContext::new(inflated_erg_tx, vec![box_a.clone(), box_a], vec![]).unwrap();
+        match ctx_erg.validate(&state_context) {
+            Err(TxValidationError::ErgPreservationError(10_000_000, 20_000_000)) => {}
+            other => panic!("Expected ErgPreservationError(10_000_000, 20_000_000), got {other:?}"),
+        }
+
+        // Case 2: ERG preserved, but output claims 2x token from duplicated box_a_tok
+        let box_a_tok = make_true_box(
+            10_000_000,
+            Some(BoxTokens::from_vec(vec![token_100]).unwrap()),
+            10,
+            TxId::zero(),
+            1,
+        );
+        assert_ne!(token_id, box_a_tok.box_id().into());
+        let inflated_tok_tx = make_tx(
+            &[&box_a_tok],
+            10_000_000,
+            Some(BoxTokens::from_vec(vec![token_200]).unwrap()),
+            20,
+        );
+        let ctx_tok =
+            TransactionContext::new(inflated_tok_tx, vec![box_a_tok.clone(), box_a_tok], vec![])
+                .unwrap();
+        match ctx_tok.validate(&state_context) {
+            Err(TxValidationError::TokenPreservationError {
+                token_id: err_id,
+                in_amount: 100,
+                out_amount: 200,
+                ..
+            }) if err_id == token_id => {}
+            other => panic!(
+                "Expected TokenPreservationError(in=100, out=200) for duplicate box, got {other:?}"
+            ),
+        }
+    }
+
+    #[test]
+    fn test_validate_rejects_inflated_tx_with_extra_unreferenced_box() {
+        let state_context = v3_state_context(100);
+
+        let extra_token = Token {
+            token_id: make_true_box(10_000_000, None, 10, TxId::zero(), 98)
+                .box_id()
+                .into(),
+            amount: TokenAmount::try_from(100u64).unwrap(),
+        };
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        assert_ne!(extra_token.token_id, box_a.box_id().into());
+        let box_b = make_true_box(
+            15_000_000,
+            Some(BoxTokens::from_vec(vec![extra_token]).unwrap()),
+            10,
+            TxId::zero(),
+            1,
+        );
+
+        // Case 1: ERG inflated using unreferenced box_b
+        let inflated_erg_tx = make_tx(&[&box_a], 25_000_000, None, 20);
+        let ctx_erg =
+            TransactionContext::new(inflated_erg_tx, vec![box_a.clone(), box_b.clone()], vec![])
+                .unwrap();
+        match ctx_erg.validate(&state_context) {
+            Err(TxValidationError::ErgPreservationError(10_000_000, 25_000_000)) => {}
+            other => panic!("Expected ErgPreservationError(10_000_000, 25_000_000), got {other:?}"),
+        }
+
+        // Case 2: ERG preserved from box_a, but output claims token held only in unreferenced box_b
+        let inflated_tok_tx = make_tx(
+            &[&box_a],
+            10_000_000,
+            Some(BoxTokens::from_vec(vec![extra_token]).unwrap()),
+            20,
+        );
+        let ctx_tok = TransactionContext::new(inflated_tok_tx, vec![box_a, box_b], vec![]).unwrap();
+        match ctx_tok.validate(&state_context) {
+            Err(TxValidationError::TokenPreservationError {
+                token_id,
+                in_amount: 0,
+                out_amount: 100,
+                ..
+            }) if token_id == extra_token.token_id => {}
+            other => panic!("Expected TokenPreservationError for extra_token, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_validate_accepts_valid_tx_with_superset_boxes_to_spend() {
+        let state_context = v3_state_context(100);
+
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        // Unreferenced extra box with higher creation_height (90 > output height 20) and extra ERG
+        let extra_box = make_true_box(50_000_000, None, 90, TxId::zero(), 1);
+        let valid_tx = make_tx(&[&box_a], 10_000_000, None, 20);
+
+        let tx_context = TransactionContext::new(valid_tx, vec![extra_box, box_a], vec![]).unwrap();
+        tx_context.validate(&state_context).unwrap();
+    }
+
+    #[test]
+    fn test_validate_monotonic_height_ignores_unreferenced_box() {
+        let state_context = v3_state_context(100);
+
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        let extra_box = make_true_box(50_000_000, None, 90, TxId::zero(), 1);
+        let low_height_tx = make_tx(&[&box_a], 10_000_000, None, 5);
+
+        let tx_context =
+            TransactionContext::new(low_height_tx, vec![extra_box, box_a], vec![]).unwrap();
+        match tx_context.validate(&state_context) {
+            Err(TxValidationError::MonotonicHeightError(5, 10)) => {}
+            other => panic!("Expected MonotonicHeightError(5, 10), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_validate_rejects_missing_input_after_spending_tx_mutation() {
+        let state_context = v3_state_context(100);
+
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        // Mismatched output value ensures unpatched validate() fails with ErgPreservationError
+        // instead of reaching make_context(), so InputBoxNotFound(0) proves early resolution.
+        let mismatched_tx = make_tx(&[&box_a], 20_000_000, None, 20);
+        let mut tx_context = TransactionContext::new(mismatched_tx, vec![box_a], vec![]).unwrap();
+
+        let mut unknown_id: BoxId = force_any_val();
+        while unknown_id == tx_context.spending_tx.inputs.first().box_id {
+            unknown_id = force_any_val();
+        }
+        let inputs: &mut [Input] = tx_context.spending_tx.inputs.as_mut();
+        inputs[0].box_id = unknown_id;
+
+        match tx_context.validate(&state_context) {
+            Err(TxValidationError::TransactionContextError(
+                TransactionContextError::InputBoxNotFound(0),
+            )) => {}
+            other => panic!("Expected InputBoxNotFound(0), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_validate_rejects_inflated_tx_after_spending_tx_input_dropped() {
+        let state_context = v3_state_context(100);
+
+        let box_a = make_true_box(10_000_000, None, 10, TxId::zero(), 0);
+        let box_b = make_true_box(15_000_000, None, 10, TxId::zero(), 1);
+        let tx_ab = make_tx(&[&box_a, &box_b], 25_000_000, None, 20);
+        let mut tx_context = TransactionContext::new(tx_ab, vec![box_a, box_b], vec![]).unwrap();
+        tx_context.validate(&state_context).unwrap();
+
+        // Drop box_b from pub spending_tx.inputs after clean construction; output still claims 25M.
+        let only_first = tx_context.spending_tx.inputs.first().clone();
+        tx_context.spending_tx.inputs = TxIoVec::from_vec(vec![only_first]).unwrap();
+
+        match tx_context.validate(&state_context) {
+            Err(TxValidationError::ErgPreservationError(10_000_000, 25_000_000)) => {}
+            other => panic!("Expected ErgPreservationError(10_000_000, 25_000_000), got {other:?}"),
+        }
     }
 }
