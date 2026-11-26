@@ -122,8 +122,12 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
         let tx = self.build_tx()?;
         let inputs = tx.inputs.mapped(|ui| {
             // mock proof of the size of ProveDlog's proof (P2PK box spending)
-            // as it's the most often used proof
-            let proof = ProofBytes::Some(vec![0u8, sigma_protocol::SOUNDNESS_BYTES as u8]);
+            // as it's the most often used proof (challenge + response scalar = 56 bytes)
+            let proof = ProofBytes::Some(vec![
+                0u8;
+                sigma_protocol::SOUNDNESS_BYTES
+                    + sigma_protocol::wscalar::Wscalar::SIZE_BYTES
+            ]);
             Input::new(
                 ui.box_id,
                 crate::chain::transaction::input::prover_result::ProverResult {
@@ -824,6 +828,66 @@ mod tests {
             force_any_val::<Address>(),
         );
         assert!(tx_builder.estimate_tx_size_bytes().unwrap() > 0);
+    }
+
+    #[test]
+    fn test_est_tx_size_matches_signed_p2pk_tx() {
+        use crate::chain::ergo_state_context::ErgoStateContext;
+        use crate::wallet::secret_key::SecretKey;
+        use crate::wallet::signing::TransactionContext;
+        use crate::wallet::Wallet;
+        use ergotree_ir::serialization::SigmaSerializable;
+
+        let secret = SecretKey::random_dlog();
+        let p2pk_addr = secret.get_address_from_public_image();
+        let p2pk_tree = p2pk_addr.script().unwrap();
+        let wallet = Wallet::from_secrets(vec![secret]);
+        let state_ctx = force_any_val::<ErgoStateContext>();
+        let tx_fee = super::SUGGESTED_TX_FEE();
+
+        for num_inputs in [1usize, 3usize] {
+            let inputs: Vec<ErgoBox> = (0..num_inputs)
+                .map(|i| {
+                    ErgoBox::new(
+                        10_000_000i64.try_into().unwrap(),
+                        p2pk_tree.clone(),
+                        None,
+                        NonMandatoryRegisters::empty(),
+                        1,
+                        force_any_val::<TxId>(),
+                        i as u16,
+                    )
+                    .unwrap()
+                })
+                .collect();
+            let total_in: i64 = 10_000_000 * num_inputs as i64;
+            let out_val = BoxValue::try_from(total_in)
+                .unwrap()
+                .checked_sub(&tx_fee)
+                .unwrap();
+            let out_box = ErgoBoxCandidateBuilder::new(out_val, p2pk_tree.clone(), 0)
+                .build()
+                .unwrap();
+            let tx_builder = TxBuilder::new(
+                BoxSelection {
+                    boxes: inputs.clone().try_into().unwrap(),
+                    change_boxes: vec![],
+                },
+                vec![out_box],
+                0,
+                tx_fee,
+                p2pk_addr.clone(),
+            );
+            let estimated = tx_builder.estimate_tx_size_bytes().unwrap();
+            let unsigned_tx = tx_builder.build().unwrap();
+            let tx_ctx = TransactionContext::new(unsigned_tx, inputs, vec![]).unwrap();
+            let signed_tx = wallet.sign_transaction(tx_ctx, &state_ctx, None).unwrap();
+            let actual = signed_tx.sigma_serialize_bytes().unwrap().len();
+            assert_eq!(
+                estimated, actual,
+                "estimated size must match actual signed P2PK tx size for {num_inputs} input(s)"
+            );
+        }
     }
 
     proptest! {
