@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use ergotree_ir::mir::constant::TryExtractInto;
-use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::CollKind;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::types::smethod::SMethod;
@@ -72,13 +71,6 @@ pub(crate) fn flatmap_eval<'ctx>(
             "flatmap: expected lambda taking 1 arg but got {} args",
             lambda.args.len()
         )));
-    }
-    let unsupported_msg =
-        "unsupported lambda in flatMap: allowed usage `xs.flatMap(x => x.property)".to_string();
-    if let Expr::MethodCall(mc) = &*lambda.body {
-        if !mc.expr().args.is_empty() {
-            return Err(EvalError::UnexpectedValue(unsupported_msg));
-        }
     }
     let mut lambda_call = |arg: Value<'ctx>| {
         let func_arg = lambda.args.first().ok_or_else(|| {
@@ -521,6 +513,247 @@ mod tests {
         .into();
         let res = eval_out_wo_ctx::<Vec<i32>>(&expr);
         assert_eq!(res, vec![0, 1, 0]);
+    }
+
+    #[test]
+    fn eval_flatmap_method_call_with_args() {
+        // Coll(Coll(1L, 2L), Coll(3L, 4L)).flatMap(xs => xs.updated(0, 9L))
+        let coll_const = Constant {
+            tpe: SType::SColl(Arc::new(SType::SColl(Arc::new(SType::SLong)))),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::new([vec![1i64, 2i64].into(), vec![3i64, 4i64].into()]),
+                elem_tpe: SType::SColl(Arc::new(SType::SLong)),
+            }),
+        };
+        let body: Expr = MethodCall::new(
+            ValUse {
+                val_id: 1.into(),
+                tpe: SType::SColl(Arc::new(SType::SLong)),
+            }
+            .into(),
+            scoll::UPDATED_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![0i32.into(), 9i64.into()],
+        )
+        .unwrap()
+        .into();
+        let expr: Expr = MethodCall::new(
+            coll_const.into(),
+            scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::iv(), SType::SColl(Arc::new(SType::SLong))),
+                    (STypeVar::ov(), SType::SLong),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: SType::SColl(Arc::new(SType::SLong)),
+                }],
+                body,
+            )
+            .into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![9, 2, 9, 4]);
+    }
+
+    #[test]
+    fn eval_flatmap_global_xor_and_empty_coll() {
+        use ergotree_ir::types::sglobal;
+
+        let make_expr = |items: Vec<Literal>| -> Expr {
+            let coll_const = Constant {
+                tpe: SType::SColl(Arc::new(SType::SColl(Arc::new(SType::SByte)))),
+                v: Literal::Coll(CollKind::WrappedColl {
+                    items: items.into(),
+                    elem_tpe: SType::SColl(Arc::new(SType::SByte)),
+                }),
+            };
+            let body: Expr = MethodCall::new(
+                Expr::Global,
+                sglobal::XOR_METHOD.clone(),
+                vec![
+                    ValUse {
+                        val_id: 1.into(),
+                        tpe: SType::SColl(Arc::new(SType::SByte)),
+                    }
+                    .into(),
+                    vec![0x0fi8, 0x0fi8].into(),
+                ],
+            )
+            .unwrap()
+            .into();
+            MethodCall::new(
+                coll_const.into(),
+                scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                    &[
+                        (STypeVar::iv(), SType::SColl(Arc::new(SType::SByte))),
+                        (STypeVar::ov(), SType::SByte),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect(),
+                ),
+                vec![FuncValue::new(
+                    vec![FuncArg {
+                        idx: 1.into(),
+                        tpe: SType::SColl(Arc::new(SType::SByte)),
+                    }],
+                    body,
+                )
+                .into()],
+            )
+            .unwrap()
+            .into()
+        };
+
+        let res = eval_out_wo_ctx::<Vec<i8>>(&make_expr(vec![
+            vec![0x01i8, 0x02i8].into(),
+            vec![0x03i8, 0x04i8].into(),
+        ]));
+        assert_eq!(res, vec![0x0e, 0x0d, 0x0c, 0x0b]);
+
+        // Empty outer collection must still succeed and return an empty Coll[Byte].
+        let empty_res = eval_out_wo_ctx::<Vec<i8>>(&make_expr(vec![]));
+        assert_eq!(empty_res, Vec::<i8>::new());
+    }
+
+    #[test]
+    fn eval_flatmap_nested_with_shadowed_val_id() {
+        // Coll(Coll(Coll(1L, 2L)), Coll(Coll(3L, 4L)))
+        //   .flatMap(outer =>
+        //     outer.flatMap(inner => inner.updated(0, 9L))
+        //          .patch(0, outer.flatMap(inner => inner), 0)
+        //   )
+        // Uses the same ValId(1) for outer and inner lambdas AND reads ValUse(1) (outer)
+        // after the first inner flatMap returns so dropping Env restoration fails immediately.
+        let inner_tpe = SType::SColl(Arc::new(SType::SLong));
+        let mid_tpe = SType::SColl(Arc::new(inner_tpe.clone()));
+        let outer_const = Constant {
+            tpe: SType::SColl(Arc::new(mid_tpe.clone())),
+            v: Literal::Coll(CollKind::WrappedColl {
+                items: Arc::new([
+                    Literal::Coll(CollKind::WrappedColl {
+                        items: Arc::new([vec![1i64, 2i64].into()]),
+                        elem_tpe: inner_tpe.clone(),
+                    }),
+                    Literal::Coll(CollKind::WrappedColl {
+                        items: Arc::new([vec![3i64, 4i64].into()]),
+                        elem_tpe: inner_tpe.clone(),
+                    }),
+                ]),
+                elem_tpe: mid_tpe.clone(),
+            }),
+        };
+        let inner_body: Expr = MethodCall::new(
+            ValUse {
+                val_id: 1.into(),
+                tpe: inner_tpe.clone(),
+            }
+            .into(),
+            scoll::UPDATED_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![0i32.into(), 9i64.into()],
+        )
+        .unwrap()
+        .into();
+        let inner_flatmap: Expr = MethodCall::new(
+            ValUse {
+                val_id: 1.into(),
+                tpe: mid_tpe.clone(),
+            }
+            .into(),
+            scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::iv(), inner_tpe.clone()),
+                    (STypeVar::ov(), SType::SLong),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: inner_tpe.clone(),
+                }],
+                inner_body,
+            )
+            .into()],
+        )
+        .unwrap()
+        .into();
+        let outer_read_after_inner: Expr = MethodCall::new(
+            ValUse {
+                val_id: 1.into(),
+                tpe: mid_tpe.clone(),
+            }
+            .into(),
+            scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::iv(), inner_tpe.clone()),
+                    (STypeVar::ov(), SType::SLong),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: inner_tpe.clone(),
+                }],
+                ValUse {
+                    val_id: 1.into(),
+                    tpe: inner_tpe,
+                }
+                .into(),
+            )
+            .into()],
+        )
+        .unwrap()
+        .into();
+        let outer_body: Expr = MethodCall::new(
+            inner_flatmap,
+            scoll::PATCH_METHOD
+                .clone()
+                .with_concrete_types(&[(STypeVar::t(), SType::SLong)].iter().cloned().collect()),
+            vec![0i32.into(), outer_read_after_inner, 0i32.into()],
+        )
+        .unwrap()
+        .into();
+        let expr: Expr = MethodCall::new(
+            outer_const.into(),
+            scoll::FLATMAP_METHOD.clone().with_concrete_types(
+                &[
+                    (STypeVar::iv(), mid_tpe.clone()),
+                    (STypeVar::ov(), SType::SLong),
+                ]
+                .iter()
+                .cloned()
+                .collect(),
+            ),
+            vec![FuncValue::new(
+                vec![FuncArg {
+                    idx: 1.into(),
+                    tpe: mid_tpe,
+                }],
+                outer_body,
+            )
+            .into()],
+        )
+        .unwrap()
+        .into();
+        let res = eval_out_wo_ctx::<Vec<i64>>(&expr);
+        assert_eq!(res, vec![1, 2, 9, 2, 3, 4, 9, 4]);
     }
 
     #[test]
