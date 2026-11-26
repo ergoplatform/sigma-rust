@@ -66,6 +66,59 @@ where
         .map(|t| t.into()) // convert T to Value
 }
 
+trait SignedIntDivRem: Copy {
+    fn jvm_div(self, rhs: Self) -> Option<Self>;
+    fn jvm_rem(self, rhs: Self) -> Option<Self>;
+}
+
+macro_rules! impl_signed_int_div_rem {
+    ($($t:ty),+) => {
+        $(
+            impl SignedIntDivRem for $t {
+                fn jvm_div(self, rhs: Self) -> Option<Self> {
+                    if rhs == 0 {
+                        None
+                    } else {
+                        Some(self.wrapping_div(rhs))
+                    }
+                }
+
+                fn jvm_rem(self, rhs: Self) -> Option<Self> {
+                    if rhs == 0 {
+                        None
+                    } else {
+                        Some(self.wrapping_rem(rhs))
+                    }
+                }
+            }
+        )+
+    };
+}
+
+impl_signed_int_div_rem!(i8, i16, i32, i64);
+
+fn eval_int_div<'ctx, T>(lv_raw: T, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalError>
+where
+    T: SignedIntDivRem + TryExtractFrom<Value<'ctx>> + Into<Value<'ctx>> + core::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    lv_raw
+        .jvm_div(rv_raw)
+        .ok_or_else(|| arithmetic_err("/", lv_raw, rv_raw, "exception"))
+        .map(|t| t.into())
+}
+
+fn eval_int_mod<'ctx, T>(lv_raw: T, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalError>
+where
+    T: SignedIntDivRem + TryExtractFrom<Value<'ctx>> + Into<Value<'ctx>> + core::fmt::Display,
+{
+    let rv_raw = rv.try_extract_into::<T>()?;
+    lv_raw
+        .jvm_rem(rv_raw)
+        .ok_or_else(|| arithmetic_err("%", lv_raw, rv_raw, "exception"))
+        .map(|t| t.into())
+}
+
 fn eval_div<'ctx, T>(lv_raw: T, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalError>
 where
     T: Num + CheckedDiv + TryExtractFrom<Value<'ctx>> + Into<Value<'ctx>> + core::fmt::Display,
@@ -253,11 +306,12 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::Divide => match lv {
-                    Value::Byte(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_div(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_div(lv_raw, rv()?),
-                    // MIN / -1  can actually overflow
+                    Value::Byte(lv_raw) => eval_int_div(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_int_div(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_int_div(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_int_div(lv_raw, rv()?),
+                    // Keep BigInt256 on checked eval_div (rejecting MIN / -1, matching JVM v3+;
+                    // v0-v2 CBigInt range behavior is tracked separately in #1004).
                     Value::BigInt(lv_raw) => eval_div(lv_raw, rv()?),
                     Value::UnsignedBigInt(lv_raw) => eval_div(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
@@ -290,10 +344,10 @@ impl Evaluable for BinOp {
                     ))),
                 },
                 ArithOp::Modulo => match lv {
-                    Value::Byte(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Short(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Int(lv_raw) => eval_mod(lv_raw, rv()?),
-                    Value::Long(lv_raw) => eval_mod(lv_raw, rv()?),
+                    Value::Byte(lv_raw) => eval_int_mod(lv_raw, rv()?),
+                    Value::Short(lv_raw) => eval_int_mod(lv_raw, rv()?),
+                    Value::Int(lv_raw) => eval_int_mod(lv_raw, rv()?),
+                    Value::Long(lv_raw) => eval_int_mod(lv_raw, rv()?),
                     Value::BigInt(lv_raw) => eval_mod(lv_raw, rv()?),
                     Value::UnsignedBigInt(lv_raw) => eval_mod(lv_raw, rv()?),
                     _ => Err(EvalError::UnexpectedValue(format!(
@@ -549,6 +603,49 @@ mod tests {
         assert_eq!(eval_bit_op(BitOp::BitXor, max(), min()), Ok(b(-1)));
     }
 
+    #[test]
+    fn test_signed_int_min_div_rem_neg_one() {
+        // Reference sigmastate-interpreter ExactIntegral.{Byte,Short,Int,Long}IsExactIntegral
+        // delegates quot/divisionRemainder to Scala/JVM Integral.quot/rem:
+        // MIN / -1 wraps to MIN and MIN % -1 == 0, while division/modulo by 0 throws.
+        assert_eq!(eval_arith_op(ArithOp::Divide, i8::MIN, -1i8), Ok(i8::MIN));
+        assert_eq!(eval_arith_op(ArithOp::Modulo, i8::MIN, -1i8), Ok(0i8));
+        assert!(eval_arith_op(ArithOp::Divide, i8::MIN, 0i8).is_err());
+        assert!(eval_arith_op(ArithOp::Modulo, i8::MIN, 0i8).is_err());
+
+        assert_eq!(
+            eval_arith_op(ArithOp::Divide, i16::MIN, -1i16),
+            Ok(i16::MIN)
+        );
+        assert_eq!(eval_arith_op(ArithOp::Modulo, i16::MIN, -1i16), Ok(0i16));
+        assert!(eval_arith_op(ArithOp::Divide, i16::MIN, 0i16).is_err());
+        assert!(eval_arith_op(ArithOp::Modulo, i16::MIN, 0i16).is_err());
+
+        assert_eq!(
+            eval_arith_op(ArithOp::Divide, i32::MIN, -1i32),
+            Ok(i32::MIN)
+        );
+        assert_eq!(eval_arith_op(ArithOp::Modulo, i32::MIN, -1i32), Ok(0i32));
+        assert!(eval_arith_op(ArithOp::Divide, i32::MIN, 0i32).is_err());
+        assert!(eval_arith_op(ArithOp::Modulo, i32::MIN, 0i32).is_err());
+
+        assert_eq!(
+            eval_arith_op(ArithOp::Divide, i64::MIN, -1i64),
+            Ok(i64::MIN)
+        );
+        assert_eq!(eval_arith_op(ArithOp::Modulo, i64::MIN, -1i64), Ok(0i64));
+        assert!(eval_arith_op(ArithOp::Divide, i64::MIN, 0i64).is_err());
+        assert!(eval_arith_op(ArithOp::Modulo, i64::MIN, 0i64).is_err());
+
+        // Truncation-toward-zero sign semantics remain unchanged for negative operands.
+        assert_eq!(eval_arith_op(ArithOp::Divide, -7i32, 2i32), Ok(-3i32));
+        assert_eq!(eval_arith_op(ArithOp::Modulo, -7i32, 2i32), Ok(-1i32));
+        assert_eq!(eval_arith_op(ArithOp::Divide, 7i32, -2i32), Ok(-3i32));
+        assert_eq!(eval_arith_op(ArithOp::Modulo, 7i32, -2i32), Ok(1i32));
+        assert_eq!(eval_arith_op(ArithOp::Divide, -7i32, -2i32), Ok(3i32));
+        assert_eq!(eval_arith_op(ArithOp::Modulo, -7i32, -2i32), Ok(-1i32));
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(32))]
@@ -563,8 +660,8 @@ mod tests {
             prop_assert_eq!(eval_arith_op(ArithOp::Plus, l, r).ok(), l.checked_add(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Minus, l, r).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Multiply, l, r).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), l.checked_div(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), l.checked_rem(r));
+            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), (r != 0).then(|| l.wrapping_div(r)));
+            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), (r != 0).then(|| l.wrapping_rem(r)));
             prop_assert_eq!(eval_arith_op::<i64>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i64>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
@@ -583,8 +680,8 @@ mod tests {
             prop_assert_eq!(eval_arith_op(ArithOp::Plus, l, r).ok(), l.checked_add(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Minus, l, r).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Multiply, l, r).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), l.checked_div(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), l.checked_rem(r));
+            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), (r != 0).then(|| l.wrapping_div(r)));
+            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), (r != 0).then(|| l.wrapping_rem(r)));
             prop_assert_eq!(eval_arith_op::<i32>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i32>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
@@ -603,8 +700,8 @@ mod tests {
             prop_assert_eq!(eval_arith_op(ArithOp::Plus, l, r).ok(), l.checked_add(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Minus, l, r).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Multiply, l, r).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), l.checked_div(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), l.checked_rem(r));
+            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), (r != 0).then(|| l.wrapping_div(r)));
+            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), (r != 0).then(|| l.wrapping_rem(r)));
             prop_assert_eq!(eval_arith_op::<i16>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i16>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
@@ -623,8 +720,8 @@ mod tests {
             prop_assert_eq!(eval_arith_op(ArithOp::Plus, l, r).ok(), l.checked_add(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Minus, l, r).ok(), l.checked_sub(r));
             prop_assert_eq!(eval_arith_op(ArithOp::Multiply, l, r).ok(), l.checked_mul(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), l.checked_div(r));
-            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), l.checked_rem(r));
+            prop_assert_eq!(eval_arith_op(ArithOp::Divide, l, r).ok(), (r != 0).then(|| l.wrapping_div(r)));
+            prop_assert_eq!(eval_arith_op(ArithOp::Modulo, l, r).ok(), (r != 0).then(|| l.wrapping_rem(r)));
             prop_assert_eq!(eval_arith_op::<i8>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i8>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
