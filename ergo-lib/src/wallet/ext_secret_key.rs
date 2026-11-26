@@ -75,6 +75,9 @@ impl ExtSecretKey {
     ) -> Result<Self, ExtSecretKeyError> {
         let private_input =
             Wscalar::from_bytes(&secret_key_bytes).ok_or(ExtSecretKeyError::ScalarEncodingError)?;
+        if private_input.is_zero() {
+            return Err(ExtSecretKeyError::ScalarEncodingError);
+        }
         Ok(Self {
             private_input,
             chain_code,
@@ -439,5 +442,28 @@ mod tests {
         let expected_p2pk1 = "9iBhwkjzUAVBkdxWvKmk7ab7nFgZRFbGpXA9gP6TAoakFnLNomk";
 
         assert_eq!(expected_p2pk1, mainnet_p2pk1.to_base58());
+    }
+
+    #[test]
+    fn ext_secret_key_new_rejects_zero_and_out_of_range_scalars() {
+        let chain_code = [0x11u8; 32];
+        assert_eq!(
+            ExtSecretKey::new([0u8; 32], chain_code, DerivationPath::master_path()),
+            Err(ExtSecretKeyError::ScalarEncodingError)
+        );
+        // secp256k1 group order n
+        let order_n: SecretKeyBytes =
+            base16::decode(b"fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141")
+                .unwrap()
+                .try_into()
+                .unwrap();
+        assert_eq!(
+            ExtSecretKey::new(order_n, chain_code, DerivationPath::master_path()),
+            Err(ExtSecretKeyError::ScalarEncodingError)
+        );
+        // Scalar 1 is valid
+        let mut one = [0u8; 32];
+        one[31] = 1;
+        assert!(ExtSecretKey::new(one, chain_code, DerivationPath::master_path()).is_ok());
     }
 }

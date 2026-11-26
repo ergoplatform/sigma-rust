@@ -20,16 +20,29 @@ use super::GroupSizedBytes;
 use super::SOUNDNESS_BYTES;
 
 #[derive(PartialEq, Eq, From, Into, Clone)]
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "json",
-    serde(
-        try_from = "ergo_chain_types::Base16DecodedBytes",
-        into = "ergo_chain_types::Base16EncodedBytes"
-    )
-)]
+#[cfg_attr(feature = "json", derive(serde::Serialize))]
+#[cfg_attr(feature = "json", serde(into = "ergo_chain_types::Base16EncodedBytes"))]
 /// Wrapper for Scalar mainly for Arbitrary impl and JSON encoding
 pub struct Wscalar(Scalar);
+
+#[cfg(feature = "json")]
+impl<'de> serde::Deserialize<'de> for Wscalar {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let decoded = Base16DecodedBytes::deserialize(deserializer)?;
+        let bytes: [u8; Self::SIZE_BYTES] = decoded.0.as_slice().try_into().map_err(|_| {
+            serde::de::Error::custom(alloc::format!(
+                "expected {} scalar bytes, got {}",
+                Self::SIZE_BYTES,
+                decoded.0.len()
+            ))
+        })?;
+        Wscalar::from_bytes(&bytes)
+            .ok_or_else(|| serde::de::Error::custom("scalar value out of range [0, n)"))
+    }
+}
 
 impl Wscalar {
     /// Scalar(secret key) size in bytes
@@ -127,5 +140,56 @@ mod arbitrary {
                 })
                 .boxed()
         }
+    }
+}
+
+#[cfg(all(test, feature = "json"))]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_deserialize_rejects_out_of_range_and_wrong_length_scalars() {
+        // Valid scalars: 0, 1, n - 1
+        let zero: Wscalar = serde_json::from_str(
+            "\"0000000000000000000000000000000000000000000000000000000000000000\"",
+        )
+        .unwrap();
+        assert!(zero.is_zero());
+
+        let one: Wscalar = serde_json::from_str(
+            "\"0000000000000000000000000000000000000000000000000000000000000001\"",
+        )
+        .unwrap();
+        assert!(!one.is_zero());
+
+        // n - 1 = fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140
+        assert!(serde_json::from_str::<Wscalar>(
+            "\"fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140\""
+        )
+        .is_ok());
+
+        // Out-of-range scalars (>= n) must fail rather than silently reducing mod n:
+        // n = fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
+        assert!(serde_json::from_str::<Wscalar>(
+            "\"fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141\""
+        )
+        .is_err());
+        // n + 1
+        assert!(serde_json::from_str::<Wscalar>(
+            "\"fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142\""
+        )
+        .is_err());
+        // 2^256 - 1
+        assert!(serde_json::from_str::<Wscalar>(
+            "\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\""
+        )
+        .is_err());
+        // Wrong lengths
+        assert!(serde_json::from_str::<Wscalar>("\"01\"").is_err());
+        assert!(serde_json::from_str::<Wscalar>(
+            "\"000000000000000000000000000000000000000000000000000000000000000100\""
+        )
+        .is_err());
     }
 }
