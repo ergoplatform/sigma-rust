@@ -306,7 +306,9 @@ impl SigmaSerializable for Transaction {
                     data_inputs.push(DataInput::sigma_parse(r)?);
                 }
 
-                // parse distinct ids of tokens in transaction outputs
+                // parse ids of tokens in transaction outputs positionally, matching
+                // sigmastate's `ErgoLikeTransactionSerializer.parse` (which indexes
+                // directly into the wire `Array[TokenId]` without deduplicating)
                 let tokens_count = r.get_u32()?;
                 if tokens_count as usize
                     > Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT
@@ -315,16 +317,16 @@ impl SigmaSerializable for Transaction {
                         "too many tokens in transaction".to_string(),
                     ));
                 }
-                let mut token_ids = IndexSet::with_hasher(Default::default());
+                let mut token_ids = Vec::new();
                 for _ in 0..tokens_count {
-                    token_ids.insert(TokenId::sigma_parse(r)?);
+                    token_ids.push(TokenId::sigma_parse(r)?);
                 }
 
                 // parse outputs
                 let outputs_count = r.get_u16()?;
                 let mut outputs = Vec::new();
                 for _ in 0..outputs_count {
-                    outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests(
+                    outputs.push(ErgoBoxCandidate::parse_body_with_indexed_digests_slice(
                         Some(&token_ids),
                         r,
                     )?)
@@ -684,5 +686,158 @@ mod tests {
                 Err(SigmaParsingError::InvalidTypeCode(112))
             ));
         }
+    }
+
+    /// Build raw wire transaction bytes with an explicit positional token table and one
+    /// output referencing `(digest_index, amount)`.
+    fn wire_tx_with_token_table(
+        token_table: &[TokenId],
+        output_token_refs: &[(u32, u64)],
+    ) -> Vec<u8> {
+        use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        use std::io::Write;
+
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut data, None);
+        // 1 input with empty proof and empty context extension
+        w.put_u16(1).unwrap();
+        w.write_all(
+            &base16::decode("a05d90c50251aea28100ccaa1da38004fb5a04154bfa300a600f3c10d130816a")
+                .unwrap(),
+        )
+        .unwrap();
+        w.put_u16(0).unwrap(); // empty proof bytes
+        w.put_u8(0).unwrap(); // empty context extension
+                              // 0 data inputs
+        w.put_u16(0).unwrap();
+        // positional wire token table (may contain duplicate TokenIds)
+        w.put_u32(token_table.len() as u32).unwrap();
+        for tid in token_table {
+            tid.sigma_serialize(&mut w).unwrap();
+        }
+        // 1 output referencing token_table by positional digest index
+        w.put_u16(1).unwrap();
+        w.put_u64(1_000_000_000).unwrap(); // 1 ERG
+        w.write_all(&[0x00, 0x08, 0xd3]).unwrap(); // sigmaProp(true)
+        w.put_u32(1).unwrap(); // creation_height
+        w.put_u8(output_token_refs.len() as u8).unwrap();
+        for &(digest_idx, amount) in output_token_refs {
+            w.put_u32(digest_idx).unwrap();
+            w.put_u64(amount).unwrap();
+        }
+        w.put_u8(0).unwrap(); // 0 additional registers
+        data
+    }
+
+    #[test]
+    fn transaction_parse_duplicate_token_table_resolves_positional_index() {
+        use ergo_chain_types::Digest32;
+        use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+        use ergotree_ir::chain::ergo_box::{BoxTokens, ErgoBoxCandidate, NonMandatoryRegisters};
+        use ergotree_ir::chain::token::{Token, TokenAmount};
+        use ergotree_ir::ergo_tree::ErgoTree;
+
+        let t_a: TokenId = Digest32::from([0xaa; 32]).into();
+        let t_b: TokenId = Digest32::from([0xbb; 32]).into();
+        let t_c: TokenId = Digest32::from([0xcc; 32]).into();
+
+        // Duplicate entry at indices 0 and 1 shifts subsequent entries if deduplicated into an
+        // IndexSet; positional indexing (matching sigmastate's Array[TokenId]) must resolve
+        // digest index 2 to `t_b`, not `t_c`.
+        let wire = wire_tx_with_token_table(&[t_a, t_a, t_b, t_c], &[(2, 10)]);
+        let parsed = Transaction::sigma_parse_bytes(&wire).unwrap();
+
+        let parsed_tokens = parsed.output_candidates.first().tokens.as_ref().unwrap();
+        assert_eq!(parsed_tokens.len(), 1);
+        assert_eq!(parsed_tokens.first().token_id, t_b);
+        assert_eq!(u64::from(parsed_tokens.first().amount), 10);
+
+        // Compare BoxId, TxId, and bytes_to_sign against the canonical transaction holding `t_b`.
+        let canonical = Transaction::new_from_vec(
+            parsed.inputs.as_vec().clone(),
+            vec![],
+            vec![ErgoBoxCandidate {
+                value: BoxValue::try_from(1_000_000_000u64).unwrap(),
+                ergo_tree: ErgoTree::sigma_parse_bytes(&[0x00, 0x08, 0xd3]).unwrap(),
+                tokens: Some(
+                    BoxTokens::from_vec(vec![Token {
+                        token_id: t_b,
+                        amount: TokenAmount::try_from(10u64).unwrap(),
+                    }])
+                    .unwrap(),
+                ),
+                additional_registers: NonMandatoryRegisters::empty(),
+                creation_height: 1,
+            }],
+        )
+        .unwrap();
+        assert_eq!(parsed.id(), canonical.id());
+        assert_eq!(
+            parsed.outputs.first().box_id(),
+            canonical.outputs.first().box_id()
+        );
+        assert_eq!(
+            parsed.bytes_to_sign().unwrap(),
+            canonical.bytes_to_sign().unwrap()
+        );
+    }
+
+    #[test]
+    fn transaction_parse_duplicate_token_table_last_index_succeeds() {
+        use ergo_chain_types::Digest32;
+
+        let t_a: TokenId = Digest32::from([0x11; 32]).into();
+        let t_b: TokenId = Digest32::from([0x22; 32]).into();
+
+        // Wire token table length is 3; deduplicating would shrink it to 2 and wrongly reject
+        // valid index 2.
+        let wire = wire_tx_with_token_table(&[t_a, t_a, t_b], &[(2, 5)]);
+        let parsed = Transaction::sigma_parse_bytes(&wire).unwrap();
+        let parsed_tokens = parsed.output_candidates.first().tokens.as_ref().unwrap();
+        assert_eq!(parsed_tokens.len(), 1);
+        assert_eq!(parsed_tokens.first().token_id, t_b);
+        assert_eq!(u64::from(parsed_tokens.first().amount), 5);
+    }
+
+    #[test]
+    fn transaction_parse_duplicate_token_table_oob_index_errors() {
+        use ergo_chain_types::Digest32;
+
+        let t_a: TokenId = Digest32::from([0x11; 32]).into();
+        let t_b: TokenId = Digest32::from([0x22; 32]).into();
+
+        let wire = wire_tx_with_token_table(&[t_a, t_a, t_b], &[(3, 5)]);
+        assert!(matches!(
+            Transaction::sigma_parse_bytes(&wire),
+            Err(SigmaParsingError::Misc(_))
+        ));
+    }
+
+    #[test]
+    fn transaction_parse_huge_tokens_count_returns_err() {
+        use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+
+        let max_tokens = (Transaction::MAX_OUTPUTS_COUNT * ErgoBox::MAX_TOKENS_COUNT) as u32;
+
+        // At cap with EOF: must return Err without pre-allocating a multi-hundred-MB Vec.
+        let mut at_cap = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut at_cap, None);
+        w.put_u16(0).unwrap(); // inputs
+        w.put_u16(0).unwrap(); // data inputs
+        w.put_u32(max_tokens).unwrap(); // tokens_count at cap, truncated stream
+        assert!(Transaction::sigma_parse_bytes(&at_cap).is_err());
+
+        // Above cap: must fail with ValueOutOfBounds.
+        let mut over_cap = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut over_cap, None);
+        w.put_u16(0).unwrap();
+        w.put_u16(0).unwrap();
+        w.put_u32(max_tokens + 1).unwrap();
+        assert!(matches!(
+            Transaction::sigma_parse_bytes(&over_cap),
+            Err(SigmaParsingError::ValueOutOfBounds(_))
+        ));
     }
 }

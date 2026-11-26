@@ -275,6 +275,14 @@ impl ErgoBoxCandidate {
     ) -> Result<ErgoBoxCandidate, SigmaParsingError> {
         parse_box_with_indexed_digests(digests_in_tx, r)
     }
+
+    /// Box deserialization with positional token ids optionally parsed in transaction
+    pub fn parse_body_with_indexed_digests_slice<R: SigmaByteRead>(
+        digests_in_tx: Option<&[TokenId]>,
+        r: &mut R,
+    ) -> Result<ErgoBoxCandidate, SigmaParsingError> {
+        parse_box_with_indexed_digests_slice(digests_in_tx, r)
+    }
 }
 
 impl SigmaSerializable for ErgoBoxCandidate {
@@ -341,9 +349,38 @@ pub fn serialize_box_with_indexed_digests<W: SigmaByteWrite>(
     additional_registers.sigma_serialize(w)
 }
 
+enum IndexedDigests<'a> {
+    Set(&'a IndexSet<TokenId>),
+    Slice(&'a [TokenId]),
+}
+
+impl IndexedDigests<'_> {
+    fn get(&self, idx: usize) -> Option<TokenId> {
+        match self {
+            Self::Set(set) => set.get_index(idx).copied(),
+            Self::Slice(slice) => slice.get(idx).copied(),
+        }
+    }
+}
+
 /// Box deserialization with token ids optionally parsed in transaction
 pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     digests_in_tx: Option<&IndexSet<TokenId>>,
+    r: &mut R,
+) -> Result<ErgoBoxCandidate, SigmaParsingError> {
+    parse_box_with_indexed_digests_inner(digests_in_tx.map(IndexedDigests::Set), r)
+}
+
+/// Box deserialization with positional token ids optionally parsed in transaction
+pub fn parse_box_with_indexed_digests_slice<R: SigmaByteRead>(
+    digests_in_tx: Option<&[TokenId]>,
+    r: &mut R,
+) -> Result<ErgoBoxCandidate, SigmaParsingError> {
+    parse_box_with_indexed_digests_inner(digests_in_tx.map(IndexedDigests::Slice), r)
+}
+
+fn parse_box_with_indexed_digests_inner<R: SigmaByteRead>(
+    digests_in_tx: Option<IndexedDigests<'_>>,
     r: &mut R,
 ) -> Result<ErgoBoxCandidate, SigmaParsingError> {
     // reference implementation -https://github.com/ScorexFoundation/sigmastate-interpreter/blob/9b20cb110effd1987ff76699d637174a4b2fb441/sigmastate/src/main/scala/org/ergoplatform/ErgoBoxCandidate.scala#L144-L144
@@ -364,12 +401,12 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
     let tokens_count = r.get_u8()?;
     let mut tokens = Vec::with_capacity(tokens_count as usize);
     for _ in 0..tokens_count {
-        let token_id = match digests_in_tx {
+        let token_id = match &digests_in_tx {
             None => TokenId::sigma_parse(r)?,
             Some(digests) => {
                 let digest_index = r.get_u32()?;
-                match digests.get_index(digest_index as usize) {
-                    Some(i) => Ok(*i),
+                match digests.get(digest_index as usize) {
+                    Some(i) => Ok(i),
                     None => Err(SigmaParsingError::Misc(
                         "failed to find token id in tx digests".to_string(),
                     )),
@@ -656,6 +693,98 @@ mod tests {
         assert!(ErgoBoxCandidate::sigma_parse_bytes(&bytes).is_err());
         // 256 is unrepresentable (single count byte on the wire)
         assert!(BoxTokens::from_vec(minimal_tokens_vec(256)).is_err());
+    }
+
+    #[test]
+    fn parse_body_with_indexed_digests_slice_preserves_duplicate_positions() {
+        use crate::serialization::sigma_byte_reader::from_bytes;
+        use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+        use sigma_ser::vlq_encode::WriteSigmaVlqExt;
+        use std::io::Write;
+
+        let t_a: TokenId = Digest32::from([0x11; 32]).into();
+        let t_b: TokenId = Digest32::from([0x22; 32]).into();
+        let digests_slice = [t_a, t_a, t_b];
+
+        let mut body = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut body, None);
+        BoxValue::MIN.sigma_serialize(&mut w).unwrap();
+        w.write_all(&small_tree().sigma_serialize_bytes().unwrap())
+            .unwrap();
+        w.put_u32(1).unwrap(); // creation_height
+        w.put_u8(1).unwrap(); // tokens_count
+        w.put_u32(2).unwrap(); // index 2 -> t_b in [t_a, t_a, t_b]
+        w.put_u64(7).unwrap(); // amount
+        NonMandatoryRegisters::empty()
+            .sigma_serialize(&mut w)
+            .unwrap();
+
+        let parsed = ErgoBoxCandidate::parse_body_with_indexed_digests_slice(
+            Some(&digests_slice),
+            &mut from_bytes(&body),
+        )
+        .unwrap();
+        let parsed_tokens = parsed.tokens.as_ref().unwrap();
+        assert_eq!(parsed_tokens.len(), 1);
+        assert_eq!(parsed_tokens.first().token_id, t_b);
+        assert_eq!(u64::from(parsed_tokens.first().amount), 7);
+
+        // First out-of-bounds index (3 for a 3-entry slice) must fail.
+        let mut oob_body = Vec::new();
+        let mut w = SigmaByteWriter::new(&mut oob_body, None);
+        BoxValue::MIN.sigma_serialize(&mut w).unwrap();
+        w.write_all(&small_tree().sigma_serialize_bytes().unwrap())
+            .unwrap();
+        w.put_u32(1).unwrap();
+        w.put_u8(1).unwrap();
+        w.put_u32(3).unwrap();
+        w.put_u64(7).unwrap();
+        NonMandatoryRegisters::empty()
+            .sigma_serialize(&mut w)
+            .unwrap();
+        assert!(matches!(
+            ErgoBoxCandidate::parse_body_with_indexed_digests_slice(
+                Some(&digests_slice),
+                &mut from_bytes(&oob_body),
+            ),
+            Err(SigmaParsingError::Misc(_))
+        ));
+
+        // Existing `IndexSet` and `None` APIs remain source- and behavior-compatible.
+        let mut set = IndexSet::with_hasher(Default::default());
+        set.insert(t_a);
+        set.insert(t_b);
+        let candidate = windowed_candidate(
+            Some(
+                BoxTokens::from_vec(vec![Token {
+                    token_id: t_b,
+                    amount: TokenAmount::try_from(7u64).unwrap(),
+                }])
+                .unwrap(),
+            ),
+            NonMandatoryRegisters::empty(),
+        );
+        let mut set_body = Vec::new();
+        candidate
+            .serialize_body_with_indexed_digests(
+                Some(&set),
+                &mut SigmaByteWriter::new(&mut set_body, None),
+            )
+            .unwrap();
+        assert_eq!(
+            ErgoBoxCandidate::parse_body_with_indexed_digests(
+                Some(&set),
+                &mut from_bytes(&set_body)
+            )
+            .unwrap(),
+            candidate
+        );
+        let inline_bytes = candidate.sigma_serialize_bytes().unwrap();
+        assert_eq!(
+            ErgoBoxCandidate::parse_body_with_indexed_digests(None, &mut from_bytes(&inline_bytes))
+                .unwrap(),
+            candidate
+        );
     }
 
     proptest! {
