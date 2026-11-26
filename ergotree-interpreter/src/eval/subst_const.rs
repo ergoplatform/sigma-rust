@@ -30,19 +30,25 @@ impl Evaluable for SubstConstants {
             .map(|i| i as usize)
             .collect();
 
-        let new_constants = if let Value::Coll(CollKind::WrappedColl { items, .. }) = new_values_v {
-            let mut items_const = vec![];
-            for v in &*items {
-                let c = Constant::try_from(v.to_static()).map_err(EvalError::Misc)?;
-                items_const.push(c);
+        let new_constants: Vec<Constant> = match new_values_v {
+            Value::Coll(CollKind::WrappedColl { items, .. }) => {
+                let mut items_const = Vec::with_capacity(items.len());
+                for v in &*items {
+                    let c = Constant::try_from(v.to_static()).map_err(EvalError::Misc)?;
+                    items_const.push(c);
+                }
+                items_const
             }
-            items_const
-        } else {
-            return Err(EvalError::Misc(format!(
-                "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
+            Value::Coll(CollKind::NativeColl(NativeColl::CollByte(bytes))) => {
+                bytes.iter().map(|&b| Constant::from(b)).collect()
+            }
+            other => {
+                return Err(EvalError::Misc(format!(
+                    "SubstConstants: expected evaluation of `new_values` be of type `Coll[_]`, got \
                     {:?} instead",
-                new_values_v
-            )));
+                    other
+                )));
+            }
         };
 
         if new_constants.len() != positions.len() {
@@ -209,6 +215,64 @@ mod tests {
                 .sigma_serialize_bytes()
                 .unwrap();
             assert_eq!(b.as_vec_u8(), expected);
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn eval_byte_substitutions_native_coll_byte() {
+        // Template: (1i8 + 2i8) with two segregated SByte constants.
+        let orig_expr: Expr = BinOp {
+            kind: BinOpKind::Arith(ArithOp::Plus),
+            left: Box::new(Expr::Const(1i8.into())),
+            right: Box::new(Expr::Const(2i8.into())),
+        }
+        .into();
+        let ergo_tree = ErgoTree::new(ErgoTreeHeader::v0(true), &orig_expr).unwrap();
+        assert_eq!(ergo_tree.constants_len().unwrap(), 2);
+
+        let script_bytes: Box<Expr> =
+            Expr::Const(Constant::from(ergo_tree.sigma_serialize_bytes().unwrap())).into();
+        // `new_values` is `Coll[Byte]`, stored as `CollKind::NativeColl(NativeColl::CollByte)`.
+        let subst_const = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes: script_bytes.clone(),
+                positions: Expr::Const(Constant::from(vec![1i32, 0i32])).into(),
+                new_values: Expr::Const(Constant::from(vec![-5i8, 42i8])).into(),
+            }
+            .into(),
+        );
+
+        let x: Value = try_eval_out_wo_ctx(&subst_const).unwrap();
+        if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = x {
+            let expected_expr: Expr = BinOp {
+                kind: BinOpKind::Arith(ArithOp::Plus),
+                left: Box::new(Expr::Const(42i8.into())),
+                right: Box::new(Expr::Const((-5i8).into())),
+            }
+            .into();
+            let expected = ErgoTree::new(ErgoTreeHeader::v0(true), &expected_expr)
+                .unwrap()
+                .sigma_serialize_bytes()
+                .unwrap();
+            assert_eq!(b.as_vec_u8(), expected);
+        } else {
+            unreachable!();
+        }
+
+        // Empty `positions` and empty `Coll[Byte]` `new_values` should be a no-op.
+        let empty_subst = Expr::SubstConstants(
+            SubstConstants {
+                script_bytes,
+                positions: Expr::Const(Constant::from(Vec::<i32>::new())).into(),
+                new_values: Expr::Const(Constant::from(Vec::<i8>::new())).into(),
+            }
+            .into(),
+        );
+        let unchanged: Value = try_eval_out_wo_ctx(&empty_subst).unwrap();
+        if let Value::Coll(CollKind::NativeColl(NativeColl::CollByte(b))) = unchanged {
+            assert_eq!(b.as_vec_u8(), ergo_tree.sigma_serialize_bytes().unwrap());
         } else {
             unreachable!();
         }
