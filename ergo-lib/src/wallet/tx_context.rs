@@ -140,16 +140,19 @@ impl TransactionContext<Transaction> {
             ));
         }
 
-        // Monotonic Box creation happens after v3
+        // Monotonic Box creation happens after v3 (EIP-39).
+        // Creation heights are signed 32-bit integers on Ergo (v1 blocks could contain negative heights).
         let max_creation_height = if state_context.pre_header.version <= 2 {
-            0
+            None
         } else {
             #[allow(clippy::unwrap_used)] // Unwrap is valid here since inputs can not be empty
-            self.boxes_to_spend
-                .iter()
-                .map(|b| b.creation_height)
-                .max()
-                .unwrap()
+            Some(
+                self.boxes_to_spend
+                    .iter()
+                    .map(|b| b.creation_height as i32)
+                    .max()
+                    .unwrap(),
+            )
         };
         // Check that outputs are not dust and aren't created in future
         for output in &self.spending_tx.outputs {
@@ -176,13 +179,19 @@ impl TransactionContext<Transaction> {
 fn verify_output(
     state_context: &ErgoStateContext,
     output: &ErgoBox,
-    max_creation_height: u32,
+    max_creation_height: Option<i32>,
 ) -> Result<(), TxValidationError> {
     let box_size = output.sigma_serialize_bytes()?.len() as u64;
     let script_size = output.script_bytes()?.len();
     let block_version = state_context.pre_header.version;
-    // Check that output is not dust
-    let minimum_value = box_size * state_context.parameters.min_value_per_byte() as u64;
+    // Check that output is not dust. A non-positive min_value_per_byte produces a 0 floor
+    // instead of sign-extending negative i32 values into u64.
+    let min_value_per_byte = state_context.parameters.min_value_per_byte();
+    let minimum_value = if min_value_per_byte <= 0 {
+        0
+    } else {
+        box_size.saturating_mul(min_value_per_byte as u64)
+    };
     if *output.value.as_u64() < minimum_value {
         return Err(TxValidationError::DustOutput(
             output.box_id(),
@@ -196,15 +205,17 @@ fn verify_output(
             output.creation_height,
         ));
     }
-    if output.creation_height < max_creation_height {
-        return Err(TxValidationError::MonotonicHeightError(
-            output.creation_height,
-            max_creation_height,
-        ));
-    }
     // Negative output heights were allowed in V1. sigma-rust always stores heights as unsigned integers
-    if block_version != 1 && output.creation_height & (1 << 31) != 0 {
+    if block_version != 1 && (output.creation_height as i32) < 0 {
         return Err(TxValidationError::NegativeHeight);
+    }
+    if let Some(max_height) = max_creation_height {
+        if (output.creation_height as i32) < max_height {
+            return Err(TxValidationError::MonotonicHeightError(
+                output.creation_height,
+                max_height as u32,
+            ));
+        }
     }
     if box_size as usize > ErgoBox::MAX_BOX_SIZE {
         return Err(TxValidationError::BoxSizeExceeded(box_size as usize));
@@ -775,5 +786,129 @@ mod test {
                 other => panic!("Expected validation to fail, got {other:?}")
             }
         });
+    }
+
+    fn true_ergo_tree() -> ErgoTree {
+        ErgoTree::new(
+            ErgoTreeHeader::v0(true),
+            &Expr::Const(Constant {
+                tpe: ergotree_ir::types::stype::SType::SBoolean,
+                v: Literal::Boolean(true),
+            }),
+        )
+        .unwrap()
+    }
+
+    fn make_signed_true_tx(
+        input_heights: &[u32],
+        output_height: u32,
+        state_context: &ErgoStateContext,
+    ) -> TransactionContext<Transaction> {
+        let tree = true_ergo_tree();
+        let boxes: Vec<ErgoBox> = input_heights
+            .iter()
+            .enumerate()
+            .map(|(idx, &h)| {
+                ErgoBox::new(
+                    BoxValue::SAFE_USER_MIN,
+                    tree.clone(),
+                    None,
+                    NonMandatoryRegisters::empty(),
+                    h,
+                    ergotree_ir::chain::tx_id::TxId::zero(),
+                    idx as u16,
+                )
+                .unwrap()
+            })
+            .collect();
+        let total_val =
+            BoxValue::try_from(*BoxValue::SAFE_USER_MIN.as_u64() * boxes.len() as u64).unwrap();
+        let unsigned_inputs = boxes
+            .iter()
+            .map(|b| {
+                crate::chain::transaction::UnsignedInput::new(
+                    b.box_id(),
+                    ergotree_ir::chain::context_extension::ContextExtension::empty(),
+                )
+            })
+            .collect();
+        let output = ergotree_ir::chain::ergo_box::ErgoBoxCandidate {
+            value: total_val,
+            ergo_tree: tree,
+            tokens: None,
+            additional_registers: NonMandatoryRegisters::empty(),
+            creation_height: output_height,
+        };
+        let unsigned_tx = crate::chain::transaction::unsigned::UnsignedTransaction::new_from_vec(
+            unsigned_inputs,
+            vec![],
+            vec![output],
+        )
+        .unwrap();
+        let tx_context = TransactionContext::new(unsigned_tx, boxes.clone(), vec![]).unwrap();
+        let wallet = Wallet::from_secrets(vec![]);
+        let signed_tx = wallet
+            .sign_transaction(tx_context, state_context, None)
+            .unwrap();
+        TransactionContext::new(signed_tx, boxes, vec![]).unwrap()
+    }
+
+    #[test]
+    fn test_monotonic_height_v3_with_negative_v1_input_box() {
+        let mut state_context: ErgoStateContext = force_any_val();
+        state_context.pre_header.version = 3;
+        state_context.pre_header.height = 1000;
+        let neg_v1_height = (-5i32) as u32;
+
+        // Spending a historical v1 box with negative creation height (-5) in a v3 block
+        // must compare signed heights (-5 <= 100) instead of unsigned u32 (0xFFFFFFFB > 100).
+        let tx_ctx = make_signed_true_tx(&[neg_v1_height], 100, &state_context);
+        tx_ctx.validate(&state_context).unwrap();
+
+        // With both a negative v1 input (-5) and a positive input (500), signed max is 500.
+        let tx_ctx_low = make_signed_true_tx(&[neg_v1_height, 500], 400, &state_context);
+        assert!(matches!(
+            tx_ctx_low.validate(&state_context),
+            Err(TxValidationError::MonotonicHeightError(400, 500))
+        ));
+
+        let tx_ctx_ok = make_signed_true_tx(&[neg_v1_height, 500], 500, &state_context);
+        tx_ctx_ok.validate(&state_context).unwrap();
+    }
+
+    #[test]
+    fn test_negative_output_height_v1_allowed_v2_v3_rejected() {
+        let mut state_context: ErgoStateContext = force_any_val();
+        state_context.pre_header.height = 100;
+        let neg_height = (-10i32) as u32;
+
+        state_context.pre_header.version = 1;
+        let tx_ctx = make_signed_true_tx(&[0], neg_height, &state_context);
+        tx_ctx.validate(&state_context).unwrap();
+
+        state_context.pre_header.version = 2;
+        assert!(matches!(
+            tx_ctx.validate(&state_context),
+            Err(TxValidationError::NegativeHeight)
+        ));
+
+        state_context.pre_header.version = 3;
+        assert!(matches!(
+            tx_ctx.validate(&state_context),
+            Err(TxValidationError::NegativeHeight)
+        ));
+    }
+
+    #[test]
+    fn test_negative_min_value_per_byte_does_not_overflow() {
+        let mut state_context: ErgoStateContext = force_any_val();
+        state_context.pre_header.version = 3;
+        state_context.pre_header.height = 100;
+        state_context.parameters = crate::chain::parameters::Parameters::new(
+            3, 1250000, -1, 524288, 1000000, 100, 2000, 100, 100,
+        );
+
+        let tx_ctx = make_signed_true_tx(&[10], 50, &state_context);
+        tx_ctx.validate(&state_context).unwrap();
     }
 }
