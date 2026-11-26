@@ -66,14 +66,10 @@ impl UnsignedTransaction {
         data_inputs: Option<TxIoVec<DataInput>>,
         output_candidates: TxIoVec<ErgoBoxCandidate>,
     ) -> Result<UnsignedTransaction, SigmaSerializationError> {
-        #[allow(clippy::unwrap_used)] // box serialization cannot fail
         let outputs = output_candidates
-            .iter()
-            .enumerate()
-            .map(|(idx, b)| ErgoBox::from_box_candidate(b, TxId::zero(), idx as u16).unwrap())
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+            .clone()
+            .enumerated()
+            .try_mapped_ref(|(idx, b)| ErgoBox::from_box_candidate(b, TxId::zero(), *idx as u16))?;
 
         let tx_to_sign = UnsignedTransaction {
             tx_id: TxId::zero(),
@@ -171,5 +167,37 @@ mod tests {
             prop_assert!(!v.bytes_to_sign().unwrap().is_empty());
         }
 
+    }
+
+    #[test]
+    fn test_new_propagates_unserializable_candidate_error() {
+        use ergotree_ir::chain::ergo_box::box_value::BoxValue;
+        use ergotree_ir::chain::ergo_box::{NonMandatoryRegisters, RegisterValue};
+        use ergotree_ir::ergo_tree::ErgoTree;
+        use sigma_test_util::force_any_val;
+
+        let invalid_regs = NonMandatoryRegisters::try_from(vec![RegisterValue::Invalid {
+            bytes: vec![0xde, 0xad, 0xbe, 0xef],
+            error_msg: "invalid register bytes".into(),
+        }])
+        .unwrap();
+        let bad_candidate = ErgoBoxCandidate {
+            value: BoxValue::SAFE_USER_MIN,
+            ergo_tree: force_any_val::<ErgoTree>(),
+            tokens: None,
+            additional_registers: invalid_regs,
+            creation_height: 1,
+        };
+        let res = UnsignedTransaction::new_from_vec(
+            vec![force_any_val::<UnsignedInput>()],
+            vec![],
+            vec![bad_candidate],
+        );
+        assert!(matches!(
+            res,
+            Err(TransactionError::SigmaSerializationError(
+                SigmaSerializationError::NotSupported(_)
+            ))
+        ));
     }
 }
