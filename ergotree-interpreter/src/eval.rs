@@ -14,6 +14,7 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::types::smethod::SMethod;
 
 use self::env::Env;
+use self::error::ExtResultEvalError;
 use ergotree_ir::chain::context::Context;
 
 /// Environment for
@@ -130,28 +131,32 @@ pub struct ReductionResult {
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
     fn inner<'ctx>(expr: &'ctx Expr, ctx: &Context<'ctx>) -> Result<ReductionResult, EvalError> {
         let mut env_mut = Env::empty();
-        expr.eval(&mut env_mut, ctx)
-            .and_then(|v| -> Result<ReductionResult, EvalError> {
-                match v {
-                    Value::Boolean(b) => Ok(ReductionResult {
-                        sigma_prop: SigmaBoolean::TrivialProp(b),
-                        cost: 0,
-                        diag: ReductionDiagnosticInfo {
-                            env: env_mut.to_static(),
-                            pretty_printed_expr: None,
-                        },
-                    }),
-                    Value::SigmaProp(sp) => Ok(ReductionResult {
-                        sigma_prop: sp.value().clone(),
-                        cost: 0,
-                        diag: ReductionDiagnosticInfo {
-                            env: env_mut.to_static(),
-                            pretty_printed_expr: None,
-                        },
-                    }),
-                    _ => Err(EvalError::InvalidResultType),
-                }
-            })
+        let eval_res = match expr {
+            Expr::BlockValue(bv) => block::eval_keeping_env(bv.expr(), &mut env_mut, ctx)
+                .enrich_err(expr.span(), &env_mut),
+            _ => expr.eval(&mut env_mut, ctx),
+        };
+        eval_res.and_then(|v| -> Result<ReductionResult, EvalError> {
+            match v {
+                Value::Boolean(b) => Ok(ReductionResult {
+                    sigma_prop: SigmaBoolean::TrivialProp(b),
+                    cost: 0,
+                    diag: ReductionDiagnosticInfo {
+                        env: env_mut.to_static(),
+                        pretty_printed_expr: None,
+                    },
+                }),
+                Value::SigmaProp(sp) => Ok(ReductionResult {
+                    sigma_prop: sp.value().clone(),
+                    cost: 0,
+                    diag: ReductionDiagnosticInfo {
+                        env: env_mut.to_static(),
+                        pretty_printed_expr: None,
+                    },
+                }),
+                _ => Err(EvalError::InvalidResultType),
+            }
+        })
     }
 
     // The JVM interpreter wraps reduction in `withVersions(.., ergoTree.version)`;
