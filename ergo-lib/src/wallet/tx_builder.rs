@@ -29,9 +29,9 @@ use crate::chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandid
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::{DataInput, Input, Transaction, UnsignedInput};
 
+use super::box_selector::checked_sum_value;
 use super::box_selector::subtract_tokens;
 use super::box_selector::sum_tokens_from_boxes;
-use super::box_selector::sum_value;
 use super::box_selector::BoxSelection;
 use super::box_selector::ErgoBoxAssets;
 use super::box_selector::ErgoBoxId;
@@ -195,8 +195,12 @@ impl<S: ErgoBoxAssets + ErgoBoxId + Clone> TxBuilder<S> {
             return Err(TxBuilderError::InvalidArgs("too many outputs".to_string()));
         }
         // check input's coins preservation
-        let total_input_value = sum_value(self.box_selection.boxes.as_slice());
-        let total_output_value = sum_value(output_candidates.as_slice());
+        let total_input_value = checked_sum_value(self.box_selection.boxes.as_slice())
+            .ok_or_else(|| TxBuilderError::InvalidArgs("total input value overflow".to_string()))?;
+        let total_output_value =
+            checked_sum_value(output_candidates.as_slice()).ok_or_else(|| {
+                TxBuilderError::InvalidArgs("total output value overflow".to_string())
+            })?;
         #[allow(clippy::comparison_chain)]
         if total_output_value > total_input_value {
             return Err(TxBuilderError::NotEnoughCoinsInInputs(
@@ -428,6 +432,80 @@ mod tests {
             force_any_val::<Address>(),
         );
         assert!(matches!(r.build(), Err(TxBuilderError::InvalidArgs(_))));
+    }
+
+    #[test]
+    fn test_build_input_erg_sum_overflow_returns_err() {
+        let max_val = BoxValue::try_from(BoxValue::MAX_RAW).unwrap();
+        let fee = SUGGESTED_TX_FEE();
+        let make_box = |value: BoxValue, idx: u16| {
+            ErgoBox::new(
+                value,
+                force_any_val::<ErgoTree>(),
+                None,
+                NonMandatoryRegisters::empty(),
+                1,
+                force_any_val::<TxId>(),
+                idx,
+            )
+            .unwrap()
+        };
+        // Sum of [i64::MAX, i64::MAX, 100_000_000] wraps u64 modulo 2^64 to 99_999_998 in release
+        // builds, matching the output + fee sum if unchecked.
+        let extra = BoxValue::try_from(100_000_000u64).unwrap();
+        let wrapped_output = BoxValue::try_from(99_999_998u64 - *fee.as_u64()).unwrap();
+        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
+            boxes: vec![
+                make_box(max_val, 0),
+                make_box(max_val, 1),
+                make_box(extra, 2),
+            ]
+            .try_into()
+            .unwrap(),
+            change_boxes: vec![],
+        };
+        let out = ErgoBoxCandidateBuilder::new(wrapped_output, force_any_val::<ErgoTree>(), 1)
+            .build()
+            .unwrap();
+        let builder = TxBuilder::new(box_selection, vec![out], 1, fee, force_any_val::<Address>());
+        assert!(matches!(
+            builder.build(),
+            Err(TxBuilderError::InvalidArgs(_))
+        ));
+    }
+
+    #[test]
+    fn test_build_output_erg_sum_overflow_returns_err() {
+        let max_val = BoxValue::try_from(BoxValue::MAX_RAW).unwrap();
+        let fee = SUGGESTED_TX_FEE();
+        let input_box = ErgoBox::new(
+            BoxValue::try_from(100_000_000u64).unwrap(),
+            force_any_val::<ErgoTree>(),
+            None,
+            NonMandatoryRegisters::empty(),
+            1,
+            force_any_val::<TxId>(),
+            0,
+        )
+        .unwrap();
+        let box_selection: BoxSelection<ErgoBox> = BoxSelection {
+            boxes: vec![input_box].try_into().unwrap(),
+            change_boxes: vec![],
+        };
+        let out = ErgoBoxCandidateBuilder::new(max_val, force_any_val::<ErgoTree>(), 1)
+            .build()
+            .unwrap();
+        let builder = TxBuilder::new(
+            box_selection,
+            vec![out.clone(), out.clone(), out],
+            1,
+            fee,
+            force_any_val::<Address>(),
+        );
+        assert!(matches!(
+            builder.build(),
+            Err(TxBuilderError::InvalidArgs(_))
+        ));
     }
 
     #[test]

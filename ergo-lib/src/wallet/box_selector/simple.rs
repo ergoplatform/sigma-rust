@@ -4,7 +4,7 @@ use core::cmp::min;
 use core::convert::TryInto;
 use hashbrown::HashMap;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
@@ -14,9 +14,9 @@ use ergotree_ir::chain::token::TokenAmountError;
 use ergotree_ir::chain::token::TokenId;
 use thiserror::Error;
 
+use crate::wallet::box_selector::checked_sum_value;
 use crate::wallet::box_selector::sum_tokens;
 use crate::wallet::box_selector::sum_tokens_from_boxes;
-use crate::wallet::box_selector::sum_value;
 use crate::wallet::box_selector::ErgoBoxAssetsData;
 
 use super::sum_tokens_from_hashmaps;
@@ -85,7 +85,15 @@ impl<T: ErgoBoxAssets + Clone> BoxSelector<T> for SimpleBoxSelector {
                         .flatten()
                         .any(|t| target_tokens_left.contains_key(&t.token_id)))
             {
-                selected_boxes_value += u64::from(b.value());
+                selected_boxes_value = selected_boxes_value
+                    .checked_add(u64::from(b.value()))
+                    .filter(|&sum| sum <= BoxValue::MAX_RAW)
+                    .ok_or_else(|| {
+                        CheckPreservationError(format!(
+                            "total value of the selected boxes overflowed maximum allowed value ({})",
+                            BoxValue::MAX_RAW
+                        ))
+                    })?;
                 if selected_boxes_value > target_balance {
                     has_value_change = true;
                 }
@@ -197,9 +205,21 @@ fn check_input_preservation<T: ErgoBoxAssets>(
     target_balance: BoxValue,
     target_tokens: &[Token],
 ) -> Result<(), CheckPreservationError> {
-    let sum_selected_inputs = sum_value(selected_inputs);
-    let sum_change_boxes = sum_value(change_boxes);
-    if sum_selected_inputs != sum_change_boxes + target_balance.as_u64() {
+    let sum_selected_inputs = checked_sum_value(selected_inputs).ok_or_else(|| {
+        CheckPreservationError("total value of the selected boxes overflowed".to_string())
+    })?;
+    let sum_change_boxes = checked_sum_value(change_boxes).ok_or_else(|| {
+        CheckPreservationError("total value of the change boxes overflowed".to_string())
+    })?;
+    let expected_total = sum_change_boxes
+        .checked_add(*target_balance.as_u64())
+        .filter(|&sum| sum <= BoxValue::MAX_RAW)
+        .ok_or_else(|| {
+            CheckPreservationError(
+                "target balance + total value in change boxes overflowed".to_string(),
+            )
+        })?;
+    if sum_selected_inputs != expected_total {
         return Err(CheckPreservationError(
             format!("total value of the selected boxes {:?} should equal target balance {:?} + total value in change boxes {:?}", sum_selected_inputs, target_balance.as_u64(), sum_change_boxes)
         ));
@@ -319,6 +339,115 @@ mod tests {
         let inputs: Vec<ErgoBox> = vec![];
         let r = s.select(inputs, BoxValue::SAFE_USER_MIN, vec![].as_slice());
         assert!(r.is_err());
+    }
+
+    #[test]
+    fn test_select_erg_sum_overflow_returns_err() {
+        let token_id = TokenId::from(ergo_chain_types::Digest32::from([1u8; 32]));
+        let one = TokenAmount::try_from(1u64).unwrap();
+        let three = TokenAmount::try_from(3u64).unwrap();
+        let max_val = BoxValue::try_from(BoxValue::MAX_RAW).unwrap();
+        // Three boxes each carrying 1 unit of the target token and BoxValue::MAX_RAW ERG:
+        // selecting all 3 boxes overflows both i64::MAX and u64::MAX.
+        let inputs: Vec<ErgoBoxAssetsData> = (0..3)
+            .map(|_| ErgoBoxAssetsData {
+                value: max_val,
+                tokens: Some(
+                    BoxTokens::from_vec(vec![Token {
+                        token_id,
+                        amount: one,
+                    }])
+                    .unwrap(),
+                ),
+            })
+            .collect();
+        let target_token = Token {
+            token_id,
+            amount: three,
+        };
+        let res = SimpleBoxSelector::new().select(inputs, BoxValue::SAFE_USER_MIN, &[target_token]);
+        assert!(matches!(res, Err(BoxSelectorError::CheckPreservation(_))));
+    }
+
+    #[test]
+    fn test_check_input_preservation_overflow_returns_err() {
+        let max_val = BoxValue::try_from(BoxValue::MAX_RAW).unwrap();
+        let inputs = vec![
+            ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            },
+            ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            },
+            ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            },
+        ];
+        assert!(check_input_preservation(&inputs, &[], BoxValue::SAFE_USER_MIN, &[]).is_err());
+        assert!(check_input_preservation(
+            &[ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            }],
+            &[
+                ErgoBoxAssetsData {
+                    value: max_val,
+                    tokens: None,
+                },
+                ErgoBoxAssetsData {
+                    value: max_val,
+                    tokens: None,
+                },
+            ],
+            BoxValue::SAFE_USER_MIN,
+            &[],
+        )
+        .is_err());
+        // Wrap-collision case: [i64::MAX, i64::MAX, 100_000_000] wraps u64 mod 2^64 to
+        // 99_999_998, which equals (99_999_998 - SAFE_USER_MIN) + SAFE_USER_MIN on unchecked release builds.
+        let extra = BoxValue::try_from(100_000_000u64).unwrap();
+        let wrapped_change =
+            BoxValue::try_from(99_999_998u64 - *BoxValue::SAFE_USER_MIN.as_u64()).unwrap();
+        assert!(check_input_preservation(
+            &[
+                ErgoBoxAssetsData {
+                    value: max_val,
+                    tokens: None,
+                },
+                ErgoBoxAssetsData {
+                    value: max_val,
+                    tokens: None,
+                },
+                ErgoBoxAssetsData {
+                    value: extra,
+                    tokens: None,
+                },
+            ],
+            &[ErgoBoxAssetsData {
+                value: wrapped_change,
+                tokens: None,
+            }],
+            BoxValue::SAFE_USER_MIN,
+            &[],
+        )
+        .is_err());
+        // Change + target overflow case: max_val + SAFE_USER_MIN > BoxValue::MAX_RAW.
+        assert!(check_input_preservation(
+            &[ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            }],
+            &[ErgoBoxAssetsData {
+                value: max_val,
+                tokens: None,
+            }],
+            BoxValue::SAFE_USER_MIN,
+            &[],
+        )
+        .is_err());
     }
 
     proptest! {

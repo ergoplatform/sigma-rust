@@ -137,6 +137,14 @@ pub fn sum_value<T: ErgoBoxAssets>(bs: &[T]) -> u64 {
     bs.iter().map(|b| *b.value().as_u64()).sum()
 }
 
+/// Returns the total value of the given boxes, or `None` if any box or the running sum exceeds [`BoxValue::MAX_RAW`] (`i64::MAX`).
+pub(crate) fn checked_sum_value<T: ErgoBoxAssets>(bs: &[T]) -> Option<u64> {
+    bs.iter().try_fold(0u64, |acc, b| {
+        acc.checked_add(*b.value().as_u64())
+            .filter(|&sum| sum <= BoxValue::MAX_RAW)
+    })
+}
+
 /// Returns the total token amounts (all tokens combined)
 pub fn sum_tokens(ts: Option<&[Token]>) -> Result<HashMap<TokenId, TokenAmount>, TokenAmountError> {
     let mut res: HashMap<TokenId, TokenAmount> = HashMap::new();
@@ -302,10 +310,43 @@ mod tests {
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
 
+    use crate::wallet::box_selector::checked_sum_value;
     use crate::wallet::box_selector::sum_tokens;
     use crate::wallet::box_selector::sum_tokens_from_boxes;
 
     use super::ErgoBoxAssetsData;
+
+    #[test]
+    fn test_checked_sum_value() {
+        let empty: Vec<ErgoBoxAssetsData> = vec![];
+        assert_eq!(checked_sum_value(&empty), Some(0));
+
+        let max_val = BoxValue::try_from(BoxValue::MAX_RAW).unwrap();
+        let max_box = ErgoBoxAssetsData {
+            value: max_val,
+            tokens: None,
+        };
+        assert_eq!(
+            checked_sum_value(core::slice::from_ref(&max_box)),
+            Some(BoxValue::MAX_RAW)
+        );
+
+        let min_box = ErgoBoxAssetsData {
+            value: BoxValue::SAFE_USER_MIN,
+            tokens: None,
+        };
+        assert_eq!(checked_sum_value(&[max_box, min_box.clone()]), None);
+
+        // Out-of-range BoxValue (> BoxValue::MAX_RAW) constructed via FromStr/JSON must not
+        // wrap via signed casts or bypass the BoxValue::MAX_RAW upper bound.
+        let out_of_range: BoxValue = u64::MAX.to_string().parse().unwrap();
+        let huge_box = ErgoBoxAssetsData {
+            value: out_of_range,
+            tokens: None,
+        };
+        assert_eq!(checked_sum_value(core::slice::from_ref(&huge_box)), None);
+        assert_eq!(checked_sum_value(&[huge_box, min_box]), None);
+    }
 
     #[test]
     fn test_sum_tokens_repeating_token_id() {
