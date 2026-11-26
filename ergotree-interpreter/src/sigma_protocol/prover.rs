@@ -328,18 +328,23 @@ fn set_positions(uc: UnprovenConjecture) -> Result<UnprovenConjecture, ProverErr
 /// the choice can be guided by efficiency or convenience considerations.
 fn make_cor_children_simulated(cor: CorUnproven) -> Result<CorUnproven, ProverError> {
     let casted_children = cast_to_unp(cor.children)?;
-    let first_real_child = casted_children.iter().find(|it| it.is_real()).ok_or({
-        ProverError::Unexpected(
+    if !casted_children.iter().any(|it| it.is_real()) {
+        return Err(ProverError::Unexpected(
             "make_cor_children_simulated: no real child is found amoung Cor children",
-        )
-    })?;
+        ));
+    }
+    let mut real_found = false;
     let children = casted_children
-        .clone()
         .mapped(|c| {
-            if &c == first_real_child || c.simulated() {
-                c
+            if c.is_real() {
+                if real_found {
+                    c.with_simulated(true)
+                } else {
+                    real_found = true;
+                    c
+                }
             } else {
-                c.with_simulated(true)
+                c
             }
         })
         .mapped(|c| c.into());
@@ -1505,5 +1510,111 @@ mod tests {
         let ctx: Context = force_any_val::<Context>();
         let res = prover.prove(&tree, &ctx, message.as_slice(), &HintsBag::empty());
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_prove_cor_with_duplicate_real_children() {
+        use crate::sigma_protocol::verifier::{TestVerifier, Verifier};
+
+        let secret1 = DlogProverInput::random();
+        let secret2 = DlogProverInput::random();
+        let pk1 = secret1.public_image();
+        let pk2 = secret2.public_image();
+        let message = b"duplicate cor children test message";
+        let ctx: Context = force_any_val::<Context>();
+        let verifier = TestVerifier;
+
+        // Duplicate real leaf: pk1 || pk1 (even count previously produced an unverifiable proof)
+        let cor_dup_2: ErgoTree = Expr::SigmaOr(
+            SigmaOr::new(vec![
+                SigmaProp::from(pk1.clone()).into(),
+                SigmaProp::from(pk1.clone()).into(),
+            ])
+            .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        let prover1 = TestProver {
+            secrets: vec![secret1.clone().into()],
+        };
+        let proof2 = prover1
+            .prove(&cor_dup_2, &ctx, message, &HintsBag::empty())
+            .unwrap();
+        assert_ne!(proof2.proof, ProofBytes::Empty);
+        assert!(
+            verifier
+                .verify(&cor_dup_2, &ctx, proof2.proof, message)
+                .unwrap()
+                .result
+        );
+
+        // Three identical real leaves: pk1 || pk1 || pk1
+        let cor_dup_3: ErgoTree = Expr::SigmaOr(
+            SigmaOr::new(vec![
+                SigmaProp::from(pk1.clone()).into(),
+                SigmaProp::from(pk1.clone()).into(),
+                SigmaProp::from(pk1.clone()).into(),
+            ])
+            .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        let proof3 = prover1
+            .prove(&cor_dup_3, &ctx, message, &HintsBag::empty())
+            .unwrap();
+        assert!(
+            verifier
+                .verify(&cor_dup_3, &ctx, proof3.proof, message)
+                .unwrap()
+                .result
+        );
+
+        // Duplicate real leaves alongside another real leaf: pk1 || pk1 || pk2
+        let cor_mixed: ErgoTree = Expr::SigmaOr(
+            SigmaOr::new(vec![
+                SigmaProp::from(pk1.clone()).into(),
+                SigmaProp::from(pk1.clone()).into(),
+                SigmaProp::from(pk2.clone()).into(),
+            ])
+            .unwrap(),
+        )
+        .try_into()
+        .unwrap();
+        let prover12 = TestProver {
+            secrets: vec![secret1.into(), secret2.into()],
+        };
+        let proof_mixed = prover12
+            .prove(&cor_mixed, &ctx, message, &HintsBag::empty())
+            .unwrap();
+        assert!(
+            verifier
+                .verify(&cor_mixed, &ctx, proof_mixed.proof, message)
+                .unwrap()
+                .result
+        );
+
+        // Duplicate real compound subtrees: (pk1 && pk2) || (pk1 && pk2)
+        let cand_expr = || -> Expr {
+            Expr::SigmaAnd(
+                SigmaAnd::new(vec![
+                    SigmaProp::from(pk1.clone()).into(),
+                    SigmaProp::from(pk2.clone()).into(),
+                ])
+                .unwrap(),
+            )
+        };
+        let cor_dup_cand: ErgoTree =
+            Expr::SigmaOr(SigmaOr::new(vec![cand_expr(), cand_expr()]).unwrap())
+                .try_into()
+                .unwrap();
+        let proof_cand = prover12
+            .prove(&cor_dup_cand, &ctx, message, &HintsBag::empty())
+            .unwrap();
+        assert!(
+            verifier
+                .verify(&cor_dup_cand, &ctx, proof_cand.proof, message)
+                .unwrap()
+                .result
+        );
     }
 }
