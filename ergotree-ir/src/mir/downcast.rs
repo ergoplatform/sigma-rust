@@ -64,9 +64,16 @@ impl SigmaSerializable for Downcast {
     }
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
-        let input = Expr::sigma_parse(r)?.into();
+        let input = Expr::sigma_parse(r)?;
         let tpe = SType::sigma_parse(r)?;
-        Ok(Downcast { input, tpe })
+        if !input.tpe().is_numeric() {
+            return Err(InvalidArgumentError(format!(
+                "Downcast: expected input expression type to be numeric, got {:?}",
+                input.tpe()
+            ))
+            .into());
+        }
+        Ok(Downcast::new(input, tpe)?)
     }
 }
 
@@ -98,7 +105,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::panic)]
+#[allow(clippy::panic, clippy::unwrap_used)]
 mod proptests {
 
     use super::*;
@@ -112,5 +119,43 @@ mod proptests {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
+    }
+
+    #[test]
+    fn parse_rejects_non_numeric_downcast() {
+        use crate::mir::func_value::{FuncArg, FuncValue};
+        use crate::mir::val_use::ValUse;
+
+        let bad_target = Downcast {
+            input: Box::new(1i64.into()),
+            tpe: SType::SBoolean,
+        };
+        let bytes = Expr::Downcast(bad_target).sigma_serialize_bytes().unwrap();
+        assert!(Expr::sigma_parse_bytes(&bytes).is_err());
+
+        let bad_input = Downcast {
+            input: Box::new(true.into()),
+            tpe: SType::SInt,
+        };
+        let bytes = Expr::Downcast(bad_input).sigma_serialize_bytes().unwrap();
+        assert!(Expr::sigma_parse_bytes(&bytes).is_err());
+
+        let func_input: Expr = FuncValue::new(
+            alloc::vec![FuncArg {
+                idx: 1u32.into(),
+                tpe: SType::SLong,
+            }],
+            Expr::ValUse(ValUse {
+                val_id: 1u32.into(),
+                tpe: SType::SLong,
+            }),
+        )
+        .into();
+        let bad_func = Downcast {
+            input: Box::new(func_input),
+            tpe: SType::SInt,
+        };
+        let bytes = Expr::Downcast(bad_func).sigma_serialize_bytes().unwrap();
+        assert!(Expr::sigma_parse_bytes(&bytes).is_err());
     }
 }

@@ -198,6 +198,7 @@ impl SigmaParsingError {
                 | SigmaParsingError::Io(_)
                 | SigmaParsingError::VlqEncode(_)
                 | SigmaParsingError::DeserializeCallDepthExceeded(_)
+                | SigmaParsingError::InvalidArgument(_)
         )
     }
 }
