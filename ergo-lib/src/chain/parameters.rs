@@ -115,7 +115,20 @@ impl Default for Parameters {
         parameters_table.insert(Parameter::DataInputCost, 100);
         parameters_table.insert(Parameter::OutputCost, 100);
         parameters_table.insert(Parameter::MaxBlockSize, 512 * 1024);
+        parameters_table.insert(Parameter::MaxBlockCost, 1_000_000);
         parameters_table.insert(Parameter::BlockVersion, 1);
         Self { parameters_table }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_parameters_include_max_block_cost() {
+        let params = Parameters::default();
+        assert_eq!(params.max_block_cost(), 1_000_000);
+        assert_eq!(params.max_block_size(), 512 * 1024);
     }
 }
