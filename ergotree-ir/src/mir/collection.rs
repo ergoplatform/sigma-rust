@@ -124,6 +124,12 @@ pub(crate) fn coll_sigma_parse<R: SigmaByteRead>(
     for _ in 0..items_count {
         items.push(Expr::sigma_parse(r)?);
     }
+    if !items.iter().all(|i| i.tpe() == elem_tpe) {
+        return Err(InvalidArgumentError(format!(
+            "expected items to be of the same type {elem_tpe:?}, got {items:?}"
+        ))
+        .into());
+    }
     Ok(Collection::Exprs { elem_tpe, items })
 }
 
@@ -167,7 +173,7 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::panic)]
+#[allow(clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::mir::expr::arbitrary::ArbExprParams;
@@ -188,5 +194,15 @@ mod tests {
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
 
+    }
+
+    #[test]
+    fn parse_rejects_mismatched_element_types() {
+        let invalid = Collection::Exprs {
+            elem_tpe: SType::SInt,
+            items: alloc::vec![Expr::from(true)],
+        };
+        let bytes = Expr::Collection(invalid).sigma_serialize_bytes().unwrap();
+        assert!(Expr::sigma_parse_bytes(&bytes).is_err());
     }
 }

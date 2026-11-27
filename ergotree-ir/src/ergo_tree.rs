@@ -1126,10 +1126,83 @@ mod tests {
             SigmaParsingError::NonSerializableTypeCode(104),
             // nesting deeper than MaxTreeDepth (DeserializeCallDepthExceeded)
             SigmaParsingError::DeserializeCallDepthExceeded(111),
+            // AST structural/type invariant failure (JVM IllegalArgumentException / AssertionError)
+            SigmaParsingError::InvalidArgument(crate::mir::expr::InvalidArgumentError(
+                "invalid operand type".to_string(),
+            )),
         ];
         for e in &rejects {
             assert!(e.escapes_sized_tree_degrade(), "should reject: {e:?}");
         }
+    }
+
+    #[test]
+    fn sized_tree_rejects_invalid_collection_cast_and_v3_empty_method_call() {
+        use crate::mir::collection::Collection;
+        use crate::mir::downcast::Downcast;
+        use crate::mir::upcast::Upcast;
+        use crate::serialization::op_code::OpCode;
+        use crate::types::sbox;
+
+        fn wrap_sized_tree(header_byte: u8, body: &[u8]) -> Vec<u8> {
+            let mut out = Vec::new();
+            {
+                let mut w = SigmaByteWriter::new(&mut out, None);
+                w.put_u8(header_byte).unwrap();
+                w.put_u32(body.len() as u32).unwrap();
+            }
+            out.extend_from_slice(body);
+            out
+        }
+
+        // Header bytes: size flag (0x08) | version (v1 = 0x01 -> 0x09, v3 = 0x03 -> 0x0b)
+        const SIZED_V1_HEADER: u8 = 0x09;
+        const SIZED_V3_HEADER: u8 = 0x0b;
+
+        // 1. Sized v1 tree with mismatched Collection element type must reject (not degrade)
+        let bad_coll = Expr::Collection(Collection::Exprs {
+            elem_tpe: SType::SInt,
+            items: vec![Expr::from(true)],
+        });
+        let coll_body = bad_coll.sigma_serialize_bytes().unwrap();
+        let coll_tree = wrap_sized_tree(SIZED_V1_HEADER, &coll_body);
+        assert!(ErgoTree::sigma_parse_bytes(&coll_tree).is_err());
+
+        // 2. Sized v1 tree with non-numeric Upcast / Downcast must reject (not degrade)
+        let bad_upcast = Expr::Upcast(Upcast {
+            input: Box::new(true.into()),
+            tpe: SType::SLong,
+        });
+        let upcast_tree = wrap_sized_tree(
+            SIZED_V1_HEADER,
+            &bad_upcast.sigma_serialize_bytes().unwrap(),
+        );
+        assert!(ErgoTree::sigma_parse_bytes(&upcast_tree).is_err());
+
+        let bad_downcast = Expr::Downcast(Downcast {
+            input: Box::new(1i64.into()),
+            tpe: SType::SBoolean,
+        });
+        let downcast_tree = wrap_sized_tree(
+            SIZED_V1_HEADER,
+            &bad_downcast.sigma_serialize_bytes().unwrap(),
+        );
+        assert!(ErgoTree::sigma_parse_bytes(&downcast_tree).is_err());
+
+        // 3. Sized v3 tree with empty-args MethodCall must reject (not degrade)
+        let mut mc_body = Vec::new();
+        {
+            let mut w = SigmaByteWriter::new(&mut mc_body, None);
+            OpCode::METHOD_CALL.sigma_serialize(&mut w).unwrap();
+            sbox::TYPE_CODE.sigma_serialize(&mut w).unwrap();
+            sbox::VALUE_METHOD_ID.sigma_serialize(&mut w).unwrap();
+            Expr::GlobalVars(crate::mir::global_vars::GlobalVars::SelfBox)
+                .sigma_serialize(&mut w)
+                .unwrap();
+            w.put_u8(0).unwrap(); // args length = 0
+        }
+        let mc_tree = wrap_sized_tree(SIZED_V3_HEADER, &mc_body);
+        assert!(ErgoTree::sigma_parse_bytes(&mc_tree).is_err());
     }
 
     #[test]

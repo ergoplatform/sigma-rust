@@ -35,6 +35,12 @@ impl SigmaSerializable for MethodCall {
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
         let args = Vec::<Expr>::sigma_parse(r)?;
+        if r.tree_version() >= crate::ergo_tree::ErgoTreeVersion::V3 && args.is_empty() {
+            return Err(crate::mir::expr::InvalidArgumentError(
+                "MethodCall: args must be non-empty in ErgoTree v3+".into(),
+            )
+            .into());
+        }
         let arg_types = args.iter().map(|arg| arg.tpe()).collect();
         let method = SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), arg_types)?;
         if r.tree_version() < method.method_raw.min_version {
@@ -102,5 +108,31 @@ mod tests {
         .unwrap()
         .into();
         roundtrip_new_feature(&mc, ErgoTreeVersion::V3);
+    }
+
+    #[test]
+    fn v3_rejects_method_call_with_empty_args() {
+        use crate::serialization::sigma_byte_reader::SigmaByteRead;
+        use crate::serialization::{sigma_byte_reader, SigmaSerializable};
+        use crate::types::sbox;
+
+        // Wire bytes for MethodCall with 0 args on GlobalVars::SelfBox (box.value)
+        let mut bytes = Vec::new();
+        {
+            let mut w =
+                crate::serialization::sigma_byte_writer::SigmaByteWriter::new(&mut bytes, None);
+            sbox::TYPE_CODE.sigma_serialize(&mut w).unwrap();
+            sbox::VALUE_METHOD_ID.sigma_serialize(&mut w).unwrap();
+            Expr::GlobalVars(crate::mir::global_vars::GlobalVars::SelfBox)
+                .sigma_serialize(&mut w)
+                .unwrap();
+            Vec::<Expr>::new().sigma_serialize(&mut w).unwrap();
+        }
+        assert!(sigma_byte_reader::from_bytes(&bytes)
+            .with_tree_version(ErgoTreeVersion::V0, MethodCall::sigma_parse)
+            .is_ok());
+        assert!(sigma_byte_reader::from_bytes(&bytes)
+            .with_tree_version(ErgoTreeVersion::V3, MethodCall::sigma_parse)
+            .is_err());
     }
 }
