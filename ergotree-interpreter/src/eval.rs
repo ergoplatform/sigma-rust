@@ -128,6 +128,32 @@ pub struct ReductionResult {
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
+    if crate::sigma_protocol::check_soft_fork_condition(tree, ctx)? {
+        return Ok(soft_fork_reduction());
+    }
+    ergotree_ir::soft_fork::try_soft_forkable(
+        || match tree {
+            ErgoTree::Unparsed { error, .. } => Err(error.clone().into()),
+            _ => reduce_to_crypto_inner(tree, ctx),
+        },
+        soft_fork_reduction,
+        &ctx.validation_settings,
+        ctx.activated_script_version(),
+    )
+}
+
+fn soft_fork_reduction() -> ReductionResult {
+    ReductionResult {
+        sigma_prop: SigmaBoolean::TrivialProp(true),
+        cost: 0,
+        diag: ReductionDiagnosticInfo {
+            env: Env::empty(),
+            pretty_printed_expr: None,
+        },
+    }
+}
+
+fn reduce_to_crypto_inner(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
     fn inner<'ctx>(expr: &'ctx Expr, ctx: &Context<'ctx>) -> Result<ReductionResult, EvalError> {
         let mut env_mut = Env::empty();
         expr.eval(&mut env_mut, ctx)

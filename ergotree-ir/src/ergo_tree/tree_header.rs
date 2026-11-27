@@ -54,6 +54,9 @@ impl ErgoTreeHeader {
     pub fn new(header_byte: u8) -> Result<Self, ErgoTreeHeaderError> {
         let version = ErgoTreeVersion::parse_version(header_byte);
         let has_size = header_byte & Self::HAS_SIZE_FLAG != 0;
+        if version > ErgoTreeVersion::V0 && !has_size {
+            return Err(ErgoTreeHeaderError::MissingSize);
+        }
         let is_constant_segregation = header_byte & Self::CONSTANT_SEGREGATION_FLAG != 0;
         Ok(ErgoTreeHeader {
             version,
@@ -111,6 +114,9 @@ impl ErgoTreeHeader {
 /// Header parsing error
 #[derive(Error, PartialEq, Eq, Debug, Clone, From)]
 pub enum ErgoTreeHeaderError {
+    /// Nonzero tree versions require the size bit (rule 1012).
+    #[error("size bit is required for nonzero ErgoTree versions")]
+    MissingSize,
     /// Invalid version
     #[error("Invalid version: {0}")]
     VersionError(ErgoTreeVersionError),

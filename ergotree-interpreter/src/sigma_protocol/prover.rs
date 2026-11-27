@@ -60,7 +60,7 @@ use thiserror::Error;
 pub enum ProverError {
     /// Failed to parse ErgoTree
     #[error("Ergo tree error: {0}")]
-    ErgoTreeError(ErgoTreeError),
+    ErgoTreeError(#[source] ErgoTreeError),
     /// Failed to evaluate ErgoTree
     #[error("Evaluation error: {0}")]
     EvalError(#[from] EvalError),
@@ -1284,7 +1284,8 @@ mod tests {
     fn test_soft_fork() {
         let prover = TestProver { secrets: vec![] };
         let tree = ErgoTree::new(
-            ErgoTreeHeader::new(u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1).unwrap(),
+            ErgoTreeHeader::new((u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1) | 0x08)
+                .unwrap(),
             &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(true))).into(),
         )
         .unwrap();

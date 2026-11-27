@@ -206,12 +206,7 @@ impl Expr {
                 XorOf::OP_CODE => Ok(XorOf::sigma_parse(r)?.into()),
                 TreeLookup::OP_CODE => Ok(TreeLookup::sigma_parse(r)?.into()),
                 CreateAvlTree::OP_CODE => Ok(CreateAvlTree::sigma_parse(r)?.into()),
-                o => Err(SoftForkError::InvalidOpCode(format!(
-                    "{0}(shift {1})",
-                    o.value(),
-                    o.shift()
-                ))
-                .into()),
+                o => Err(SoftForkError::InvalidOpCode(o.value()).into()),
             }
         }
     }

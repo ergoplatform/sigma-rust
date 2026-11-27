@@ -111,6 +111,7 @@ pub fn make_context<'ctx, T: ErgoTransaction>(
         extension,
         headers: state_ctx.headers.clone(),
         tree_version: Default::default(),
+        validation_settings: state_ctx.validation_settings.clone(),
         extension_provider: &tx_ctx.spending_tx,
     })
 }
@@ -318,6 +319,46 @@ mod tests {
             )?;
             Ok(res.result && acc)
         })
+    }
+
+    #[test]
+    fn soft_fork_chain_settings_reach_transaction_reduction_and_signing() {
+        use ergotree_ir::soft_fork::{RuleStatus, SigmaValidationSettings};
+        let tree = ErgoTree::sigma_parse_bytes(&[0x0c, 1, 0xfb]).unwrap();
+        let input = ErgoBox::new(
+            BoxValue::SAFE_USER_MIN,
+            tree,
+            None,
+            NonMandatoryRegisters::empty(),
+            0,
+            TxId::zero(),
+            0,
+        )
+        .unwrap();
+        let output_tree = ErgoTree::try_from(Expr::Const(
+            ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp::new(true.into()).into(),
+        ))
+        .unwrap();
+        let output = ErgoBoxCandidateBuilder::new(BoxValue::SAFE_USER_MIN, output_tree, 0)
+            .build()
+            .unwrap();
+        let tx = UnsignedTransaction::new_from_vec(
+            vec![UnsignedInput::from(input.clone())],
+            vec![],
+            vec![output],
+        )
+        .unwrap();
+        let tx_context = TransactionContext::new(tx, vec![input], vec![]).unwrap();
+        let mut state = force_any_val::<ErgoStateContext>();
+        state.pre_header.version = 5;
+        assert!(reduce_tx(tx_context.clone(), &state).is_err());
+        let state = state.with_validation_settings(
+            SigmaValidationSettings::default().updated(1002, RuleStatus::Changed(vec![0xfb])),
+        );
+        let reduced = reduce_tx(tx_context.clone(), &state).unwrap();
+        assert_eq!(reduced.reduced_inputs().first().sigma_prop, true.into());
+        let prover = TestProver { secrets: vec![] };
+        assert!(sign_transaction(&prover, tx_context, &state, None).is_ok());
     }
 
     proptest! {

@@ -192,7 +192,7 @@ impl SType {
                     if let Some(embeddable) = embeddable {
                         embeddable.get_embeddable_type(r.tree_version())?
                     } else {
-                        return Err(SoftForkError::InvalidPrimitiveType(c).into());
+                        return Err(SigmaParsingError::Misc("Invalid type prefix 0".into()));
                     }
                 }
                 Some(TypeCode::COLL) => SColl(stype()?.into()),

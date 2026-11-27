@@ -703,9 +703,7 @@ mod tests {
         let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
         assert_eq!(
             ErgoTree::sigma_parse(&mut r),
-            Err(SigmaParsingError::SoftForkError(
-                SoftForkError::InvalidPrimitiveType(0)
-            ))
+            Err(SigmaParsingError::Misc("Invalid type prefix 0".into()))
         );
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert!(tree.parsed_tree().is_err(), "parsing constants should fail");
@@ -722,26 +720,11 @@ mod tests {
 
     #[test]
     fn deserialization_non_parseable_tree_v1() {
-        // v1(size is set), constants length is set, invalid constant
-        let bytes = [
-            ErgoTreeHeader::v1(true).serialized(),
-            4, // tree size
-            1, // constants quantity
-            0, // invalid constant type
-            99,
-            99,
-        ];
-        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-        assert!(tree.parsed_tree().is_err(), "parsing constants should fail");
-        assert_eq!(
-            tree.sigma_serialize_bytes().unwrap(),
-            bytes,
-            "serialization should return original bytes"
-        );
-        assert!(
-            tree.template_bytes().is_err(),
-            "template bytes should not be parsed"
-        );
+        // Prefix 0 is a hard serializer failure even inside a sized tree.
+        let bytes = [ErgoTreeHeader::v1(true).serialized(), 4, 1, 0, 99, 99];
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
+        let mut reader = SigmaByteReader::new(Cursor::new(&bytes), ConstantStore::empty());
+        assert!(ErgoTree::sigma_parse(&mut reader).is_err());
     }
 
     #[test]
@@ -751,9 +734,7 @@ mod tests {
         let mut r = SigmaByteReader::new(Cursor::new(&bytes[..]), ConstantStore::empty());
         assert_eq!(
             ErgoTree::sigma_parse(&mut r),
-            Err(SigmaParsingError::SoftForkError(
-                SoftForkError::InvalidPrimitiveType(0)
-            ))
+            Err(SigmaParsingError::Misc("Invalid type prefix 0".into()))
         );
         let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
         assert!(tree.parsed_tree().is_err(), "parsing root should fail");
@@ -792,37 +773,11 @@ mod tests {
 
     #[test]
     fn deserialization_non_parseable_root_v1() {
-        // no constant segregation, Expr is invalid
-        let bytes = [
-            ErgoTreeHeader::v1(false).serialized(),
-            2, // tree size
-            0,
-            1,
-        ];
-        let tree = ErgoTree::sigma_parse_bytes(&bytes).unwrap();
-        assert!(tree.parsed_tree().is_err(), "parsing root should fail");
-        assert_eq!(
-            tree.sigma_serialize_bytes().unwrap(),
-            bytes,
-            "serialization should return original bytes"
-        );
-        assert!(
-            tree.template_bytes().is_err(),
-            "template bytes should not be parsed"
-        );
-        // parsing via sigma_parse should fail as well
+        // Prefix 0 is a hard serializer failure even inside a sized tree.
+        let bytes = [ErgoTreeHeader::v1(false).serialized(), 2, 0, 1];
+        assert!(ErgoTree::sigma_parse_bytes(&bytes).is_err());
         let mut reader = SigmaByteReader::new(Cursor::new(&bytes), ConstantStore::empty());
-        let tree = ErgoTree::sigma_parse(&mut reader).unwrap();
-        assert!(tree.parsed_tree().is_err(), "parsing root should fail");
-        assert_eq!(
-            tree.sigma_serialize_bytes().unwrap(),
-            bytes,
-            "serialization should return original bytes"
-        );
-        assert!(
-            tree.template_bytes().is_err(),
-            "template bytes should not be parsed"
-        );
+        assert!(ErgoTree::sigma_parse(&mut reader).is_err());
     }
 
     #[test]
@@ -1119,12 +1074,16 @@ mod tests {
             )),
             // soft-forkable type/opcode errors keep degrading (behavior unchanged)
             SigmaParsingError::SoftForkError(SoftForkError::NotSerializable("SOption data")),
-            SigmaParsingError::SoftForkError(SoftForkError::InvalidOpCode("0xff".to_string())),
+            SigmaParsingError::SoftForkError(SoftForkError::InvalidOpCode(0xff)),
         ];
         for e in &degrades {
             assert!(!e.escapes_sized_tree_degrade(), "should degrade: {e:?}");
         }
         let rejects = [
+            SigmaParsingError::ValueOutOfBounds("constants length".into()),
+            SigmaParsingError::ConstantForPlaceholderNotFound(1),
+            SigmaParsingError::TupleItemsOutOfBounds(1),
+            SigmaParsingError::Misc("hard construction error".into()),
             // invalid EC point (this finding)
             SigmaParsingError::ScorexParsingError(ScorexParsingError::Misc(
                 "failed to parse PK from bytes".to_string(),

@@ -73,10 +73,10 @@ pub enum EvalError {
     ScorexParsingError(#[from] ScorexParsingError),
     /// Wrapped error with source span and source code
     #[error("eval error: {0}")]
-    SpannedWithSource(SpannedWithSourceEvalError),
+    SpannedWithSource(#[source] SpannedWithSourceEvalError),
     /// Wrapped error with source span
     #[error("eval error: {0:?}")]
-    Spanned(SpannedEvalError),
+    Spanned(#[source] SpannedEvalError),
     /// Script version error
     #[error("Method requires at least version {required_version:?}, but activated version is {activated_version:?}")]
     ScriptVersionError {
@@ -397,5 +397,45 @@ mod tests {
         //     "#]],
         // );
         check_error_span(expr, (31, 4).into());
+    }
+}
+
+impl Display for SpannedEvalError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.error)
+    }
+}
+impl core::error::Error for SpannedEvalError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        Some(self.error.as_ref())
+    }
+}
+impl core::error::Error for SpannedWithSourceEvalError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        Some(self.error.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod soft_fork_source_tests {
+    use super::*;
+    use ergotree_ir::soft_fork::{IsSoftForkable, SoftForkError};
+
+    #[test]
+    fn soft_fork_sources_survive_spans_and_prover_wrapping() {
+        let error = EvalError::from(SoftForkError::InvalidOpCode(0xfb)).wrap(
+            SourceSpan {
+                offset: 0,
+                length: 1,
+            },
+            Env::empty(),
+        );
+        assert!(error.is_soft_fork());
+        let error = error.wrap_spanned_with_src("x".into());
+        assert!(error.is_soft_fork());
+        let prover = crate::sigma_protocol::prover::ProverError::from(ErgoTreeError::from(
+            SoftForkError::InvalidOpCode(0xfb),
+        ));
+        assert!(prover.is_soft_fork());
     }
 }

@@ -179,17 +179,7 @@ impl SigmaParsingError {
     /// Nesting deeper than `MaxTreeDepth` escapes too: the JVM's
     /// `DeserializeCallDepthExceeded` is a `SerializerException`.
     pub fn escapes_sized_tree_degrade(&self) -> bool {
-        if self.is_position_limit_exceeded() {
-            return false;
-        }
-        matches!(
-            self,
-            SigmaParsingError::NonSerializableTypeCode(_)
-                | SigmaParsingError::ScorexParsingError(_)
-                | SigmaParsingError::Io(_)
-                | SigmaParsingError::VlqEncode(_)
-                | SigmaParsingError::DeserializeCallDepthExceeded(_)
-        )
+        !crate::soft_fork::IsSoftForkable::is_soft_fork(self)
     }
 }
 

@@ -30,6 +30,8 @@ pub struct Context<'ctx> {
     pub extension: &'ctx ContextExtension,
     /// ergo tree version
     pub tree_version: Cell<ErgoTreeVersion>,
+    /// Validation rule statuses supplied by the chain.
+    pub validation_settings: crate::soft_fork::SigmaValidationSettings,
     /// ContextExtension provider for inputs of transaction
     #[debug(skip)]
     pub extension_provider: &'ctx dyn ContextExtensionProvider,
@@ -123,6 +125,7 @@ pub mod arbitrary {
                             extension: Box::leak(extensions[0].clone().into()),
                             headers,
                             tree_version: Default::default(),
+                            validation_settings: Default::default(),
                             extension_provider: Box::leak(
                                 DummyContextExtensionProvider(extensions).into(),
                             ),
