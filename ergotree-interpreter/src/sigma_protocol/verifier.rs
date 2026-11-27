@@ -283,6 +283,39 @@ mod tests {
     }
 
     #[test]
+    fn soft_fork_unsized_v0_tree_is_never_accepted() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::soft_fork::{RuleStatus, SigmaValidationSettings};
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 5;
+        let prover = TestProver { secrets: vec![] };
+        for status in [RuleStatus::Changed(vec![0xfb]), RuleStatus::Replaced(1102)] {
+            ctx.validation_settings = SigmaValidationSettings::default().updated(1002, status);
+            // Byte preservation is required for box IDs even though execution must fail.
+            let tree = ErgoTree::sigma_parse_bytes(&[0x00, 0xfb]).unwrap();
+            assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+            assert_eq!(tree.sigma_serialize_bytes().unwrap(), vec![0x00, 0xfb]);
+            assert!(reduce_to_crypto(&tree, &ctx).is_err());
+            assert!(TestVerifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .is_err());
+            assert!(prover.prove(&tree, &ctx, &[], &HintsBag::empty()).is_err());
+            // A sized V0 tree with the same opcode still follows voted settings.
+            let sized = ErgoTree::sigma_parse_bytes(&[0x08, 0x01, 0xfb]).unwrap();
+            assert_eq!(
+                reduce_to_crypto(&sized, &ctx).unwrap().sigma_prop,
+                SigmaBoolean::TrivialProp(true)
+            );
+            assert!(
+                TestVerifier
+                    .verify(&sized, &ctx, ProofBytes::Empty, &[])
+                    .unwrap()
+                    .result
+            );
+        }
+    }
+
+    #[test]
     fn soft_fork_version_gate_also_applies_to_direct_reduction() {
         let tree = ErgoTree::new(
             ErgoTreeHeader::new(0x0c).unwrap(),

@@ -2,7 +2,7 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt::Display;
-use ergotree_ir::ergo_tree::ErgoTree;
+use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
 use snumeric::numeric_method_evalfn;
@@ -128,6 +128,17 @@ pub struct ReductionResult {
 
 /// Evaluate the given expression by reducing it to SigmaBoolean value.
 pub fn reduce_to_crypto(tree: &ErgoTree, ctx: &Context) -> Result<ReductionResult, EvalError> {
+    // Standalone parsing preserves unsized failures for byte/box-ID compatibility.
+    // Unlike sized Unparsed trees, these can never be accepted by voted overrides.
+    if let ErgoTree::Unparsed { tree_bytes, error } = tree {
+        let sized = tree_bytes
+            .first()
+            .and_then(|&byte| ErgoTreeHeader::new(byte).ok())
+            .is_some_and(|header| header.has_size());
+        if !sized {
+            return Err(error.clone().into());
+        }
+    }
     if crate::sigma_protocol::check_soft_fork_condition(tree, ctx)? {
         return Ok(soft_fork_reduction());
     }

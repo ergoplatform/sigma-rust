@@ -11,7 +11,9 @@ the script. `SigmaValidationSettings` supplies the chain's validation-rule
 overrides. Its default has no overrides, so no validation failure is tolerated.
 `Changed` matches exact added codes (type/method pairs for method rules), and
 `Replaced` follows the corresponding validation-rule replacement. The old V5
-primitive/type/method rules do not authorize their V6 replacements.
+primitive/type/method rules do not authorize their V6 replacements. Unknown
+primitive IDs (10 and 11), including compact container tags, use primitive rules
+1007/1017 rather than general type rules 1008/1018.
 
 The caller must obtain overrides from the applicable chain state. For a direct
 interpreter call, set `Context::validation_settings`. For transaction reduction,
@@ -29,5 +31,7 @@ activation, while the prover refuses to generate a proof for such a parsed tree.
 
 The standalone byte loader still preserves legacy unsized V0 input that it cannot
 parse, for byte-identical box and transaction IDs. Loading those bytes is not
-validation: reduction requires either a recognized tree or an approved validation
-failure. The box/transaction wire parser has no such generic V0 loading fallback.
+validation: unsized `Unparsed` trees always fail reduction, verification and
+proving, even when the failure matches voted overrides. Only sized `Unparsed`
+trees may follow those overrides. The box/transaction wire parser has no such
+generic V0 loading fallback.

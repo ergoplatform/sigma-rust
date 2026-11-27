@@ -60,3 +60,42 @@ fn method_version_gate_runs_before_argument_specialization() {
         ))
     ));
 }
+
+#[test]
+fn unknown_primitive_codes_use_primitive_validation_rules() {
+    use ergotree_ir::ergo_tree::ErgoTreeVersion;
+    use ergotree_ir::soft_fork::{RuleStatus, SigmaValidationSettings};
+    use ergotree_ir::types::stype::SType;
+
+    // All compact containers, including pairs, must retain the primitive ID.
+    for container in 0..8 {
+        for code in [10u8, 11] {
+            let tag = container * 12 + code;
+            let error = SType::sigma_parse_bytes(&[tag]).unwrap_err();
+            assert!(
+                matches!(
+                    error,
+                    SigmaParsingError::SoftForkError(SoftForkError::InvalidPrimitiveType(id)) if id == code
+                ),
+                "tag {tag}: {error:?}"
+            );
+            for (version, primitive_rule, type_rule) in [
+                (ErgoTreeVersion::V0, 1007, 1008),
+                (ErgoTreeVersion::V3, 1017, 1018),
+            ] {
+                let settings = SigmaValidationSettings::default()
+                    .updated(primitive_rule, RuleStatus::Changed(vec![code]));
+                assert!(settings.is_soft_fork(&error, version));
+                let wrong_code = SigmaValidationSettings::default()
+                    .updated(primitive_rule, RuleStatus::Changed(vec![code + 1]));
+                assert!(!wrong_code.is_soft_fork(&error, version));
+                let wrong_rule = SigmaValidationSettings::default()
+                    .updated(type_rule, RuleStatus::Changed(vec![code]));
+                assert!(!wrong_rule.is_soft_fork(&error, version));
+                let replaced = SigmaValidationSettings::default()
+                    .updated(primitive_rule, RuleStatus::Replaced(primitive_rule + 100));
+                assert!(replaced.is_soft_fork(&error, version));
+            }
+        }
+    }
+}

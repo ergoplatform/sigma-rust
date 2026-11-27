@@ -99,7 +99,10 @@ impl TypeCode {
             let type_code = if type_id == 0 {
                 None
             } else {
-                Some(TypeCode::parse(type_id)?)
+                Some(
+                    FromPrimitive::from_u8(type_id)
+                        .ok_or(SoftForkError::InvalidPrimitiveType(type_id))?,
+                )
             };
             Ok((container_code, type_code))
         } else {
