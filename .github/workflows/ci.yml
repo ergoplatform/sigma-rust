@@ -234,7 +234,8 @@ jobs:
 
   ios_tests:
     name: Test Swift(iOS) bindings
-    runs-on: ubuntu-latest
+    # setup-swift v2 / Swift 6.1 support Noble, not ubuntu-latest's 26.04.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     # Service containers to run `ergo` node in `devnet` mode
