@@ -29,6 +29,7 @@ pub struct ErgoTreeHeader {
     version: ErgoTreeVersion,
     is_constant_segregation: bool,
     has_size: bool,
+    reserved_bits: u8,
 }
 
 impl ErgoTreeHeader {
@@ -49,22 +50,25 @@ impl ErgoTreeHeader {
 impl ErgoTreeHeader {
     const CONSTANT_SEGREGATION_FLAG: u8 = 0b0001_0000;
     const HAS_SIZE_FLAG: u8 = 0b0000_1000;
+    const RESERVED_BITS_MASK: u8 = 0b1110_0000;
 
     /// Parse from byte
     pub fn new(header_byte: u8) -> Result<Self, ErgoTreeHeaderError> {
         let version = ErgoTreeVersion::parse_version(header_byte);
         let has_size = header_byte & Self::HAS_SIZE_FLAG != 0;
         let is_constant_segregation = header_byte & Self::CONSTANT_SEGREGATION_FLAG != 0;
+        let reserved_bits = header_byte & Self::RESERVED_BITS_MASK;
         Ok(ErgoTreeHeader {
             version,
             is_constant_segregation,
             has_size,
+            reserved_bits,
         })
     }
 
     /// Serialize to byte
     pub fn serialized(&self) -> u8 {
-        let mut header_byte: u8 = self.version.0;
+        let mut header_byte: u8 = self.version.0 | self.reserved_bits;
         if self.is_constant_segregation {
             header_byte |= Self::CONSTANT_SEGREGATION_FLAG;
         }
@@ -80,6 +84,7 @@ impl ErgoTreeHeader {
             version: ErgoTreeVersion::V0,
             is_constant_segregation: constant_segregation,
             has_size: false,
+            reserved_bits: 0,
         }
     }
 
@@ -89,6 +94,7 @@ impl ErgoTreeHeader {
             version: ErgoTreeVersion::V1,
             is_constant_segregation: constant_segregation,
             has_size: true,
+            reserved_bits: 0,
         }
     }
 
@@ -150,4 +156,45 @@ pub enum ErgoTreeVersionError {
     /// Invalid version
     #[error("Invalid version: {0}")]
     InvalidVersion(u8),
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::ergo_tree::ErgoTree;
+    use crate::serialization::sigma_byte_reader;
+    use crate::serialization::sigma_byte_writer::SigmaByteWriter;
+    use crate::serialization::SigmaSerializable;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    #[test]
+    fn preserves_reserved_high_bits_on_roundtrip() {
+        for raw in 0u8..=u8::MAX {
+            let h = ErgoTreeHeader::new(raw).unwrap();
+            assert_eq!(h.serialized(), raw);
+            let mut buf = Vec::new();
+            let mut w = SigmaByteWriter::new(&mut buf, None);
+            h.sigma_serialize(&mut w).unwrap();
+            assert_eq!(buf, vec![raw]);
+            let mut r = sigma_byte_reader::from_bytes(&buf);
+            assert_eq!(ErgoTreeHeader::sigma_parse(&mut r).unwrap(), h);
+            assert_eq!(h.version(), ErgoTreeVersion::parse_version(raw));
+            assert_eq!(h.has_size(), raw & 0x08 != 0);
+            assert_eq!(h.is_constant_segregation(), raw & 0x10 != 0);
+        }
+        assert_ne!(
+            ErgoTreeHeader::new(0x00).unwrap(),
+            ErgoTreeHeader::new(0x20).unwrap()
+        );
+        // End-to-end ErgoTree parse/serialize roundtrip with reserved high bit (0x20) set
+        // 0x20 = header (v0, no size, no constant segregation, reserved bit 5 set)
+        // 0x08 = TypeCode::SSIGMAPROP, 0xd3 = OpCode::TRIVIAL_PROP_TRUE
+        let raw_tree = [0x20u8, 0x08, 0xd3];
+        let mut r = sigma_byte_reader::from_bytes(&raw_tree);
+        let tree = ErgoTree::sigma_parse(&mut r).unwrap();
+        assert_eq!(tree.header().unwrap().serialized(), 0x20);
+        assert_eq!(tree.sigma_serialize_bytes().unwrap(), raw_tree);
+    }
 }
