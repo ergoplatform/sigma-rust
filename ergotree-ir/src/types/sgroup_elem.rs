@@ -32,7 +32,9 @@ lazy_static! {
     pub(crate) static ref METHOD_DESC: Vec<SMethodDesc> =
         vec![
             GET_ENCODED_METHOD_DESC.clone(),
-            NEGATE_METHOD_DESC.clone()
+            EXPONENTIATE_METHOD_DESC.clone(),
+            MULTIPLY_METHOD_DESC.clone(),
+            NEGATE_METHOD_DESC.clone(),
         ]
     ;
 }
@@ -121,6 +123,13 @@ mod tests {
         assert!(
             SMethod::from_ids(TYPE_CODE, GET_ENCODED_METHOD_ID).map(|e| e.name())
                 == Ok("getEncoded")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, EXPONENTIATE_METHOD_ID).map(|e| e.name())
+                == Ok("exponentiate")
+        );
+        assert!(
+            SMethod::from_ids(TYPE_CODE, MULTIPLY_METHOD_ID).map(|e| e.name()) == Ok("multiply")
         );
         assert!(SMethod::from_ids(TYPE_CODE, NEGATE_METHOD_ID).map(|e| e.name()) == Ok("negate"));
     }

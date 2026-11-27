@@ -190,11 +190,12 @@ lazy_static! {
         explicit_type_args: vec![],
         min_version: ErgoTreeVersion::V3
     };
-    static ref METHOD_DESC: [&'static SMethodDesc; 12] = [
+    static ref METHOD_DESC: [&'static SMethodDesc; 13] = [
         &TO_BYTE_METHOD_DESC,
         &TO_SHORT_METHOD_DESC,
         &TO_INT_METHOD_DESC,
         &TO_LONG_METHOD_DESC,
+        &TO_BIGINT_METHOD_DESC,
         &TO_BYTES_METHOD_DESC,
         &TO_BITS_METHOD_DESC,
         &BITWISE_INVERSE_METHOD_DESC,
@@ -507,6 +508,19 @@ mod test {
 
     #[test]
     fn byte_method_roundtrips() {
+        for type_code in [
+            super::sbyte::TYPE_CODE,
+            super::sshort::TYPE_CODE,
+            super::sint::TYPE_CODE,
+            super::slong::TYPE_CODE,
+            super::sbigint::TYPE_CODE,
+            super::sunsignedbigint::TYPE_CODE,
+        ] {
+            let m = crate::types::smethod::SMethod::from_ids(type_code, super::TO_BIGINT_METHOD_ID)
+                .unwrap();
+            assert_eq!(m.name(), "toBigInt");
+            assert_eq!(*m.tpe().t_range, SType::SBigInt);
+        }
         super::sbyte::METHODS.iter().cloned().for_each(|method| {
             let args = match &*method.method_raw.tpe.t_dom {
                 [SType::SByte] => vec![],
