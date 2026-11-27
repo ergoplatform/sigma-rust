@@ -1,10 +1,12 @@
 //! Operators in ErgoTree
 
 use ergotree_ir::bigint256::BigInt256;
+use ergotree_ir::mir::bin_op::BinOp;
 use ergotree_ir::mir::bin_op::BinOpKind;
+#[cfg(test)]
+use ergotree_ir::mir::bin_op::BitOp;
 use ergotree_ir::mir::bin_op::RelationOp;
 use ergotree_ir::mir::bin_op::{ArithOp, LogicalOp};
-use ergotree_ir::mir::bin_op::{BinOp, BitOp};
 use ergotree_ir::mir::constant::TryExtractFrom;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::mir::value::Value;
@@ -86,15 +88,6 @@ where
         .checked_rem(&rv_raw)
         .ok_or_else(|| arithmetic_err("%", lv_raw, rv_raw, "exception"))
         .map(|t| t.into()) // convert T to Value
-}
-
-fn eval_bit_op<'ctx, T, F>(lv_raw: T, rv: Value<'ctx>, op: F) -> Result<Value<'ctx>, EvalError>
-where
-    T: Num + TryExtractFrom<Value<'ctx>> + Into<Value<'ctx>> + core::fmt::Display,
-    F: FnOnce(T, T) -> T,
-{
-    let rv_raw = rv.try_extract_into::<T>()?;
-    Ok(op(lv_raw, rv_raw).into())
 }
 
 fn eval_ge<'ctx>(lv: Value<'ctx>, rv: Value<'ctx>) -> Result<Value<'ctx>, EvalError> {
@@ -187,6 +180,13 @@ impl Evaluable for BinOp {
         env: &mut Env<'ctx>,
         ctx: &Context<'ctx>,
     ) -> Result<Value<'ctx>, EvalError> {
+        // Matches JVM `sigma.ast.BitOp`: fails immediately before evaluating operands.
+        if let BinOpKind::Bit(op) = self.kind {
+            return Err(EvalError::NotFound(format!(
+                "BitOp {:?} evaluation is not supported",
+                op
+            )));
+        }
         //ctx.cost_accum.add(Costs::DEFAULT.eq_const_size)?;
         let lv = self.left.eval(env, ctx)?;
         // using closure to keep right value from evaluation (for lazy AND, OR, XOR)
@@ -302,44 +302,14 @@ impl Evaluable for BinOp {
                     ))),
                 },
             },
-            BinOpKind::Bit(op) => match op {
-                BitOp::BitAnd => match lv {
-                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    Value::UnsignedBigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l & r),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                BitOp::BitOr => match lv {
-                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    Value::UnsignedBigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l | r),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-                BitOp::BitXor => match lv {
-                    Value::Byte(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    Value::Short(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    Value::Int(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    Value::Long(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    Value::BigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    Value::UnsignedBigInt(lv_raw) => eval_bit_op(lv_raw, rv()?, |l, r| l ^ r),
-                    _ => Err(EvalError::UnexpectedValue(format!(
-                        "expected BinOp::left to be numeric value, got {0:?}",
-                        lv
-                    ))),
-                },
-            },
+            BinOpKind::Bit(op) => {
+                // Matches JVM `sigma.ast.BitOp`: does not override `Value.eval`
+                // (v6 bitwise ops use `SNumeric.bitwiseAnd/Or/Xor` MethodCalls).
+                Err(EvalError::NotFound(format!(
+                    "BitOp {:?} evaluation is not supported",
+                    op
+                )))
+            }
         }
     }
 }
@@ -544,9 +514,9 @@ mod tests {
         assert!(eval_arith_op(ArithOp::Minus, min(), b(1)).is_err());
         assert_eq!(eval_arith_op(ArithOp::Minus, min(), b(0)), Ok(min()));
 
-        assert_eq!(eval_bit_op(BitOp::BitAnd, max(), min()), Ok(b(0)));
-        assert_eq!(eval_bit_op(BitOp::BitOr, max(), min()), Ok(b(-1)));
-        assert_eq!(eval_bit_op(BitOp::BitXor, max(), min()), Ok(b(-1)));
+        assert!(eval_bit_op(BitOp::BitAnd, max(), min()).is_err());
+        assert!(eval_bit_op(BitOp::BitOr, max(), min()).is_err());
+        assert!(eval_bit_op(BitOp::BitXor, max(), min()).is_err());
     }
 
     proptest! {
@@ -568,9 +538,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<i64>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i64>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);
@@ -588,9 +558,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<i32>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i32>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);
@@ -608,9 +578,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<i16>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i16>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);
@@ -628,9 +598,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<i8>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<i8>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);
@@ -652,9 +622,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<BigInt256>(ArithOp::Min, l,
                     r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);
@@ -672,9 +642,9 @@ mod tests {
             prop_assert_eq!(eval_arith_op::<UnsignedBigInt>(ArithOp::Max, l, r).unwrap(), l.max(r));
             prop_assert_eq!(eval_arith_op::<UnsignedBigInt>(ArithOp::Min, l, r).unwrap(), l.min(r));
 
-            prop_assert_eq!(eval_bit_op(BitOp::BitAnd, l, r), Ok(l & r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitOr, l, r), Ok(l | r));
-            prop_assert_eq!(eval_bit_op(BitOp::BitXor, l, r), Ok(l ^ r));
+            prop_assert!(eval_bit_op(BitOp::BitAnd, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitOr, l, r).is_err());
+            prop_assert!(eval_bit_op(BitOp::BitXor, l, r).is_err());
 
             prop_assert_eq!(eval_relation_op(RelationOp::Gt, l, r), l > r);
             prop_assert_eq!(eval_relation_op(RelationOp::Lt, l, r), l < r);

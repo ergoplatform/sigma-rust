@@ -1,6 +1,7 @@
 //! Create an AVL tree
 
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 
 use super::expr::Expr;
 use crate::has_opcode::HasStaticOpCode;
@@ -21,8 +22,8 @@ pub struct CreateAvlTree {
     pub digest: Box<Expr>,
     /// Value of type Int
     pub key_length: Box<Expr>,
-    /// Optional value of type Int
-    pub value_length: Option<Box<Expr>>,
+    /// Expression of type `Option[Int]` (matches JVM `CreateAvlTreeSerializer` wire format)
+    pub value_length: Box<Expr>,
 }
 
 impl CreateAvlTree {
@@ -31,27 +32,18 @@ impl CreateAvlTree {
         flags: Expr,
         digest: Expr,
         key_length: Expr,
-        value_length: Option<Box<Expr>>,
+        value_length: Expr,
     ) -> Result<Self, InvalidArgumentError> {
         flags.check_post_eval_tpe(&SType::SByte)?;
-        digest.check_post_eval_tpe(&SType::SColl(alloc::sync::Arc::new(SType::SByte)))?;
+        digest.check_post_eval_tpe(&SType::SColl(Arc::new(SType::SByte)))?;
         key_length.check_post_eval_tpe(&SType::SInt)?;
-        if !value_length
-            .clone()
-            .map(|expr| expr.post_eval_tpe() == SType::SInt)
-            .unwrap_or(true)
-        {
-            return Err(InvalidArgumentError(format!(
-                "CreateAvlTree: expected value_length type to be Option[Int], got {0:?}",
-                value_length
-            )));
-        }
+        value_length.check_post_eval_tpe(&SType::SOption(Arc::new(SType::SInt)))?;
 
         Ok(Self {
             flags: flags.into(),
             digest: digest.into(),
             key_length: key_length.into(),
-            value_length,
+            value_length: value_length.into(),
         })
     }
 
@@ -70,7 +62,7 @@ impl SigmaSerializable for CreateAvlTree {
         let flags = Expr::sigma_parse(r)?;
         let digest = Expr::sigma_parse(r)?;
         let key_length = Expr::sigma_parse(r)?;
-        let value_length = Option::<Box<Expr>>::sigma_parse(r)?;
+        let value_length = Expr::sigma_parse(r)?;
         Ok(Self::new(flags, digest, key_length, value_length)?)
     }
 
@@ -82,7 +74,7 @@ impl SigmaSerializable for CreateAvlTree {
     }
 }
 
-impl_traversable_expr!(CreateAvlTree, boxed flags, boxed digest, boxed key_length, opt value_length);
+impl_traversable_expr!(CreateAvlTree, boxed flags, boxed digest, boxed key_length, boxed value_length);
 
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
@@ -91,10 +83,10 @@ mod arbitrary {
     use alloc::sync::Arc;
 
     use crate::mir::expr::arbitrary::ArbExprParams;
+    use crate::mir::get_var::GetVar;
 
     use super::*;
     use proptest::prelude::*;
-    use proptest::result::Probability;
 
     impl Arbitrary for CreateAvlTree {
         type Strategy = BoxedStrategy<Self>;
@@ -114,13 +106,13 @@ mod arbitrary {
                     tpe: SType::SInt,
                     depth: 0,
                 }),
-                any_with::<Option<Box<Expr>>>((
-                    Probability::default(),
-                    ArbExprParams {
-                        tpe: SType::SInt,
-                        depth: 0,
-                    },
-                )),
+                any::<u8>().prop_map(|var_id| {
+                    GetVar {
+                        var_id,
+                        var_tpe: SType::SInt,
+                    }
+                    .into()
+                }),
             )
                 .prop_map(|(flags, digest, key_length, value_length)| {
                     Self::new(flags, digest, key_length, value_length).unwrap()
@@ -132,8 +124,8 @@ mod arbitrary {
 
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
-#[allow(clippy::panic)]
-mod tests {
+#[allow(clippy::panic, clippy::unwrap_used)]
+mod proptests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
@@ -145,5 +137,43 @@ mod tests {
             let expr: Expr = v.into();
             prop_assert_eq![sigma_serialize_roundtrip(&expr), expr];
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::mir::get_var::GetVar;
+    use crate::serialization::SigmaSerializable;
+    use alloc::vec;
+
+    #[test]
+    fn wire_format_encodes_value_length_expr_without_extra_option_tag() {
+        let flags: Expr = 0i8.into();
+        let digest: Expr = vec![0u8; 33].into();
+        let key_length: Expr = 32i32.into();
+        let value_length: Expr = GetVar {
+            var_id: 1,
+            var_tpe: SType::SInt,
+        }
+        .into();
+        let expr: Expr = CreateAvlTree::new(
+            flags.clone(),
+            digest.clone(),
+            key_length.clone(),
+            value_length.clone(),
+        )
+        .unwrap()
+        .into();
+
+        let bytes = expr.sigma_serialize_bytes().unwrap();
+        let mut expected = vec![OpCode::AVL_TREE.value()];
+        expected.extend(flags.sigma_serialize_bytes().unwrap());
+        expected.extend(digest.sigma_serialize_bytes().unwrap());
+        expected.extend(key_length.sigma_serialize_bytes().unwrap());
+        expected.extend(value_length.sigma_serialize_bytes().unwrap());
+        assert_eq!(bytes, expected);
+        assert_eq!(Expr::sigma_parse_bytes(&bytes).unwrap(), expr);
     }
 }
