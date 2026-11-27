@@ -2,7 +2,7 @@
 
 use core::convert::TryFrom;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use crate::chain::token::TokenAmount;
 
@@ -27,7 +27,7 @@ impl TryFrom<TokenAmountJson> for TokenAmount {
 
     fn try_from(value: TokenAmountJson) -> Result<Self, Self::Error> {
         if let Some(n) = value.0.as_u64() {
-            Ok(TokenAmount(n))
+            TokenAmount::try_from(n).map_err(|e| e.to_string())
         } else {
             Err(String::from(
                 "can't convert `TokenAmountJson` into `TokenAmount`",
@@ -39,5 +39,26 @@ impl TryFrom<TokenAmountJson> for TokenAmount {
 impl From<TokenAmount> for TokenAmountJson {
     fn from(value: TokenAmount) -> Self {
         TokenAmountJson(serde_json::Number::from(value.0))
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "json")]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_amount_json_rejects_zero_and_above_i64_max() {
+        assert!(serde_json::from_str::<TokenAmount>("0").is_err());
+        assert!(serde_json::from_str::<TokenAmount>("\"0\"").is_err());
+        let above_max = (i64::MAX as u64) + 1;
+        assert!(serde_json::from_str::<TokenAmount>(&above_max.to_string()).is_err());
+        assert!(serde_json::from_str::<TokenAmount>(&format!("\"{above_max}\"")).is_err());
+
+        let min = serde_json::from_str::<TokenAmount>("1").unwrap();
+        assert_eq!(*min.as_u64(), 1);
+        let max = serde_json::from_str::<TokenAmount>(&i64::MAX.to_string()).unwrap();
+        assert_eq!(*max.as_u64(), i64::MAX as u64);
     }
 }

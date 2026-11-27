@@ -99,29 +99,45 @@ impl RegisterValue {
 
     /// Parse bytes to RegisterValue
     pub fn sigma_parse_bytes(bytes: &[u8]) -> Self {
-        if let Ok(expr) = Expr::sigma_parse_bytes(bytes) {
-            match expr {
-                Expr::Const(c) => RegisterValue::Parsed(c),
-                Expr::Tuple(t) => match EvaluatedTuple::new(t) {
-                    Ok(et) => RegisterValue::ParsedTupleExpr(et),
-                    Err(e) => RegisterValue::Invalid {
+        use crate::ergo_tree::ErgoTreeVersion;
+        use crate::serialization::constant_store::ConstantStore;
+        use crate::serialization::sigma_byte_reader::{SigmaByteRead, SigmaByteReader};
+        use core3::io::Cursor;
+
+        let mut sr = SigmaByteReader::new(Cursor::new(bytes), ConstantStore::empty());
+        let parsed = sr.with_tree_version(ErgoTreeVersion::MAX_SCRIPT_VERSION, Expr::sigma_parse);
+        match parsed {
+            Ok(expr) => {
+                if sr.position().ok() != Some(bytes.len() as u64) {
+                    return RegisterValue::Invalid {
                         bytes: bytes.to_vec(),
-                        error_msg: format!("invalid tuple in register value : {e:?}"),
+                        error_msg: format!(
+                            "trailing unconsumed bytes when parsing register value: {bytes:?}"
+                        ),
+                    };
+                }
+                match expr {
+                    Expr::Const(c) => RegisterValue::Parsed(c),
+                    Expr::Tuple(t) => match EvaluatedTuple::new(t) {
+                        Ok(et) => RegisterValue::ParsedTupleExpr(et),
+                        Err(e) => RegisterValue::Invalid {
+                            bytes: bytes.to_vec(),
+                            error_msg: format!("invalid tuple in register value : {e:?}"),
+                        },
                     },
-                },
-                e => RegisterValue::Invalid {
-                    bytes: bytes.to_vec(),
-                    error_msg: format!(
-                        "Unexpected parsed register value: {e:?} from bytes {0:?}",
-                        bytes
-                    ),
-                },
+                    e => RegisterValue::Invalid {
+                        bytes: bytes.to_vec(),
+                        error_msg: format!(
+                            "Unexpected parsed register value: {e:?} from bytes {0:?}",
+                            bytes
+                        ),
+                    },
+                }
             }
-        } else {
-            RegisterValue::Invalid {
+            Err(_) => RegisterValue::Invalid {
                 bytes: bytes.to_vec(),
                 error_msg: format!("failed to parse register value: {0:?}", bytes),
-            }
+            },
         }
     }
 }
@@ -171,5 +187,14 @@ mod tests {
             tuple_expr_bytes,
             "preserve tuple expr on serialization"
         );
+    }
+
+    #[test]
+    fn test_trailing_bytes_marked_invalid() {
+        let mut bytes = Constant::from(1i32).sigma_serialize_bytes().unwrap();
+        bytes.push(0xAA);
+        let reg_value = RegisterValue::sigma_parse_bytes(&bytes);
+        assert!(matches!(reg_value, RegisterValue::Invalid { .. }));
+        assert_eq!(reg_value.sigma_serialize_bytes(), bytes);
     }
 }
