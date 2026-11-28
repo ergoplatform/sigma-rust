@@ -49,7 +49,8 @@ mod tests {
                 .cloned()
                 .collect(),
         };
-        let ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        let mut ctx = force_any_val::<Context>().with_extension(&ctx_ext);
+        ctx.pre_header.version = 2; // The V1 tree below requires V1 activation.
         assert_eq!(
             reduce_to_crypto(
                 &ErgoTree::new(ErgoTreeHeader::v1(false), &expr).unwrap(),

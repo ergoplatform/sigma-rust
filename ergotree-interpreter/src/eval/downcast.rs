@@ -168,7 +168,8 @@ mod tests {
         // header byte: version 3 (0b011) | has-size (0b1000) = 0x0b
         let tree = ErgoTree::new(ErgoTreeHeader::new(0x0b).unwrap(), &expr).unwrap();
 
-        let ctx = force_any_val::<Context>();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4; // V3 is activated; tree_version remains unset below.
         ctx.tree_version.set(ErgoTreeVersion::V0); // simulate a caller that doesn't set it
         let reduction = reduce_to_crypto(&tree, &ctx).unwrap();
         assert_eq!(reduction.sigma_prop, SigmaBoolean::TrivialProp(true));

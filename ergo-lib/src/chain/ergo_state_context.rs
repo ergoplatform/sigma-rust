@@ -16,6 +16,8 @@ pub struct ErgoStateContext {
     pub headers: Headers,
     /// Parameters that can be adjusted by voting
     pub parameters: Parameters,
+    /// Validation rule statuses from the chain's extension sections.
+    pub validation_settings: ergotree_ir::soft_fork::SigmaValidationSettings,
 }
 
 impl ErgoStateContext {
@@ -31,7 +33,17 @@ impl ErgoStateContext {
             pre_header,
             headers,
             parameters,
+            validation_settings: Default::default(),
         }
+    }
+
+    /// Set chain-provided validation overrides for transaction reduction and verification.
+    pub fn with_validation_settings(
+        mut self,
+        settings: ergotree_ir::soft_fork::SigmaValidationSettings,
+    ) -> Self {
+        self.validation_settings = settings;
+        self
     }
 }
 

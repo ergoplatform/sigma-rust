@@ -13,8 +13,10 @@ use super::{
     unchecked_tree::{UncheckedLeaf, UncheckedSchnorr},
     SigmaBoolean, UncheckedTree,
 };
+use crate::eval::env::Env;
 use crate::eval::EvalError;
 use crate::eval::{reduce_to_crypto, ReductionDiagnosticInfo};
+use crate::sigma_protocol::check_soft_fork_condition;
 use dlog_protocol::FirstDlogProverMessage;
 use ergotree_ir::chain::context::Context;
 use ergotree_ir::ergo_tree::ErgoTree;
@@ -28,10 +30,10 @@ use thiserror::Error;
 pub enum VerifierError {
     /// Failed to parse ErgoTree from bytes
     #[error("ErgoTreeError: {0}")]
-    ErgoTreeError(ErgoTreeError),
+    ErgoTreeError(#[source] ErgoTreeError),
     /// Failed to evaluate ErgoTree
     #[error("EvalError: {0}")]
-    EvalError(EvalError),
+    EvalError(#[source] EvalError),
     /// Signature parsing error
     #[error("SigParsingError: {0}")]
     SigParsingError(SigParsingError),
@@ -64,6 +66,16 @@ pub trait Verifier {
         proof: ProofBytes,
         message: &[u8],
     ) -> Result<VerificationResult, VerifierError> {
+        if check_soft_fork_condition(tree, ctx)? {
+            return Ok(VerificationResult {
+                result: true,
+                cost: 0,
+                diag: ReductionDiagnosticInfo {
+                    env: Env::empty(),
+                    pretty_printed_expr: None,
+                },
+            });
+        }
         let reduction_result = reduce_to_crypto(tree, ctx)?;
         let res: bool = match reduction_result.sigma_prop {
             SigmaBoolean::TrivialProp(b) => b,
@@ -179,6 +191,7 @@ mod tests {
     use crate::sigma_protocol::prover::{Prover, TestProver};
 
     use super::*;
+    use ergotree_ir::ergo_tree::{ErgoTreeHeader, ErgoTreeVersion};
     use ergotree_ir::mir::atleast::Atleast;
     use ergotree_ir::mir::constant::{Constant, Literal};
     use ergotree_ir::mir::expr::Expr;
@@ -201,6 +214,133 @@ mod tests {
             }
         }
     }
+
+    // Test that Verifier accepts an ErgoTree without evaluating it if its version is greater than what our interpreter can understand
+    #[test]
+    fn test_soft_fork() {
+        let verifier = TestVerifier;
+        let tree = ErgoTree::new(
+            ErgoTreeHeader::new((u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1) | 0x08)
+                .unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(false))).into(),
+        )
+        .unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 2;
+        assert!(
+            verifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .unwrap()
+                .result,
+        );
+
+        // If the ErgoTree version is higher than the activated version, the script is rejected
+        ctx.pre_header.version = u8::from(ErgoTreeVersion::MAX_SCRIPT_VERSION) + 1;
+        assert!(verifier
+            .verify(&tree, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+
+        // Even if the interpreter supports the tree version, reject if higher than activated version
+        let supported_tree = ErgoTree::new(
+            ErgoTreeHeader::v1(false),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(true))).into(),
+        )
+        .unwrap();
+        ctx.pre_header.version = 1; // activated_script_version = V0
+        assert!(verifier
+            .verify(&supported_tree, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+    }
+
+    #[test]
+    fn soft_fork_real_unparsed_tree_respects_chain_settings_in_shared_reduction() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::soft_fork::{RuleStatus, SigmaValidationSettings};
+        let tree = ErgoTree::sigma_parse_bytes(&[0x0c, 0x01, 0xfb]).unwrap();
+        assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 5;
+        assert!(reduce_to_crypto(&tree, &ctx).is_err());
+        ctx.validation_settings =
+            SigmaValidationSettings::default().updated(1002, RuleStatus::Changed(vec![0xfb]));
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            SigmaBoolean::TrivialProp(true)
+        );
+        assert!(
+            TestVerifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .unwrap()
+                .result
+        );
+        let prover = TestProver { secrets: vec![] };
+        assert!(prover.prove(&tree, &ctx, &[], &HintsBag::empty()).is_ok());
+        ctx.validation_settings =
+            SigmaValidationSettings::default().updated(1002, RuleStatus::Changed(vec![0xfc]));
+        assert!(TestVerifier
+            .verify(&tree, &ctx, ProofBytes::Empty, &[])
+            .is_err());
+    }
+
+    #[test]
+    fn soft_fork_unsized_v0_tree_is_never_accepted() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        use ergotree_ir::soft_fork::{RuleStatus, SigmaValidationSettings};
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 5;
+        let prover = TestProver { secrets: vec![] };
+        for status in [RuleStatus::Changed(vec![0xfb]), RuleStatus::Replaced(1102)] {
+            ctx.validation_settings = SigmaValidationSettings::default().updated(1002, status);
+            // Byte preservation is required for box IDs even though execution must fail.
+            let tree = ErgoTree::sigma_parse_bytes(&[0x00, 0xfb]).unwrap();
+            assert!(matches!(tree, ErgoTree::Unparsed { .. }));
+            assert_eq!(tree.sigma_serialize_bytes().unwrap(), vec![0x00, 0xfb]);
+            assert!(reduce_to_crypto(&tree, &ctx).is_err());
+            assert!(TestVerifier
+                .verify(&tree, &ctx, ProofBytes::Empty, &[])
+                .is_err());
+            assert!(prover.prove(&tree, &ctx, &[], &HintsBag::empty()).is_err());
+            // A sized V0 tree with the same opcode still follows voted settings.
+            let sized = ErgoTree::sigma_parse_bytes(&[0x08, 0x01, 0xfb]).unwrap();
+            assert_eq!(
+                reduce_to_crypto(&sized, &ctx).unwrap().sigma_prop,
+                SigmaBoolean::TrivialProp(true)
+            );
+            assert!(
+                TestVerifier
+                    .verify(&sized, &ctx, ProofBytes::Empty, &[])
+                    .unwrap()
+                    .result
+            );
+        }
+    }
+
+    #[test]
+    fn soft_fork_version_gate_also_applies_to_direct_reduction() {
+        let tree = ErgoTree::new(
+            ErgoTreeHeader::new(0x0c).unwrap(),
+            &Constant::from(SigmaProp::new(SigmaBoolean::TrivialProp(false))).into(),
+        )
+        .unwrap();
+        let mut ctx = force_any_val::<Context>();
+        ctx.pre_header.version = 4;
+        assert!(reduce_to_crypto(&tree, &ctx).is_err());
+        ctx.pre_header.version = 5;
+        assert_eq!(
+            reduce_to_crypto(&tree, &ctx).unwrap().sigma_prop,
+            SigmaBoolean::TrivialProp(true)
+        );
+    }
+
+    #[test]
+    fn soft_fork_nonzero_unsized_headers_are_rejected() {
+        use ergotree_ir::serialization::SigmaSerializable;
+        for version in 1..=7 {
+            assert!(ErgoTreeHeader::new(version).is_err());
+            assert!(ErgoTree::sigma_parse_bytes(&[version, 0x08, 0xce]).is_err());
+        }
+    }
+
     proptest! {
 
         #![proptest_config(ProptestConfig::with_cases(16))]

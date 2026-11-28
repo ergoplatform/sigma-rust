@@ -24,8 +24,15 @@ impl SigmaSerializable for PropertyCall {
         let type_id = TypeCode::sigma_parse(r)?;
         let method_id = MethodId::sigma_parse(r)?;
         let obj = Expr::sigma_parse(r)?;
-        let method =
-            SMethod::from_ids(type_id, method_id)?.specialize_for(obj.tpe(), Vec::new())?;
+        let method = SMethod::from_ids(type_id, method_id)?;
+        if r.tree_version() < method.method_raw.min_version {
+            return Err(crate::soft_fork::SoftForkError::UnknownMethodId(
+                method_id,
+                type_id.value(),
+            )
+            .into());
+        }
+        let method = method.specialize_for(obj.tpe(), Vec::new())?;
         Ok(PropertyCall::new(obj, method)?)
     }
 }
