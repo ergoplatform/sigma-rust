@@ -297,6 +297,12 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # rust-android-gradle 0.9.2 imports pipes, removed in Python 3.13.
+      - uses: actions/setup-python@v5
+        id: android-python
+        with:
+          python-version: '3.12'
+
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -310,6 +316,8 @@ jobs:
 
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          RUST_ANDROID_GRADLE_PYTHON_COMMAND: ${{ steps.android-python.outputs.python-path }}
         with:
           api-level: 29
           ndk: 26.2.11394342
